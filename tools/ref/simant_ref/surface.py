@@ -22,6 +22,9 @@ class NoPlayer:
     def nudge_player(self, st, a, b, d):
         raise NotImplementedError('f_769c5 (player follow nudge)')
 
+    def lion_eats_player(self, st, a, b):
+        raise NotImplementedError('f_11a3e / f_2f7d0(2) (an ant lion catches the yellow ant)')
+
     def nest_follow(self, st, col, depth, d):
         raise NotImplementedError('f_2f7bc (nest ant steps onto the yellow ant)')
 

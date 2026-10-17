@@ -87,11 +87,13 @@ class Verifier:
         b = self.e.base * 16
         return State(bytes(self.e.uc.mem_read(LO + b, HI - LO)))
 
-    def check(self, lin, port_fn, args_fn=None, label=None, repeat=1, ignore=(), pre=None, post_args=None):
+    def check(self, lin, port_fn, args_fn=None, label=None, repeat=1, ignore=(), pre=None, post_args=None,
+              pre_once=False):
         """Run original routine `lin` and `port_fn` from every snapshot (optionally `repeat` times in a row,
         args from args_fn(state, i); args None = skip this call). pre(set16, args) can set globals on both
         sides before each call (set16(seg, off, value)); post_args(state, args) can then rewrite the call's
-        args from the (shared) state. Returns True if all memory matches."""
+        args from the (shared) state. pre_once: run pre only before the first call of each snapshot.
+        Returns True if all memory matches."""
         label = label or f'{lin:05x}'
         ok = True
         b = self.e.base * 16
@@ -107,7 +109,7 @@ class Verifier:
                 if args is None:
                     continue
                 calls += 1
-                if pre:
+                if pre and not (pre_once and calls > 1):
                     def set16(seg, off, val):
                         self.e.set16(seg, off, val)
                         st.set16(seg, off, val)
