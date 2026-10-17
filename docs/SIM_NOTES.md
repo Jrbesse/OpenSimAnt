@@ -1383,7 +1383,7 @@ local. It fills the window with `f_2318a` (number) / `f_23943` (formatted text):
 
 It then waits for a click.
 
-### The yellow ant's menu and commands (`f_67e93` → `f_76cb9`; not ported yet)
+### The yellow ant's menu and commands (`f_67e93` → `f_76cb9`; ported: `simant_ref/commands.py`, `test_commands.py`, except the Exchange swap and the Chase click)
 
 `f_67e93` opens a pop-up menu (`f_2379b`) and turns the choice into a command through a byte table in
 DS:

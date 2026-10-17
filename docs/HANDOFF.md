@@ -54,7 +54,7 @@ cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
 python test_yard.py; python test_player.py; python test_sim.py 3000
-python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py; python test_debug.py; python test_markers.py; python test_balloons.py; python test_panels.py
+python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py; python test_debug.py; python test_markers.py; python test_balloons.py; python test_panels.py; python test_commands.py
 ```
 
 All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical"); last full run
@@ -84,6 +84,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `markers.py` | the event-marker recorders behind the 'brood' / 'fight' / 'queen' / 'rest' effects |
 | `balloons.py` | the speech balloons `f_06a4d` (timers, RNG draws, line choice; drawing is a hook) |
 | `panels.py` | the Behavior / Caste Control triangles: weights ↔ marker point |
+| `commands.py` | the yellow ant's menu commands `f_76cb9`: recruit, release, modes, alarm, dig, brood, hunt |
 | `player.py` | the yellow ant (also its death and the takeover, `player_event`): upkeep `f_7bf7e`, actions `f_7b7b8` (pathfinding to the cursor, picking up / dropping / eating, entering and leaving nests, fights), view-generic map accessors |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
@@ -146,11 +147,9 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    - the fonts (`tools/fonts.py`; text placement in `render_windows.py`);
    - the Behavior / Caste Control triangles (`simant_ref/panels.py`, verified);
    - the Efficiency Score window, the population report, the History Window's scaling (SIM_NOTES).
-   **Next: port the yellow ant's commands** (SIM_NOTES "The yellow ant's menu and commands"):
-   - the dispatcher `f_76cb9` and recruiting `f_13f32` (both small);
-   - the Exchange swap `f_11b81` → `f_11c18` (long) and the spider's Chase click `f_756a6`;
-   - verify each with v.check, like test_tools.py. The overlay at 0x74FE0 uses its own base as CS for
-     `f_76cb9`.
+   **Done: the yellow ant's commands** `f_76cb9` / `f_13f32` (`simant_ref/commands.py`,
+   `test_commands.py` ALL OK, 23 cases). **Next:** the Exchange swap `f_11b81` → `f_11c18` (long) and
+   the spider's Chase click `f_756a6` (stubs in commands.py raise NotImplementedError).
    `game.py` calls the G:105E modes 0x0A / 0x0B "a pending yard map edit": they are Exchange / Chase.
    Open:
    - colours 0x10.. in the map window (driver dither, DS:914C; drawn as a plain ramp);
