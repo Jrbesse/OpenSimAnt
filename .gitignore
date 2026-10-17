@@ -1,0 +1,22 @@
+# Original SimAnt (Maxis, 1991) game files: copyrighted, never commit.
+# The tools read them from a local copy supplied by the user.
+/FONT1
+/FONT2
+/FONT3
+/FONT4
+/*.DAT
+/*.NDX
+/*.EXE
+/*.exe
+/READ.ME
+/SIMANT.CFG
+/RALLOC.DMP
+*.ANT
+
+# Assets and data derived from the original files
+/extracted/
+tools/re/build/
+
+# Python
+__pycache__/
+*.pyc

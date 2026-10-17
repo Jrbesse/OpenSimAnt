@@ -1,0 +1,667 @@
+# SimAnt — Reverse-Engineering Notes (SIMANT.EXE)
+
+This is the working log of what has been recovered from the DOS executable. Addresses are **flat linear
+addresses in `tools/re/build/flat.bin`** unless noted. Ghidra adds its load segment `0x1000`, so Ghidra
+`seg:off` = flat `(seg-0x1000):off`.
+
+## Tooling (`tools/re/`)
+
+| Script | Purpose |
+|---|---|
+| `mz.py` | Loads `SIMANT.EXE`, parses the overlay table, builds resident memory, has a capstone disassembler helper |
+| `build_flat.py` | Builds `build/flat.bin` (every overlay at a unique address, call vectors patched) and `build/SIMFLAT.EXE`, a synthetic MZ with merged relocations for Ghidra |
+| `segmap.py <seg>` | Lists every function that reads or writes a far data segment, by offset (`build/segmap_<seg>.tsv`) |
+| `callgraph.py` | Direct near/far call graph (`build/calls.tsv`) |
+| `ghidra_scripts/SetDS.java`, `DecompileAll.java` | Headless Ghidra: preset DS, then dump pseudo-C for every function to `build/decomp/` |
+
+Ghidra run (Ghidra 12.1.4 in `C:\Users\jrbes\tools`):
+
+```
+analyzeHeadless.bat <proj_dir> simant -import build\SIMFLAT.EXE -scriptPath ghidra_scripts ^
+    -preScript SetDS.java 65b3 -postScript DecompileAll.java build\decomp
+```
+
+## Executable layout
+
+- Compiler: **Microsoft C 6.0, large memory model** (far code, far data), built 6 Dec 1991.
+- Overlay manager: third party (error strings `eov0001`…`eov0009`, "use RELOAD to increase size").
+  - The resident MZ image is 0x31259 bytes. Its entry (`2cff:06f8`) is the overlay-manager stub, which
+    then jumps to the C runtime at `29f4:001c`.
+  - The overlay table is in the manager segment around `0x2db40`. Records are
+    `{u16 load_seg; u16 ?; u16 file_para; u8 0; u8 flags; u16 mem_paras; u16 nrelocs}{ffff; u16 idx; u16 file_paras}`.
+  - Each section in the file is `nrelocs × {u16 off, u16 seg}` padded to 16 bytes, then the data.
+  - `flags & 1` means loaded at startup and kept: section 2 (code, at seg 0x3126) and section 29 (at seg
+    0x3d57, which is **all data**: the sim state segment, the far-data segment and DGROUP).
+  - Sections 3–28 are swappable code overlays sharing 4 areas (segs 0x3126, 0x35f5, 0x384c, 0x39c7).
+  - **Call vectors** (130 of them, 10 bytes each, ~0x2f600): `e8 <call mgr>; ea <off> <seg>; u16 n`, where
+    the target is section `n + 2` (verified: every vector lands on a function entry).
+  - MSC functions start with either `push bp; mov bp,sp; mov ax,N; call _chkstk` or the frameless
+    `xor ax,ax / mov ax,N; call _chkstk`. `build_flat.py` replaces each `call _chkstk` (`29f4:02cc`) with
+    `sub sp,ax` so Ghidra doesn't treat it as non-returning. `funcstarts.py` detects both forms.
+  - `T` = segment `0x3d57`: constant tables (direction deltas, behaviour tables, …) plus some variables.
+- Data segments:
+  - `DGROUP = 0x55b3` (SS=DS). It holds strings and the segment-variable tables MSC uses for far data
+    (`mov es,[DS:x]`).
+  - `0x50f6` is the misc far globals: string-list handles, UI state, statistics.
+  - `0x3e1d` is the **simulation state** (one 64 KB segment, see below).
+
+## Simulation state segment `0x3e1d`
+
+| Offset | Size | Contents |
+|---|---|---|
+| 0x0180 | 0x2000 | `g0180`: **surface grid, 128 × 64** (x 0–127, y 0–63), terrain/contents; read for passability by the surface AI |
+| 0x2180 | 0x1000 | `g2180`: black nest terrain (dirt/tunnel) grid |
+| 0x3180 | 0x1000 | `g3180`: red nest terrain grid |
+| 0x4180 | 0x1000 | `g4180`: black nest secondary grid |
+| 0x5180 | 0x1000 | `g5180`: red nest secondary grid |
+| 0x6180 | 0x1000 | `g6180`: surface occupancy grid (written as ants move) |
+| 0x7180 | 0x1000 | `g7180`: (written once at setup) |
+| 0x8180 | 0x1000 | Black nest **contents** grid. Cell byte = `(caste << 3) | brood_stage`; caste 0 means the low 3 bits are a `STR#1100` brood stage |
+| 0x9180 | 0x1000 | Red nest contents grid (same encoding) |
+| 0xa180 | 5 × 1001 | **Surface ants** (max 1000), structure-of-arrays: `+0` x, `+0x3e9` y, `+0x7d2` state, `+0xbbb` type, `+0xfa4` ? |
+| 0xb50d | 5 × 501 | **Black nest ants** (max 500), same 5 fields; state at 0xb8f7 |
+| 0xbed6 | 5 × 501 | **Red nest ants** (max 500); state at 0xc2c0 |
+| 0xc89f…0xf09f | 6 × 0x800 | **Pheromone maps at half resolution, 64 × 32**, index `(x>>1)*32 + (y>>1)`. The surface AI reads `0xd09f`; `0xe09f`/`0xf09f` are written by the black/red nest-marker passes (`0x14966`/`0x149e9`). Cells near nest entrances are set to 0xff unless the surface tile there is 0x51. |
+
+Full-resolution grids are indexed `x * 64 + y` (row stride 0x40); the nests are 64 × 64 and the surface is 128 × 64. Neighbor reads at ±1 and ±0x40 appear throughout.
+
+Ant **type** byte (surface `0xad3b`): 0 = empty slot, bit 0x80 = red colony, low bits = caste.
+
+## Surface ant tick (`0x8c8b`, real address `0894:034b`)
+
+```
+for ant = surface_count-1 downto 0:
+    if type[ant] == 0: continue
+    if rand256() == 0 and rand32() > colony_health[colour]:   # black: 50f6:10be, red: 50f6:01fe
+        kill(ant)  (0xa961: x, y, colour)
+        type[ant] = 0; expired_count++ (32-bit at 0xf30)  -> "Expired" history stat
+        continue
+    census[colour][state[ant]]++                   # black 0xd40[], red 0xd72[]
+    switch state[ant]:                             # jump table at cs:0x470, 20 entries
+```
+
+| state | STR#1102 name | handler |
+|---|---|---|
+| 0 | Bored | 0x9334 |
+| 1 | Nesting | 0x99c7 |
+| 2 | Foraging | 0x9fe5 |
+| 3 | Got Food | 0x9e65 |
+| 4 | Dig In | 0x99c7 (same as Nesting) |
+| 5 | Dig Out | 0x97ce |
+| 6 | Defense | 0xa368 |
+| 7 | Attack | 0xab2d |
+| 8 | Hatching | 0x8eb2 |
+| 9 | Egg Laying | 0x8f2e |
+| 10 | Fighting | 0xa871 |
+| 11 | Alarmed | 0x9c55 |
+| 12 | Defend Nest | 0x92a1 |
+| 13 | Resting | 0x9018 |
+| 14 | Pre-Flight | 0x9091 |
+| 15 | Take off | 0x90f3 |
+| 16 | Flying | 0x91d2 |
+| 17, 18 | ??? | no-op |
+| 19 | Avenger | (inline) |
+
+### Colony health (`BHealth` / `RHealth`)
+
+`50f6:10be` (black) and `50f6:01fe` (red), range 0–100:
+- set to 100 (0x64) at new game (overlay 10, `0x6a920`)
+- decremented in the main step (`0x888d`), and clamped at 0
+- increased when food is eaten (`0x12de1`: `health += n`, capped at 100)
+- surface ants roll for death only when health < 32 (see the loop above), so starvation kills ants
+
+### RNG (segment `0093`, flat `0x930`)
+
+Game RNG = 16-bit Galois LFSR, state at `DS:0x8ba2`:
+
+```
+x = (x << 1) & 0xffff; if carry_out: x ^= 0x1bf5
+```
+
+| Function | Returns |
+|---|---|
+| `0093:013d` `Rand(n)` | `x % n` (unsigned) |
+| `0093:0169`…`0250` | `x & 1, 3, 7, 15, 31, 63, 127, 255` (`Rand2` … `Rand256`) |
+| `0093:0118` | `abs(crt_rand()) % n`, using the MSC runtime LCG (`s = s*214013 + 2531011; (s>>16) & 0x7fff`) |
+
+How the seed is initialised is still to be found (look for writes to `DS:0x8ba2`).
+
+## Simulation step (`f_0894e`, called once per game tick)
+
+```
+tick = G:0f08 + 1; if tick > 0x1000: tick = 0      # 12-bit tick counter
+total_ticks (32-bit G:0c26) += 1
+if T:07b2 == 1: reset per-game stats (G:f06, f2e, f10, ef6 = 0; records = -1)
+if tick % 64 == 0: HealthDecay()                   # black/red health -= 1 (black skipped if G:0c18)
+if tick % 32 == 0: SlowPhase((tick >> 5) & 3)      # each phase runs every 128 ticks
+    phase 0: f_0ec12; then as phase 2
+    phase 2: f_0c20f, sec26 f_798c8, DiffuseAlarm
+    phase 1: f_0ec91, BlackNestMarkers, DecayBlackTrail, DecayBlackScent
+    phase 3: f_0ed10, RedNestMarkers, DecayRedTrail, DecayRedScent
+sec8 f_68513
+f_0c22c, f_0b163, f_0ce63                          # surface world updates
+if tick odd: f_0b6cc
+ColonyAdvisor()                                    # f_13832: priorities, advisor flags
+reset census_black/red; G:08dc, G:08e8 count down to 0
+SurfaceAntsTick()                                  # f_08c8b
+sec27 f_799e0                                      # nest ants (to confirm)
+f_0f3f8
+sec27 f_7bf7e
+StatsFromCensus()                                  # f_08b25
+sec27 f_7b7b8
+f_0e2ea
+if game_over (G:0376): sec16 f_71d95
+```
+
+## Pheromones (64 × 32 maps, one cell per 2×2 tiles)
+
+| map (SIM offset) | meaning | update rule (every 128 ticks unless noted) | used by |
+|---|---|---|---|
+| `0xe09f` | **black nest marker** | `v -= 1` (`DecayBlackNest`); nest-entrance cells re-pinned to 0xFF (`BlackNestMarkers`) | laid by ants leaving the nest (`LayNestMarkerBlack`, strength = countdown `s_e`); climbed by food carriers to get home (`HomeDir`) |
+| `0xe89f` | **black food trail** | `v < 8 ? 0 : v - v/2` (`DecayBlackTrail`) | laid by food carriers (`LayFoodTrailBlack`, strength = countdown from 200); every black surface step does `v -= 1` (`WearTrail`); climbed by foragers (`ForageDir`) |
+| `0xf09f` | red nest marker | as black | |
+| `0xf89f` | red food trail | as black | |
+| `0xd09f` | **alarm** | diffusion every 64 ticks: `v = (v + (N+S+E+W)/4) / 2; if v <= 8: v = 0` (`DiffuseAlarm`, via scratch `0xc89f`) | any ant on alarm → state Alarmed |
+| `0xd89f` | ? | written by `DropObjectRandom` and at setup only | |
+
+All laying is `cell = max(cell, strength)`. Experimental "Drop Trails" (`ToolDropPheromone`, `T:07bb`):
+0 = black nest, 1 = black trail, 2 = red nest, 3 = red trail, 4 = alarm.
+
+`ForageDir(x, y, dir, t)` (`f_142c5`):
+```
+at the map border: fixed or random inward heading (x==0: y==0→3, y==63→1, else 1+Rand(3);
+    y==0: x==127→5 else 3+Rand(3); x==127: y==63→7 else 5+Rand(3); y==63: (Rand(3)-1)&7)
+cx, cy = x>>1, y>>1;  here = trail[cx][cy]
+best, bestd = 0, Rand8()
+for d in 0..7: v = trail[(cx+dx[d]) & 63][(cy+dy[d]) & 31]; if v > best: best, bestd = v, d
+if best == 0: return T_WALK[dir][Rand8()]
+if here > best: return -1                       # lost: on a local maximum
+return T_WALK[dir][bestd]                       # quirk: indexes the walk table with bestd
+```
+
+## Other routines identified
+
+| Address | Role |
+|---|---|
+| `0x7691`–`0x77c5` | Loads all `STR#` lists at startup into `50f6:xxxx` handles (1100→0x106e, 1101→0x1078, 1102→0x1086, 1103→0x1096, …) |
+| overlay 7 `0x67c1c` | "Ant Info" popup: decodes nest cells and ant state/caste/carry for display |
+| overlay 10 `0x6c010`, `0x6ae20` | New game: clears or initialises every grid and ant array |
+| `0x10fcd` / `0x11121` | Read / write every ant array (save/load or compaction) |
+| `0x0f000`–`0x11200` | Spawn and remove ants per array |
+| overlay 27 `0x79a4d` … | Black nest ant AI |
+| `0x103b9`–`0x10e27` | Red nest ant AI |
+
+## Ant type byte and castes
+
+Type byte (surface `s_type`, nest `b_type`/`r_type`, and occupancy grids): `bit7 = red`, `bits 3–6 = caste`,
+`bits 0–2 = heading` (for ants) or brood stage (for caste 0 cells in the nest grids). The player
+(yellow ant) appears in the occupancy grid as `0xFE`/`0xFF`; its real type is `G:04c2` and its colour `G:04e2`.
+
+| caste | STR#1101 | census group (`f_0be82`) |
+|---|---|---|
+| 0 | (brood: stage in low bits) | eggs |
+| 1, 2, 3, 5 | Worker (2 = plain, 3 = carrying food) | workers |
+| 4 | Male | males |
+| 6, 7, 9 | Soldier (6 = plain, 7 = carrying food) | soldiers |
+| 8 | New Queen | new queens |
+| 12 | Queen | queens |
+
+Picking up food: `type = heading | (type & 0xF8) | 8`, i.e. caste += 1.
+
+Headings: 0=N, 1=NE, 2=E, 3=SE, 4=S, 5=SW, 6=W, 7=NW; `dir_dx = [0,1,1,1,0,-1,-1,-1]`,
+`dir_dy = [-1,-1,0,1,1,1,0,-1]` (`T:0000`, `T:0008`; `T` = segment 0x3d57, the constant tables).
+
+## Census and win/lose (`f_0be82`)
+
+Counts every ant in all three arrays (plus the yellow ant) into `G:0eb6[type>>3]` (32 words).
+- black: eggs `G:aec`, workers `G:aee`, soldiers `G:af0`, males `G:af2`, new queens `G:af4`, queens `G:af6`
+- red: same at `G:afa…b04`
+- `G:0330` = black population (workers + soldiers + males + new queens + queens), `G:0350` = red
+- If the queen count drops to 0: show message 10010 (black) or 10012 (red). If the game mode is ≤ 1, the game
+  ends (`G:0376 = 1`, `G:0366 = 0` lost / `1` won) with 10011 / 10013.
+- Game mode `G:0eac`: 3 = Experimental (others still to be confirmed; ≤ 1 = single-patch games).
+
+## Movement
+
+```
+NextDir(x, y, dir):                       # f_146b9
+    e = EdgeDir(x, y)                     # f_148d8: at the map border returns 1+inward heading
+    if e: return (e - 1) & 7              #   corners Rand(3), edges Rand(5) of the inward headings
+    return T_WALK[dir][Rand8()]           # T:0024
+T_WALK = [[0,1,1,1,7,7,7,7], [0,1,2,2,2,2,0,0], [1,1,2,3,3,3,3,1], [2,2,2,3,4,4,4,4],
+          [3,3,3,3,4,5,5,5], [6,6,4,4,4,5,6,6], [7,7,7,5,5,5,6,7], [0,0,0,0,6,6,6,7]]
+TurnAside(dir) = T_WALK[dir][Rand8()]     # f_0ab05, used when blocked
+```
+
+Surface tiles (`surface_grid`): food = `0x48–0x4B` (yard) / `0x18–0x27` (house, when `G:0f24` != 0);
+nest entrance = `0x50` (yard) / `0x80–0x8F` (house); tiles `> G:0480` block movement.
+
+## Surface state: Bored (`0x9334`)
+
+```
+S_Bored(ant):
+    x, y, t = s_x, s_y, s_type;  caste = (t>>3)&15;  cc = t & 0xF8
+    if AtOwnNestEntrance(x, y): EnterNest(x, y, ant); return          # f_0acfb / f_0a5ae
+    nd = NextDir(x, y, t&7);  nx, ny = x+dx[nd], y+dy[nd];  tile = surface[nx][ny]
+    if IsFood(tile) and caste in (2, 6):                              # worker or soldier
+        s_type = occ[x][y] = nd | cc | 8;  s_state = GOT_FOOD
+        TakeFoodAt(nx, ny);  s_e = 200;  return
+    if not IsFood(tile) and tile > G:0480:                            # blocked
+        s_type = occ[x][y] = TurnAside(t&7) | cc;  return
+    o = occ[nx][ny]
+    if o == 0:                                                        # move
+        occ[nx][ny] = s_type = nd | cc;  occ[x][y] = 0;  s_x, s_y = nx, ny
+        if s_e: s_e -= 1;  LayNestMarker{Red,Black}(nx, ny, s_e)       # ants fresh out of the nest mark it
+        WearTrail(nx, ny, t & 0x80)
+        if Rand8() == 0 and caste in (2, 6): s_state = FORAGING
+    elif IsYellowAnt(o):                                              # bumped the player
+        if enemy colour: f_2f7c6(1, ant)  (attack player)
+        else: turn aside (+ f_2f7bc if G:1044 == 1)
+    elif same colour: turn aside;  s_state = StateForCaste(caste, t)
+    else: SurfaceEncounterEnemy(ant, x, y, nx, ny)                    # f_0a6c9
+```
+
+## Colony priorities and job choice
+
+`StateForCaste(caste, t)` (`f_141a6`) → black `f_141cb` / red `f_14260`. For black, when automatic
+(`G:0378 == 1`):
+- worker (2): `T_WORKER[G:1094][Rand8()]` (`T:0b9e`), soldier (6): `T_SOLDIER[G:1094][Rand8()]` (`T:0bce`)
+- other castes: `T_DEFAULT[caste]` (`T:0bfe`) = `[8,1,0,3,14,5,0,3,14,5,0,0,9,9,10,0]`
+- manual (`G:0378 != 1`): workers and soldiers get `T:0c10` (=2, Foraging)
+
+| row | T_WORKER (8 picks) | T_SOLDIER |
+|---|---|---|
+| 0 | Nesting, Foraging, Attack ×6 | Attack ×8 |
+| 1 | DigIn, Nesting ×3, DigIn, Foraging ×3 | Nesting, Foraging ×7 |
+| 2 | Resting ×3, DigIn ×3, Foraging ×2 | Foraging ×3, DigIn ×2, Foraging ×3 |
+| 3 | Resting ×2, DigIn ×5, Foraging | Foraging, DigIn ×6, Foraging |
+| 4 | Nesting ×3, Foraging ×5 | Foraging ×8 |
+| 5 | Nesting, Foraging ×7 | Foraging ×8 |
+
+Row `G:1094` = colony priority from `f_1395b`, recomputed in `f_13832`:
+
+```
+health = black_health
+if health < 10 and pop_b/2 > pop_r > 0 and G:036c > 0: return 0      # desperate raid
+if health < 30: return 5
+if health < 50: return 4
+if pop_b > G:0224: return 3                                         # G:0224 = nest capacity (grows by digging)
+if pop_b*2 > G:0224: return 2
+if pop_b > 100 and pop_r > 0 and G:036c > 0 and pop_b/3 > pop_r: return 0   # attack
+return 1
+```
+
+## Getting home and entering the nest
+
+```
+HomeDir(x, y, dir, t):                                   # f_1445a, used by Got Food
+    e = EdgeDir(x, y); if e: return (e-1) & 7
+    nest = red ? pher_rnest : pher_bnest
+    if nest[x>>1][y>>1] != 0:
+        bestd = argmax over 8 neighbours (first max wins, start 0)
+        r = Rand2() ? T_WALK[dir][bestd] : dir
+        return T_WALK[r][bestd]
+    d = DirTo(x, y, entrance_x, entrance_y)              # black T:02ac/02ae, red T:02b0/02b2
+    if d and Rand4() != 0: return T_WALK[dir][d-1]
+    return T_WALK[dir][Rand8()]
+
+DirTo(x, y, tx, ty) -> 0 if same cell else 1 + heading (8-way sign of the delta)   # f_0c9a1
+```
+
+Coordinates: surface grids are `[a][b]` with `a` in 0..127 and `b` in 0..63. **`a < 64` is the black half
+and `a >= 64` the red half.** Nest grids are `[col][depth]`-like 64 × 64. `T:0224[b]` / `T:0264[b]` give
+the surface `a` of a black/red nest entrance in column `b` (0 = none). Nest column = surface `b`.
+(Which axis is horizontal on screen is still to be confirmed from the renderer.)
+
+```
+EnterNest(a, b, ant):                                    # f_0a5ae
+    colony = black if a < 64 else red
+    if nest_count >= 500: compact nest arrays; if still >= 500: return   # ant stays outside
+    Add{Black,Red}NestAnt(col=b, depth=1, type=(s_type & 0xF8) | 4 /*heading S*/, s_state, s_e)
+    if entrance_a_by_b[b]: f_153f9 / f_15527(b, 1)
+    s_type = 0; occ[a][b] = 0                            # slot freed; compacted later
+```
+
+Surface count compaction (`CompactSurface` `f_0ec12`) and nest compaction run in the slow phases.
+
+## Surface combat
+
+```
+SurfaceEncounterEnemy(ant, a, b, na, nb):                 # f_0a6c9 - ant bumps an enemy at (na, nb)
+    att = s_type[ant]; s_type[ant] = 0; occ[a][b] = 0     # attacker leaves the arrays
+    d = SurfaceAntAt(na, nb); if d < 0: return
+    winner = ResolveFight(s_type[d], att)
+    s_type[d] = occ[na][nb] = (winner & 0x80) | 0x70      # caste 14 "Fight", coloured by the winner
+    s_state[d] = FIGHTING; s_e[d] = winner                # winner's full type byte kept in s_e
+    DepositAlarm(na, nb, 40)                              # alarm = max(alarm, 40)
+
+ResolveFight(def_t, att_t):                               # f_0a774
+    if T:0c14 == 1: return the black one                  # (cheat / debug)
+    r = crt_rand() % 10
+    if combat_odds[class(def)][class(att)] > r: winner = def else winner = att
+    kills: loser black -> G:09fa++, G:0efc (32-bit)++;  loser red -> G:0a00++, G:0f3e++
+    return winner
+
+S_Fighting(ant):                                          # f_0a871
+    s_type = (s_type & 0xF8) + Rand(7)                    # jitter heading (0..6; never 7 - quirk)
+    if Rand16() != 0: (if T:07b2 == 1: fight effect f_06802(a, b, 1)); return
+    s_type = occ = s_e                                    # the winner re-emerges
+    s_state = StateForCaste(caste(s_e), s_e); s_e = 0
+    PlaceCorpse(a, b, s_type & 0x80)
+```
+
+Combat class (`DS:1b72` by caste): castes 0–3, 5, 10, 11, 14, 15 → 0 (worker); 6, 7, 9 → 1 (soldier);
+4, 8 → 2 (breeder); 12, 13 → 3 (queen). Defender-wins chance out of 10 (`DS:1b82[def][att]`):
+
+| defender ↓ / attacker → | worker | soldier | breeder | queen |
+|---|---|---|---|---|
+| worker | 5 | 2 | 7 | 3 |
+| soldier | 8 | 5 | 9 | 4 |
+| breeder | 3 | 1 | 5 | 2 |
+| queen | 7 | 6 | 8 | 5 |
+
+## Corpses (`PlaceCorpse` f_0a961)
+
+A 100-entry ring buffer (`G:037c`/`G:0404`, index `G:0476`). Placing a corpse first recycles the oldest
+slot: if that tile is still a corpse (yard `0x10–0x17`), it becomes `Rand16()` (a ground tile `0x00–0x0F`).
+The new corpse is placed if the tile is plain ground (`< 0x18`): black `0x10 + Rand4()`, red `0x14 + Rand4()`.
+House mode uses other ranges (floor tiles 0–3 → `(floor+2)*4 + Rand(2)` black, `floor*4 + Rand(2) + 0x0a` red).
+The occupancy cell is always cleared.
+
+Yard surface tiles so far: `0x00–0x0F` ground variants, `0x10–0x17` corpses, `0x48–0x4B` food, `0x50` nest
+entrance, `0x74` dropped object (`DropObjectRandom`), `> G:0480` impassable.
+
+## Alarm, Defense (recruits) and steering helpers
+
+```
+S_Alarmed(ant):                                           # f_09c55
+    if AtOwnNestEntrance: EnterNest; return
+    if alarm[a>>1][b>>1] == 0 and Rand4() == 0: s_state = StateForCaste(...); return
+    nd = AlarmDir(a, b, dir); move like Bored but: no trail laying, no WearTrail;
+    blocked -> TurnAside; yellow enemy -> attack player; friend -> TurnAside; enemy -> SurfaceEncounterEnemy
+
+AlarmDir(a, b, dir):                                      # f_145fc
+    EdgeDir first; bestd = argmax alarm over 8 neighbours (strictly greater, start 0)
+    return T_WALK[dir][bestd] if best > 0 else T_WALK[dir][Rand8()]
+
+S_Defense(ant):                                           # f_0a368 - guards / recruits; never leaves this state itself
+    if AtOwnNestEntrance: EnterNest; return
+    nd = alarm here ? AlarmDir : (red ? RedGuardDir : BlackGuardDir)(a, b, dir)
+    blocked -> random heading Rand8() (not TurnAside); otherwise like Alarmed
+
+BlackGuardDir(a, b, dir):                                 # f_146fc, mode = G:048c
+    EdgeDir first
+    mode 1 (recruited/guard):
+        if G:0248 == 1: d = DirTo(a, b, G:0f12>>4, G:0f34>>4)          # straight at the yellow ant
+        elif Distance(a, b, guard_a, guard_b) > stat_black_defense/2: d = DirTo(guard point)
+        else: d = 1 + Rand(8)
+    mode 2: return HomeDir(a, b, dir, black)              # go home
+    mode 3: return HomeDir(a, b, dir, red)                # march on the red nest
+    other: return dir
+    return d ? T_WALK[dir][d-1] : dir
+```
+
+`ColonyAdvisor` (`f_13832`) each tick: if mode 1, `guard = yellow position (G:047c, G:048a) + (Rand(5)-2)`
+clamped to the patch, and `G:0248 = 1` when the yellow ant's pixel position (`G:0f12`, `G:0f34`, /16)
+is within distance 100.
+
+## Remaining surface states
+
+Carrying castes: **+1 = food, +3 = dirt** (worker 2 → 3 food / 5 dirt; soldier 6 → 7 food / 9 dirt;
+worker 1 is probably carrying brood). `T:0074[caste]` marks the carrying castes, `T:0094[caste]` maps them
+back to the empty caste: `[0,2,2,2,4,2,6,6,8,6,10,11,12,13,14,15]`.
+
+| state | behaviour (`T:07b2` = "this patch is on screen", gates effects only) |
+|---|---|
+| Got Food (3) | `HomeDir`; moves **without** checking occupancy; lays food trail from countdown `s_e` (200 at pickup); entering the nest delivers it |
+| Nesting / Dig In (1/4) | `HomeDir`; picks up food on the way (workers/soldiers → Got Food, `s_e = 200`); otherwise like Bored |
+| Dig Out (5) | dirt carriers wander (`T_WALK` random + `EdgeDir`); each tick 1/8: drop dirt (caste −3) and `StateForCaste`; non-carriers → `StateForCaste` at once; lays nest marker from `s_e` |
+| Attack (7) | carriers drop their load first; then `HomeDir` toward the **enemy** colony (colour flipped); fights whatever it meets; entering the enemy entrance raids the enemy nest |
+| Resting (13) | stays still; 1/4 per tick → Foraging |
+| Defend Nest (12) | own nest marker here < 110 → act as Nesting, else `Wander` |
+| Pre-Flight (14) | 50/50 `Wander` or Nesting; when flight timer (`G:08dc` black / `G:08e8` red) > 100 → Take Off |
+| Take Off (15) | nest marker ≥ 100 → `Wander`, else Nesting; then, with timer t (counts down 1/tick): t == 1 or `Rand(t) == 0` → Flying |
+| Flying (16) | each tick 1/32: if colony's flown count (`G:06aa` / `G:073a`) < 50 → ant leaves the patch; in the Full Game the count increments and 1/16 of departures found a new colony (black: `G:07c8++`, `f_01315`; red: `G:0850++`) |
+| Egg Laying (9) | queen on the surface: castes ≥ 13 call `TryFoundNest` (`f_08fb1`); on success she leaves the surface |
+| Hatching (8) | stays; disappears with 1/200 per tick |
+| 17, 18 | no-op |
+
+`Wander` (`f_0963d`) = `NextDir` random walk with the usual move/bump rules.
+
+## Nest ant tick
+
+Black nest: `BlackNestLoop` (`f_799e0`, section 27) → `BlackNestAntTick` (`f_79a4d`). Red nest: `RedNestLoop`
+(`f_0f3f8`) → `RedNestAntTick` (`f_0f465`) in resident code (to be compared; may differ).
+
+```
+BlackNestAntTick(col, depth, t):
+    if t is red (an invader): see "Invaders" below
+    census_black[state]++
+    if Rand256() == 0 and state != EGG_LAYING and Rand32() > black_health: die (cell = 0, expired++)
+    switch state:  0 Bored → N_Wander (7a057)        1 Nesting → N_Nesting (7ab6e)
+                   3 Got Food → N_GotFood (7afdc)    4 Dig In → N_DigIn (7b197)
+                   6 Defense → N_Defense (7a0c2)     8 Hatching → N_Brood (7a360)
+                   9 Egg Laying → N_EggLaying (7a490) 10 Fighting → N_Fighting (7a126)
+                   13 Resting → N_Resting (79ec5)    14 Pre-Flight → N_Wander, then timer > 100 → Take Off
+                   17 → 79f70
+                   2, 5, 7, 11, 12, 15, 16 (outdoor jobs) → N_GoToSurface (7b3ac)
+```
+
+Invaders (red ant inside the black nest): fight entities (type > 0xEF) run `N_Fighting`. Otherwise the
+ant inspects the black-nest cell at its position. Yellow ant there (and the player is black) →
+`AttackPlayer(2, ant)`. A black ant/brood there (cell 1..0x67): brood (cell < 8) is **stolen** (invader
+becomes Got Food, carrying; `G:1000++`); an adult is fought (`ResolveFight` → fight entity, state 10);
+a queen also triggers `f_7a910`. Otherwise Attack-state invaders run `79d6f`, others `79e40`.
+
+## Brood and hatching (`N_Brood` f_7a360)
+
+Brood are ordinary nest-array entries: caste 0, state Hatching, low 3 bits = stage (`STR#1100`:
+Weird Egg, New Egg, Egg, 1st/2nd/3rd Instar, Pupae, Hatching Pupae).
+
+```
+period = (black_pop <= 2) ? 32 : 128
+if tick % period == 0:                         # all brood advance on the same tick
+    t += 1
+    if (t & 0xF) == 8:                         # finished stage 7 → hatch
+        if behavior_auto == 0 and (G:04a2 >> 7) < RandLow(255):   # manual mode: insufficient care
+            t = 0; G:1000++                    # brood dies
+        else:
+            c = next_hatch_caste (T:0c0e); t = (c << 3) | 2        # new adult facing E
+            state = (c == 2) ? NESTING : StateForCaste_black(c)
+    cell = t; b_type = t; b_e = 0
+```
+`RandLow(n) = min(Rand(n), Rand(n))` (`f_0095b`). So egg to adult takes 8 × 128 = 1024 ticks.
+
+## Caste allocation (`ChooseHatchCaste` f_13a28, run every tick by the advisor)
+
+Groups: 0 workers (`G:aee`), 1 soldiers (`G:af0`), 2 males (`G:af2`), 3 new queens (`G:af4`).
+Target weights `caste_ratio_target[4]` (`T:07da`, set by the caste triangle; default 60/40/0/0).
+```
+actual%[i] = 100*count[i]/sum(count); want%[i] = 100*target[i]/sum(target)   (0 if sums are 0)
+pick the i with the most negative (actual% - want%) (strictly < 0; default 0)
+next_hatch_caste = [2, 6, 4, 8][i]              # worker, soldier, male, new queen
+```
+
+## Manual behaviour (`ChooseManualJob` f_13b26)
+
+When `behavior_auto == 0`, workers and soldiers that pick a new job all get `manual_job` (`T:0c10`):
+```
+cur = [stat_foragers, stat_diggers, stat_nurses]          # Foraging+GotFood, DigIn+DigOut, Nesting
+tot = sum(cur); want[i] = tot * behavior_weight[i] / 65535 # triangle weights G:049e (forage, dig, nurse)
+pick the i with the largest (want[i] - cur[i]) > 0 (default 0)
+manual_job = [FORAGING, DIG_IN, NESTING][i]
+```
+
+## Red AI priority (`RedPriority` f_13be3 → `G:10a6`)
+
+```
+if red_flight_timer == 0 and red_males + red_new_queens > 20: red_flight_timer = 200
+if red_war_timer (G:0504) > 0: red_war_timer -= 1; return 0           # attacking
+if red_health < 10 and red_pop/2 > black_pop > 0 and G:035e > 0: RedLaunchAttack(); return 0
+if red_health < 30: return 5;  if red_health < 50: return 4
+if red_pop > red_nest_capacity (G:0232): return 3;  if red_pop*2 > capacity: return 2
+if red_pop > 100 and black_pop > 0 and G:035e > 0 and red_pop/3 > black_pop: RedLaunchAttack(); return 0
+if Rand32() == 0 and red_pop > 20 and red_pop > black_pop and Rand128() == 0: RedLaunchAttack(); return 0
+return 1
+```
+
+## The queen (two cells) and egg laying (`N_EggLaying` f_7a490)
+
+A queen is **two nest cells**: caste 12 = head, caste 13 = abdomen, placed at `head - dir[heading]`
+(the cell behind her: `dir[(t ^ 0xFC) & 7]`, i.e. heading + 4). Only caste 12 is counted as a queen.
+
+```
+caste 12 (head), each tick:
+    if Rand64() == 0:
+        if black_health == 0: remove head; message 10015 "black queen starves"; return
+        if QueenMove(col, depth, heading): return                     # f_7a78f: moves, drags the abdomen
+    if QueenHeadLost: (cell behind != t+8 and no ant there) -> remove head, black_colonies--
+caste 13 (abdomen), each tick:
+    if black_colonies > 0 and the head (cell in front, t-8) is gone: remove abdomen, black_colonies--; return
+    spot = cell behind the abdomen; if NestCellFree(spot): egg_spot = spot (T:02b4/02b6)
+        if tick % 16 == 0 and Rand128() <= black_health:
+            SpawnBlackBrood(spot, 1); f_7af94(); eggs_laid++ (G:0fc2, 32-bit)
+```
+So a fully healthy queen lays on about 79% of 16-tick boundaries (one egg every ~20 ticks), and a starving one almost never.
+
+## Food economy (black; red mirrors it with its own globals)
+
+Nest grid `bnest_dirt` (`0x2180`) cell values: `< 0x10` open tunnel (variants), **`0x10–0x13` stored food
+(1–4 units)**, `>= 0x30` solid dirt (impassable). `black_food` (`G:1050`) = stored units ("BFood").
+
+```
+StoreFoodBlack(col, depth):       # f_7a2ea - carrier drops food here
+    v = cell; if v < 0x10: cell = 0x10 elif v < 0x13: cell += 1 else: return 0 (full)
+    black_food += 1; ant loses carrying bit (type -= 8)
+
+Eat(col, depth):                  # EatFoodBlack f_7ae88 / EatIfOnFoodBlack f_7adcf (same core)
+    cell = (cell == 0x10) ? Rand8() : cell - 1;  black_food -= 1 (if > 0)
+    eat_acc (G:0212) += 5
+    if eat_acc > (black_pop + soldiers) >> 4: eat_acc = 0; black_health = min(100, black_health + 1)
+
+EggCost():                        # f_7af94, after each egg (and some player action)
+    eat_acc -= 1; if eat_acc < 0: eat_acc = black_pop >> 5; if black_health > 0 and !T:0c18: black_health -= 1
+```
+
+Who eats: a forager in the nest with food (N_GotFood) moves along tunnels. Each tick it drops the food
+with 1/16 chance, or when stuck. Then, if `Rand(100) > black_health`, it eats one unit where it stands,
+and picks a new job. Ants in Nesting / Dig In / Go-To-Surface eat whenever they step on a food cell
+(`EatIfOnFoodBlack`). Red invaders eat black stores with no health gain (`InvaderEatFood`).
+Health also decays by 1 every 64 ticks (`HealthDecay`).
+
+## Nest terrain, digging and navigation
+
+`bnest_dirt` values: `0x00–0x07` open tunnel (visual variants), `0x10–0x13` stored food, `0x18` entrance
+shaft (row 0), **`0x20–0x2E` exposed dirt = `0x1F + mask`** where mask = which of up(1)/right(2)/down(4)/left(8)
+are dirt (edge-tile graphics; diggable, `IsDiggable` = 0x20..0x2E), `0x30+` solid interior dirt (not
+enterable, not diggable until exposed), `0x4E–0x5E` alternate material (rock?) with the same edge scheme
+(base `0x2F`). Anything `>= 0x30` blocks movement.
+
+```
+DigCellBlack(col, depth):                         # f_15623
+    require col in 1..62
+    require depth == 63 or cell below is IsDiggable           # tunnels stay 1 cell thick,
+    require depth <= 2  or cell above is IsDiggable           # so shafts run diagonally
+    cell = (depth == 0) ? 0x18 (+ MakeSurfaceHoleBlack(col)) : Rand8()
+    black_nest_capacity += 1; running sums → centroid (G:10b2 col, G:10c0 depth)  # queen walks toward it
+    ReclassifyDirt on the 4 neighbours; UpdateExitField(col, depth)
+
+ReclassifyDirt(col, depth):                       # f_158d1, only touches dirt cells (0x20..0x2F or >= 0x4F)
+    mask = dirt-ness of up/right/down/left (out-of-range counts as dirt)
+    if mask: cell = base + 0x1F + mask           # base 0 normally, 0x2F for the alternate set (> 0x4D)
+    else:    cell = base ? 0x4E : Rand8()        # isolated dirt crumbles into tunnel
+```
+
+Exit field (`bnest_exitfield` `0x4180`, red `0x5180`): rows 0–1 = `0xFF` at the entrance shaft (dirt
+`0x18`), else `0xFE`; other cells = `max(8 neighbours) − 1` (0 if none), updated **only incrementally**
+(when a cell is dug, on 1/4 of Dig In moves, and as ants leave). `NestStepDir(col, depth, dir)` (`f_0cbe7`)
+picks the neighbour (not straight back) with the **smallest nonzero** value `<=` current (ties 50/50), i.e.
+it goes **deeper**. Returns −1 at a dead end.
+
+```
+N_DigIn(ant):                                     # f_7b197
+    if caste not in (2, 6): state = StateForCaste
+    d = NestStepDir(...); if d < 0: d = Rand8()
+    turn to d; if depth == 63: state = StateForCaste; return
+    target = cell + dir[d]; if target depth < 1: ExitToSurface; return
+    if target dirt >= 0x30: return
+    if IsDiggable(target): if DigCellBlack(target): caste += 3 (dirt); state = DIG_OUT; sound 0x11
+                           else: state = StateForCaste
+                           return
+    if target holds an enemy (and not our yellow ant): NestFightAt(...); return
+    move; if Rand64() > black_health: EatIfOnFoodBlack; if Rand4() == 0: UpdateExitField(new cell)
+```
+
+## Leaving the nest
+
+```
+N_GoToSurface(ant):                               # f_7b3ac, all outdoor jobs inside the nest
+    d = NestClimbDir(col, depth, dir) (f_0ca8f: climbs the exit field; returns 1+dir) else TurnAside
+    target = cell + dir[d]; if out of bounds: return; if target depth < 1: ExitToSurface(col); return
+    if target dirt >= 0x30:                       # dead end
+        exitfield[cell] -= 1
+        if caste in (5, 9): caste -= 3 (drop dirt); state = DIG_IN
+        if caste in (2, 6): state = DIG_IN        # becomes a digger here
+        return
+    if IsDiggable(target): return
+    move (fight invaders as in Dig In, eat on food) ...
+
+ExitToSurface(col):                               # f_7b661, ant at depth 0..1 trying to leave
+    if bnest_dirt[col][0] == 0x18:                # entrance shaft
+        if black_entrance_a_by_b[col] == 0: MakeSurfaceHoleBlack(col)
+        if AddSurfaceAnt(a = black_entrance_a_by_b[col], b = col, (t & 0xF8) + Rand8(), state, s_e):
+            remove from nest; return 1
+        restore type; state = BORED; return 0
+    else:
+        exitfield[col][0] -= 1 (if > 0)
+        Rand2() ? dig (col-1, 1) if diggable : dig (col+1, 1) if diggable
+        NestMoveTo(col, 1, Rand8())
+```
+Nest column `col` == surface `b`; the surface `a` comes from the entrance table.
+
+## Nursing (`N_Nesting` f_7ab6e) — summary, full translation pending
+
+Workers in Nesting carry brood around: a worker (caste 2) standing on brood picks it up (caste → 1,
+brood stage saved in `b_e` low bits, bit 3 = direction flag), walks it through the tunnels (`NestClimbDir`
+up / `NestStepDir` down) and sets it down (`SpawnBlackBrood` at the new cell; caste back to 2) then picks a
+job. Each tick: `Rand(100) > health` → `EatIfOnFoodBlack`; 1/8 → `StateForCaste`.
+
+---
+
+# Status and TODO
+
+Decoded: executable/overlay format, sim state layout, RNG, SimStep schedule, all surface ant states,
+movement/pheromones, combat, corpses, census, win/lose, colony priorities (black/red), caste allocation,
+manual behaviour, brood development, queen + egg laying, food economy, nest terrain/digging/exit field,
+leaving/entering the nest.
+
+Still to do:
+1. Nest handlers in full detail: Nesting (brood carrying), Wander, Resting, Defense, Fighting, invaders
+   (`79d6f`, `79e40`, `7a233`), state 17 (`79f70`), `QueenMove`.
+2. Compare the red nest code (`f_0f465`, resident) with the black one (section 27). They may differ.
+3. Surface world per tick: `f_0c22c`, `f_0b163`, `f_0ce63`, `f_0b6cc`, `f_0e2ea`, sec8 `f_68513`,
+   sec26 `f_798c8`, `f_0c20f`: food spawning, predators (spider, ant lion), humans/mower/rain/insecticide.
+4. Yellow (player) ant: movement, recruit/release/exchange, dig, pick up, `f_7bf7e`, `AttackPlayer`.
+5. New game / map generation (overlay 10 `6ae20`, `6c010`), initial colonies, entrance tables.
+6. Full Game: the yard of patches, house, transfers, mating-flight colonisation (`f_01315`).
+7. Scoring/ratings, history graph sampling, timers (`G:0c26` total ticks), game speed.
+8. Rendering: tile and sprite mapping for surface/nest views (find the draw routines), map windows, UI.
+9. Save-file format (`.ANT`).
+
+## Verification harness (tools/re/emu.py)
+
+Status: **working for self-contained routines**. The emulated `Rand8` matches the Python LFSR model
+exactly. A minimal DOS layer (memory blocks, file reads from the game directory, console) is in place.
+Calling the new-game routine `f_6b36b` (`6b36:000b`) directly gets as far as allocating memory and opening
+files, then fails because the game's startup (Ralloc memory manager, resource database, globals) has not
+run. Next step: run the real startup from the entry point (`2cff:06f8` → C runtime → `main`) with
+video/mouse/keyboard stubbed, stop once the main loop is reached, then drive new game + `SimStep`
+headless and snapshot the sim segment every tick.
+
+## Verification plan
+
+Run the original routines **in a CPU emulator** (Unicorn, 16-bit real mode) on `build/flat.bin`: load the
+image at linear 0, set `DS = SS = 0x55b3`, seed a sim state, call e.g. `SimStep` (`0894:000e`) and dump
+the `0x3e1d` segment. The port then gets compared tick by tick against the original (differential
+testing). Patch out display/sound side effects by keeping `patch_visible` (`T:07b2`) = 0, and stub any DOS
+interrupts.
