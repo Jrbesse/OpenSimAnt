@@ -126,6 +126,11 @@ x = (x << 1) & 0xffff; if carry_out: x ^= 0x1bf5
 
 How the seed is initialised is still to be found (look for writes to `DS:0x8ba2`).
 
+Seeding (found 2026-10-17): at startup (init around 0x075B0, unless the check `f_0126f` returns
+non-zero) the game seeds the LFSR from the clock, `f_009fe`: DS:8BA2 = clock ^ 0x3751, then `f_00a11`
+draws Rand128, seeds the C runtime rand() from the clock (`f_2c8d8`) and calls rand() that many times.
+So every real game starts from the time of day; the verifier sets the seeds itself.
+
 ## Simulation step (`f_0894e`, called once per game tick; ported: `simant_ref/sim.py`, verified tick by tick)
 
 ```

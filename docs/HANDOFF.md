@@ -135,7 +135,8 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    - input / tools: `f_6be50`, `f_6bf06` (from `f_6b592`, and via thunks from the input poll `f_01572`;
      f_6be50 also from `f_0e4e4` ← `f_0e425`, a UI action with message boxes)
    - cheats: `f_6a920` ("CHEAT %d", via thunk 0x2f924 from `f_74386`)
-   - others to identify: `f_008ae` (← f_0052a, f_00572), `f_00a11` (← f_07558), `f_01707` (← f_022bc,
+   - startup seeding: `f_00a11` (documented in SIM_NOTES "RNG"; called from the init near 0x075B0)
+   - others to identify: `f_008ae` (← f_0052a, f_00572), `f_01707` (← f_022bc,
      f_6f733), `f_06a4d` (← f_07128), `f_70601` / `f_706d0` (← f_702f7 ← f_6fa6c), `f_7723f`, `f_77672`,
      `f_77790`, `f_778bd` (← f_770f6 ← f_76f4a), `f_77ad6`, `f_7b59b`, `f_0c7cb`, `f_0c853` (no direct
      callers: look for vector thunks, see step 5)
