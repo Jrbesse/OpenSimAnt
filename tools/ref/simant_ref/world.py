@@ -255,6 +255,149 @@ def sf_surface_ant_at(st, a, b):
     return surface_ant_at(st, a, b)
 
 
+# ------------------------------------------------------------------------------------------- bugs + caterpillar
+def _in_patch(a, b):
+    return 0 <= a <= 0x7f and 0 <= b <= 0x3f
+
+
+def _cmod(a, b):
+    """C remainder (sign of the dividend)."""
+    r = abs(a) % b
+    return -r if a < 0 else r
+
+
+def bugs(st):
+    """f_0ae4c: three harmless bugs (a G:0EAE, b G:0F00, heading G:0F1A, tile under them G:0F28; drawn as
+    T:0C52[heading]) wander over open ground."""
+    for k in range(3):
+        if st.rand4() == 0:
+            continue
+        o = k * 2
+        if st.rand4() == 0:
+            h = (st.u8(G, 0xf1a + o) + st.rand(3) - 1) & 7
+            st.set16(G, 0xf1a + o, h)
+            st.set_grid(SURFACE, s16(st.u16(G, 0xeae + o)), s16(st.u16(G, 0xf00 + o)), st.u8(T, 0xc52 + h))
+        h = st.u16(G, 0xf1a + o)
+        a, b = s16(st.u16(G, 0xeae + o)), s16(st.u16(G, 0xf00 + o))
+        na, nb = a + st.s8(T, h), b + st.s8(T, 8 + h)
+        if _in_patch(na, nb) and st.grid(0x6180, na, nb) == 0 and st.grid(SURFACE, na, nb) < 0x10:
+            under = st.grid(SURFACE, na, nb)
+            st.set_grid(SURFACE, a, b, st.u8(G, 0xf28 + o))
+            st.set16(G, 0xf28 + o, under)
+            st.set_grid(SURFACE, na, nb, st.u8(T, 0xc52 + h))
+            st.set16(G, 0xeae + o, na)
+            st.set16(G, 0xf00 + o, nb)
+
+
+# caterpillar: active T:0C4C, head a T:0C4E / b T:0C50, heading G:0C3C (0 north/up b-, 1 east a+,
+# 2 south b+, 3 west a-), step countdown G:0C36 (moves one cell every 5 calls), tiles under the body in
+# the 6-entry ring G:0D9C indexed by the coordinate along the path
+CAT_STEP = ((0, -1), (1, 0), (0, 1), (-1, 0))
+
+
+def _cat_put(st, a, b, v):
+    """f_0bcaa."""
+    if _in_patch(a, b):
+        st.set_grid(SURFACE, a, b, v)
+
+
+def _cat_ring(st, a, b):
+    return 0xd9c + _cmod(a if st.u8(G, 0xc3c) & 1 else b, 6) * 2
+
+
+def _cat_save(st, a, b):
+    """f_0babb."""
+    if _in_patch(a, b):
+        st.set16(G, _cat_ring(st, a, b), st.grid(SURFACE, a, b))
+
+
+def _cat_restore(st, a, b):
+    """f_0bb47."""
+    if _in_patch(a, b):
+        st.set_grid(SURFACE, a, b, st.u8(G, _cat_ring(st, a, b)))
+
+
+def _occ(st, a, b):
+    """f_0bcde."""
+    return st.grid(0x6180, a, b) if _in_patch(a, b) else 0
+
+
+def caterpillar_start(st):
+    """f_0bb9f: enter from a random point of a random edge."""
+    d = st.rand(4)
+    st.set16(G, 0xc3c, d)
+    if d == 0:
+        a, b, t = st.rand(0x80), 0x3f, 0x6c
+    elif d == 1:
+        a, b, t = 0, st.rand(0x40), 0x6b
+    elif d == 2:
+        a, b, t = st.rand(0x80), 0, 0x6f
+    else:
+        a, b, t = 0x7f, st.rand(0x40), 0x68
+    st.set16(T, 0xc4e, a)
+    st.set16(T, 0xc50, b)
+    _cat_save(st, a, b)
+    _cat_put(st, a, b, t)
+
+
+def caterpillar_die(st):
+    """f_0bd80: the body turns into food (0x4B) wherever it lay on open ground."""
+    d = st.u16(G, 0xc3c)
+    a, b = s16(st.u16(T, 0xc4e)), s16(st.u16(T, 0xc50))
+    if d > 3:
+        return
+    sa, sb = CAT_STEP[d]
+    for i in range(6):
+        x, y = a - sa * i, b - sb * i
+        if _in_patch(x, y):                                            # f_0be34
+            _cat_restore(st, x, y)
+            if st.grid(SURFACE, x, y) < 0x18:
+                st.set_grid(SURFACE, x, y, 0x4b)
+
+
+def caterpillar(st):
+    """f_0b6cc (odd ticks, yard only): the bugs, then the caterpillar."""
+    if st.u16(G, 0xf24) == 1:
+        return
+    bugs(st)
+    if st.u16(T, 0xc4c) == 0:
+        caterpillar_start(st)
+        st.set16(T, 0xc4c, 1)
+        st.set16(G, 0xc36, 4)
+        return
+    d = st.u16(G, 0xc3c)
+    a, b = s16(st.u16(T, 0xc4e)), s16(st.u16(T, 0xc50))
+    if d > 3:
+        raise NotImplementedError('caterpillar heading > 3 (uninitialised local in the original)')
+    sa, sb = CAT_STEP[d]
+    if _occ(st, a + sa, b + sb):                                       # blocked by an ant
+        busy = sum(1 for x in range(a - 1, a + 2) for y in range(b - 1, b + 2) if _occ(st, x, y))
+        if busy > 5:
+            st.set16(T, 0xc4c, 0)
+            caterpillar_die(st)
+        return
+    st.inc16(G, 0xc36, -1)
+    n = s16(st.u16(G, 0xc36))
+    vert = d in (0, 2)
+    if n == 4:
+        _cat_restore(st, a - sa * (n + 1), b - sb * (n + 1))          # the tail moves on
+    else:
+        _cat_put(st, a - sa * (n + 1), b - sb * (n + 1), 0x6d if vert else 0x69)
+    _cat_put(st, a - sa * n, b - sb * n, 0x6e if vert else 0x6a)
+    if n != 0:
+        return
+    a, b = a + sa, b + sb
+    st.set16(T, 0xc4e, a)
+    st.set16(T, 0xc50, b)
+    if a < -6 or a > 0x86 or b < -6 or b > 0x45:
+        st.set16(T, 0xc4c, 0)
+        return
+    _cat_save(st, a, b)
+    _cat_put(st, a, b, (0x6c, 0x6b, 0x6f, 0x68)[d])
+    _cat_put(st, a - sa, b - sb, 0x6d if vert else 0x69)
+    st.set16(G, 0xc36, 5)
+
+
 # ------------------------------------------------------------------------------------------- weather
 def drop_object_random(st, i):
     """f_0c3d4: move rain object i to a random cell; on ground it becomes a puddle that wipes the scent."""

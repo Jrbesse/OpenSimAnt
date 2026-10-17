@@ -63,6 +63,24 @@ def lions(states, near_ants=True, cover=None, swarm=False):
     return pre
 
 
+def swarm_cat(n_occ):
+    """pre hook: a caterpillar heading east at (40, 30), with n_occ of the 3x3 around its head occupied
+    (always including the cell ahead)."""
+    from simant_ref.state import SIM, T
+
+    def pre(set16, a):
+        set8 = set16.byte
+        set16(T, 0xc4c, 1)
+        set16(G, 0xc3c, 1)
+        set16(T, 0xc4e, 40)
+        set16(T, 0xc50, 30)
+        set16(G, 0xc36, 3)
+        cells = [(41, 30)] + [(x, y) for x in (39, 40, 41) for y in (29, 30, 31) if (x, y) != (41, 30)]
+        for x, y in cells[:n_occ]:
+            set8(SIM, 0x6180 + x * 64 + y, 0x10)
+    return pre
+
+
 CHECKS = [
     ('history', 0x798c8, world.history, 3, None),
     ('advisor', 0x0e2ea, world.advisor, 2, None),
@@ -86,6 +104,11 @@ CHECKS = [
     ('ant lions eating', 0x0b163, world.ant_lions, 60, lions([(1, 0, 5), (1, 4, 0), (1, 4, 9), (1, 2, 3)])),
     ('ant lions closing', 0x0b163, world.ant_lions, 20, lions([(2, 4, 0), (2, 0, 0), (2, 1, 0)])),
     ('ant lions swarmed', 0x0b163, world.ant_lions, 3, lions([(1, 2, 5), (0, 0, 0), (1, 1, 1)], swarm=True)),
+    ('bugs', 0x0ae4c, world.bugs, 60, None),
+    ('caterpillar', 0x0b6cc, world.caterpillar, 80, None),
+    ('caterpillar long', 0x0b6cc, world.caterpillar, 700, None),
+    ('caterpillar blocked', 0x0b6cc, world.caterpillar, 12, swarm_cat(4)),
+    ('caterpillar swarmed', 0x0b6cc, world.caterpillar, 3, swarm_cat(9)),
     ('ant lions full', 0x0b163, world.ant_lions, 20, lions([(2, 0, 0)] * 9, near_ants=False)),
 ]
 
@@ -99,7 +122,7 @@ def main():
         if only and not any(o in label for o in only):
             continue
         ok &= v.check(lin, with_player(fn), label=label, repeat=repeat, pre=pre, ignore=SCREEN,
-                      pre_once='lion' in label)
+                      pre_once='lion' in label or 'caterpillar' in label)
     print('ALL OK' if ok else 'SOME MISMATCHES')
     return ok
 
