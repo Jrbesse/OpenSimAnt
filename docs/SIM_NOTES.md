@@ -669,6 +669,40 @@ their own colony's half, unless Got Food / Attack. With no free neighbour the an
 open 3×3 (yard: tile 0x50 + entrance ring from DS:1BB2; house: `f_151f7` floor → entrance tile), records
 the entrance (T:02AC/02AE, T:02A4), sets `T:0224[col] = a` and digs (col, 1).
 
+## The red nest (`RedNestLoop` f_0f3f8 → `RedNestAntTick` f_0f465, resident segment 1f3f)
+
+A separate copy of the black nest code (`simant_ref/red_nest.py`) using the red globals: `red_health`
+G:01FE, `red_food` G:1060, eat accumulator G:0226 (limit `(G:0AFE + red_pop G:0350) >> 4`), centroid
+G:0200/020E, colonies G:036C, egg spot T:02B8/02BA, entrance table T:0264 (rows `0x7E - (Rand(31)+i) % 32`,
+entrance T:02B0/02B2, T:02A8). Shared helpers (`NestStepDir`/`NestClimbDir` on the red exit field 0x5180,
+digging, food, leaving, `QueenMove`'s path step `f_7a69d` with view 3) behave identically. Differences:
+
+```
+dispatch:      no Defense job inside: state 6 goes out like the other outdoor jobs
+random death:  Rand256() == 0 and state != 9 and Rand32() > red_health  (G:0FBC counts it)
+NestFightAt:   (f_0fce6) fights black adults 0x08..0x67 (not black brood); the black-side yellow ant
+               (player colour 0) is attacked with AttackPlayer(3)
+Nesting:       caste 1 (carrier): 1/4 and standing on open tunnel (dirt < 0x10): put the brood down as a
+               fresh stage-2 egg (0x82), become a worker, StateForCaste. Else 3/4 NestStepDir, else random.
+               caste 2: 1/4: on brood → pick it up (no stage kept); else Rand(100) > health ? eat : new job.
+               Then 3/4 keep heading, 1/4 random. Other castes: StateForCaste (every tick) and move.
+Got Food:      as black, but no eating on the way
+Dig In:        a failed dig → Bored (0); eats at the cell it left; sound 0x12. Stepping onto a 0x14 cell
+               (where a deep black dig broke through) moves it into the BLACK nest arrays as a Got Food
+               invader (type 0x90/0xB0 + Rand8 for worker/soldier)
+Go To Surface: as black; eats at the cell it left; the dead-end counter does not wrap below 0
+Brood:         period 32 only when red_pop == 1; never die of neglect; hatch caste =
+               T:0B36[(red_priority % 7) * 8 + Rand8()], type caste*8 + 0x82, StateForCaste_red
+Egg Laying:    as black (abdomen type 0xE8+dir), eggs are 0x81; no eggs-laid counter;
+               EggCost_red (f_1082c) is not gated by T:0C18
+Fighting:      winner black → Attack (7); winner red → job DS:1BA2[caste]
+Resting etc.:  effects whenever T:07B2 != 0 (black: == 1 for rest/fight)
+```
+Black invaders in the red nest: type < 8 → removed; fight entities (> 0x6F) fight; on a red cell
+(0x81..0xE7) with a matching ant: queen cells (> 0xDF) are removed first, brood (< 0x88) stolen (no
+counter), else `ResolveFight`. Otherwise: Defense (6) while the player views the red nest (G:048C == 3) →
+`f_0f871` (raid, keeps trying); Attack (7) → `f_0f7a0` (raid; stuck → Nesting); others climb out (`f_0f959`).
+
 ---
 
 # Status and TODO
@@ -679,8 +713,8 @@ manual behaviour, brood development, queen + egg laying, food economy, nest terr
 leaving/entering the nest.
 
 Still to do:
-1. (done: black nest ported and verified in `simant_ref/nest.py`.)
-2. Compare the red nest code (`f_0f465`, resident) with the black one (section 27). They may differ.
+1. (done: black and red nests ported and verified in `simant_ref/nest.py` / `red_nest.py`.)
+2. (done: red nest compared, see "The red nest".)
 3. Surface world per tick: `f_0c22c`, `f_0b163`, `f_0ce63`, `f_0b6cc`, `f_0e2ea`, sec8 `f_68513`,
    sec26 `f_798c8`, `f_0c20f`: food spawning, predators (spider, ant lion), humans/mower/rain/insecticide.
 4. Yellow (player) ant: movement, recruit/release/exchange, dig, pick up, `f_7bf7e`, `AttackPlayer`.

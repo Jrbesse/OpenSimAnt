@@ -11,7 +11,12 @@ from . import movement as mv
 from . import nestgrid as ng
 from . import surface as sf
 
-N = ng.BLACK
+# colony constants for the helpers shared by both nests (the red nest handlers are in red_nest.py)
+BLACK = dict(ng.BLACK, view=2, red=0, health=0x10be, food=0x1050, acc=0x212, pop=0x330, soldiers=0xaf0,
+             entr=0x224, entr_xy=0x2ac, entr_col=0x2a4, hole_row=lambda k, i: (k + i) % 0x20 + 2)
+RED = dict(ng.RED, view=3, red=0x80, health=0x1fe, food=0x1060, acc=0x226, pop=0x350, soldiers=0xafe,
+           entr=0x264, entr_xy=0x2b0, entr_col=0x2a8, hole_row=lambda k, i: 0x7e - (k + i) % 0x20)
+N = BLACK
 DIRT, EXITF, CELLS = N['dirt'], N['exitf'], N['cells']
 BX, BY, BSTATE, BTYPE, BE = N['x'], N['y'], N['state'], N['type'], N['e']
 s16 = mv.s16
@@ -39,12 +44,13 @@ def _visible(st):
 
 
 # ------------------------------------------------------------------------------------------- lookups
-def nest_ant_at(st, col, depth, t):
-    """f_0eeed: index of the black nest ant at (col, depth) with type t, searching from the top; -1 if none."""
-    i = s16(st.u16(G, 0xda8))
+def nest_ant_at(st, n, col, depth, t):
+    """f_0eeed (black) / f_0ef3c (red): index of the nest ant at (col, depth) with type t, searching from the
+    top; -1 if none."""
+    i = s16(st.u16(G, n['count']))
     while i > 0:
         i -= 1
-        if _get(st, BX, i) == col and _get(st, BY, i) == depth and _get(st, BTYPE, i) == t:
+        if _get(st, n['x'], i) == col and _get(st, n['y'], i) == depth and _get(st, n['type'], i) == t:
             return i
     return -1
 
@@ -90,31 +96,31 @@ def climb_dir(st, n, col, depth, d):
     return best
 
 
-def _nest_tile(st, c, r):
-    """GetTile(2, c, r): -1 outside the nest."""
-    return st.grid(DIRT, c, r) if 0 <= c < 0x40 and 0 <= r < 0x40 else -1
+def _nest_tile(st, n, c, r):
+    """GetTile(view, c, r): -1 outside the nest."""
+    return st.grid(n['dirt'], c, r) if 0 <= c < 0x40 and 0 <= r < 0x40 else -1
 
 
-def _nest_open(st, c, r):
-    """IsOpenGround(2, c, r) (f_1145c): open tunnel (< 8) and no occupant other than the yellow ant."""
-    t = _nest_tile(st, c, r)
+def _nest_open(st, n, c, r):
+    """IsOpenGround(view, c, r) (f_1145c): open tunnel (< 8) and no occupant other than the yellow ant."""
+    t = _nest_tile(st, n, c, r)
     if t < 0:
         return False
-    o = st.grid(CELLS, c, r)
+    o = st.grid(n['cells'], c, r)
     if o and not mv.is_yellow(o):
         return False
     return t < 8
 
 
-def step_towards_nest(st, col, depth, tc, tr):
-    """f_7a69d (view 2): like surface.step_towards_surface, inside the black nest."""
+def step_towards_nest(st, n, col, depth, tc, tr):
+    """f_7a69d (view 2 black / 3 red): like surface.step_towards_surface, inside a nest."""
     dist = mv.distance_lo(col, depth, tc, tr)
     if dist <= 0:
         return -1
     res, fallback = -1, -2
     for d in range(8):
         c, r = col + mv.dx(st, d), depth + mv.dy(st, d)
-        t = _nest_tile(st, c, r)
+        t = _nest_tile(st, n, c, r)
         if t < 0 or not (t < 0x19 or 0x30 <= t <= 0x31):          # f_133f9
             continue
         if 0x30 <= t <= 0x31:                                     # f_116a1
@@ -123,7 +129,7 @@ def step_towards_nest(st, col, depth, tc, tr):
         if nd >= dist:
             continue
         dist = nd
-        if st.grid(CELLS, c, r) == 0 and _nest_open(st, c, r):
+        if st.grid(n['cells'], c, r) == 0 and _nest_open(st, n, c, r):
             res = d
         else:
             fallback = d
@@ -162,12 +168,13 @@ def house_entrance_tile(t):
     return 0
 
 
-def make_surface_hole(st, col):
-    """f_150b0 MakeSurfaceHoleBlack: open a black entrance on the surface above nest column `col`."""
+def make_surface_hole(st, n, col):
+    """f_150b0 MakeSurfaceHoleBlack / f_15247 (red): open an entrance on the surface above nest column `col`
+    (black tries surface rows 2..33, red 126..95)."""
     k = st.rand(0x1f)
     found = None
     for i in range(0x22):
-        a = (k + i) % 0x20 + 2
+        a = n['hole_row'](k, i)
         if st.u16(G, 0xf24) == 0:
             if is_open_with_ring(st, a, col):
                 st.set_grid(sf.SURFACE, a, col, 0x50)
@@ -178,92 +185,93 @@ def make_surface_hole(st, col):
                 st.set_grid(sf.SURFACE, a, col, v)
                 found = a
         if found is not None:
-            st.set16(T, 0x2ac, a)
-            st.set16(T, 0x2ae, col)
-            st.set16(T, 0x2a4, col)
-            st.set16(T, 0x2a6, 0)
+            st.set16(T, n['entr_xy'], a)
+            st.set16(T, n['entr_xy'] + 2, col)
+            st.set16(T, n['entr_col'], col)
+            st.set16(T, n['entr_col'] + 2, 0)
             if st.u16(G, 0xf24) == 0:
                 entrance_ring(st, a, col)
             break
     if found is not None:
-        st.set8(T, 0x224 + col, found)
-        ng.dig_at(st, N, col, 1)
+        st.set8(T, n['entr'] + col, found)
+        ng.dig_at(st, n, col, 1)
 
 
-def dig_cell(st, col, depth):
-    """f_15623 DigCellBlack: dig exposed dirt; tunnels stay one cell thick. Returns True if dug."""
-    if ((depth < 0x3f and not ng.is_diggable(st.grid(DIRT, col, depth + 1)))
-            or (depth > 2 and not ng.is_diggable(st.grid(DIRT, col, depth - 1)))
+def dig_cell(st, n, col, depth):
+    """f_15623 DigCellBlack / f_1577e (red): dig exposed dirt; tunnels stay one cell thick. True if dug."""
+    dirt = n['dirt']
+    if ((depth < 0x3f and not ng.is_diggable(st.grid(dirt, col, depth + 1)))
+            or (depth > 2 and not ng.is_diggable(st.grid(dirt, col, depth - 1)))
             or col == 0 or col > 0x3e):
         return False
     if depth == 0:
-        st.set_grid(DIRT, col, 0, 0x18)
-        make_surface_hole(st, col)
+        st.set_grid(dirt, col, 0, 0x18)
+        make_surface_hole(st, n, col)
     else:
-        st.set_grid(DIRT, col, depth, st.rand8())
-    ng._dig_bookkeeping(st, N, col, depth)
-    ng.reclassify_dirt(st, N, col, depth - 1)
-    ng.reclassify_dirt(st, N, col + 1, depth)
-    ng.reclassify_dirt(st, N, col, depth + 1)
-    ng.reclassify_dirt(st, N, col - 1, depth)
-    ng.update_exit_field(st, N, col, depth)
+        st.set_grid(dirt, col, depth, st.rand8())
+    ng._dig_bookkeeping(st, n, col, depth)
+    ng.reclassify_dirt(st, n, col, depth - 1)
+    ng.reclassify_dirt(st, n, col + 1, depth)
+    ng.reclassify_dirt(st, n, col, depth + 1)
+    ng.reclassify_dirt(st, n, col - 1, depth)
+    ng.update_exit_field(st, n, col, depth)
     return True
 
 
-def spawn_brood(st, col, depth, stage):
-    """f_0c8db SpawnBlackBrood."""
-    if s16(st.u16(G, 0xda8)) < 500 and nest_cell_free(col, depth):
-        ng.dig_at(st, N, col, depth)
-        ng.add_nest_ant(st, N, col, depth, stage, 8, 0)
-        st.set_grid(CELLS, col, depth, stage)
+def spawn_brood(st, n, col, depth, stage):
+    """f_0c8db SpawnBlackBrood / f_0c93e SpawnRedBrood."""
+    if s16(st.u16(G, n['count'])) < 500 and nest_cell_free(col, depth):
+        ng.dig_at(st, n, col, depth)
+        ng.add_nest_ant(st, n, col, depth, stage, 8, 0)
+        st.set_grid(n['cells'], col, depth, stage)
 
 
 # ------------------------------------------------------------------------------------------- food
-def _eat_core(st, col, depth, health_gain):
-    v = st.grid(DIRT, col, depth)
-    st.set_grid(DIRT, col, depth, st.rand8() if v == 0x10 else v - 1)
-    if s16(st.u16(G, 0x1050)) > 0:
-        st.inc16(G, 0x1050, -1)
+def _eat_core(st, n, col, depth, health_gain):
+    v = st.grid(n['dirt'], col, depth)
+    st.set_grid(n['dirt'], col, depth, st.rand8() if v == 0x10 else v - 1)
+    if s16(st.u16(G, n['food'])) > 0:
+        st.inc16(G, n['food'], -1)
     if not health_gain:
         return
-    lim = s16(st.u16(G, 0xaf0) + st.u16(G, 0x330)) >> 4
-    st.inc16(G, 0x212, 5)
-    if lim < s16(st.u16(G, 0x212)):
-        st.set16(G, 0x212, 0)
-        if s16(st.u16(G, 0x10be)) < 100:
-            st.inc16(G, 0x10be)
+    lim = s16(st.u16(G, n['soldiers']) + st.u16(G, n['pop'])) >> 4
+    st.inc16(G, n['acc'], 5)
+    if lim < s16(st.u16(G, n['acc'])):
+        st.set16(G, n['acc'], 0)
+        if s16(st.u16(G, n['health'])) < 100:
+            st.inc16(G, n['health'])
 
 
-def eat_food(st, col, depth):
-    """f_7ae88 EatFoodBlack."""
-    _eat_core(st, col, depth, True)
+def eat_food(st, n, col, depth):
+    """f_7ae88 EatFoodBlack / f_10720 (red)."""
+    _eat_core(st, n, col, depth, True)
 
 
-def eat_if_on_food(st, col, depth):
-    """f_7adcf EatIfOnFoodBlack."""
-    if 0x10 <= st.grid(DIRT, col, depth) <= 0x13:
-        _eat_core(st, col, depth, True)
+def eat_if_on_food(st, n, col, depth):
+    """f_7adcf EatIfOnFoodBlack / f_10667 (red)."""
+    if 0x10 <= st.grid(n['dirt'], col, depth) <= 0x13:
+        _eat_core(st, n, col, depth, True)
 
 
-def invader_eat_food(st, col, depth):
-    """f_7af2f: a red invader eats black stores (no health gain)."""
-    _eat_core(st, col, depth, False)
+def invader_eat_food(st, n, col, depth):
+    """f_7af2f / f_107c7: an invader eats the other colony's stores (no health gain)."""
+    _eat_core(st, n, col, depth, False)
 
 
-def store_food(st, col, depth):
-    """f_7a2ea StoreFoodBlack: the carrier drops its food here (counted even when the cell is full)."""
-    v = st.grid(DIRT, col, depth)
+def store_food(st, n, col, depth):
+    """f_7a2ea StoreFoodBlack / f_0fda0 (red): the carrier drops its food here (counted even when full)."""
+    v = st.grid(n['dirt'], col, depth)
     ok = 1
     if v < 0x10:
-        st.set_grid(DIRT, col, depth, 0x10)
+        st.set_grid(n['dirt'], col, depth, 0x10)
     elif v > 0x12:
         ok = 0
     else:
-        st.set_grid(DIRT, col, depth, v + 1)
-    st.inc16(G, 0x1050)
+        st.set_grid(n['dirt'], col, depth, v + 1)
+    st.inc16(G, n['food'])
     cur = _cur(st)
-    if _get(st, BTYPE, cur) & 8:
-        _set(st, BTYPE, cur, _get(st, BTYPE, cur) - 8)
+    if _get(st, n['type'], cur) & 8:
+        _set(st, n['type'], cur, _get(st, n['type'], cur) - 8)
     return ok
 
 
@@ -277,37 +285,39 @@ def egg_cost(st):
 
 
 # ------------------------------------------------------------------------------------------- moving
-def exit_to_surface(st, col):
-    """f_7b661: an ant at the top of the nest tries to leave through the shaft in its column."""
+def exit_to_surface(st, n, col):
+    """f_7b661 (black) / f_10e27 (red): an ant at the top of the nest tries to leave through the shaft in
+    its column."""
     cur = _cur(st)
-    if st.grid(DIRT, col, 0) == 0x18:
-        t = _get(st, BTYPE, cur)
-        _set(st, BTYPE, cur, 0)
-        if st.u8(T, 0x224 + col) == 0:
-            make_surface_hole(st, col)
-        e, state = _get(st, BE, cur), _get(st, BSTATE, cur)
+    dirt, ty = n['dirt'], n['type']
+    if st.grid(dirt, col, 0) == 0x18:
+        t = _get(st, ty, cur)
+        _set(st, ty, cur, 0)
+        if st.u8(T, n['entr'] + col) == 0:
+            make_surface_hole(st, n, col)
+        e, state = _get(st, n['e'], cur), _get(st, n['state'], cur)
         nt = (st.rand8() + (t & 0xf8)) & 0xff
-        if sf.add_surface_ant(st, st.u8(T, 0x224 + col), col, nt, state, e):
-            st.set_grid(CELLS, col, 1, 0)
+        if sf.add_surface_ant(st, st.u8(T, n['entr'] + col), col, nt, state, e):
+            st.set_grid(n['cells'], col, 1, 0)
             return 1
-        _set(st, BTYPE, cur, t)
-        _set(st, BSTATE, cur, 0)
+        _set(st, ty, cur, t)
+        _set(st, n['state'], cur, 0)
         return 0
-    v = st.grid(EXITF, col, 0)
+    v = st.grid(n['exitf'], col, 0)
     if v:
-        st.set_grid(EXITF, col, 0, v - 1)
+        st.set_grid(n['exitf'], col, 0, v - 1)
     if st.rand2():
-        if col > 0 and ng.is_diggable(st.grid(DIRT, col - 1, 1)):
-            dig_cell(st, col - 1, 1)
-    elif col < 0x3f and ng.is_diggable(st.grid(DIRT, col + 1, 1)):
-        dig_cell(st, col + 1, 1)
-    move_to(st, col, 1, st.rand8())
+        if col > 0 and ng.is_diggable(st.grid(dirt, col - 1, 1)):
+            dig_cell(st, n, col - 1, 1)
+    elif col < 0x3f and ng.is_diggable(st.grid(dirt, col + 1, 1)):
+        dig_cell(st, n, col + 1, 1)
+    move_to(st, n, col, 1, st.rand8())
     return 0
 
 
-def move_to(st, col, depth, d):
-    """f_7aa3b NestMoveTo: step the current ant into a passable cell (dirt < 0x1c), overwriting whatever
-    the contents grid held there. Stepping above row 1 leaves the nest. Returns 1 if moved."""
+def move_to(st, n, col, depth, d):
+    """f_7aa3b NestMoveTo (black) / f_103b9 (red): step the current ant into a passable cell (dirt < 0x1c),
+    overwriting whatever the contents grid held there. Stepping above row 1 leaves the nest. 1 if moved."""
     d = s16(d)
     if d < 0:
         return 0
@@ -315,19 +325,21 @@ def move_to(st, col, depth, d):
     if not (0 <= c < 0x40 and r < 0x40):
         return 0
     if r < 1:
-        return exit_to_surface(st, col)
-    if st.grid(DIRT, c, r) >= 0x1c:
+        return exit_to_surface(st, n, col)
+    if st.grid(n['dirt'], c, r) >= 0x1c:
         return 0
     cur = _cur(st)
-    if st.grid(CELLS, c, r) == 0xff and st.u16(G, 0x1044) != 0 and _get(st, BX, cur) < 0x80:
-        st.set_grid(CELLS, col, depth, (_get(st, BTYPE, cur) & 0xf8) | d)
+    cells, ty = n['cells'], n['type']
+    if (not n['red'] and st.grid(cells, c, r) == 0xff and st.u16(G, 0x1044) != 0
+            and _get(st, n['x'], cur) < 0x80):
+        st.set_grid(cells, col, depth, (_get(st, ty, cur) & 0xf8) | d)
         st.player.nest_follow(st, col, depth, d)                         # f_2f7bc
-    v = (_get(st, BTYPE, cur) & 0xf8) | d
-    st.set_grid(CELLS, c, r, v)
-    st.set_grid(CELLS, col, depth, 0)
-    _set(st, BX, cur, c)
-    _set(st, BY, cur, r)
-    _set(st, BTYPE, cur, v)
+    v = (_get(st, ty, cur) & 0xf8) | d
+    st.set_grid(cells, c, r, v)
+    st.set_grid(cells, col, depth, 0)
+    _set(st, n['x'], cur, c)
+    _set(st, n['y'], cur, r)
+    _set(st, ty, cur, v)
     return 1
 
 
@@ -338,7 +350,7 @@ def fight_at(st, col, depth, t):
         st.player.attack_player(st, 2, _cur(st))
         return 1
     if 0x87 < o < 0xe8:
-        i = nest_ant_at(st, col, depth, o)
+        i = nest_ant_at(st, N, col, depth, o)
         if i >= 0:
             w = sf.resolve_fight(st, o, t & 0xff)
             _set(st, BE, i, w)
@@ -365,26 +377,26 @@ def _enter(st, col, depth, c, r, d, nt):
     return True
 
 
-def _turn_to(st, col, depth, t, d):
+def _turn_to(st, n, col, depth, t, d):
     nt = (t & 0xf8) | d
-    st.set_grid(CELLS, col, depth, nt)
-    _set(st, BTYPE, _cur(st), nt)
+    st.set_grid(n['cells'], col, depth, nt)
+    _set(st, n['type'], _cur(st), nt)
     return nt
 
 
 # ------------------------------------------------------------------------------------------- queen
 def queen_move(st, col, depth, t):
     """f_7a78f QueenMove: the head walks towards the nest centroid and drags the abdomen after it."""
-    d = step_towards_nest(st, col, depth, s16(st.u16(G, 0x10b2)), s16(st.u16(G, 0x10c0)))
+    d = step_towards_nest(st, N, col, depth, s16(st.u16(G, 0x10b2)), s16(st.u16(G, 0x10c0)))
     if d < 0:
         if d == -1:
             return 0
         d = st.rand8()
-    if (depth > 2 or 2 < d < 6) and move_to(st, col, depth, d):
+    if (depth > 2 or 2 < d < 6) and move_to(st, N, col, depth, d):
         back = (t ^ 0xfc) & 7
         c, r = mv.dx(st, back) + col, mv.dy(st, back) + depth
         st.set_grid(CELLS, c, r, 0)
-        i = nest_ant_at(st, c, r, (t & 7) + 0x68)
+        i = nest_ant_at(st, N, c, r, (t & 7) + 0x68)
         if i >= 0 and _get(st, BTYPE, i):
             _set(st, BX, i, col)
             _set(st, BY, i, depth)
@@ -398,13 +410,13 @@ def queen_head_lost(st, col, depth, t):
     """f_7a9c7: the abdomen sees no head behind... (cell behind != t+8 and no such ant there)."""
     back = (t ^ 0xfc) & 7
     c, r = mv.dx(st, back) + col, mv.dy(st, back) + depth
-    return st.grid(CELLS, c, r) != t + 8 and nest_ant_at(st, c, r, t + 8) < 0
+    return st.grid(CELLS, c, r) != t + 8 and nest_ant_at(st, N, c, r, t + 8) < 0
 
 
 def queen_tail_lost(st, col, depth, t):
     """f_7a956: the abdomen's head (cell in front, type t-8) is gone."""
     c, r = mv.dx(st, t & 7) + col, mv.dy(st, t & 7) + depth
-    return st.grid(CELLS, c, r) != t - 8 and nest_ant_at(st, c, r, t - 8) < 0
+    return st.grid(CELLS, c, r) != t - 8 and nest_ant_at(st, N, c, r, t - 8) < 0
 
 
 def add_abdomen(st, i):
@@ -422,9 +434,9 @@ def remove_ant(st, i):
 
 
 # ------------------------------------------------------------------------------------------- handlers
-def _move_or_random(st, col, depth, d):
-    if not move_to(st, col, depth, d):
-        move_to(st, col, depth, st.rand8())
+def _move_or_random(st, n, col, depth, d):
+    if not move_to(st, n, col, depth, d):
+        move_to(st, n, col, depth, st.rand8())
 
 
 def n_wander(st, col, depth, t, caste):
@@ -432,7 +444,7 @@ def n_wander(st, col, depth, t, caste):
     if st.rand32() == 0:
         _set(st, BSTATE, _cur(st), _job(st, caste))
     if fight_at(st, col, depth, t) != 1:
-        _move_or_random(st, col, depth, t & 7)
+        _move_or_random(st, N, col, depth, t & 7)
 
 
 def n_nesting(st, col, depth, t, caste):
@@ -447,11 +459,11 @@ def n_nesting(st, col, depth, t, caste):
             d = step_dir(st, N, col, depth, d)
             if d < 0:
                 _set(st, BE, cur, stage | 8)
-            _move_or_random(st, col, depth, d)
+            _move_or_random(st, N, col, depth, d)
             return
         if here == 0 or here > 8:
             _set(st, BTYPE, cur, _get(st, BTYPE, cur) + 8)
-            spawn_brood(st, col, depth, stage)
+            spawn_brood(st, N, col, depth, stage)
             st.set_grid(CELLS, col, depth, _get(st, BTYPE, cur))
             _set(st, BE, cur, 8)
             _set(st, BSTATE, cur, _job(st, 1))
@@ -460,47 +472,47 @@ def n_nesting(st, col, depth, t, caste):
         if up == 0:
             if here == 0 or here > 7:
                 if s16(st.rand(100)) > s16(st.u16(G, 0x10be)):
-                    eat_if_on_food(st, col, depth)
+                    eat_if_on_food(st, N, col, depth)
                 elif st.rand16() == 0:
                     _set(st, BSTATE, cur, _job(st, 2))
             else:
-                i = nest_ant_at(st, col, depth, here)
+                i = nest_ant_at(st, N, col, depth, here)
                 if i >= 0:
                     _set(st, BTYPE, i, 0)
                     _set(st, BTYPE, cur, _get(st, BTYPE, cur) - 8)
                     _set(st, BE, cur, here)
                     return
-            _move_or_random(st, col, depth, d)
+            _move_or_random(st, N, col, depth, d)
             return
         if st.rand8() == 0:
             _set(st, BE, cur, 0)
         c = climb_dir(st, N, col, depth, d)
     else:
         if s16(st.rand(100)) > s16(st.u16(G, 0x10be)):
-            eat_if_on_food(st, col, depth)
+            eat_if_on_food(st, N, col, depth)
         if st.rand8() == 0:
             _set(st, BSTATE, cur, _job(st, caste))
-        _move_or_random(st, col, depth, d)
+        _move_or_random(st, N, col, depth, d)
         return
     d = st.rand8() if c == 0 else c - 1
-    _move_or_random(st, col, depth, d)
+    _move_or_random(st, N, col, depth, d)
 
 
 def n_got_food(st, col, depth, t):
     """f_7afdc: carry food deeper; store it with 1/16 chance or at a dead end, maybe eat, then a new job."""
     d = step_dir(st, N, col, depth, t & 7)
     if d < 0 or st.rand16() == 0:
-        store_food(st, col, depth)
+        store_food(st, N, col, depth)
         if s16(st.rand(100)) > s16(st.u16(G, 0x10be)):
-            eat_food(st, col, depth)
+            eat_food(st, N, col, depth)
         _set(st, BSTATE, _cur(st), _job(st, (t & 0x78) >> 3))
         return
-    nt = _turn_to(st, col, depth, t, d)
+    nt = _turn_to(st, N, col, depth, t, d)
     c, r = col + mv.dx(st, d), depth + mv.dy(st, d)
     if c > 0x3f or c < 0 or r > 0x3f:
         return
     if r < 1:
-        exit_to_surface(st, col)
+        exit_to_surface(st, N, col)
         return
     if st.grid(DIRT, c, r) >= 0x30:
         return
@@ -516,19 +528,19 @@ def n_dig_in(st, col, depth, t, caste):
     d = step_dir(st, N, col, depth, t & 7)
     if d < 0:
         d = st.rand8()
-    nt = _turn_to(st, col, depth, t, d)
+    nt = _turn_to(st, N, col, depth, t, d)
     if depth != 0x3f:
         r, c = depth + mv.dy(st, d), col + mv.dx(st, d)
         if c > 0x3f or c < 0 or r > 0x3f:
             return
         if r < 1:
-            exit_to_surface(st, col)
+            exit_to_surface(st, N, col)
             return
         tile = st.grid(DIRT, c, r)
         if tile > 0x2f:
             return
         if ng.is_diggable(tile):
-            if not dig_cell(st, c, r):
+            if not dig_cell(st, N, c, r):
                 _set(st, BSTATE, cur, _job(st, caste))
                 return
             _set(st, BTYPE, cur, _get(st, BTYPE, cur) + 0x18)            # now carrying dirt
@@ -537,7 +549,7 @@ def n_dig_in(st, col, depth, t, caste):
         if not _enter(st, col, depth, c, r, d, nt):
             return
         if s16(st.rand64()) > s16(st.u16(G, 0x10be)):
-            eat_if_on_food(st, c, r)
+            eat_if_on_food(st, N, c, r)
         if st.rand4() == 0:
             ng.update_exit_field(st, N, c, r)
         return
@@ -548,18 +560,18 @@ def n_go_to_surface(st, col, depth, t):
     """f_7b3ac: every outdoor job climbs the exit field and leaves; at a dead end diggers start digging."""
     c1 = climb_dir(st, N, col, depth, t & 7)
     d = mv.turn_aside(st, t & 7) if c1 < 1 else c1 - 1
-    nt = _turn_to(st, col, depth, t, d)
+    nt = _turn_to(st, N, col, depth, t, d)
     c, r = col + mv.dx(st, d), depth + mv.dy(st, d)
     if not (0 <= c < 0x40 and r < 0x40):
         return
     if r < 1:
-        exit_to_surface(st, col)
+        exit_to_surface(st, N, col)
         return
     tile = st.grid(DIRT, c, r)
     if tile < 0x30:
         if not ng.is_diggable(tile) and _enter(st, col, depth, c, r, d, nt):
             if s16(st.rand64()) > s16(st.u16(G, 0x10be)):
-                eat_if_on_food(st, c, r)
+                eat_if_on_food(st, N, c, r)
         return
     st.set_grid(EXITF, col, depth, st.grid(EXITF, col, depth) - 1)
     caste = (t & 0x78) >> 3
@@ -575,7 +587,7 @@ def n_defense(st, col, depth, t):
     """f_7a0c2: guards stay while the player watches the black nest, else go out."""
     if st.u16(G, 0x48c) == 2:
         if fight_at(st, col, depth, t) != 1:
-            _move_or_random(st, col, depth, t & 7)
+            _move_or_random(st, N, col, depth, t & 7)
     else:
         n_go_to_surface(st, col, depth, t)
 
@@ -643,7 +655,7 @@ def n_egg_laying(st, col, depth, caste, t):
         return
     if s16(st.rand128()) > s16(st.u16(G, 0x10be)):
         return
-    spawn_brood(st, c, r, 1)
+    spawn_brood(st, N, c, r, 1)
     egg_cost(st)
     st.inc32(G, 0xfc2)
 
@@ -698,7 +710,7 @@ def n_invader_move(st, col, depth, t):
     """f_79e40: red invaders climb towards the exit (any direction allowed)."""
     c = climb_dir(st, N, col, depth, 8)
     d = st.rand8() if c == 0 else c - 1
-    if not move_to(st, col, depth, d) and not move_to(st, col, depth, st.rand8()):
+    if not move_to(st, N, col, depth, d) and not move_to(st, N, col, depth, st.rand8()):
         st.set_grid(CELLS, col, depth, _get(st, BTYPE, _cur(st)))
 
 
@@ -707,16 +719,16 @@ def n_invader_attack(st, col, depth, t):
     cur = _cur(st)
     v = st.grid(DIRT, col, depth)
     if v < 0x10 or v > 0x13:
-        if move_to(st, col, depth, (st.rand(3) + t - 2) & 7):
+        if move_to(st, N, col, depth, (st.rand(3) + t - 2) & 7):
             return
         d = step_dir(st, N, col, depth, t & 7)
         if d < 0:
             d = st.rand(8)
-        if move_to(st, col, depth, d):
+        if move_to(st, N, col, depth, d):
             return
         _set(st, BSTATE, cur, 1)
     else:
-        invader_eat_food(st, col, depth)
+        invader_eat_food(st, N, col, depth)
         _set(st, BSTATE, cur, 3)
         _set(st, BTYPE, cur, _get(st, BTYPE, cur) | 8)
     st.set_grid(CELLS, col, depth, _get(st, BTYPE, cur))
@@ -740,7 +752,7 @@ def nest_ant_tick(st, col, depth, t):
             st.player.attack_player(st, 2, cur)
             return
         if 0 < o < 0x68:
-            i = nest_ant_at(st, col, depth, o)
+            i = nest_ant_at(st, N, col, depth, o)
             if i >= 0:
                 if o > 0x5f:
                     remove_ant(st, i)
