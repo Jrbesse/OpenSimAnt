@@ -54,7 +54,7 @@ cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
 python test_yard.py; python test_player.py; python test_sim.py 3000
-python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py
+python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py
 ```
 
 All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical"); last full run
@@ -78,6 +78,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `newgame.py` | **new game** `f_6b36b`, the Full Game's move to another patch `f_01d48`, and patch setup `f_6ae20`: clearing, colony settings, patch seeds, terrain, scattered colonies, pre-dug nests, queens, the yellow ant's start per mode |
 | `game.py` | game flow: rating, game-over screen, starting a game |
 | `savefile.py` | saved games: the block table, save, load with its fix-ups |
+| `cheats.py` | the cheat codes `f_6a920`: key matching and all 23 cheats |
 | `player.py` | the yellow ant (also its death and the takeover, `player_event`): upkeep `f_7bf7e`, actions `f_7b7b8` (pathfinding to the cursor, picking up / dropping / eating, entering and leaving nests, fights), view-generic map accessors |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
@@ -134,12 +135,9 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
      (from the window draw `f_038a6`; f_07558 also from `f_07134`, `f_753e5`)
    - input / tools: `f_6be50`, `f_6bf06` (from `f_6b592`, and via thunks from the input poll `f_01572`;
      f_6be50 also from `f_0e4e4` ← `f_0e425`, a UI action with message boxes)
-   - cheats: `f_6a920`, **fully decoded** in SIM_NOTES "Cheat codes": 23 four-letter codes (the
-     table at T:067E holds the NOT-ed codes themselves, not pointers), the prefix matching, and every
-     case of the switch (jump table at 0x6aa25 = cs:0105, cs base 0x6a920). **Next: port it** as
-     `simant_ref/cheats.py` + `test_cheats.py`: v.check on 0x6a920 per key sequence (each code, a
-     prefix that breaks, "hhole"), stubbing the UI calls f_00ed8 (sound), f_277da, f_71b1a,
-     f_0151c / f_0125f / f_00ed0 (joke), f_72750 (fred).
+   - (done: cheats `f_6a920`, SIM_NOTES "Cheat codes", `simant_ref/cheats.py`; `test_cheats.py`
+     types all 23 codes plus broken prefixes and toggles twice, key by key, from every snapshot: ALL OK.
+     UI stubbed: f_277da, thunk 0x2f6ea (f_71b1a messages), f_00ed0, f_0125f; sound f_00ed8 runs.)
    - startup seeding: `f_00a11` (documented in SIM_NOTES "RNG"; called from the init near 0x075B0)
    - others to identify: `f_008ae` (← f_0052a, f_00572), `f_01707` (← f_022bc,
      f_6f733), `f_06a4d` (← f_07128), `f_70601` / `f_706d0` (← f_702f7 ← f_6fa6c), `f_7723f`, `f_77672`,

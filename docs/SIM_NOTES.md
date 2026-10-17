@@ -1050,7 +1050,7 @@ G:0AF6 / G:0B04 += 1, population counters.
   tutorial: T:07A4 = 1, T:07A6 = 0.
 - Win screen `f_2f91a` → `f_72750`: an animation only.
 
-## Cheat codes (`f_6a920`, overlay 10; not ported yet)
+## Cheat codes (`f_6a920`, overlay 10; ported: `simant_ref/cheats.py`, verified by `test_cheats.py`)
 
 Called once per typed key (`f_6a920(key)`, via thunk 0x2f924 from `f_74386`). Matching:
 
