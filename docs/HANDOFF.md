@@ -1,7 +1,7 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-17 (evening).
+old transcript. Last updated 2026-10-17 (late evening: cheats, debug commands, map tools).
 
 ## Goals (from the owner)
 
@@ -54,11 +54,11 @@ cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
 python test_yard.py; python test_player.py; python test_sim.py 3000
-python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py; python test_debug.py
+python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py; python test_debug.py; python test_markers.py
 ```
 
 All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical"); last full run
-2026-10-17 after the rendering commits.
+2026-10-17 after the map-tools commit (test_markers.py was added after it and passes on its own).
 
 ## What is ported and verified (`tools/ref/simant_ref/`)
 
@@ -81,6 +81,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `cheats.py` | the cheat codes `f_6a920`: key matching and all 23 cheats |
 | `debug.py` | hidden debug commands: add / kill ants, clear food, the random action `f_022bc` |
 | `tools.py` | the map tools `f_770f6`: rocks, dig, ants, food, pheromone, insecticide |
+| `markers.py` | the event-marker recorders behind the 'brood' / 'fight' / 'queen' / 'rest' effects |
 | `player.py` | the yellow ant (also its death and the takeover, `player_event`): upkeep `f_7bf7e`, actions `f_7b7b8` (pathfinding to the cursor, picking up / dropping / eating, entering and leaving nests, fights), view-generic map accessors |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
@@ -133,8 +134,11 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    callers of Rand* in `build/calls.tsv` with the `f_xxxxx` names in `simant_ref`; f_0cb3b / f_0cc8f are
    red-nest helpers already covered by their ported callers). Each can shift the random sequence, so
    each needs classifying and, if the remake must match tick for tick, porting:
-   - map drawing: `f_03de7` (documented, see SIM_NOTES), `f_04666` (from it), `f_07128` and `f_07558`
-     (from the window draw `f_038a6`; f_07558 also from `f_07134`, `f_753e5`)
+   - map drawing: `f_03de7` (documented, see SIM_NOTES). `f_04666` (from it) is the spider overlay's
+     animation (G:0FB8, G:06AC, G:0A06, Rand; see step 8). `f_07128` is the speech balloons (below).
+     `f_07558` does **not** draw from the RNG: it ends at 0x075AE. The Rand-side calls `calls.tsv` gives
+     it (up to `f_00a11`, the startup seeding at 0x07642) belong to the next function, the init near
+     0x075B0.
    - (done: `f_6be50` / `f_6bf06`, add up to n black / red surface ants on free cells of the colony's
      half, `newgame.add_surface_ants`, `test_tools.py` ALL OK. Their callers: the debug commands below;
      `f_6b592` (no callers found: a preset start, Quick Game + 32 ants each + Full Game with 30 yard
@@ -161,13 +165,18 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
        (tile 0x10 → Rand8, 0x11..0x13 shrink, food - 1). Dead code.
      - `f_7b59b`: no callers; a variant of exit_to_surface (f_7b661). Dead code.
    - still to do, UI that draws from the RNG:
-     - `f_06a4d` (← f_07128 ← the window draw f_038a6) is the **speech balloons**. It runs only while
-       the patch is visible (T:07B2) and T:07BE == -1. There are four sources, gated on G:0F06, G:0EF6,
-       G:0F10 and G:0F2E: when one is 0 and its position (e.g. G:08EC / G:08EE) is >= 0, it latches the
-       position and arms. Each source has a real-time-clock timer (G:050C / G:0732 / G:059A / G:0620 /
-       G:07C4...) that re-arms at clock + Rand32() + 60, 0xAA or 0xB4. Each re-arm draws Rand2 or Rand4;
-       0 means show the next string of a far-pointer table (G:020A, G:0218, G:021C, G:0234...; the index
-       wraps at a null) through `f_0696a`.
+     - `f_06a4d` (← f_07128 ← the window draw f_038a6) draws **animated markers at four recorded
+       spots**. It runs only while the patch is visible (T:07B2) and T:07BE == -1.
+       - Gates and positions: G:0F06, G:0EF6, G:0F10 and G:0F2E, with positions G:08EC, G:0852,
+         G:0A02 and G:0AA2. They are written by the four **event recorders** (done:
+         `simant_ref/markers.py`, `test_markers.py` ALL OK over 32 cases; SIM_NOTES "Event markers"),
+         which the sim's 'brood' / 'fight' / 'queen' / 'rest' effect hooks stand for.
+       - When a gate is 0 and its position is >= 0, it latches the position and arms.
+       - Each source has a real-time-clock timer (G:050C / G:0732 / G:059A / G:0620 / G:07C4...) that
+         re-arms at clock + Rand32() + 60, 0xAA or 0xB4. Each re-arm draws Rand2 or Rand4; 0 means
+         draw the next frame of a bitmap group through `f_0696a`.
+       - The groups are handles G:020A / G:0218 / G:021C / G:0234 = bitmaps 1220 / 1230 / 1240 / 1250
+         (art not identified yet; the frame index wraps at a null handle).
        Because the timing comes from the clock, a tick-for-tick remake has to model the clock reads
        (`State.clock`) to stay in step.
      - `f_70601` / `f_706d0` (← f_702f7 ← f_6fa6c ← f_6fac7 ← f_6fc36 / thunk 0x2f62c) belong to a
@@ -191,6 +200,10 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 - Overlay calls go through vector thunks (for example `f_2f7da` → `f_7a69d`); `decomp.py <thunk>` shows the
   target.
 - Unicorn harness: SS must equal DS; `call_lin` returns AX only.
+- `build/calls.tsv` files each call site under the nearest function start above it. When the next
+  routine has no entry of its own (no direct callers), its calls are credited to the previous one
+  (`f_008ae` and `f_07558` looked like Rand callers this way). Check where the routine really ends
+  (`retf`) before classifying it.
 - `emu.seg_of` gives an overlay routine its overlay's base as CS. An overlay can hold more than one code
   segment (the 0x74FE0 overlay has a second one at 0x76F40). A routine there that uses a CS-relative jump
   table (`jmp cs:[bx + n]`) then jumps into the wrong code. Pin the CS in the test (`test_tools.py` does

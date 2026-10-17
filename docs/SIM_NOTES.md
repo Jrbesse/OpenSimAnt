@@ -1248,6 +1248,32 @@ So in the original, whenever this redraw runs (the window is shown and gets redr
 the UI), the simulation's random sequence shifts. The verifier never sees it because the patch stays
 hidden. A remake that must match the original tick for tick has to call this at the same redraws; a
 remake that only needs to play the same way can draw these from a separate generator.
+The spider's legs (`f_04666`, drawn right after its body at 0x0420a) take one more draw: Rand(4)
+picks the leg offsets (tables T:09E4 / T:09E8 / ...) when the spider's state G:0FB8 > 1 or G:06AC >= 6,
+on every redraw that draws the spider, whether or not the patch is visible.
+### Event markers (recorders ported: `simant_ref/markers.py`, verified by `test_markers.py`)
+
+While the patch is visible (T:07B2), the simulation reports four kinds of events; the port sends them to
+`st.player.effect` with (a, b, view):
+
+| kind | Recorder | Reported by | Gate | Recorded a, b, view | Latched by the animation |
+|---|---|---|---|---|---|
+| brood | `f_0678a` | N_Brood f_7a360 / red f_0fe16 (a brood hatches) | G:0EF6 | G:0852, G:0854, G:0ACA | G:08DE, G:08E0, G:0AD8 |
+| fight | `f_06802` | f_7a126 / f_0fbdd (nest fights), f_0a871 (surface) | G:0F06 | G:08EC, G:08EE, G:0AEA | G:09F2, G:09F4, G:0B06 |
+| queen | `f_0687a` | N_EggLaying f_7a490 / red f_0ff0f | G:0F10 | G:0A02, G:0A04, G:0B08 | G:0A8A, G:0A8C, G:0C3A |
+| rest | `f_068f2` | f_79ec5 / f_0f9de (nests), f_09018 (surface) | G:0F2E | G:0AA2, G:0AA4, G:0D68 | G:0AB2, G:0AB4, G:0D9A |
+
+A recorder acts only while its gate is 0 and the spot is on screen. `f_06725(view, a, b)`: `view` is
+the view shown (G:032E), G:0508 <= a < G:0508 + G:10E0, and G:050A <= b - 3 with b < G:050A + G:10DE,
+all signed.
+- If the spot is the one the animation has latched, the gate counts up.
+- Otherwise it records a, b and view.
+
+The animation `f_06a4d` latches a recorded spot (its gate then becomes non-zero), draws there and times
+it with the clock (see HANDOFF step 9). SimStep clears the gates and records when the patch is shown.
+Since the verifier's patch window is never on screen, the full-tick checks never see these writes. A
+remake that shows the window should call `markers.record` from its effect hook.
+
 Bitmap handles (`f_0765e`): 1000 → G:046C, 1001 → G:0324, 1010 → G:034C, 1020 → G:0360,
 1050 → G:02BA, 1100..1103 → G:106E / 1078 / 1086 / 1096, 1200 → G:10A8, 1210 → G:10B4, 1220 → G:020A,
 1230 → G:0218, 1240 → G:021C, 1250 → G:0234, 1260 → G:023A, 1900 → G:0328, 1800 → G:0368.
