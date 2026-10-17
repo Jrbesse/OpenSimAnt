@@ -81,6 +81,59 @@ def swarm_cat(n_occ):
     return pre
 
 
+def spider_at(state=None, mode=None, near=True, off=(3, 0), g=(), t=(), swarm=False, prey=None,
+              crowd=0, tile=None, yellow=None, cursor=None):
+    """pre hook: an active spider near a surface ant (in 1/16 tiles), optional state / mode / globals."""
+    from simant_ref.state import SIM, T as TT
+
+    def pre(set16, a):
+        set8 = set16.byte
+        st = VER.state_from_emu()
+        n = st.u16(G, 0xd6a)
+        ants = [i for i in range(n) if st.u8(SIM, 0xad3b + i)]
+        if near and ants:
+            ant = ants[len(ants) // 2]
+            sa, sb = st.u8(SIM, 0xa180 + ant) + off[0], st.u8(SIM, 0xa569 + ant) + off[1]
+        else:
+            ant = None
+            sa, sb = 60, 30
+        sa, sb = min(max(sa, 1), 126), min(max(sb, 1), 62)
+        set16(G, 0xf0c, 1)
+        set16(G, 0xf12, sa * 16 + 8)
+        set16(G, 0xf34, sb * 16 + 8)
+        if state is not None:
+            set16(G, 0xfb8, state)
+        if mode is not None:
+            set16(G, 0x6ac, mode)
+        if prey == 'ant' and ant is not None:
+            set16(G, 0xffc, ant)
+            set16(G, 0x10ae, st.u8(SIM, 0xad3b + ant))
+        elif prey is not None:
+            set16(G, 0xffc, prey)
+        for off_, val in g:
+            set16(G, off_, val)
+        for off_, val in t:
+            set16(TT, off_, val)
+        if swarm:
+            for x in range(sa - 1, sa + 2):
+                for y in range(sb - 1, sb + 2):
+                    set8(SIM, 0x6180 + x * 64 + y, 0x10)
+        for k, (x, y) in enumerate((x, y) for x in range(sa - 1, sa + 2) for y in range(sb - 1, sb + 2)):
+            if k < crowd:
+                set8(SIM, 0x6180 + x * 64 + y, 0x10)
+        if tile is not None:
+            set8(SIM, 0x180 + sa * 64 + sb, tile)
+        if yellow is not None:
+            set16(G, 0x47c, sa + yellow[0])
+            set16(G, 0x48a, sb + yellow[1])
+        if cursor is not None:
+            set16(G, 0xf42, sa + cursor[0])
+            set16(G, 0xf7e, sb + cursor[1])
+            set16(G, 0x47c, sa)
+            set16(G, 0x48a, sb)
+    return pre
+
+
 CHECKS = [
     ('history', 0x798c8, world.history, 3, None),
     ('advisor', 0x0e2ea, world.advisor, 2, None),
@@ -109,6 +162,45 @@ CHECKS = [
     ('caterpillar long', 0x0b6cc, world.caterpillar, 700, None),
     ('caterpillar blocked', 0x0b6cc, world.caterpillar, 12, swarm_cat(4)),
     ('caterpillar swarmed', 0x0b6cc, world.caterpillar, 3, swarm_cat(9)),
+    ('spider natural', 0x0ce63, world.spider, 300, None),
+    ('spider spawn', 0x0ce63, world.spider, 2000, setter(g=[(0xf0c, 0)])),
+    ('spider resting', 0x0ce63, world.spider, 200, spider_at(0)),
+    ('spider walking', 0x0ce63, world.spider, 200, spider_at(1)),
+    ('spider walking back', 0x0ce63, world.spider, 200, spider_at(1, t=[(0xc12, 1)])),
+    ('spider hunting', 0x0ce63, world.spider, 200, spider_at(2, prey='ant')),
+    ('spider hunting far', 0x0ce63, world.spider, 50, spider_at(2, prey='ant', off=(40, 0))),
+    ('spider hunting lost', 0x0ce63, world.spider, 50, spider_at(2, prey='ant', g=[(0x10ae, 0xf0)])),
+    ('spider eating', 0x0ce63, world.spider, 200, spider_at(3, prey='ant', off=(1, 0))),
+    ('spider eating none', 0x0ce63, world.spider, 100, spider_at(3, prey=0xfffe, g=[(0x1054, 25)])),
+    ('spider fleeing', 0x0ce63, world.spider, 200, spider_at(4)),
+    ('spider beaten', 0x0ce63, world.spider, 600, spider_at(5, g=[(0x109a, 450)])),
+    ('spider beaten end', 0x0ce63, world.spider, 30, spider_at(5, g=[(0x109a, 3)])),
+    ('spider mode 7', 0x0ce63, world.spider, 300, spider_at(0, mode=7)),
+    ('spider mode 8', 0x0ce63, world.spider, 300, spider_at(1, mode=8)),
+    ('spider swarmed', 0x0ce63, world.spider, 40, spider_at(1, swarm=True, g=[(0x1072, 3)])),
+    ('spider swarmed often', 0x0ce63, world.spider, 40, spider_at(1, swarm=True, g=[(0x1072, 3), (0x108a, 4)])),
+    ('spider crowded', 0x0ce63, world.spider, 20, spider_at(1, crowd=6, g=[(0x1072, 3)])),
+    ('spider hunts yellow', 0x0ce63, world.spider, 2, spider_at(2, prey=0xffff, yellow=(12, 0), g=[(0x48c, 1)])),
+    ('spider yellow underground', 0x0ce63, world.spider, 5, spider_at(2, prey=0xffff, g=[(0x48c, 2)])),
+    ('spider yellow far', 0x0ce63, world.spider, 5, spider_at(2, prey=0xffff, yellow=(70, 0), g=[(0x48c, 1)])),
+    ('spider mode 7 yellow', 0x0ce63, world.spider, 2, spider_at(0, mode=7, near=False, yellow=(20, 0),
+                                                                g=[(0x48c, 1), (0xd6a, 0)])),
+    ('spider eating changed', 0x0ce63, world.spider, 30, spider_at(3, prey='ant', g=[(0x10ae, 0xf0)])),
+    ('spider fleeing at edge', 0x0ce63, world.spider, 200, spider_at(4, near=False, off=(0, 0), g=[(0xf12, 126 * 16)])),
+    ('spider beaten end house', 0x0ce63, world.spider, 5, spider_at(5, g=[(0x109a, 1), (0xf24, 1)], tile=2)),
+    ('spider beaten end house 2', 0x0ce63, world.spider, 5, spider_at(5, g=[(0x109a, 1), (0xf24, 1)], tile=0x10)),
+    ('spider beaten end house 3', 0x0ce63, world.spider, 5, spider_at(5, g=[(0x109a, 1), (0xf24, 1)], tile=0x20)),
+    ('spider beaten end house 4', 0x0ce63, world.spider, 5, spider_at(5, g=[(0x109a, 1), (0xf24, 1)], tile=0x50)),
+    ('spider player', 0x0ce63, world.spider, 60, spider_at(1, g=[(0xa06, 1), (0x6ac, 0)], cursor=(15, 4))),
+    ('spider player charging', 0x0ce63, world.spider, 60, spider_at(1, g=[(0xa06, 1), (0x6ac, 0), (0xa8e, 1)],
+                                                                  cursor=(-20, -3))),
+    ('spider player arrived', 0x0ce63, world.spider, 3, spider_at(1, g=[(0xa06, 1)], cursor=(0, 0))),
+    ('spider player mode 7', 0x0ce63, world.spider, 30, spider_at(1, g=[(0xa06, 1), (0x6ac, 7)], cursor=(9, 9))),
+    ('spider player mode 8', 0x0ce63, world.spider, 30, spider_at(1, g=[(0xa06, 1), (0x6ac, 8)], cursor=(9, 9))),
+    ('spider player hunting', 0x0ce63, world.spider, 60, spider_at(2, prey='ant', g=[(0xa06, 1)])),
+    ('spider player eating', 0x0ce63, world.spider, 60, spider_at(3, prey='ant', off=(1, 0), g=[(0xa06, 1), (0x6ac, 6)])),
+    ('spider player prey lost', 0x0ce63, world.spider, 5, spider_at(2, prey='ant', g=[(0xa06, 1), (0x10ae, 0xf0), (0x6ac, 6)])),
+    ('spider in house', 0x0ce63, world.spider, 50, spider_at(1, g=[(0xf24, 1)])),
     ('ant lions full', 0x0b163, world.ant_lions, 20, lions([(2, 0, 0)] * 9, near_ants=False)),
 ]
 
@@ -122,7 +214,7 @@ def main():
         if only and not any(o in label for o in only):
             continue
         ok &= v.check(lin, with_player(fn), label=label, repeat=repeat, pre=pre, ignore=SCREEN,
-                      pre_once='lion' in label or 'caterpillar' in label)
+                      pre_once='lion' in label or 'caterpillar' in label or 'spider' in label)
     print('ALL OK' if ok else 'SOME MISMATCHES')
     return ok
 

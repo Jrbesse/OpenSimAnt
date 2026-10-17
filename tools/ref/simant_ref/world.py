@@ -398,6 +398,412 @@ def caterpillar(st):
     st.set16(G, 0xc36, 5)
 
 
+# ------------------------------------------------------------------------------------------- spider
+# position in 1/16 tiles G:0F12 (a) / G:0F34 (b), active G:0F0C, state G:0FB8 (0 resting, 1 walking,
+# 2 hunting, 3 eating, 4 fleeing, 5 beaten), heading G:1004, animation G:1042, prey G:0FFC (surface ant,
+# -1 the yellow ant, -2 none) whose type is remembered in G:10AE, mode G:06AC (7: hunts any ant within
+# ~28 tiles, 8: also lashes out at ants beside it), times beaten G:108A. With G:0A06 == 1 the player
+# is the spider (it walks to the cursor G:0F42/0F7E and drags the view, G:047C/048A, along).
+SPX, SPY = 0xf12, 0xf34
+
+
+def _sp_pos(st):
+    return s16(st.u16(G, SPX)) >> 4, s16(st.u16(G, SPY)) >> 4
+
+
+def _sp_step(st, mul, back):
+    """Move one step along the heading (T:0994/099C, in 1/16 tiles), mul 1 or 5; animate."""
+    h = st.u16(G, 0x1004)
+    dx, dy = st.s8(T, 0x994 + h) * mul, st.s8(T, 0x99c + h) * mul
+    k = 1 if mul == 1 else 2
+    if back:
+        dx, dy, k = -dx, -dy, -k
+    st.set16(G, SPX, st.u16(G, SPX) + dx)
+    st.set16(G, SPY, st.u16(G, SPY) + dy)
+    st.set16(G, 0x1042, (st.u16(G, 0x1042) + k) & 0x3ff)
+
+
+def _sp_turn_random(st):
+    st.set16(G, 0x1004, st.s8(T, 0x24 + st.u16(G, 0x1004) * 8 + st.rand(8)))
+
+
+def _surface_ant_with(st, a, b, t):
+    """f_11327(1, a, b, t): index of the surface ant at (a, b) with type t, from the top; -1 if none."""
+    i = s16(st.u16(G, 0xd6a))
+    while True:
+        i -= 1
+        if i < 0:
+            return i
+        if st.u8(SIM, 0xa180 + i) == a and st.u8(SIM, 0xa569 + i) == b and st.u8(SIM, 0xad3b + i) == t:
+            return i
+
+
+def spider_find_prey(st):
+    """f_0dbb9."""
+    a, b = _sp_pos(st)
+    if st.u16(G, 0x6ac) == 7:
+        i = s16(st.u16(G, 0xd6a))
+        while i > 0:
+            i -= 1
+            if st.u8(SIM, 0xad3b + i) and co.distance(a, b, st.u8(SIM, 0xa180 + i), st.u8(SIM, 0xa569 + i)) <= 800:
+                return i
+        if (st.u16(G, 0xa06) == 0 and st.u16(G, 0x48c) == 1
+                and co.distance(a, b, s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a))) < 0x321):
+            return -1
+        return -2
+    h = st.u16(G, 0x1004)
+    x, y = a, b
+    for _ in range(20):
+        y += st.s8(T, 8 + h)
+        x += st.s8(T, h)
+        if not _in_patch(x, y) or co.distance(a, b, x, y) > 400:
+            break
+        o = st.grid(0x6180, x, y)
+        if o:
+            if o in (0xfe, 0xff):
+                return -1
+            j = _surface_ant_with(st, x, y, o)
+            if j >= 0:
+                return j
+    return -2
+
+
+def spider_lash(st):
+    """f_0dd40 (mode 8): strike at an ant in the 90-degree cone ahead, up to 12 tiles; 3/4 kill it."""
+    base = ((st.u8(G, 0x1004) - 2) & 7) * 0x20
+    fa, fb = s16(st.u16(G, SPX)), s16(st.u16(G, SPY))
+    res = -1
+    for _ in range(2):
+        for ang in range(base - 0x20, base + 0x20):
+            r = st.rand(0xc) + 1
+            x = s16(co._cdiv(co.cos256(ang) * r, 0x7fff) + (fa >> 4))
+            y = s16(co._cdiv(co.sin256(ang) * r, 0x7fff) + (fb >> 4))
+            if not _in_patch(x, y):
+                continue
+            o = st.grid(0x6180, x, y)
+            if not o:
+                continue
+            res = _surface_ant_with(st, x, y, o)
+            if res < 0:
+                continue
+            st.player.effect(st, 'spider_strike', x * 16 + 7, y * 16 + 7)
+            if st.rand4() == 0:
+                return res
+            st.set_grid(0x6180, x, y, 0)
+            st.set8(SIM, 0xad3b + res, 0)
+            sf_place_corpse(st, x, y, o & 0x80)
+            return res
+    return res
+
+
+def sf_place_corpse(st, a, b, red):
+    from .surface import place_corpse
+    place_corpse(st, a, b, red)
+
+
+def spider_drop_food(st, a, b):
+    """f_0c692: a beaten spider leaves food behind."""
+    t = st.grid(SURFACE, a, b)
+    if st.u16(G, 0xf24) == 1:
+        if t > 3:
+            if t < 8 or t > 0x17:
+                if t < 0x18 or t > 0x26:
+                    if t < 0x40:
+                        raise NotImplementedError('f_0c73d (spider food on house furniture)')
+                    return 0
+                st.set_grid(SURFACE, a, b, t + 1)
+                st.inc16(G, 0x1040)
+                return 1
+            t = (t - 8) >> 2
+        st.set_grid(SURFACE, a, b, ((t + 6) * 4) & 0xff)
+    else:
+        if t > 0x4a:
+            return 0
+        st.set_grid(SURFACE, a, b, 0x48 if t < 0x48 else t + 1)
+    st.inc16(G, 0x1040)
+    return 1
+
+
+def _sp_prey_chosen(st, r):
+    """L_cefa: start hunting the prey just found."""
+    st.set16(G, 0xfb8, 2)
+    st.set16(G, 0x10ae, st.u8(SIM, 0xad3b + r) if r >= 0 else 0xff)
+
+
+def _sp_player_follow(st):
+    if st.u16(G, 0xa06) == 1:
+        a, b = _sp_pos(st)
+        st.set16(G, 0x47c, a)
+        st.set16(G, 0x48a, b)
+        return True
+    return False
+
+
+def spider(st):
+    """f_0ce63."""
+    st.set16(G, 0x1072, (st.u16(G, 0x1072) + 1) & 0x3ff)
+    a, b = _sp_pos(st)
+    state = st.u16(G, 0xfb8)
+    if st.u16(G, 0xa06) == 1 and state not in (2, 3):
+        _spider_player(st)
+        return
+    if st.u16(G, 0xf0c) == 0:
+        if st.u16(G, 0xeac) == 0 or st.rand(0x12c) != 0:
+            return
+        st.set16(G, SPX, st.rand(0x400) + 0x200)
+        st.set16(G, 0xf0c, 1)
+        st.set16(G, 0xfb8, 1)
+        st.set16(T, 0xc12, 0)
+        if st.rand(2):
+            st.set16(G, SPY, 1)
+            st.set16(G, 0x1004, 4)
+        else:
+            st.set16(G, SPY, 0x3ff)
+            st.set16(G, 0x1004, 0)
+        return
+    if st.u8(G, 0x1072) & 3 == 0 and s16(st.u16(G, 0xfb8)) < 5:
+        n = sum(1 for x in range(a - 1, a + 2) for y in range(b - 1, b + 2)
+                if _in_patch(x, y) and st.grid(0x6180, x, y))
+        if n > 8:                                                       # swarmed: beaten
+            st.set16(G, 0xfb8, 5)
+            st.set16(G, 0x109a, 500)
+            st.set16(G, 0x1042, 0)
+            if st.u16(G, 0xa06) == 1:
+                st.set16(G, 0xa06, 0)
+                st.player.spider_event(st, 3)
+                return
+            st.player.effect(st, 'message', 0x273e)
+            if s16(st.u16(G, 0x108a)) < 5:
+                st.inc16(G, 0x108a)
+            k = s16(st.u16(G, 0x108a))
+            if k < 3:
+                return
+            st.set16(G, 0x6ac, 8 if k >= 5 else 7)
+            if k < 6 or st.rand2() != 0:
+                return
+            st.set16(G, 0x108a, 0)
+            st.set16(G, 0x6ac, 0)
+            return
+        if n > 4:
+            st.set16(G, 0xfb8, 4)
+    if s16(st.u16(G, 0xfb8)) < 4 and st.u16(G, 0x6ac) == 8:
+        spider_lash(st)
+    state = st.u16(G, 0xfb8)
+    if state == 0:
+        st.set16(G, 0x1042, 2)
+        if st.rand(0x96) == 0:
+            st.set16(G, 0xfb8, 1)
+        r = spider_find_prey(st)
+        st.set16(G, 0xffc, r)
+        if r != -2:
+            _sp_prey_chosen(st, r)
+            return
+        if st.rand(0x1e) == 0:
+            _sp_turn_random(st)
+        if st.u16(G, 0x6ac) == 8:
+            spider_lash(st)
+    elif state == 1:
+        _sp_step(st, 1, st.u16(T, 0xc12) != 0)
+        if st.rand(0x14) == 0:
+            _sp_turn_random(st)
+        r = spider_find_prey(st)
+        st.set16(G, 0xffc, r)
+        if r != -2:
+            _sp_prey_chosen(st, r)
+            return
+        _sp_maybe_rest(st)
+    elif state == 2:
+        if not _spider_hunt(st, a, b):
+            return
+    elif state == 3:
+        if not _spider_eat(st, a, b):
+            return
+    elif state == 4:
+        _sp_turn_random(st)
+        _sp_step(st, 5, st.u16(T, 0xc12) != 0)
+        _sp_maybe_rest(st)
+    elif state == 5:
+        st.inc16(G, 0x109a, -1)
+        if st.u16(G, 0x109a) == 0:
+            st.set16(G, 0xf0c, 0)
+            st.set16(G, 0xfb8, 0)
+            for _ in range(3):
+                spider_drop_food(st, a, b)
+            return
+        if s16(st.rand(0x3e8)) < s16(st.u16(G, 0x109a)):
+            if s16(st.u16(G, 0x109a)) > 0x190:
+                st.set16(G, 0x1042, st.rand(3) + 1)
+            else:
+                st.set16(G, 0x1042, st.rand(2) + 2)
+    _spider_tail(st)
+
+
+def _sp_maybe_rest(st):
+    """0d7cd."""
+    if st.rand(0x32) == 0:
+        st.set16(G, 0xfb8, 0)
+        st.set16(G, 0x1042, 2)
+
+
+def _spider_tail(st):
+    """0da96: leaving the patch (or climbing furniture in the house) ends the visit."""
+    a, b = _sp_pos(st)
+    if not _in_patch(a, b):
+        st.set16(G, 0xf0c, 0)
+        if st.u16(G, 0xa06) == 1:
+            st.set16(G, 0xa06, 0)
+            st.player.spider_event(st, 4)
+    if st.u16(G, 0xf24) != 0:
+        if st.u8(SIM, 0x180 + ((st.u16(G, SPX) & 0xfff0) << 2) + (s16(st.u16(G, SPY)) >> 4)) > 0x90:
+            st.set16(G, 0xf0c, 0)
+
+
+def _sp_lose_prey(st):
+    st.set16(G, 0xfb8, 0)
+    st.set16(G, 0xffc, 0xfffe)
+
+
+def _spider_hunt(st, a, b):
+    """State 2 (0d3ee). Returns False when the tick ends without the common tail."""
+    p = s16(st.u16(G, 0xffc))
+    if p >= 0:
+        if (st.u8(SIM, 0xad3b + p) ^ st.u8(G, 0x10ae)) & 0xf0:      # the prey is gone
+            _sp_lose_prey(st)
+            if st.u16(G, 0xa06) == 1:
+                st.set16(G, 0xf7e, b)
+                st.set16(G, 0xf42, a)
+                st.set16(G, 0x47c, a)
+                st.set16(G, 0x48a, b)
+                if st.u16(G, 0x6ac) == 6:
+                    st.set16(G, 0x6ac, 0)
+                st.player.effect(st, 'scroll')
+            return False
+    elif s16(st.u16(G, 0x48c)) > 1:                                  # the yellow ant went underground
+        _sp_lose_prey(st)
+        return False
+    if p < 0:
+        tx, ty = s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a))
+    else:
+        tx, ty = st.u8(SIM, 0xa180 + p), st.u8(SIM, 0xa569 + p)
+    d = abs(tx - a) + abs(ty - b)                                     # f_0dec8
+    if d > 0x40 and st.u16(G, 0xa06) != 1:
+        _sp_lose_prey(st)
+        return False
+    if d < 2:                                                         # caught
+        st.set16(G, 0xfb8, 3)
+        st.set16(G, SPX, (st.u16(G, SPX) & 0xfff0) + 8)
+        st.set16(G, SPY, (st.u16(G, SPY) & 0xfff0) + 8)
+        return _spider_eat(st, a, b)
+    dd = mv_dir_to(a, b, tx, ty)
+    st.set16(G, 0x1004, st.s8(T, 0x23 + st.u16(G, 0x1004) * 8 + dd))
+    st.player.effect(st, 'sound', 0x2f)
+    _sp_step(st, 5, st.u16(T, 0xc12) != 0)
+    if _sp_player_follow(st):
+        st.player.effect(st, 'scroll')
+    _spider_tail(st)
+    return False
+
+
+def mv_dir_to(a, b, ta, tb):
+    from .movement import dir_to
+    return dir_to(a, b, ta, tb)
+
+
+def _spider_eat(st, a, b):
+    """State 3 (0d526): eat the prey. Returns True to run the common tail."""
+    if _sp_player_follow(st):
+        if st.u16(G, 0x6ac) == 6:
+            st.set16(G, 0x6ac, 0)
+        st.player.effect(st, 'scroll')
+    p = s16(st.u16(G, 0xffc))
+    if p != -2:
+        if p < 0:
+            h = st.u16(G, 0x1004)
+            st.player.spider_eats_player(st, (st.s8(T, 0x9a4 + h) + a) & 0x7f, (st.s8(T, 0x9ac + h) + b) & 0x3f)
+            st.set16(G, 0x105a, 0)
+        elif (st.u8(G, 0x10ae) ^ st.u8(SIM, 0xad3b + p)) & 0xf0:
+            st.set16(G, 0xffc, 0xfffe)
+            _sp_done_eating(st, a, b)
+            return True
+        else:
+            if st.u8(G, 0x10ae) & 0x80:
+                st.inc32(G, 0xf80)
+                st.set16(G, 0x105a, 4)
+            else:
+                st.inc32(G, 0xf20)
+                st.set16(G, 0x105a, 0)
+            st.set_grid(0x6180, st.u8(SIM, 0xa180 + p), st.u8(SIM, 0xa569 + p), 0)
+            st.set8(SIM, 0xad3b + p, 0)
+        st.set16(G, 0xffc, 0xfffe)
+        st.set16(G, 0x1054, 0xb if s16(st.u16(G, 0x6ac)) >= 7 else 0x32)
+    # 0d95c: chewing in front of the spider leaves a corpse
+    h = st.u16(G, 0x1004)
+    x = (st.s8(T, 0x9a4 + h) + a) & 0x7f
+    y = (st.s8(T, 0x9ac + h) + b) & 0x3f
+    if st.u16(G, 0xf24) == 0 and st.grid(SURFACE, x, y) < 0x18:
+        st.set_grid(SURFACE, x, y, (st.rand4() + st.u8(G, 0x105a) + 0x10) & 0xff)
+    if s16(st.u16(G, 0x1054)) > 0:
+        st.inc16(G, 0x1054, -1)
+        if s16(st.u16(G, 0x1054)) % 10 == 0 and st.rand2() != 0:
+            st.player.effect(st, 'sound', 0x2c, st.rand256())
+        return True
+    st.inc16(G, 0x1076, -1)
+    if st.u16(G, 0x1076) == 0:
+        st.set16(G, 0x1076, 10)
+        if st.u16(T, 0x7b2) and st.rand2() == 0:
+            st.player.effect(st, 'sound', 10)
+    sf_place_corpse(st, x, y, st.u16(G, 0x105a))
+    _sp_done_eating(st, a, b)
+    return True
+
+
+def _sp_done_eating(st, a, b):
+    """0da5c."""
+    st.set16(G, 0xfb8, 0)
+    if st.u16(G, 0xa06) == 1:
+        if st.u16(G, 0x6ac) == 6:
+            st.set16(G, 0x6ac, 0)
+        st.set16(G, 0xf42, a)
+        st.set16(G, 0xf7e, b)
+
+
+def _spider_player(st):
+    """The player is the spider (G:0A06 == 1, not hunting or eating): walk towards the cursor."""
+    if st.u16(G, 0x6ac) == 7:
+        r = spider_find_prey(st)
+        st.set16(G, 0xffc, r)
+        if r != -2:
+            _sp_prey_chosen(st, r)
+            return
+    elif st.u16(G, 0x6ac) == 8:
+        spider_lash(st)
+    pa, pb = s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a))
+    ta, tb = s16(st.u16(G, 0xf42)), s16(st.u16(G, 0xf7e))
+    dist = mv_distance_lo(pa, pb, ta, tb)
+    if dist < 1:
+        st.set16(G, 0x1042, 2)
+        return
+    from .surface import step_towards_surface
+    d = step_towards_surface(st, pa, pb, ta, tb)
+    if d == -1:
+        return
+    if d == -2:
+        d = mv_dir_to(pa, pb, ta, tb) - 1
+        if d < 0:
+            return
+    st.set16(G, 0x1004, st.s8(T, 0x24 + st.u16(G, 0x1004) * 8 + d))
+    _sp_step(st, 5 if st.u16(G, 0xa8e) != 0 and dist > 2 else 1, False)
+    a, b = _sp_pos(st)
+    st.set16(G, 0x47c, a)
+    st.set16(G, 0x48a, b)
+    st.player.effect(st, 'scroll')
+
+
+def mv_distance_lo(a1, b1, a2, b2):
+    from .movement import distance_lo
+    return distance_lo(a1, b1, a2, b2)
+
+
 # ------------------------------------------------------------------------------------------- weather
 def drop_object_random(st, i):
     """f_0c3d4: move rain object i to a random cell; on ground it becomes a puddle that wipes the scent."""

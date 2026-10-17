@@ -35,11 +35,15 @@ in_doc = False
 missed = []
 for n, line in enumerate(src, 1):
     s = line.strip()
-    if s.startswith(('"""', "'''")):
-        if not (len(s) > 3 and s.endswith(('"""', "'''"))):
-            in_doc = not in_doc
+    if in_doc:
+        if '"""' in s or "'''" in s:
+            in_doc = False
         continue
-    if in_doc or not s or s.startswith(('#', 'def ', 'class ', '@', 'from ', 'import ', 'else:', 'try:')):
+    if s.startswith(('"""', "'''")):
+        if s.count(s[:3]) == 1:
+            in_doc = True
+        continue
+    if not s or s.startswith(('#', 'def ', 'class ', '@', 'from ', 'import ', 'else:', 'try:')):
         continue
     if n not in hit:
         missed.append((n, line))
