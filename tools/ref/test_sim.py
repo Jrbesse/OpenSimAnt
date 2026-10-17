@@ -35,6 +35,15 @@ def step(st):
     sim.sim_step(st)
 
 
+def give_action(mode, target):
+    """pre hook: a pending player action (mode, cursor target view / a / b)."""
+    def pre(set16, a):
+        for off, val in ((0xaa0, 1), (0xa8e, mode), (0xaf8, target[0]), (0xad6, target[1]),
+                         (0xae8, target[2]), (0xd6c, 0xfffe)):
+            set16(G, off, val)
+    return pre
+
+
 def main():
     ticks = int(sys.argv[1]) if len(sys.argv) > 1 else 200
     seed = int(sys.argv[2], 16) if len(sys.argv) > 2 else 0x1234       # a Quick Game recorded with this seed
@@ -43,6 +52,9 @@ def main():
     v.extra_stubs = STUBS
     v.clock_neutral(0x7c149, 0x7c3b0)          # the fight animation busy-waits on the clock
     ok = v.check(0x0894e, step, label=f'SimStep x {ticks}', repeat=ticks, ignore=SCREEN)
+    for label, mode, target in (('walks out to (70, 25)', 0, (1, 70, 25)), ('digs to (10, 40)', 2, (2, 10, 40))):
+        ok &= v.check(0x0894e, step, label=f'SimStep x 400, the yellow ant {label}', repeat=400, ignore=SCREEN,
+                      pre=give_action(mode, target), pre_once=True)
     print('ALL OK' if ok else 'SOME MISMATCHES')
     return ok
 
