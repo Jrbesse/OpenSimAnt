@@ -1368,6 +1368,21 @@ it with the clock (see HANDOFF step 9). SimStep clears the gates and records whe
 Since the verifier's patch window is never on screen, the full-tick checks never see these writes. A
 remake that shows the window should call `markers.record` from its effect hook.
 
+### The Efficiency Score window (window 24, `f_71576`, main-window command 0x114)
+
+It runs the rating `f_70fb0` (`game.rating`): the score goes to G:0ADA (32-bit), the 8 parts p[] to a
+local. It fills the window with `f_2318a` (number) / `f_23943` (formatted text):
+- the colony fields 0x1802..0x1805 (Colony Health, Foraging, Eggs Hatched, Fights Won) = p[0..3];
+- the universe fields 0x1806..0x1809 (Colonies Started / Held, Yard / House Filled) = p[4..7] as
+  "%d%%" in the Full Game (G:0EAC == 2); otherwise STR# 1020 (G:0368) entry at +0x40;
+- the bottom lines:
+  - experimental mode: 0x180A / 0x180B are STR# 1020 entries at +0x44 / +0x48;
+  - otherwise: 0x180A = STR# 1020 [+0x34] + the game mode's name (STR# 1001 = G:0324, index G:0EAC)
+    + STR# 1020 [+0x38], and 0x180B = the score through the format at DS:2B16;
+- the caption 0x180C = STR# 1010 (G:034C) entry at +0x38.
+
+It then waits for a click.
+
 ### Behavior / Caste Control triangles (windows 18 / 19; ported: `simant_ref/panels.py`, `test_panels.py`)
 
 Each panel holds three 16-bit weights summing to 0xFFFF:
