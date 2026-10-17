@@ -912,7 +912,8 @@ yard_colonies (f_6a1f4), every 32 yard ticks (G:07C2 & 0x1F == 0):
   f_00984(n): m = min(Rand(n), Rand(n)); Rand2() ? -m : m
 ```
 4. Yellow (player) ant: in progress, see "The player (yellow ant)" below.
-5. New game / map generation (overlay 10 `6ae20`, `6c010`), initial colonies, entrance tables.
+5. (done: new game / patch setup, `simant_ref/newgame.py`; see "New game" below. Not ported: the
+   hand-made patches near the house `f_7304b` (idx <= 37) and generation inside the house.)
 6. Full Game: the yard of patches, house, transfers, mating-flight colonisation (`f_01315`).
 7. Scoring/ratings, history graph sampling, timers (`G:0c26` total ticks), game speed.
 8. Rendering: tile and sprite mapping for surface/nest views (find the draw routines), map windows, UI.
@@ -1024,28 +1025,66 @@ Status: **the original game runs headless and plays complete games.**
 Observed at the start of a Quick Game: `max_passable_tile` = 0x50; black entrance at surface (a 20,
 b 32), red at (a 121, b 32), both nest column 32.
 
-## Patch generation (`f_6ae20`, overlay 10; called by new game `f_6b36b`)
+## New game (`f_6b36b`) and patch setup (`f_6ae20`), overlay 10 (ported: `simant_ref/newgame.py`)
 
-The yard is 192 patches (12 × 16). Each has a random seed (`SIM:0000 + 2*index`, filled at new game with
-`(crt_rand() % 0x7fff - 0xc000) & 0x7fff`), and the player starts on patch (11, 8). Generation is
-**deterministic per patch**:
+Ported and verified (`test_newgame.py`): new games in modes 1/2/3 from every snapshot with several C
+runtime `rand()` states, `f_6ae20` directly with colonies of 1..1125 ants on other patches, and
+`test_newgame.py play`: a game started by each side, then 2000 SimSteps side by side, byte-identical.
 
 ```
-GeneratePatch(seed, n_black, n_red, ..., house_args):
-    SeedLfsr(seed) (f_009bf); BuildSurfaceTerrain() (f_0cdb0); f_2f94c(house args)
-    n_black += n_black/4; n_red += n_red/4
-    nests: every cell dirt 0x2E (diggable), exit field 0, cells empty; surface occupancy cleared
-    nest row 0 (top soil): yard 0x1C + Rand4 (black and red separately); house: 0x1C/0x1D or 0x1E
-    exit field row 0 = 0xFF; all pheromone maps cleared
-    for each colony (black: a = RandLow(128), red: a = 127 - RandLow(128); b = Rand64):
+NewGame():                                         # f_6b36b; the mode G:0EAC is set by the caller
+    f_6c010: clear surface, occupancy, both nests (dirt, exit field, cells), all six pheromone maps,
+             the s_/b_/r_ type, state, e arrays, the yard colony grids T:00A4 / T:0164 [12][16]
+    f_79478(1) (via f_2f956): history arrays (10 x 64 words) and counters; with 1 also the yard
+             counters (G:0A90 = G:0AC4 = 1 colony each)
+    InitColonySettings f_0888d: automatic behaviour (G:0378 = 1), behaviour weights G:049E = T:080A,
+             caste mix G:0482 = T:07EC (copies at T:0810 / T:07F2), caste targets T:07DA (f_085f8:
+             (100 * G:0484 + 0x3FFF) / 0xFFFF, same for G:0486, then twice 50 * G:0482); the panel's
+             slider geometry (resources 0x578, 0x120D, 0x130D → G:3810..3835, slider positions G:0358 /
+             G:022E) is UI only
+    G:07CA = G:07BC = 11, G:07CC = G:07BE = 8 (the player's patch)
+    f_683a0 (via f_2f910): the yard layer's state (human, mower, bird, dog, rain, timers)
+    clear game-over flags, timers, G:0C26 tick count; G:032E = T:07C8 = 2 (Quick) / 1 (other modes)
+    SIM:0000[192] patch seeds = (crt_rand() % 0x7FFF - 0xC000) & 0x7FFF
+    T:0C24 = mode != 2
+    f_6ae20(seed[G:07CC * 12 + G:07CA] (sic: rows of 12, index 107), n_black = mode == 2 ? 0 : 1,
+            n_red = 1, G:07BC, G:07BE)
+    the yellow ant's view cursor (G:0596/0598, 06A6/06A8 or 072E/0730 by view) = its position
+
+SetupPatch(seed, n_black, n_red, row, col):        # f_6ae20
+    SeedLfsr(seed) (f_009bf); f_0cdb0 (per-patch globals: spider at G:0F12 = 0x400, G:0F34 = 0x200, ...)
+    f_73020(row, col): surface terrain (below)
+    n_black += n_black >> 2; n_red += n_red >> 2
+    nests: dirt 0x2E everywhere, exit field 0, cells empty; surface occupancy cleared
+    nest row 0 (top soil): yard: 0x1C + Rand4 (black, then red, per column); house: col > 3 ?
+        0x1C + Rand(2) : 0x1E; exit field row 0 = 0xFF; the pheromone maps cleared
+    for each colony (black, then red):
         w = 7 + Rand(6); s = 15 - Rand2                  # per-colony caste odds (out of 16)
-        repeat n times: pick (a, b); skip if tile >= 0x50 (retry); if occupied, retry (up to 50 times)
-            r = Rand16(): r < w → worker (caste 2); r < s → soldier (6); else Rand2 ? male (4) : new queen (8)
-            occ[a][b] = caste<<3 | Rand8() (| 0x80 for red)
-    entrance tables cleared; MakeSurfaceHoleBlack(32) / f_15247(32) (red) → both entrances in nest column 32
-    nest stats, capacities and centroids reset; G:0242 = 64
-    if n > 1: pre-dig the nests (f_6b616(n_black*16) / f_6b6f3(n_red*16))
-    f_0f329: build the surface ant arrays from the occupancy grid
+        n times: a = RandLow(128) (red: 127 - RandLow(128)); b = Rand64
+            tile >= 0x50: dropped (no retry)
+            occupied: retried (one more turn) while fewer than 50 collisions so far, else dropped
+            r = Rand16: r < w worker 0x10, r < s soldier 0x30, else Rand2 ? male 0x20 : new queen 0x40;
+            occ = that + Rand8 (+ 0x80 red)
+    entrance tables cleared; black entrance (MakeSurfaceHoleBlack(32)) unless Full Game without
+        black ants; red entrance (f_15247(32)) if n_red >= 1
+    nest sums, capacities, centroids = 0; G:0242 (water level) = 64
+    n > 1: pre-dig (f_6b616 black / f_6b6f3 red, 16 n steps): a random walk from (32, 1), heading
+        4, each step turns by Rand(5) - 3 (so it mostly circles), clamped to cols 1..62 and rows 1..62;
+        a successful DigCell moves it, reaching row 1 opens another entrance there
+    f_0f329: surface ant arrays from the occupancy grid (state 2), count capped at 0x3E5
+    nest counts, colony counts = 0; egg spots T:02B4 / T:02B8 = -1
+    n_red > 0: red nest f_6bae2, n_black > 0: black nest f_6b95c:
+        shaft from (32, 1) down to row 7 + Rand4, each row drifting Rand(3) - 1 columns (black only
+        re-draws the drift when Rand2 == 0) within cols 8..56; then 2 diagonal steps; the egg spot
+        (black also G:0F0E / G:0F26) is the end; queen chamber f_6ba1c / f_6bb70 at (col + 2, row):
+        three cells towards heading 6, the queen (0x62 / 0x6A, red 0xE2 / 0xEA) in state 9;
+        G:035E / G:036C colony count + 1
+    f_6b7d0: the yellow ant (health 100). Mode 3: the player is the spider (G:0A06 = 2), view 1 at
+        (64, 32). Full Game (with T:0C24 == 0): a new queen (0x40) on the surface, up to 100 tries
+        for a spot near (32 +- 15, 32 +- 7) on a tile < 0x10. Otherwise a worker (0x10) in the black
+        nest at the egg spot. Then f_757dd (via f_2f820): view and cursor on it
+    food: G:1050 / G:1060 / G:1040 = 0; mode != 3: f_6bca5(-1) (200 crumbs)
+    health 100 / 100; f_79478(0); Census; redraw (f_0256e); view cursors (64, 32), (32, 1)
 ```
 
 ### Surface terrain (section 20, entry `f_73020(row, col)`)
@@ -1059,8 +1098,8 @@ GenericPatch():                                    # f_73c33
     for a in 0..127: for b in 0..63: surface[a][b] = Rand16()     # 16 ground variants
     repeat Rand(3)+2 times:                        # rocks, f_73dfd
         for shape in 0..5: RockStamp(Rand(122), Rand(58), shape)
-    FoodPiles(Rand4()+1)                           # f_0afce, max 10
-    HazardsReset()                                 # f_0b66c: clears counters; yard: SpecialObjects()
+    AntLionPits(Rand4()+1)                         # f_0afce, max 10; G:08EA = n
+    HazardsReset()                                 # f_0b66c: clears counters; yard: WanderingBugs()
     20 ×: a, b = Rand(125)+1, Rand(61)+1; if the 2×2 block at (a..a+1, b..b+1) is all < 0x18:
           (a,b)=0x20, (a+1,b)=0x21, (a,b+1)=0x22, (a+1,b+1)=0x23
     30 ×: same position rule; if (a,b) and (a+1,b) < 0x18: t = (Rand(2)+0x12)*2 → (a,b)=t, (a+1,b)=t+1
@@ -1071,24 +1110,24 @@ RockStamp(a, b, shape):                            # f_73fc6, shape table T:08c2
     if any nonzero shape cell lands on a tile > 0x10: return   # all or nothing
     copy the nonzero shape cells into the surface
 
-FoodPiles(n):                                      # f_0afce → n × f_0b016
+AntLionPits(n):                                    # f_0afce → n × f_0b016 (see "ant lions" in world.py)
     up to 200 tries: a = Rand(65)+Rand(64); b = Rand(33)+Rand(32)          # centre-biased
         if centre and all 8 neighbours are open ground: stamp; stop
         (after 100 tries a centre that is merely open is accepted)
     stamp (f_0b09c): centre = 0x38; each open neighbour i = 0x30 + DS:1b92[i]
-    pile table (10 slots): G:0a92 a, G:0aa8 b, G:0aba/0acc/0ade = 0; T:0c4a = count
+    pit table: G:0a92 a, G:0aa8 b, G:0aba/0acc/0ade = 0 at slot T:0c4a, which counts up to 9
 
-SpecialObjects():                                  # f_0ad9c (yard only), 2 objects
-    a, b = Rand(128), Rand(64) on a tile < 0x10; kind = Rand(8)
-    remember a, b, kind, old tile (G:0eae, 0f00, 0f1a, 0f28); tile = T:0c52[kind]
+WanderingBugs():                                   # f_0ad9c (yard only), slots 2 then 1
+    a, b = Rand(128), Rand(64) on a tile < 0x10; kind (heading) = Rand(8)
+    remember a, b, kind, old tile (G:0eae, 0f00, 0f1a, 0f28 + 2 * slot); tile = T:0c52[kind]
 ```
 Open ground (`f_1145c(view, a, b)`): tile < 0x10 on the surface (< 8 in a nest) and no occupant except
 the player. Map accessors used everywhere: `GetTile(view, a, b)` `f_117c0`, `GetOccupant` `f_11737`,
 `SetTile(view, a, b, t)` `f_1183e` (view 1 = surface).
 
 Surface tile summary: `0x00–0x0F` ground, `0x10–0x17` corpses, `0x18–0x1F`/`0x20–0x28` passable
-decorations, `0x30–0x38` food pile (3×3), `0x48–0x4B` food crumbs (what ants pick up), `0x50` nest
-entrance, `0x51–0x5F` rocks (impassable), `0x71`/`0x73` special objects.
+decorations, `0x30–0x38` ant lion pit (3×3), `0x48–0x4B` food crumbs (what ants pick up), `0x50` nest
+entrance, `0x51–0x5F` rocks (impassable), `0x71`/`0x73` wandering bugs.
 
 ## Verification plan
 

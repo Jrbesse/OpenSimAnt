@@ -53,6 +53,7 @@ cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
 python test_yard.py; python test_player.py; python test_sim.py 3000
+python test_newgame.py; python test_newgame.py play
 ```
 
 All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical").
@@ -62,7 +63,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | Module | Contents |
 |---|---|
 | `rng.py`, `state.py` | LFSR game RNG, MSC `rand()`, memory-mirroring `State` (+ clock) |
-| `terrain.py` | patch (yard) generation |
+| `terrain.py` | patch (yard) generation; runs on a standalone `Patch` or on the `State` (`StateSurface`) |
 | `pheromones.py` | trail / nest-marker / alarm maps |
 | `colony.py` | census, priorities, caste choice, advisor job logic, health, food drop |
 | `movement.py` | steering helpers |
@@ -72,6 +73,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `world.py` | slow phases, history graph, advisor status, weather/flooding, ant lions, caterpillar + bugs, **spider** |
 | `yard.py` | the yard layer: human walk/roam + lawnmower, foot stamps, bird crossing, bird, dog, rain control, yard colonies |
 | `sim.py` | **SimStep**: one full game tick |
+| `newgame.py` | **new game** `f_6b36b` and patch setup `f_6ae20`: clearing, colony settings, patch seeds, terrain, scattered colonies, pre-dug nests, queens, the yellow ant's start per mode |
 | `player.py` | the yellow ant: upkeep `f_7bf7e`, actions `f_7b7b8` (pathfinding to the cursor, picking up / dropping / eating, entering and leaving nests, fights), view-generic map accessors |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
@@ -93,8 +95,18 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    Full Game ends around tick 2282). `debug_sim.py [snapshot] [ticks] [--pieces]` finds the first divergent tick
    and replays it component by component. The game-over screen `f_71d95` is UI (rating, new game): a
    hook. The port's real player hooks are `player.Hooks`; the UI hooks in it still raise.)
-4. Patch setup / new game (`6ae20`, `6b36b` and helpers; listed in SIM_NOTES).
-5. Then rendering, UI, save files, and the Godot remake.
+4. (done: **new game** `f_6b36b` / patch setup `f_6ae20` in `simant_ref/newgame.py`; SIM_NOTES "New
+   game". `test_newgame.py`: 16 new-game scenarios (modes 1/2/3, C `rand()` states, alarm-trail mode)
+   and 16 direct `f_6ae20` calls (colonies up to 1125 ants, other patches) x 6 snapshots, byte-identical;
+   `test_newgame.py play [ticks]` starts a game on each side and runs SimStep side by side (2000 ticks,
+   Quick and Full Games, OK). Ignored as UI: the behaviour panel's slider geometry and the resource
+   manager's counters (see the test's SCREEN). Not ported: the hand-made patches near the house
+   `f_7304b` (patch idx <= 37) and generation inside the house (`NotImplementedError`).)
+5. Full Game remainder: moving between patches (which calls `f_6ae20` with the yard colony sizes), the
+   house patches `f_7304b` and in-house generation, mating flights / colonisation (`f_01315`).
+   `build/calls.tsv` lists only `f_6b36b` as a direct caller of `f_6ae20`; other callers go through the
+   overlay vector thunks in segment 3cff (like `f_2f956` → `f_79478`), so look for a thunk to it first.
+6. Then rendering, UI, save files, and the Godot remake.
 
 ## Gotchas learned the hard way
 
@@ -114,6 +126,7 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 ## Commit log since the last summary
 
 ```
+(this session) Port the new game (f_6b36b) and patch setup (f_6ae20); verified
 (this session) Port the yard layer (sec8 f_68513); verified over 114 scenarios
 b66ff09 Port the spider (f_0ce63 and helpers); verified over 37 scenarios
 f7642c9 Port the caterpillar and wandering bugs (f_0b6cc, f_0ae4c); verified

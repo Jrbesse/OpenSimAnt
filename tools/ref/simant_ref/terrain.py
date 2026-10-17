@@ -2,8 +2,12 @@
 
 Grids are indexed [a][b] with a = 0..127 (horizontal) and b = 0..63 (vertical), stored flat as a*64 + b,
 exactly like the original's 0x3e1d:0180 surface grid.
+
+The generator runs on either a standalone `Patch` (with its own Lfsr) or `StateSurface`, the live game
+`State` (whose LFSR and globals the original uses; see newgame.py).
 """
 from .tables import DIR_DX, DIR_DY, ROCK_SHAPES, SMALL_ROCK_SHAPES, PILE_EDGE, SPECIAL_OBJECT_TILE
+from .state import G, T
 
 W, H = 128, 64
 
@@ -12,8 +16,8 @@ class Patch:
     def __init__(self):
         self.surface = bytearray(W * H)      # tiles
         self.occ = bytearray(W * H)          # occupancy (ants)
-        self.food_piles = []                 # [a, b, 0, 0, 0] per pile (G:0a92..0ade)
-        self.special_objects = []            # (a, b, kind, old_tile) (G:0eae, 0f00, 0f1a, 0f28)
+        self.pits = []                       # ant lion pits [a, b, 0, 0, 0] (G:0a92..0ade, count T:0c4a)
+        self.special_objects = []            # the wandering bugs (a, b, kind, old_tile) (G:0eae, 0f00, 0f1a, 0f28)
         self.in_house = False
 
     def tile(self, a, b):
@@ -21,6 +25,69 @@ class Patch:
 
     def set_tile(self, a, b, t):
         self.surface[a * 64 + b] = t
+
+    def place_pits(self, rng, n):
+        place_pits(self, rng, n)
+
+    def reset_hazards(self, rng):
+        """f_0b66c: (counters) and, in the yard, the bugs."""
+        if not self.in_house:
+            special_objects(self, rng)
+
+
+class StateSurface:
+    """The surface of the live game State, with the original's bookkeeping in its globals."""
+
+    def __init__(self, st):
+        self.st = st
+
+    @property
+    def in_house(self):
+        return self.st.u16(G, 0xf24) != 0
+
+    def tile(self, a, b):
+        return self.st.grid(0x0180, a, b)
+
+    def set_tile(self, a, b, t):
+        self.st.set_grid(0x0180, a, b, t)
+
+    def place_pits(self, rng, n):
+        """f_0afce: n ant lion pits (at most 10; the list keeps 9)."""
+        from . import world
+        st = self.st
+        st.set16(T, 0xc4a, 0)
+        st.set16(G, 0xa08, 0)
+        n = min(n, 10)
+        for _ in range(n):
+            world.new_lion(st)
+        st.set16(G, 0x8ea, n)
+
+    def reset_hazards(self, rng):
+        """f_0b66c."""
+        st = self.st
+        for seg, off in ((T, 0xc4c), (T, 0xc4e), (T, 0xc50), (G, 0xc36), (G, 0xc3c)):
+            st.set16(seg, off, 0)
+        for i in range(6):
+            st.set16(G, 0xd9c + 2 * i, 0)
+        if not self.in_house:
+            self.special_objects()
+
+    def special_objects(self):
+        """f_0ad9c: the two wandering bugs, slots 2 then 1 (G:0eae a, 0f00 b, 0f1a heading, 0f28 tile under)."""
+        st = self.st
+        i = 2
+        while i:
+            a = st.rand(0x80)
+            b = st.rand(0x40)
+            old = self.tile(a, b)
+            if old < 0x10:
+                st.set16(G, 0xeae + 2 * i, a)
+                st.set16(G, 0xf00 + 2 * i, b)
+                kind = st.rand(8)
+                st.set16(G, 0xf1a + 2 * i, kind)
+                st.set16(G, 0xf28 + 2 * i, old)
+                self.set_tile(a, b, st.u8(T, 0xc52 + kind))
+                i -= 1
 
 
 def _get_tile(p, a, b):
@@ -88,39 +155,39 @@ def place_rocks(p, rng):
             small_rock_stamp(p, a, b, shape)
 
 
-def stamp_food_pile(p, a, b):
-    """f_0b09c: 3x3 food pile, centre 0x38, open neighbours 0x30 + PILE_EDGE[d]."""
+def stamp_pit(p, a, b):
+    """f_0b09c: an ant lion pit, centre 0x38, open neighbours 0x30 + PILE_EDGE[d]."""
     if 0 <= a < W and 0 <= b < H:
         p.set_tile(a, b, 0x38)
     for d in range(8):
         na, nb = a + DIR_DX[d], b + DIR_DY[d]
         if _is_open(p, na, nb):
             p.set_tile(na, nb, 0x30 + PILE_EDGE[d])
-    if len(p.food_piles) < 10:
-        p.food_piles.append([a, b, 0, 0, 0])
+    if len(p.pits) < 10:
+        p.pits.append([a, b, 0, 0, 0])
 
 
-def place_food_pile(p, rng):
+def place_pit(p, rng):
     """f_0b016."""
     tries = 0
     while tries < 200:
         a = rng.rand(0x41) + rng.rand(0x40)
         b = rng.rand(0x21) + rng.rand(0x20)
         if _is_open_with_ring(p, a, b) or (_is_open(p, a, b) and tries >= 100):
-            stamp_food_pile(p, a, b)
+            stamp_pit(p, a, b)
             return
         tries += 1
 
 
-def place_food_piles(p, rng, n):
+def place_pits(p, rng, n):
     """f_0afce."""
-    p.food_piles = []
+    p.pits = []
     for _ in range(min(n, 10)):
-        place_food_pile(p, rng)
+        place_pit(p, rng)
 
 
 def special_objects(p, rng):
-    """f_0ad9c (yard only): two special objects."""
+    """f_0ad9c (yard only): the two wandering bugs."""
     p.special_objects = []
     i = 2
     while i:
@@ -134,15 +201,24 @@ def special_objects(p, rng):
             i -= 1
 
 
+def surface_terrain(p, rng, row, col):
+    """f_73020: patch idx = row*16 + col; the patches near the house (idx <= 37) are hand-made (f_7304b)."""
+    if row * 16 + col <= 0x25:
+        raise NotImplementedError('hand-made patch layouts (f_7304b)')
+    generic_patch(p, rng)
+
+
 def generic_patch(p, rng):
     """f_73c33: terrain for an ordinary yard patch. `rng` must already be seeded with the patch seed."""
+    if p.in_house:
+        # T:07A0 = 1000 and f_0286a(0, 1000): not ported yet (with the house)
+        raise NotImplementedError('generic patch in the house')
     for a in range(W):
         for b in range(H):
             p.set_tile(a, b, rng.rand16())
     place_rocks(p, rng)
-    place_food_piles(p, rng, rng.rand4() + 1)
-    if not p.in_house:                       # f_0b66c → f_0ad9c
-        special_objects(p, rng)
+    p.place_pits(rng, rng.rand4() + 1)
+    p.reset_hazards(rng)                     # f_0b66c → f_0ad9c
     for _ in range(20):
         a = rng.rand(0x7d) + 1
         b = rng.rand(0x3d) + 1
