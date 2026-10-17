@@ -13,6 +13,8 @@ from . import nest
 from . import red_nest
 from . import movement as mv
 from . import colony as co
+from . import pheromones as ph
+from . import world
 from .movement import s16
 
 SURFACE, OCC = 0x0180, 0x6180
@@ -456,6 +458,362 @@ def step_to_cursor(st, view, a, b, tv, ta, tb):
         off = 0x2a4 if view == 2 else 0x2a8                             # this nest's exit column, row 0
         ta, tb = s16(st.u16(T, off)), s16(st.u16(T, off + 2))
     return path_step(st, view, a, b, ta, tb)
+
+
+# ------------------------------------------------------------------------------------------- acting on a cell
+# Carrying castes are odd: 1 brood (type T:0C22), 3 / 7 food, 5 / 9 a pebble. Drops go to the free neighbour
+# first in the order T:006C from the heading towards the target, else the yellow ant's own cell.
+# Holding Shift and Alt (BIOS keyboard flags 0000:0417, st.bios_kbd) keeps the load: a hidden cheat.
+def set_tile(st, view, a, b, v):
+    """SetTile f_1183e."""
+    if not in_view(view, a, b):
+        return
+    if 0 <= view <= 3:
+        base = SURFACE if view <= 1 else NESTS[view]['dirt']
+        st.set_grid(base, a, b, v)
+    st.player.effect(st, 'redraw', view, a, b)                         # f_0250e
+
+
+def _cheat(st):
+    k = st.bios_kbd & 0xff
+    return k & 3 and k & 8
+
+
+def find_ant_exact(st, view, a, b, t):
+    """f_11327: the top-most ant at (a, b) with type t, -1 if none."""
+    f = _ants(view)
+    i = s16(st.u16(G, f['count']))
+    while i > 0:
+        i -= 1
+        if st.u8(SIM, f['x'] + i) == a and st.u8(SIM, f['y'] + i) == b and st.u8(SIM, f['type'] + i) == t:
+            return i
+    return -1
+
+
+def _drop_spot(st, view, ya, yb, ta, tb, ok):
+    """The search shared by the drops: (heading, a, b, result) of the first neighbour (empty and ok) in the
+    order T:006C, else the yellow ant's own cell if ok; None if nowhere."""
+    d = mv.dir_to(ya, yb, ta, tb)
+    h = d - 1 if d > 0 else st.u16(G, 0x496)
+    for k in range(8):
+        dd = (st.u8(T, 0x6c + k) + h) & 7
+        x, y = ya + st.s8(T, dd), yb + st.s8(T, 8 + dd)
+        if in_view(view, x, y) and get_occ(st, view, x, y) < 0:
+            r = ok(x, y)
+            if r is not None:
+                return dd, x, y, r
+    if in_view(view, ya, yb):
+        r = ok(ya, yb)
+        if r is not None:
+            return h, ya, yb, r
+    return None
+
+
+def drop_food(st, view, ya, yb, ta, tb):
+    """f_12306 (type 0x18 / 0x38): add the food to a crumb (up to 3 more) or put a new one down."""
+    if st.u16(G, 0x4c2) not in (0x18, 0x38):
+        return 0
+
+    def ok(x, y):
+        t = get_tile(st, view, x, y)
+        if is_food(st, view, t) and t & 3 < 3:
+            return t + 1
+        if is_open_ground(st, view, x, y) or t == 0x38:
+            return 0x10
+        return None
+    spot = _drop_spot(st, view, ya, yb, ta, tb, ok)
+    if spot is None:
+        return 0
+    h, x, y, t = spot
+    st.set16(G, 0x496, h)
+    if view <= 1:
+        world.spider_drop_food(st, x, y)                                # f_0c692
+    else:
+        set_tile(st, view, x, y, t)
+        st.inc16(G, 0x1050 if view == 2 else 0x1060)
+    if not _cheat(st):
+        st.set16(G, 0x4c2, st.u16(G, 0x4c2) & 0xf7)
+    st.player.effect(st, 'sound', 0x1d)
+    return 1
+
+
+def put_pebble(st, view, a, b):
+    """f_1252c: a pebble on an entrance blocks the nest cell below (0x31) and vice versa."""
+    if view <= 1:
+        if at_exit(st, view, a, b):
+            if a < 0x40 and st.u8(T, 0x224 + b) == a:
+                st.set_grid(NESTS[2]['dirt'], b, 0, 0x31)
+            elif st.u8(T, 0x264 + b) == a:
+                st.set_grid(NESTS[3]['dirt'], b, 0, 0x31)
+        t = 0x51
+    elif at_exit(st, view, a, b):
+        st.set_grid(SURFACE, st.u8(T, (0x224 if view == 2 else 0x264) + a), a, 0x51)
+        t = 0x31
+    else:
+        t = 0x30
+    set_tile(st, view, a, b, t)
+
+
+def drop_pebble(st, view, ya, yb, ta, tb):
+    """f_12606 (type 0x28 / 0x48)."""
+    if st.u16(G, 0x4c2) not in (0x28, 0x48):
+        return 0
+
+    def ok(x, y):
+        if is_open_ground(st, view, x, y):
+            return 1
+        t = get_tile(st, view, x, y)
+        if is_food(st, view, t) or is_rock(view, t):
+            return None
+        if at_exit(st, view, x, y) or t == 0x38:
+            return 1
+        return None
+    spot = _drop_spot(st, view, ya, yb, ta, tb, ok)
+    if spot is None:
+        return 0
+    h, x, y, _ = spot
+    st.set16(G, 0x496, h)
+    put_pebble(st, view, x, y)
+    if not _cheat(st) and st.u16(G, 0x4c2) in (0x28, 0x48):
+        st.inc16(G, 0x4c2, -0x18)
+    st.player.effect(st, 'sound', 0x1e)
+    return 1
+
+
+def drop_brood(st, view, ya, yb, ta, tb):
+    """f_12820 (type 0x08): the carried brood (type T:0C22) becomes an ant again (state 8)."""
+    if st.u16(G, 0x4c2) != 8:
+        return 0
+
+    def ok(x, y):
+        if is_open_ground(st, view, x, y) or get_tile(st, view, x, y) == 0x38:
+            return 1
+        return None
+    spot = _drop_spot(st, view, ya, yb, ta, tb, ok)
+    if spot is None:
+        return 0
+    h, x, y, _ = spot
+    if not add_ant(st, view, x, y, st.u16(T, 0xc22), 8, 0):
+        return 0
+    st.set16(G, 0x496, h)
+    if not _cheat(st):
+        st.set16(G, 0x4c2, 0x10)
+        st.set16(T, 0xc22, 0xfd)
+    put_yellow(st, s16(st.u16(G, 0x48c)), s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a)),
+               st.u16(G, 0x4c2), st.u16(G, 0x496), 0xff)
+    st.player.effect(st, 'sound', 0x1c)
+    return 1
+
+
+def drop_load(st, view, ya, yb, ta, tb):
+    """f_1317c: drop whatever the yellow ant carries towards (ta, tb)."""
+    t = st.u16(G, 0x4c2)
+    if t == 0x08:
+        return drop_brood(st, view, ya, yb, ta, tb)
+    if t in (0x18, 0x38):
+        return drop_food(st, view, ya, yb, ta, tb)
+    if t in (0x28, 0x48):
+        return drop_pebble(st, view, ya, yb, ta, tb)
+    return 0
+
+
+def brood_at(st, view, a, b):
+    """f_12bf4: (type, index) of the brood at (a, b), (-1, -1) if none."""
+    o = get_occ(st, view, a, b)
+    if is_brood(o) and not mv.is_yellow(o):
+        return o, find_ant_exact(st, view, a, b, o)
+    i = find_ant(st, view, a, b, 1, 7, 0x7f)
+    if i >= 0:
+        return get_ant(st, view, i)[2], i
+    return -1, -1
+
+
+def take_brood(st, view, a, b):
+    """f_12f4f: a plain worker picks up brood; a weak yellow ant (health < 10) eats it instead."""
+    if st.u16(G, 0x4c2) != 0x10 and _hp(st) >= 10:
+        return 0
+    st.set16(T, 0xc22, 0xfd)
+    t, i = brood_at(st, view, a, b)
+    if t < 0:
+        return 0
+    set_ant(st, view, i, 0, 0, 0, 0, 0)
+    if (s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a))) != (a, b):
+        set_occ(st, view, a, b, 0)
+    if _hp(st) >= 10:
+        st.player.effect(st, 'sound', 0x1c)
+        st.set16(T, 0xc22, t)
+        st.set16(G, 0x4c2, 8)
+    else:
+        st.set16(T, 0xc26, 3)                                           # eat it (MenuCommand12de1(3))
+    return 1
+
+
+def take_pebble(st, view, a, b):
+    """f_12a1e: a plain worker or soldier picks up a pebble (one blocking an entrance reopens it)."""
+    if st.u16(G, 0x4c2) not in (0x10, 0x30):
+        return 0
+    t = get_tile(st, view, a, b)
+    picked = False
+    if view <= 1:
+        if is_rock(view, t):
+            blocking = False
+            if a < 0x40:
+                if st.u8(T, 0x224 + b) == a:
+                    st.set_grid(NESTS[2]['dirt'], b, 0, 0x18)
+                    blocking = True
+            elif st.u8(T, 0x264 + b) == a:
+                st.set_grid(NESTS[3]['dirt'], b, 0, 0x18)
+                blocking = True
+            if blocking:
+                st.set_grid(SURFACE, a, b, 0x50 if st.u16(G, 0xf24) == 0 else st.rand(7) + 0x59)
+            else:
+                st.set_grid(SURFACE, a, b, st.rand16() if st.u16(G, 0xf24) == 0 else 0)
+            picked = True
+    elif t == 0x30:
+        set_tile(st, view, a, b, st.rand8())
+        picked = True
+    elif t == 0x31:
+        n = NESTS[2] if view == 2 else NESTS[3]
+        st.set_grid(n['dirt'], a, b, 0x18)
+        st.set_grid(SURFACE, st.u8(T, n['entr'] + a), a, 0x50)
+        picked = True
+    if picked:
+        st.set16(G, 0x4c2, 0x28 if st.u16(G, 0x4c2) == 0x10 else 0x48)
+        st.player.effect(st, 'sound', 0x1e)
+    return 1 if picked else 0
+
+
+def take_food(st, view, a, b):
+    """f_1302f: pick up food (laying the black food trail on the surface); with low health eat it."""
+    if not food_at(st, view, a, b):
+        return 0
+    eat = st.u16(G, 0x1044) != 0
+    if not eat and st.u16(G, 0x4c2) not in (0x10, 0x30):
+        return 0
+    if view <= 1:
+        mv.take_food_at(st, a, b)
+        if not eat:
+            st.set16(G, 0x4c4, 200)
+            d = co.distance(a, b, s16(st.u16(T, 0x2ac)), s16(st.u16(T, 0x2ae))) & 0xffff
+            st.set16(G, 0xb1e, d)
+            st.set16(G, 0xc38, d + 1)
+            ph.lay_max(st, ph.BLACK_TRAIL, a, b, st.u16(G, 0x4c4))
+    else:
+        t = get_tile(st, view, a, b)
+        set_tile(st, view, a, b, st.rand8() if t == 0x10 else t - 1)
+        food = 0x1050 if view == 2 else 0x1060
+        if s16(st.u16(G, food)) > 0:
+            st.inc16(G, food, -1)
+    if eat:
+        st.set16(T, 0xc26, 0)                                           # eat it (MenuCommand12de1(0))
+    else:
+        st.player.effect(st, 'sound', 0x1d)
+        st.inc16(G, 0x4c2, 8)
+    return 1
+
+
+def pick_up(st, view, a, b):
+    """f_131ea: brood, else a pebble, else food."""
+    if st.u8(G, 0x4c2) & 8:
+        return 0
+    return take_brood(st, view, a, b) or take_pebble(st, view, a, b) or take_food(st, view, a, b)
+
+
+def eat(st, n):
+    """MenuCommand12de1: n 0 eat food, 3 eat brood (both feed the colony with the old health), 1 / 2 other
+    menu actions (2 costs 10 health). Pictures and messages go to effects."""
+    st.player.effect(st, 'menu', n)                                    # f_2f802 / f_2f82a / f_15e2c
+    if n in (1, 3):
+        st.set16(G, 0x474, 0)
+        st.set16(G, 0x472, 0)
+    if n == 2:
+        hp = _hp(st)
+        if hp > 10:
+            set_health(st, hp - 10)
+        return
+    hp = _hp(st)
+    if s16(hp + 100) > 100 and n != 1:
+        k = s16(st.u16(G, 0x330) - 1)
+        if k > 0:
+            st.inc16(G, 0x10be, co._cdiv(hp, k))
+            if s16(st.u16(G, 0x10be)) > 100:
+                st.set16(G, 0x10be, 100)
+    set_health(st, 100)
+
+
+def found_nest(st, a, b):
+    """f_14f59: a new queen opens a nest entrance at (a, b) (black on the left half, red on the right)."""
+    if not (1 <= a < 0x7f and 1 <= b < 0x3f):
+        return
+    if st.u16(G, 0xf24):
+        st.set_grid(SURFACE, a, b, 0x59)
+    else:
+        st.set_grid(SURFACE, a, b, 0x50)
+        nest.entrance_ring(st, a, b)
+    if a < 0x40:
+        st.set8(T, 0x224 + b, a)
+        ng.dig_at(st, ng.BLACK, b, 1)
+        st.set16(T, 0x2ac, a)
+        st.set16(T, 0x2ae, b)
+        st.set16(T, 0x2a4, b)
+        st.set16(T, 0x2a6, 0)
+    else:
+        st.set8(T, 0x264 + b, a)
+        ng.dig_at(st, ng.RED, b, 1)
+        st.set16(T, 0x2b0, a)
+        st.set16(T, 0x2b2, b)
+        st.set16(T, 0x2a8, b)
+        st.set16(T, 0x2aa, 0)
+
+
+def try_found_nest(st, a, b):
+    """f_14ee2: found a nest here if there is room (open 3x3 in the yard; any tile < 0xC8 in the house)."""
+    if not (1 <= a <= 0x7f and 1 <= b <= 0x3f):
+        return 0
+    if st.u16(G, 0xf24) == 0:
+        ok = nest.is_open_with_ring(st, a, b)
+    else:
+        ok = st.grid(SURFACE, a, b) < 0xc8
+    if ok:
+        found_nest(st, a, b)
+        return 1
+    return 0
+
+
+def act_on_cell(st, view, a, b):
+    """f_13644: the yellow ant acts on the target cell next to (or under) it. 1 done, -1 failed, 0 nothing."""
+    ya, yb = s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a))
+    if st.u8(G, 0x4c2) & 8:
+        return 1 if drop_load(st, view, ya, yb, a, b) else -1
+    if not pick_up(st, view, a, b):
+        t = st.u16(G, 0x4c2)
+        if (st.u16(T, 0x798) or (t == 0x40 and st.u16(T, 0xc24) == 0)) and view == 1 and (ya, yb) == (a, b):
+            if try_found_nest(st, a, b):
+                enter_nest(st)                                          # f_2f834
+                ui_follow(st)                                           # f_01c52
+                return 1
+            return -1
+        return 0
+    d = mv.dir_to(ya, yb, a, b)
+    if d > 0:
+        move_yellow(st, s16(st.u16(G, 0x48c)), ya, yb, s16(st.u16(G, 0x4c2)), d - 1)
+    st.player.effect(st, 'redraw_all')                                  # f_03391
+    c = s16(st.u16(T, 0xc26))
+    if c >= 0:
+        eat(st, c)
+        st.set16(T, 0xc26, 0xffff)
+    return 1
+
+
+def ui_follow(st):
+    """f_01c52: G:1074 = 1 and the view scrolls to the yellow ant (f_01aa7, screen only)."""
+    st.set16(G, 0x1074, 1)
+    st.player.effect(st, 'follow')
+
+
+def enter_nest(st):
+    """f_7c7e5 (via f_2f834): not ported yet."""
+    raise NotImplementedError('f_7c7e5 (the yellow ant enters a nest)')
 
 
 def _s32(v):

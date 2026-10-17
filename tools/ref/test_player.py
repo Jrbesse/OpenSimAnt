@@ -118,6 +118,140 @@ for k, (wv, ws, tv) in enumerate(((1, (60, 30), 2), (1, (100, 50), 3), (2, (30, 
     WALK_CHECKS.append((f'walk out {k} view {wv} -> {tv}', 0x7d24f, fn_, 150, pre_, args_))
 
 
+def as_yellow(t, hp=None, g=(), tt=(), kbd=None, plant=(), pos_args=True):
+    """pre hook for the cell actions: before every call the yellow ant (type t) stands at the call's
+    (view, ya, yb) args; `plant` = [(seg, off, byte)] written before the first call; kbd = BIOS flags."""
+    def pre(set16, a):
+        if pos_args and a:
+            set16(G, 0x48c, a[0])
+            set16(G, 0x47c, a[1])
+            set16(G, 0x48a, a[2])
+        set16(G, 0x4c2, t)
+        if hp is not None:
+            set16(G, 0xf78, hp)
+        for off, val in g:
+            set16(G, off, val)
+        for off, val in tt:
+            set16(T, off, val)
+        VER.e.uc.mem_write(0x417, bytes([kbd or 0]))
+        for seg, off, val in plant:
+            if VER.e.read(seg, off, 1)[0] != val:
+                set16.byte(seg, off, val)
+    return pre
+
+
+def near(view, spread=2, seed=1):
+    """args (view, ya, yb, ta, tb): a yellow ant somewhere and a target next to it."""
+    hi_a = 0x7f if view == 1 else 0x3f
+    base = sweep((view, view), (1, hi_a - 1), (1, 0x3e), (-spread, spread), (-spread, spread), seed=seed)
+
+    def args(st, i):
+        v, a, b, da, db = base(st, i)
+        return (v, a, b, a + da, b + db)
+    return args
+
+
+def cell_args(view, seed=1):
+    """args (view, a, b) for actions on a cell; the yellow ant stands next to it (pre hook below)."""
+    hi_a = 0x7f if view == 1 else 0x3f
+    return sweep((view, view), (2, hi_a - 1), (1, 0x3e), seed=seed)
+
+
+def next_to(t, hp=None, g=(), tt=(), plant=()):
+    """pre hook: the yellow ant (type t) stands on the cell just west of the call's (view, a, b)."""
+    inner = as_yellow(t, hp=hp, g=g, tt=tt, plant=plant, pos_args=False)
+
+    def pre(set16, a):
+        set16(G, 0x48c, a[0])
+        set16(G, 0x47c, a[1] - 1)
+        set16(G, 0x48a, a[2])
+        inner(set16, a)
+    return pre
+
+
+SIM_ = 0x3e1d
+NEST_PEBBLES = [(SIM_, 0x2180 + c * 64 + d, v) for c, d, v in ((20, 10, 0x30), (21, 11, 0x30), (34, 0, 0x31),
+                                                                (30, 12, 0x30), (40, 20, 0x30))]
+NEST_FOOD = [(SIM_, base + c * 64 + 10, v) for base in (0x2180, 0x3180)
+             for c, v in ((20, 0x10), (21, 0x11), (22, 0x12), (23, 0x13), (24, 0x10), (25, 0x13))]
+LAYER_C = [
+    ('drop food nest', 0x12306, port(player.drop_food, 5), 300, as_yellow(0x18), near(2, seed=21)),
+    ('drop food red nest', 0x12306, port(player.drop_food, 5), 200, as_yellow(0x38), near(3, seed=22)),
+    ('drop food surface', 0x12306, port(player.drop_food, 5), 300, as_yellow(0x18), near(1, seed=23)),
+    ('drop food cheat', 0x12306, port(player.drop_food, 5), 50, as_yellow(0x18, kbd=0x09), near(2, seed=24)),
+    ('drop food wrong type', 0x12306, port(player.drop_food, 5), 20, as_yellow(0x10), near(2, seed=25)),
+    ('drop pebble nest', 0x12606, port(player.drop_pebble, 5), 300, as_yellow(0x28), near(2, seed=26)),
+    ('drop pebble red nest', 0x12606, port(player.drop_pebble, 5), 200, as_yellow(0x48), near(3, seed=27)),
+    ('drop pebble surface', 0x12606, port(player.drop_pebble, 5), 300, as_yellow(0x28), near(1, seed=28)),
+    ('drop pebble at exits', 0x12606, port(player.drop_pebble, 5), 60, as_yellow(0x28),
+     lambda st, i: (2, 34 + (i % 3) - 1, 1, 34, 0) if i % 2 else (1, 20 + i % 3 - 1, 33, 20, 32)),
+    ('drop pebble cheat', 0x12606, port(player.drop_pebble, 5), 30, as_yellow(0x48, kbd=0x0a), near(1, seed=29)),
+    ('drop brood nest', 0x12820, port(player.drop_brood, 5), 300, as_yellow(8, tt=((0xc22, 0x01),)), near(2, seed=30)),
+    ('drop brood red', 0x12820, port(player.drop_brood, 5), 200, as_yellow(8, tt=((0xc22, 0x83),)), near(3, seed=31)),
+    ('drop brood surface', 0x12820, port(player.drop_brood, 5), 100, as_yellow(8, tt=((0xc22, 0x02),)),
+     near(1, seed=32)),
+    ('drop brood cheat', 0x12820, port(player.drop_brood, 5), 30, as_yellow(8, kbd=0x0b, tt=((0xc22, 0x01),)),
+     near(2, seed=33)),
+] + [
+    (f'drop load {t:#x}', 0x1317c, port(player.drop_load, 5), 100, as_yellow(t, tt=((0xc22, 0x01),)),
+     near(v, seed=35 + k)) for k, (t, v) in enumerate(((8, 2), (0x18, 1), (0x28, 3), (0x38, 2), (0x48, 1),
+                                                       (0x10, 2)))
+] + [
+    (f'pick up {k} view {v} type {t:#x}', 0x131ea, port(player.pick_up, 3), 500,
+     next_to(t, hp=hp, plant=NEST_PEBBLES), cell_args(v, seed=50 + k))
+    for k, (v, t, hp) in enumerate(((2, 0x10, 80), (3, 0x10, 80), (1, 0x10, 80), (1, 0x30, 80), (2, 0x30, 80),
+                                    (2, 0x10, 5), (1, 0x20, 80), (1, 0x18, 80), (2, 0x40, 80)))
+] + [
+    ('pick up low health', 0x131ea, port(player.pick_up, 3), 300, next_to(0x20, g=((0x1044, 1),)),
+     cell_args(1, seed=60)),
+    ('pick up low health nest', 0x131ea, port(player.pick_up, 3), 300, next_to(0x20, g=((0x1044, 1),)),
+     cell_args(2, seed=61)),
+    ('take pebble entrance', 0x12a1e, port(player.take_pebble, 3), 6, next_to(0x10, plant=(
+        (SIM_, 0x180 + 20 * 64 + 32, 0x51), (SIM_, 0x180 + 121 * 64 + 32, 0x52), (SIM_, 0x180 + 50 * 64 + 9, 0x53))),
+     lambda st, i: ((1, 20, 32), (1, 121, 32), (1, 50, 9), (2, 34, 0), (2, 20, 10), (3, 5, 5))[i]),
+    ('take pebble house', 0x12a1e, port(player.take_pebble, 3), 3, next_to(0x30, g=((0xf24, 1),), plant=(
+        (SIM_, 0x180 + 20 * 64 + 32, 0x51), (SIM_, 0x180 + 50 * 64 + 9, 0x53))),
+     lambda st, i: ((1, 20, 32), (1, 50, 9), (1, 51, 9))[i]),
+    ('eat food', 0x12de1, port(player.eat, 1), 1, setter_g(((0xf78, 40),)), lambda st, i: (0,)),
+    ('eat brood', 0x12de1, port(player.eat, 1), 1, setter_g(((0xf78, 4),)), lambda st, i: (3,)),
+    ('eat 2', 0x12de1, port(player.eat, 1), 2, setter_g(((0xf78, 40),)), lambda st, i: (2,)),
+    ('eat 2 weak', 0x12de1, port(player.eat, 1), 1, setter_g(((0xf78, 8),)), lambda st, i: (2,)),
+    ('eat dead', 0x12de1, port(player.eat, 1), 1, setter_g(((0xf78, 0),)), lambda st, i: (0,)),
+    ('eat alone', 0x12de1, port(player.eat, 1), 1, setter_g(((0xf78, 50), (0x330, 1))), lambda st, i: (3,)),
+    ('found nest', 0x14f59, port(player.found_nest, 2), 4, None,
+     lambda st, i: ((20, 10), (100, 50), (0, 5), (127, 5))[i]),
+    ('found nest house', 0x14f59, port(player.found_nest, 2), 2, setter_g(((0xf24, 1),)),
+     lambda st, i: ((20, 10), (100, 50))[i]),
+    ('try found nest', 0x14ee2, port(player.try_found_nest, 2), 200, None, sweep((0, 128), (0, 64), seed=70)),
+    ('try found nest house', 0x14ee2, port(player.try_found_nest, 2), 50, setter_g(((0xf24, 1),)),
+     sweep((0, 128), (0, 64), seed=71)),
+] + [
+    (f'act on cell {k} view {v} type {t:#x}', 0x13644, port(player.act_on_cell, 3), 400,
+     next_to(t, hp=hp, plant=NEST_PEBBLES, tt=((0xc22, 0x01),)), cell_args(v, seed=80 + k))
+    for k, (v, t, hp) in enumerate(((2, 0x10, 80), (2, 0x10, 5), (1, 0x10, 80), (3, 0x30, 80), (2, 0x18, 80),
+                                    (1, 0x28, 80), (2, 8, 80), (1, 0x18, 80), (2, 0x40, 80), (1, 0x20, 80)))
+] + [
+    ('act on cell low health', 0x13644, port(player.act_on_cell, 3), 300, next_to(0x10, g=((0x1044, 1),)),
+     cell_args(1, seed=95)),
+    ('act new queen fails', 0x13644, port(player.act_on_cell, 3), 3,
+     as_yellow(0x40, pos_args=False, g=((0x48c, 1), (0x47c, 60), (0x48a, 2)), tt=((0xc24, 0),),
+               plant=[(SIM_, 0x180 + 61 * 64 + 2, 0x51)]), lambda st, i: (1, 60, 2)),
+    ('act on cell T:0798', 0x13644, port(player.act_on_cell, 3), 3,
+     as_yellow(0x10, pos_args=False, g=((0x48c, 1), (0x47c, 60), (0x48a, 2)), tt=((0x798, 1),),
+               plant=[(SIM_, 0x180 + 61 * 64 + 2, 0x51)]), lambda st, i: (1, 60, 2)),
+    ('take food nest', 0x1302f, port(player.take_food, 3), 12, next_to(0x10, plant=NEST_FOOD),
+     lambda st, i: (2 + i // 6,) + ((20, 10), (21, 10), (22, 10), (23, 10), (24, 10), (25, 10))[i % 6]),
+    ('take food nest low health', 0x1302f, port(player.take_food, 3), 6,
+     next_to(0x18, g=((0x1044, 1),), plant=NEST_FOOD),
+     lambda st, i: (2 + i // 3,) + ((20, 10), (21, 10), (22, 10))[i % 3]),
+    ('take pebble nest exit', 0x12a1e, port(player.take_pebble, 3), 2, next_to(0x10, plant=(
+        (SIM_, 0x2180 + 34 * 64, 0x31), (SIM_, 0x3180 + 32 * 64, 0x31))),
+     lambda st, i: ((2, 34, 0), (3, 32, 0))[i]),
+    ('act on cell nest food', 0x13644, port(player.act_on_cell, 3), 12, next_to(0x10, plant=NEST_FOOD),
+     lambda st, i: (2 + i // 6,) + ((20, 10), (21, 10), (22, 10), (23, 10), (24, 10), (25, 10))[i % 6]),
+]
+
+
 CHECKS = [
     ('is walkable surface', 0x1323e, port(player.is_walkable, 7), 600,
      None, sweep((0, 1), (-2, 129), (-2, 65), (0, 3), (0, 127), (0, 63), (0, 1))),
@@ -152,7 +286,7 @@ CHECKS = [
      sweep((1, 3), (1, 62), (1, 62), (0x60, 0x60), (0, 7), seed=16)),
     ('jingle', 0x0cd37, port(player.jingle), 5, setter_g(((0x214, 0), (0x216, 0))), None),
     ('jingle wait', 0x0cd37, port(player.jingle), 5, None, None),
-] + WALK_CHECKS + [
+] + WALK_CHECKS + LAYER_C + [
     # (label, original, port, repeat, pre, args_fn)
     ('upkeep', 0x7bf7e, port(player.yellow_tick), 200, yellow(), tick_args),
     ('upkeep queen', 0x7bf7e, port(player.yellow_tick), 200, yellow(t=0x60, heading=2), tick_args),
@@ -187,6 +321,7 @@ def main():
     global VER
     only = sys.argv[1:]
     v = VER = Verifier()
+    v.extra_stubs = (0x01aa7, 0x03381)      # UI: scroll to the yellow ant, redraw
     ok = True
     for label, lin, fn, repeat, pre, args_fn in CHECKS:
         if only and not any(o in label for o in only):

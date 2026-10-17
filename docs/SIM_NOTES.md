@@ -977,15 +977,23 @@ Port plan, bottom-up, each layer verified on its own (`test_player.py`):
   f_114bd, f_0f167, f_116a1, f_116d6, f_1167b, f_116f7, f_13791, f_133cc, f_133f9, f_1162f, f_0cd37.
 - B pathfinding (done): f_7cd31, f_7ce36, f_7d03a, f_7d0e5, f_7d15d, f_7d1bd, f_7d24f, IsWalkable,
   IsOpenGround.
-- C acting on a cell, `f_13644` and below: f_1317c (f_12306, f_12606, f_12820), f_131ea (f_12a1e,
-  f_12f4f / f_12bf4, f_1302f), f_1252c, f_14ee2, thunk f_2f834.
+- C acting on a cell (done): `f_13644` act_on_cell; drops f_1317c → f_12820 brood (becomes a nest ant again,
+  state 8, type T:0C22), f_12306 food (onto a crumb, up to 3 more, else a new one), f_12606 pebble (f_1252c:
+  on an entrance it also seals the nest cell below with 0x31, and vice versa); pick-ups f_131ea → f_12f4f
+  brood (a weak yellow ant eats it: T:0C26 = 3), f_12a1e pebble (one blocking an entrance reopens it),
+  f_1302f food (surface: food trail 200 on the *black* map, G:0B1E / G:0C38 distance home; low health
+  G:1044: eat it, T:0C26 = 0); MenuCommand12de1(n) eat: health back to 100, n 0 / 3 give the colony
+  old health / (black pop - 1), n 2 costs 10; f_14ee2 / f_14f59 a new queen (0x40, or T:0798) founds a
+  nest on open ground (then f_2f834 = f_7c7e5 enters it). Drops and pick-ups read the BIOS keyboard
+  flags at 0000:0417: Shift + Alt keeps the load (a cheat; `State.bios_kbd`).
 - D f_7c7e5 (enter a nest), f_7c8fe (climb out), AttackPlayer f_7c5ab + f_7c149, MenuCommand12de1,
   f_15e2c, f_14cad (alarm += n, max 200).
 - E f_7b7b8 itself.
 UI pieces to stub in the emulator (they write G screen state): f_01aa7 (scroll the view to the yellow
 ant, from f_01c52, which also sets G:1074 = 1), f_03381 (redraw, from f_03391 / f_11ab0); f_0250e marks
-the dirty map G:15C4 (ignored by the tests). Thunks still to classify: f_2f802, f_2f80c, f_2f82a,
-f_2f834. f_2f7d0 → f_75d01 is the player-event UI (dialogs, death, becoming another ant): a hook.
+the dirty map G:15C4 (ignored by the tests). Thunks: f_2f802 → f_71a7d (full-screen picture, stubbed), f_2f80c → f_76a37
+(alarm-trail mode on/off: G:104E, T:07BE, menu check mark), f_2f82a → f_7686d (help message box, UI),
+f_2f834 → f_7c7e5 (enter a nest). f_2f7d0 → f_75d01 is the player-event UI (dialogs, death, becoming another ant): a hook.
 
 ## Verification harness (tools/re/emu.py)
 

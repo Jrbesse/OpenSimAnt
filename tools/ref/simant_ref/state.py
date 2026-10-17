@@ -26,6 +26,8 @@ class State:
         # the game's real-time clock (f_1bc34: 32-bit counter at 1b73:0012, ~18.2 ticks/s, kept by its
         # INT 8 handler); the engine sets it, the sim only reads it
         self.clock = 0
+        # BIOS keyboard shift flags (0000:0417): holding Shift and Alt lets the yellow ant keep its load
+        self.bios_kbd = 0
 
     def read_clock(self):
         """f_1bc34."""

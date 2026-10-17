@@ -81,14 +81,19 @@ class Verifier:
         print(f'[verify] recorded {len(ticks)} snapshots in {time.time() - t0:.1f}s')
         self.e.clock_frozen = True
 
+    extra_stubs = ()               # UI routines to skip in a test (re-applied after each load: it restores code)
+
     def load(self, mem):
         self.e.uc.mem_write(0, mem)
         self.e.uc.ctl_remove_cache(0, 0x100000)
+        for lin in self.extra_stubs:
+            self.e.stub(lin)
 
     def state_from_emu(self):
         b = self.e.base * 16
         st = State(bytes(self.e.uc.mem_read(LO + b, HI - LO)))
         st.clock = int.from_bytes(bytes(self.e.uc.mem_read(self.e.game_clock, 4)), 'little')
+        st.bios_kbd = self.e.uc.mem_read(0x417, 1)[0]
         return st
 
     def check(self, lin, port_fn, args_fn=None, label=None, repeat=1, ignore=(), pre=None, post_args=None,
@@ -123,6 +128,7 @@ class Verifier:
                         st.set8(seg, off, val)
                     set16.byte = set8
                     pre(set16, args)
+                    st.bios_kbd = self.e.uc.mem_read(0x417, 1)[0]
                 if post_args:
                     args = post_args(st, args)
                 ro = self.e.call_lin(lin, args)
