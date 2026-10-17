@@ -67,9 +67,16 @@ def drop_food(st, count, sound):
             continue
         t = st.grid(SURFACE, a, b)
         if st.u16(G, 0xf24):
-            # house floors: ported later together with the house
-            raise NotImplementedError('drop_food in the house')
-        if t < 0x18:
+            # house floors: crumbs are 0x18..0x27, four sizes per floor kind
+            if t < 4:
+                st.set_grid(SURFACE, a, b, (t + 6) << 2)                 # (sic: cl still holds 6)
+            elif t < 0x18:
+                st.set_grid(SURFACE, a, b, ((t - 8) & 0xfc) + 0x18)
+            elif t < 0x28 and t % 4 < 3:
+                st.set_grid(SURFACE, a, b, t + 1)
+            else:
+                continue
+        elif t < 0x18:
             st.set_grid(SURFACE, a, b, 0x48)
         elif 0x48 <= t < 0x4b:
             st.set_grid(SURFACE, a, b, t + 1)

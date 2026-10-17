@@ -63,7 +63,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | Module | Contents |
 |---|---|
 | `rng.py`, `state.py` | LFSR game RNG, MSC `rand()`, memory-mirroring `State` (+ clock) |
-| `terrain.py` | patch (yard) generation; runs on a standalone `Patch` or on the `State` (`StateSurface`) |
+| `terrain.py` | patch generation, yard and house (`house_patch`); runs on a standalone `Patch` or on the `State` (`StateSurface`) |
 | `pheromones.py` | trail / nest-marker / alarm maps |
 | `colony.py` | census, priorities, caste choice, advisor job logic, health, food drop |
 | `movement.py` | steering helpers |
@@ -73,7 +73,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `world.py` | slow phases, history graph, advisor status, weather/flooding, ant lions, caterpillar + bugs, **spider** |
 | `yard.py` | the yard layer: human walk/roam + lawnmower, foot stamps, bird crossing, bird, dog, rain control, yard colonies |
 | `sim.py` | **SimStep**: one full game tick |
-| `newgame.py` | **new game** `f_6b36b` and patch setup `f_6ae20`: clearing, colony settings, patch seeds, terrain, scattered colonies, pre-dug nests, queens, the yellow ant's start per mode |
+| `newgame.py` | **new game** `f_6b36b`, the Full Game's move to another patch `f_01d48`, and patch setup `f_6ae20`: clearing, colony settings, patch seeds, terrain, scattered colonies, pre-dug nests, queens, the yellow ant's start per mode |
 | `player.py` | the yellow ant: upkeep `f_7bf7e`, actions `f_7b7b8` (pathfinding to the cursor, picking up / dropping / eating, entering and leaving nests, fights), view-generic map accessors |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
@@ -100,13 +100,17 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    and 16 direct `f_6ae20` calls (colonies up to 1125 ants, other patches) x 6 snapshots, byte-identical;
    `test_newgame.py play [ticks]` starts a game on each side and runs SimStep side by side (2000 ticks,
    Quick and Full Games, OK). Ignored as UI: the behaviour panel's slider geometry and the resource
-   manager's counters (see the test's SCREEN). Not ported: the hand-made patches near the house
-   `f_7304b` (patch idx <= 37) and generation inside the house (`NotImplementedError`).)
-5. Full Game remainder: moving between patches (which calls `f_6ae20` with the yard colony sizes), the
-   house patches `f_7304b` and in-house generation, mating flights / colonisation (`f_01315`).
-   `build/calls.tsv` lists only `f_6b36b` as a direct caller of `f_6ae20`; other callers go through the
-   overlay vector thunks in segment 3cff (like `f_2f956` → `f_79478`), so look for a thunk to it first.
-6. Then rendering, UI, save files, and the Godot remake.
+   manager's counters (see the test's SCREEN).)
+5. (done: the Full Game's **move to another patch** `f_01d48` (`newgame.move_to_patch`) and the **house
+   patches** `f_7304b` (`terrain.house_patch`, all 38, entered from the yard or the house); the food
+   drop in the house. `test_newgame.py`: 77 house checks, 10 move checks; `play` also moves into the
+   house and to another patch and plays 2000 ticks. Overlay callers go through vector thunks in
+   segment 3cff (`90 90 90 EA off seg`); scan for them to find who calls an overlay routine.
+   Mating-flight colonisation was already in yard.py; `f_01315` is an empty stub.)
+6. Next: the remaining player-facing game logic outside SimStep, then rendering, UI, save files
+   (`.ANT`), and the Godot remake. Candidates: the yard map / patch selection UI, the scenario games
+   (mode 3?), save/load, the game-over / win screens' state changes (`f_71d95`, `f_2f91a`), and the
+   player-event UI `f_75d01` (becoming another ant). Decide with the owner which comes first.
 
 ## Gotchas learned the hard way
 
@@ -126,7 +130,8 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 ## Commit log since the last summary
 
 ```
-(this session) Port the new game (f_6b36b) and patch setup (f_6ae20); verified
+(this session) Port the Full Game's move between patches (f_01d48) and the house patches (f_7304b)
+8f7f04f Port the new game (f_6b36b) and patch setup (f_6ae20); verified
 (this session) Port the yard layer (sec8 f_68513); verified over 114 scenarios
 b66ff09 Port the spider (f_0ce63 and helpers); verified over 37 scenarios
 f7642c9 Port the caterpillar and wandering bugs (f_0b6cc, f_0ae4c); verified

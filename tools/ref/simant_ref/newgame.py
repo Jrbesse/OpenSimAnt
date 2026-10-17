@@ -402,6 +402,42 @@ def setup_patch(st, seed, n_black, n_red, row, col):
     st.set16(G, 0x730, 1)
 
 
+# ------------------------------------------------------------------------------------------- moving
+def move_to_patch(st):
+    """f_01d48 (Full Game): go to the yard patch the player picked (row G:07BC, col G:07BE, set by the yard
+    map). It must hold a black colony, unless the yellow ant is a new queen that has not settled yet
+    (T:0C24 == 0). The patch is generated afresh with the yard's colony sizes."""
+    row, col = s16(st.u16(G, 0x7bc)), s16(st.u16(G, 0x7be))
+    if row == s16(st.u16(G, 0x7ca)) and s16(st.u16(G, 0x7cc)) == col:
+        return
+    if st.u16(G, 0xeac) != 2:
+        refuse = 0x2710                      # only in a Full Game
+    elif s16(st.u16(G, 0x3e2)) <= 1 and s16(st.u16(G, 0x330)) <= 1:
+        refuse = 0x2712                      # the colony is too small to move
+    else:
+        refuse = None
+        idx = (row * 16 + col) & 0xffff
+        if st.u8(T, 0xa4 + idx) < 1 and not (st.u16(G, 0x4c2) == 0x40 and st.u16(T, 0xc24) == 0):
+            refuse = 0x2714                  # no black colony there
+    if refuse:
+        st.player.effect(st, 'sound', 0x7e)                            # f_00ed8(1, 0, 0x7e)
+        st.player.effect(st, 'message_box', refuse, 1)                 # f_2f6ea → f_71b1a(0, id, 1)
+        return
+    st.player.effect(st, 'sound', 0x7e)                                # f_00ea1(0x2afa, 0x7e)
+    st.set16(G, 0x7ca, row)
+    st.set16(G, 0x7cc, col)
+    st.player.effect(st, 'yard_map')                                   # f_2f6e0 → f_6f46a
+    st.set16(G, 0x354, 1)
+    for off in (0x7c8, 0x850, 0x6aa, 0x73a):
+        st.set16(G, off, 0)
+    st.set16(T, 0xc24, 1)
+    black, red = st.u8(T, 0xa4 + idx), st.u8(T, 0x164 + idx)
+    setup_patch(st, st.u16(SIM, (2 * (col * 12 + row)) & 0xffff), black, red, row, col)
+    if st.u8(T, 0x164 + idx) == 0:
+        st.set16(G, 0x1fe, 0)
+    st.player.effect(st, 'message_box', 0x2716 if s16(idx) > 0x24 else 0x2717, 0)
+
+
 # ------------------------------------------------------------------------------------------- new game
 def new_game(st):
     """f_6b36b: start a game in mode G:0EAC (the caller sets it)."""

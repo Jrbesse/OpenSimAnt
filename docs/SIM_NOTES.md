@@ -912,9 +912,10 @@ yard_colonies (f_6a1f4), every 32 yard ticks (G:07C2 & 0x1F == 0):
   f_00984(n): m = min(Rand(n), Rand(n)); Rand2() ? -m : m
 ```
 4. Yellow (player) ant: in progress, see "The player (yellow ant)" below.
-5. (done: new game / patch setup, `simant_ref/newgame.py`; see "New game" below. Not ported: the
-   hand-made patches near the house `f_7304b` (idx <= 37) and generation inside the house.)
-6. Full Game: the yard of patches, house, transfers, mating-flight colonisation (`f_01315`).
+5. (done: new game / patch setup, `simant_ref/newgame.py`; see "New game" below.)
+6. (done: moving between patches `f_01d48` and the house patches `f_7304b`, see "Moving to another
+   patch" and "The house" below. Mating-flight colonisation is the yard layer's (`f_6a721`); `f_01315`
+   is an empty stub.)
 7. Scoring/ratings, history graph sampling, timers (`G:0c26` total ticks), game speed.
 8. Rendering: tile and sprite mapping for surface/nest views (find the draw routines), map windows, UI.
 9. Save-file format (`.ANT`).
@@ -1087,11 +1088,50 @@ SetupPatch(seed, n_black, n_red, row, col):        # f_6ae20
     health 100 / 100; f_79478(0); Census; redraw (f_0256e); view cursors (64, 32), (32, 1)
 ```
 
+### Moving to another patch (`f_01d48`, Full Game; ported: `newgame.move_to_patch`)
+
+The yard map UI sets the target G:07BC (row 0..11) / G:07BE (col 0..15) and calls `f_01d48`:
+```
+    target == current (G:07CA / G:07CC): nothing
+    refused (sound 0x7E, message box): not a Full Game (0x2710); G:03E2 <= 1 and black pop <= 1 (0x2712);
+        no black colony in the target's yard cell T:00A4[row*16 + col], unless the yellow ant is an
+        unsettled new queen (type 0x40, T:0C24 == 0) (0x2714)
+    else: current = target; G:0354 = 1; the flight counters G:07C8, G:0850, G:06AA, G:073A = 0;
+        T:0C24 = 1; f_6ae20(seed[col*12 + row], T:00A4[cell], T:0164[cell], row, col)
+        (the yard cell values are the colony sizes); no reds there: red health 0;
+        message 0x2716 (yard) or 0x2717 (house, idx <= 36)
+```
+Verified (`test_newgame.py move:`), and `test_newgame.py play` moves into the house and to another
+patch, then plays 2000 SimSteps side by side.
+
+### The house (`f_7304b`, ported: `terrain.house_patch`)
+
+Yard rows 0..1 and row 2 cols 0..5 (idx <= 37; `f_73020` compares signed) are the house. Entering it
+switches the tile set (T:07A0 = 1001, `f_0286a(0, 1001)` → `f_02756(1)`: G:0F24 = 1, cached in DS:1A2E,
+house tile graphics; G:0480 = 0x90 highest passable tile); the generic generator switches back
+(1000, G:0480 = 0x50). House patches get no ant lion pits (`f_0afce(0)`) and no wandering bugs, then one
+of the layouts (G:0F3A = room: 0 tiled floor, 1 wall on the left, 2 counter / plain, 3 wall on the right):
+
+| idx | layout |
+|---|---|
+| 0 | counter (`f_734d3`) + the big fitting below it (`f_735d5`) |
+| 1, 16, 32 | counter: tiles 0x62 (b 0..23) with 0x66..0x69 seams, two 9x13 boxes (`f_738b7`) |
+| 2, 3, 17..19, 33..35 | tiled floor (`f_73236`): 16x16 checks of 0/1, grout 0x5C..0x61 |
+| 4, 10, 11, 13, 14 | wall on the left (`f_73350`): 0x64 / 0x7A / 0x7B, floor 3 with 1/200 0x3E..0x3F, a 13x9 box |
+| 5..8, 12, 15 | wall on the left + a rug (fill 2, or `f_73b54`: 1/20 cells 0x38 + Rand(5), 0xC0 corners) and 3x3 pictures |
+| 9 | floor 3 everywhere (room 2) |
+| 20..31 | wall on the right (`f_7343d`) |
+| 36, 37 | tile 0 everywhere (room 2) |
+
+Pictures come from DGROUP tables (DS:2C5A, 2C6E, 2C82, 2C9C, 2CA6). In the house, food crumbs are
+tiles 0x18..0x27 (`f_6bca5`: floor t < 4 → (t + 6) * 4, sic, a stale CL; t < 0x18 → ((t - 8) & 0xFC)
++ 0x18; crumbs grow while t % 4 < 3).
+
 ### Surface terrain (section 20, entry `f_73020(row, col)`)
 
-`idx = row*16 + col`. Patches with `idx < 38` (near the house) use hand-made layouts in a switch
-(`f_7304b`). All other patches use the generic generator `f_73c33`. RNG = LFSR seeded with the patch
-seed (`SeedLfsr` `f_009bf` just sets `DS:8ba2`), so a patch is identical every time it is generated.
+`idx = row*16 + col`. Patches with `idx <= 37` are the house (above). All other patches use the generic
+generator `f_73c33`. RNG = LFSR seeded with the patch seed (`SeedLfsr` `f_009bf` just sets `DS:8ba2`),
+so a patch is identical every time it is generated.
 
 ```
 GenericPatch():                                    # f_73c33
