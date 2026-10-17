@@ -86,6 +86,16 @@ class State:
     def rand128(self): return self.lfsr_step() & 127
     def rand256(self): return self.lfsr_step() & 255
 
+    def crt_rand(self):
+        """MSC runtime rand() (state DS:7bbe, 32-bit): s = s*0x343fd + 0x269ec3; (s >> 16) & 0x7fff."""
+        s = (self.u32(DS, 0x7bbe) * 0x343fd + 0x269ec3) & 0xffffffff
+        self.set32(DS, 0x7bbe, s)
+        return (s >> 16) & 0x7fff
+
+    def crt_rand_mod(self, n):
+        """0093:0118 abs(rand()) % n."""
+        return self.crt_rand() % n
+
     def rand_low(self, n):
         """0093:002b min(Rand(n), Rand(n))."""
         a = self.rand(n)
