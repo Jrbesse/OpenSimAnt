@@ -92,7 +92,7 @@ def dig_at(st, n, col, depth):
     if is_diggable(st.grid(n['dirt'], col, depth)):
         st.set_grid(n['dirt'], col, depth, st.rand8())
         _dig_bookkeeping(st, n, col, depth)
-        if n is BLACK and depth > 0x35 and st.rand(0x40) == 0:
+        if n['dirt'] == BLACK['dirt'] and depth > 0x35 and st.rand(0x40) == 0:   # (callers pass copies)
             st.set_grid(BLACK['dirt'], col, depth, 0x14)
             dig_at(st, RED, col, depth)
             st.set_grid(RED['dirt'], col, depth, 0x14)

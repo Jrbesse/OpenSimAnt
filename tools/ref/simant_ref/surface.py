@@ -37,6 +37,9 @@ class NoPlayer:
     def yard_event(self, st, n):
         raise NotImplementedError(f'f_2f7d0({n}) (the human or the mower hits the player)')
 
+    def game_event(self, st, n):
+        raise NotImplementedError(f'f_2f7d0({n}) -> f_75d01 (player event: dialogs, the yellow ant dies, ...)')
+
     def win_screen(self, st):
         raise NotImplementedError('f_2f91a (Full Game won: the end screen)')
 

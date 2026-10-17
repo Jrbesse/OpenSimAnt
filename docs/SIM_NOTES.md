@@ -911,12 +911,81 @@ yard_colonies (f_6a1f4), every 32 yard ticks (G:07C2 & 0x1F == 0):
       cell += 1 (an empty cell also counts G:0A90 black / G:0AC4 red)
   f_00984(n): m = min(Rand(n), Rand(n)); Rand2() ? -m : m
 ```
-4. Yellow (player) ant: movement, recruit/release/exchange, dig, pick up, `f_7bf7e`, `AttackPlayer`.
+4. Yellow (player) ant: in progress, see "The player (yellow ant)" below.
 5. New game / map generation (overlay 10 `6ae20`, `6c010`), initial colonies, entrance tables.
 6. Full Game: the yard of patches, house, transfers, mating-flight colonisation (`f_01315`).
 7. Scoring/ratings, history graph sampling, timers (`G:0c26` total ticks), game speed.
 8. Rendering: tile and sprite mapping for surface/nest views (find the draw routines), map windows, UI.
 9. Save-file format (`.ANT`).
+
+## The player (yellow ant): sec27 `f_7bf7e` and `f_7b7b8` (port in progress: `simant_ref/player.py`)
+
+State: position G:047C (a) / G:048A (b) in view G:048C (1 surface, 2 black nest, 3 red nest), type
+G:04C2, colour G:04E2 (0 black), heading G:0496, health G:0F78 (0..100), G:1006 ticks at zero health. On
+the map it is 0xFF in the view's occupancy grid (surface 0x6180, nest cells 0x8180 / 0x9180); a queen's
+second cell, behind her, is 0xFE. G:0A06 != 0: the player is not an ant (1 = the spider).
+Action state: G:0AA0 action pending, G:0A8E mode (0 walk, 1 act on the target cell, 2 dig, 3 attack the
+target ant, 4 recruit/talk to it), cursor target G:0AF8 (view) / G:0AD6 / G:0AE8, target ant G:08DA (view)
+/ G:07C0 (index) with its type remembered in G:084E, last cell G:0AB6 / G:0AC6, step counter G:0C3E.
+In the verifier's snapshots the yellow ant idles in the black nest at (34, 9) with G:0AA0 = 0.
+
+```
+f_7bf7e (each tick, G:0A06 == 0), ported and verified (`yellow_tick`):
+  f_119b4(view, a, b, type, heading, 0xFF)       # re-assert the yellow ant on the map (digs dirt it is in)
+  every 64 ticks: health -= 1 (f_12d43); in a nest on a tile >= 0x4E (flooded): health -= 1
+  queen (type 0x60) in a nest, every 16 ticks: egg 2 cells behind her if NestCellFree and Rand128() <= health
+      (black: SpawnBlackBrood + EggCost, red: SpawnRedBrood + f_1082c); health -= 5
+  health <= 0: G:1006 += 1; at 100: f_2f7d0(7 drowned / 8 died)
+f_12d43(hp): G:0F78 = T:0C16 ? 100 : hp, clamped 0..100; > 0 clears G:1006; G:1044 = low-health warning
+
+f_7b7b8 (each tick, if G:0AA0), decoded, not yet ported:
+  res = 0
+  if mode >= 3: (a, b, t, x, y) = ant G:07C0 of view G:08DA (f_10fcd); gone or (t ^ G:084E) & 0xF0 → res -2
+      same view and |da| <= 1 and |db| <= 1: face it (DirTo - 1 → G:0496); res -1
+      else the cursor follows it: G:08E2 = G:0AD6 = a, G:09F0 = G:0AE8 = b
+  if mode == 1 and G:0AF8 == view: c = the cell next to the yellow ant towards the target (T:0010/T:001A
+      offsets of DirTo, clamped to the yellow ant's own a / b if outside); if it is the target:
+      r = f_13644(view, c) (act on the cell); r 1 → res -1, r other non-zero → res -2
+  d = f_7d24f(view, a, b, G:0AF8, G:0AD6, G:0AE8) (step towards the cursor); d < 0 → res d
+  else: G:0AB6/0AC6 = position; f_11a3e (move); G:0C3E += 1
+        surface: carrying food (G:04C4 > 0, type 0x18 or 0x38) lays the colony's food trail at strength
+            G:04C4 (then G:04C4 -= 1 while > 10); G:104E → alarm += 50 (f_14cad)
+        nest: UpdateExitField(Red)
+        odd G:0C3E: health -= 1 (a black queen 0x40 also costs black health unless T:0C24 / T:0C18)
+        surface on an entrance (f_0acfb), cursor in a nest or here: f_7c7e5 (enter the nest)
+        nest row 0: f_7c8fe (climb out)
+        nest, target tile 0x14 (hole into the other nest) here, not a queen: switch nests (view 2 <-> 3)
+  res == 0 and at the cursor in mode 0 → res -1
+  res -2: sound, f_01c52; res != 0: mode 3 → AttackPlayer(G:08DA, G:07C0) with G:1058 = 1;
+          mode 4 → turn the target ant to face the yellow ant (f_11121 / f_1156e), MenuCommand12de1(1)
+  res != 0: f_2f820 → f_757dd (action done: cursor = position, G:0A8E = G:0AA0 = G:0B1E = G:0C38 =
+          G:0C3E = 0, G:0D6C = -2); in the house on tile 0x76 / 0x78: f_2f7d0(10)
+```
+
+Pathfinding (`f_7d24f`, ported and verified by walking the yellow ant step by step): in another view the
+goal becomes the nest entrance on the surface (T:02AC black / T:02B0 red) or this nest's exit (T:02A4 /
+T:02A8). `f_7cd31` greedy step: the last closer free open-ground neighbour, else the last closer other one
+(-2 if none, -1 at the goal); distances are the low word of `Distance`, signed. Blocked (-2 twice) →
+wall following `f_7ce36` for 16 steps (G:0D6C), side G:0EFA (1 cw, -1 ccw), heading G:0EF8, never back to
+the last cell; it returns to greedy when a step does not get further. `f_7d03a` looks 64 greedy steps
+ahead to decide. `IsWalkable` f_1323e: surface tile <= 0x53 (house <= 0x90); nest tunnels <= 0x18 and
+0x30/0x31, dirt (0x20..0x2E, 0x1C..0x1F) only in dig mode 2; the top two nest rows only towards an exit
+the target is at.
+
+Port plan, bottom-up, each layer verified on its own (`test_player.py`):
+- A accessors (done): GetOccupant, f_118c4, f_11918, f_11a3e, f_119b4, f_1156e, f_10fcd, f_11121, f_11246,
+  f_114bd, f_0f167, f_116a1, f_116d6, f_1167b, f_116f7, f_13791, f_133cc, f_133f9, f_1162f, f_0cd37.
+- B pathfinding (done): f_7cd31, f_7ce36, f_7d03a, f_7d0e5, f_7d15d, f_7d1bd, f_7d24f, IsWalkable,
+  IsOpenGround.
+- C acting on a cell, `f_13644` and below: f_1317c (f_12306, f_12606, f_12820), f_131ea (f_12a1e,
+  f_12f4f / f_12bf4, f_1302f), f_1252c, f_14ee2, thunk f_2f834.
+- D f_7c7e5 (enter a nest), f_7c8fe (climb out), AttackPlayer f_7c5ab + f_7c149, MenuCommand12de1,
+  f_15e2c, f_14cad (alarm += n, max 200).
+- E f_7b7b8 itself.
+UI pieces to stub in the emulator (they write G screen state): f_01aa7 (scroll the view to the yellow
+ant, from f_01c52, which also sets G:1074 = 1), f_03381 (redraw, from f_03391 / f_11ab0); f_0250e marks
+the dirty map G:15C4 (ignored by the tests). Thunks still to classify: f_2f802, f_2f80c, f_2f82a,
+f_2f834. f_2f7d0 → f_75d01 is the player-event UI (dialogs, death, becoming another ant): a hook.
 
 ## Verification harness (tools/re/emu.py)
 

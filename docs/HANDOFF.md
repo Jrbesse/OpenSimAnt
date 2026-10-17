@@ -52,7 +52,7 @@ Run everything (each takes a few minutes):
 cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
-python test_yard.py
+python test_yard.py; python test_player.py
 ```
 
 All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical").
@@ -71,6 +71,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `red_nest.py` | **red nest** ants (a separate, different copy in the original) |
 | `world.py` | slow phases, history graph, advisor status, weather/flooding, ant lions, caterpillar + bugs, **spider** |
 | `yard.py` | the yard layer: human walk/roam + lawnmower, foot stamps, bird crossing, bird, dog, rain control, yard colonies |
+| `player.py` | (in progress) the yellow ant's upkeep `f_7bf7e`, view-generic map accessors, pathfinding to the cursor |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
 `NotImplementedError` for the ones that change state, so a test fails loudly if it reaches unported code.
@@ -78,12 +79,19 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 ## Next steps, in order
 
 1. (done: the yard layer, sec8 `f_68513`, in `simant_ref/yard.py` / `test_yard.py`.)
-2. Port the remaining SimStep pieces: `f_7bf7e` and `f_7b7b8` (yellow ant per tick; the player system),
-   `f_71d95` (game over), then **SimStep itself (`f_0894e`)**, and run a full-tick check: from each
+2. **The player system** (`simant_ref/player.py`, `test_player.py`; plan and decoded pseudo-code in
+   SIM_NOTES "The player (yellow ant)"). Done and verified: `f_7bf7e` (`yellow_tick`), layer A (map
+   accessors) and layer B (pathfinding). Next: layer C (`f_13644` acting on a cell and its helpers), D
+   (entering / leaving nests, `AttackPlayer`, `MenuCommand12de1`), E (`f_7b7b8`). Asm dumps for the
+   player are in `tools/re/build/asm/player/` (regenerate with `adis.py`). For the routines that call UI
+   (`f_01c52` → `f_01aa7`, `f_03391` → `f_03381`), stub those UI routines in the emulator; note that
+   `Verifier.load` restores code too, so extra stubs must be re-applied after each load.
+   `debug_player.py <label> [snapshot]` finds the first call where a player check diverges.
+3. Then `f_71d95` (game over) and **SimStep itself (`f_0894e`)**, and a full-tick check: from each
    snapshot run N ticks of the original and the port and compare. The SimStep schedule is in SIM_NOTES
    "Simulation step"; note that it ends by setting `02C2 = 1`.
-3. Patch setup / new game (`6ae20`, `6b36b` and helpers; listed in SIM_NOTES).
-4. Then rendering, UI, save files, and the Godot remake.
+4. Patch setup / new game (`6ae20`, `6b36b` and helpers; listed in SIM_NOTES).
+5. Then rendering, UI, save files, and the Godot remake.
 
 ## Gotchas learned the hard way
 
