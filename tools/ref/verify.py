@@ -51,10 +51,11 @@ def describe(lin):
 
 
 class Verifier:
-    def __init__(self, ticks=SNAP_TICKS, seed=0x1234):
+    def __init__(self, ticks=SNAP_TICKS, seed=0x1234, mode=1):
         self.e = emu.SimEmu(base=0x100)
         os.makedirs(SNAP_DIR, exist_ok=True)
-        paths = [os.path.join(SNAP_DIR, f'quick_{seed:04x}_{t:05d}.bin') for t in ticks]
+        kind = {1: 'quick', 2: 'full'}[mode]
+        paths = [os.path.join(SNAP_DIR, f'{kind}_{seed:04x}_{t:05d}.bin') for t in ticks]
         if all(os.path.exists(p) for p in paths):
             self.e.boot(max_insns=1_000_000_000)
             self.e.stub_drawing()
@@ -64,7 +65,7 @@ class Verifier:
         t0 = time.time()
         self.e.boot(max_insns=1_000_000_000)
         self.e.stub_drawing()
-        self.e.set16(emu.G, 0xeac, 1)
+        self.e.set16(emu.G, 0xeac, mode)
         self.e.set16(emu.DGROUP, 0x8ba2, seed)
         self.e.call_lin(0x6b36b)
         self.snaps = []

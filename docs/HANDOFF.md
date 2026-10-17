@@ -89,7 +89,8 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 3. (done: **SimStep `f_0894e`** in `simant_ref/sim.py`. `test_sim.py [ticks]` runs the original and
    the port side by side from every snapshot: 3000 ticks x 6 snapshots are byte-identical, past the
    recorded game's end; seeds 0x4321, 0x0001, 0xBEEF, 0x7777, 0x2B2B (`test_sim.py 3000 beef`) also
-   match. `debug_sim.py [snapshot] [ticks] [--pieces]` finds the first divergent tick
+   match, and so do Full Games (`test_sim.py 2500 beef full`; snapshots up to tick 2200, as an idle
+   Full Game ends around tick 2282). `debug_sim.py [snapshot] [ticks] [--pieces]` finds the first divergent tick
    and replays it component by component. The game-over screen `f_71d95` is UI (rating, new game): a
    hook. The port's real player hooks are `player.Hooks`; the UI hooks in it still raise.)
 4. Patch setup / new game (`6ae20`, `6b36b` and helpers; listed in SIM_NOTES).

@@ -1,8 +1,8 @@
 """Full-tick check: run SimStep (f_0894e) of the original and the port side by side from every snapshot
-(python test_sim.py [ticks] [seed hex])."""
+(python test_sim.py [ticks] [seed hex] [full])."""
 import sys
 
-from verify import Verifier
+from verify import Verifier, SNAP_TICKS
 from simant_ref import sim
 from simant_ref import player
 from simant_ref import surface as sf
@@ -38,7 +38,8 @@ def step(st):
 def main():
     ticks = int(sys.argv[1]) if len(sys.argv) > 1 else 200
     seed = int(sys.argv[2], 16) if len(sys.argv) > 2 else 0x1234       # a Quick Game recorded with this seed
-    v = Verifier(seed=seed)
+    mode = 2 if 'full' in sys.argv else 1                              # Quick Game, or a Full Game
+    v = Verifier(ticks=(0, 300, 900, 1500, 2200) if mode == 2 else SNAP_TICKS, seed=seed, mode=mode)
     v.extra_stubs = STUBS
     v.clock_neutral(0x7c149, 0x7c3b0)          # the fight animation busy-waits on the clock
     ok = v.check(0x0894e, step, label=f'SimStep x {ticks}', repeat=ticks, ignore=SCREEN)
