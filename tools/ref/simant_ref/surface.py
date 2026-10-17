@@ -46,6 +46,9 @@ class NoPlayer:
     def win_screen(self, st):
         raise NotImplementedError('f_2f91a (Full Game won: the end screen)')
 
+    def new_game_dialog(self, st):
+        raise NotImplementedError('f_725b6 (the new-game dialog)')
+
     def choose_patch(self, st):
         raise NotImplementedError('f_7650c (the yard map: pick a patch)')
 

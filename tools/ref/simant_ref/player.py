@@ -1383,13 +1383,23 @@ def nudge(st, a, b, d):
 
 
 class Hooks(surface.NoPlayer):
-    """The player hooks the simulation calls, routed to this module. Still hooks (UI, not ported):
-    win_screen (f_2f91a), game_over (f_71d95); effect is screen only. choose_patch is the yard map (the
-    UI lets the player pick a patch, then calls newgame.move_to_patch); sound_done asks the sound driver
-    (only with sound hardware)."""
+    """The player hooks the simulation calls, routed to the ports. What is left to a UI: effect (screen
+    only), choose_patch (the yard map: the player picks a patch, then the UI calls newgame.move_to_patch),
+    new_game_dialog (pick the next game: game.start_game), sound_done (the sound driver, only with sound
+    hardware). The win screen (f_2f91a → f_72750) changes no game state."""
 
     def game_event(self, st, n):
         player_event(st, n)
+
+    def game_over(self, st):
+        from . import game
+        return game.game_over_screen(st)
+
+    def win_screen(self, st):
+        self.effect(st, 'win_screen')
+
+    def new_game_dialog(self, st):
+        self.effect(st, 'new_game_dialog')
 
     def choose_patch(self, st):
         self.effect(st, 'yard_map')
