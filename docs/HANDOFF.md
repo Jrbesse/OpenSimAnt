@@ -54,7 +54,7 @@ cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
 python test_yard.py; python test_player.py; python test_sim.py 3000
-python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py
+python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py
 ```
 
 All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical"); last full run
@@ -133,8 +133,9 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    each needs classifying and, if the remake must match tick for tick, porting:
    - map drawing: `f_03de7` (documented, see SIM_NOTES), `f_04666` (from it), `f_07128` and `f_07558`
      (from the window draw `f_038a6`; f_07558 also from `f_07134`, `f_753e5`)
-   - input / tools: `f_6be50`, `f_6bf06` (from `f_6b592`, and via thunks from the input poll `f_01572`;
-     f_6be50 also from `f_0e4e4` ← `f_0e425`, a UI action with message boxes)
+   - (done: `f_6be50` / `f_6bf06`, add up to n black / red surface ants on free cells of the colony's
+     half, `newgame.add_surface_ants`, `test_tools.py` ALL OK. Callers still to classify: `f_6b592`, the
+     input poll `f_01572` via thunks, `f_0e4e4` ← `f_0e425`, a UI action with message boxes)
    - (done: cheats `f_6a920`, SIM_NOTES "Cheat codes", `simant_ref/cheats.py`; `test_cheats.py`
      types all 23 codes plus broken prefixes and toggles twice, key by key, from every snapshot: ALL OK.
      UI stubbed: f_277da, thunk 0x2f6ea (f_71b1a messages), f_00ed0, f_0125f; sound f_00ed8 runs.)

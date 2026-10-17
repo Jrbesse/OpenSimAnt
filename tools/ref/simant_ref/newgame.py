@@ -167,6 +167,23 @@ def _scatter_colony(st, n, red):
         st.set_grid(OCC, a, b, (v + st.rand8() + (0x80 if red else 0)) & 0xff)
 
 
+def add_surface_ants(st, n, red):
+    """f_6be50 (black) / f_6bf06 (red): up to n ants on the free open cells of the colony's half (black
+    columns 0..63 up, red 127..64 down; rows 16..47), 3 in 10 soldiers (state 2), else workers (state 4);
+    stops early at 1000 surface ants."""
+    for a in (range(0x7f, 0x3f, -1) if red else range(0x40)):
+        for b in range(0x10, 0x30):
+            if st.grid(SURFACE, a, b) >= 0x50 or st.grid(OCC, a, b):
+                continue
+            base, state = (0x30, 2) if st.rand(10) <= 3 else (0x10, 4)
+            t = st.rand8() + base + (0x80 if red else 0)
+            st.set_grid(OCC, a, b, t & 0xff)
+            player.add_surface_ant_raw(st, a, b, t, state, 0)
+            n -= 1
+            if n <= 0 or s16(st.u16(G, 0xd6a)) >= 1000:
+                return
+
+
 def _start_nest(st, n, dig_random):
     """f_6b95c (black) / f_6bae2 (red): a shaft from the entrance (nest column 32) down 7..10 rows,
     wandering sideways, then a short diagonal to the queen's chamber."""
