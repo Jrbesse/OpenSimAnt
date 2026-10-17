@@ -1096,6 +1096,47 @@ Evaluation order for eggs / EGGS (C pushes right to left): `rand()` first, then 
 offset, then the Rand8 for the x offset. eggs, EGGS and joel draw from the game's RNG (whether the
 spawn / chamber helpers draw too is not checked yet). Of the cheats, only FUND, joke and fred are pure UI.
 
+## Debug commands (segment 015b; ported: `simant_ref/debug.py`, verified by `test_debug.py`)
+
+Reached from the menu-command handler `f_6e5c0(event)` (via thunk 0x2f9c4 from `f_74140`): command id
+event[0x0C] 0x102..0x118 through a jump table at 0x6e5e8 (cs base 0x6e460). Which menu items or controls
+carry ids 0x110 / 0x112 is not known yet (the HCEGANT type 0 layouts are undecoded).
+
+- Command 0x110 → `f_6f733(event)`: the BIOS shift flags 0000:0417 pick a hidden action.
+  - No Ctrl: `f_01c52` (the normal action: follow the yellow ant).
+  - Ctrl + Shift: left half of control 0x110's rect (from `f_252d8`) = black, right half = red.
+    With Alt that colony loses ants (`f_0161f`), without Alt it gains ants (`f_015be`).
+  - Ctrl + Alt: sound `f_00ed8(0x20, 0, 0x7E)`, then clear all food (`f_01707`).
+  - Ctrl only: drop food, `f_6bca5(0x96, 1)`.
+- Command 0x112 → `f_022bc`: one of 15 actions by `rand() % 15`:
+  - 0, 1: 2 x add red ants; 2: 2 x add black ants
+  - 3: 2 x kill red ants; 4: 2 x kill black ants
+  - 5: drop food `f_6bca5(0x96, 1)`
+  - 6: sound `f_00f02(0x20, 0, 0x7E)`, then clear all food
+  - 7: `f_00ed0(0)` (music)
+  - 8: red holes `f_15247(2i)`, i < 32; 9: black holes MakeSurfaceHoleBlack(2i), i < 32
+  - 10: T:0C18 = G:10BE = G:01FE = 0
+  - 11: toggle T:0C14 (sound 2 if on, 1 if off); 12: toggle T:0C12, no sound
+  - 13: message 0x2726, `f_00ed0(1)`, message 0x2728
+  - 14: G:06AC = 8 (the spider lashes out), `f_00ed8(2, 0x2B77, 0x7E)`
+
+The routines they call:
+
+- `f_015be(black)`, add ants: if the surface has fewer than 1000 ants, add 32 of the colony
+  (`f_6be50` / `f_6bf06`, see `newgame.add_surface_ants`); T:0798 == 1 adds 1000 - count instead.
+  Then the census `f_0c20f`.
+- `f_0161f(black)`, kill ants: CompactSurface + census, then from the last surface ant down, up to 51
+  of the colony become corpses (PlaceCorpse(x, y, red)) and get type 0, then CompactSurface + census
+  again. Red ants on the player (`f_134b8(1, x, y)`) are spared.
+- `f_134b8(view, a, b)`, is the player here?
+  - The yellow ant's view must be `view` (0 counts as 1).
+  - Spider player (G:0A06 == 1): surface only; true when the squared distance from (16a + 8, 16b + 8)
+    to (G:0F12, G:0F34) is under 0x200.
+  - Otherwise: true when the view's occupancy byte at (a, b) is 0xFE / 0xFF.
+- `f_01707`, clear food: every surface tile of TileClass 1 (food) gets `Rand16()`; G:1040 = 0.
+
+All of these draw from the game's RNG except the toggles and messages.
+
 ## Rendering the map windows (`f_0379e`, `f_03518`, `f_02fdb`, `f_02c21`)
 
 A map window is 40 x 30 cells (`f_0379e(x, y)`), its origin G:0508 (a) / G:050A (b), its view G:032E

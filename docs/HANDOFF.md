@@ -54,7 +54,7 @@ cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
 python test_yard.py; python test_player.py; python test_sim.py 3000
-python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py
+python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py; python test_debug.py
 ```
 
 All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical"); last full run
@@ -79,6 +79,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `game.py` | game flow: rating, game-over screen, starting a game |
 | `savefile.py` | saved games: the block table, save, load with its fix-ups |
 | `cheats.py` | the cheat codes `f_6a920`: key matching and all 23 cheats |
+| `debug.py` | hidden debug commands: add / kill ants, clear food, the random action `f_022bc` |
 | `player.py` | the yellow ant (also its death and the takeover, `player_event`): upkeep `f_7bf7e`, actions `f_7b7b8` (pathfinding to the cursor, picking up / dropping / eating, entering and leaving nests, fights), view-generic map accessors |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
@@ -134,14 +135,19 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    - map drawing: `f_03de7` (documented, see SIM_NOTES), `f_04666` (from it), `f_07128` and `f_07558`
      (from the window draw `f_038a6`; f_07558 also from `f_07134`, `f_753e5`)
    - (done: `f_6be50` / `f_6bf06`, add up to n black / red surface ants on free cells of the colony's
-     half, `newgame.add_surface_ants`, `test_tools.py` ALL OK. Callers still to classify: `f_6b592`, the
-     input poll `f_01572` via thunks, `f_0e4e4` ← `f_0e425`, a UI action with message boxes)
+     half, `newgame.add_surface_ants`, `test_tools.py` ALL OK. Their callers: the debug commands below;
+     `f_6b592` (no callers found: a preset start, Quick Game + 32 ants each + Full Game with 30 yard
+     patches from DS:26D0..; not ported); `f_0e4e4` ← `f_0e425` (the tutorial advisor, a hook in
+     world.py, not ported))
+   - (done: the **debug commands**, SIM_NOTES "Debug commands", `simant_ref/debug.py`, `test_debug.py`
+     ALL OK over 25 cases: add ants `f_015be`, kill ants `f_0161f` (+ `f_134b8` player_at), clear food
+     `f_01707`, the random action `f_022bc` (menu command 0x112, all 15 cases), and the Ctrl-click
+     dispatch `f_6f733` documented (UI, not ported). Open: which menu item / control is 0x110 / 0x112.)
    - (done: cheats `f_6a920`, SIM_NOTES "Cheat codes", `simant_ref/cheats.py`; `test_cheats.py`
      types all 23 codes plus broken prefixes and toggles twice, key by key, from every snapshot: ALL OK.
      UI stubbed: f_277da, thunk 0x2f6ea (f_71b1a messages), f_00ed0, f_0125f; sound f_00ed8 runs.)
    - startup seeding: `f_00a11` (documented in SIM_NOTES "RNG"; called from the init near 0x075B0)
-   - others to identify: `f_008ae` (← f_0052a, f_00572), `f_01707` (← f_022bc,
-     f_6f733), `f_06a4d` (← f_07128), `f_70601` / `f_706d0` (← f_702f7 ← f_6fa6c), `f_7723f`, `f_77672`,
+   - others to identify: `f_008ae` (← f_0052a, f_00572), `f_06a4d` (← f_07128), `f_70601` / `f_706d0` (← f_702f7 ← f_6fa6c), `f_7723f`, `f_77672`,
      `f_77790`, `f_778bd` (← f_770f6 ← f_76f4a), `f_77ad6`, `f_7b59b`, `f_0c7cb`, `f_0c853` (no direct
      callers: look for vector thunks, see step 5)
 10. Then the Godot remake (RECREATION_PLAN.md).
