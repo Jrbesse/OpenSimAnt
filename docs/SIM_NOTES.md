@@ -1277,7 +1277,34 @@ it with the clock (see HANDOFF step 9). SimStep clears the gates and records whe
 Since the verifier's patch window is never on screen, the full-tick checks never see these writes. A
 remake that shows the window should call `markers.record` from its effect hook.
 
-Bitmap handles (`f_0765e`): 1000 → G:046C, 1001 → G:0324, 1010 → G:034C, 1020 → G:0360,
+### Speech balloons (`f_06a4d`; ported: `simant_ref/balloons.py`, verified by `test_balloons.py`)
+
+The window draw `f_038a6` → `f_07128` → `f_06a4d` shows the ants' remarks at the spots the event
+recorders found. It runs only while T:07B2 != 0 and T:07BE == -1. For each source, in the order fight,
+brood, queen, rest:
+- **Latch.** If the gate is 0 and the recorded a, b are >= 0, copy the record (a, b, view) to the
+  latched globals and add 1 to the gate. Clear the source's timers (32-bit), and for brood, queen and
+  rest also its shown flag.
+- Nothing more happens while the gate is <= 0.
+- **Timers** (only when G:047E == 0). For each balloon of the source, if timer < clock (signed 32-bit):
+  re-arm it to clock + delay + const. Then a chance draw: 0 shows the next line (shown = 1, index + 1,
+  wrapping at the list's end); anything else sets shown = 0.
+- **Draw.** Every balloon with shown != 0 draws `f_0696a(a, b, view, style, list[index])` at the latched
+  spot.
+
+| Source | Timer | Delay | Chance | Shown, index | List (STR#), lines | Style |
+|---|---|---|---|---|---|---|
+| fight (black ant) | G:050C | Rand32 + 60 | Rand2 | G:1046, G:0F3C | G:020A (1220), 8 taunts | 0 |
+| fight (red ant) | G:0732 | Rand32 + 60 | Rand2 | G:1064, G:0FF8 | G:0218 (1230), 8 taunts | 1 |
+| brood | G:059A | Rand32 + 0xAA | Rand4 | G:104A, G:0F7A | G:021C (1240), 15 lines | 2 |
+| queen | G:0620 | Rand32 + 0xB4 | Rand4 | G:1062, G:0FC0 | G:0234 (1250), 8 complaints | 2 |
+| rest | G:07C4 | Rand64 + 0x78 | Rand2 | G:107C, G:103A | G:023A (1260), 8 remarks | 2 |
+
+The fight timers are checked one after the other, then both balloons are drawn. The clock is read again
+for the new value (`f_1bc34` twice).
+
+STR# list handles loaded at startup (`f_0765e`, part of the STR# loader 0x7691..0x77C5; these are
+string lists, not bitmaps): 1000 → G:046C, 1001 → G:0324, 1010 → G:034C, 1020 → G:0360,
 1050 → G:02BA, 1100..1103 → G:106E / 1078 / 1086 / 1096, 1200 → G:10A8, 1210 → G:10B4, 1220 → G:020A,
 1230 → G:0218, 1240 → G:021C, 1250 → G:0234, 1260 → G:023A, 1900 → G:0328, 1800 → G:0368.
 

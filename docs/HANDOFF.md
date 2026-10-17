@@ -54,7 +54,7 @@ cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
 python test_yard.py; python test_player.py; python test_sim.py 3000
-python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py; python test_debug.py; python test_markers.py
+python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py; python test_debug.py; python test_markers.py; python test_balloons.py
 ```
 
 All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical"); last full run
@@ -82,6 +82,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `debug.py` | hidden debug commands: add / kill ants, clear food, the random action `f_022bc` |
 | `tools.py` | the map tools `f_770f6`: rocks, dig, ants, food, pheromone, insecticide |
 | `markers.py` | the event-marker recorders behind the 'brood' / 'fight' / 'queen' / 'rest' effects |
+| `balloons.py` | the speech balloons `f_06a4d` (timers, RNG draws, line choice; drawing is a hook) |
 | `player.py` | the yellow ant (also its death and the takeover, `player_event`): upkeep `f_7bf7e`, actions `f_7b7b8` (pathfinding to the cursor, picking up / dropping / eating, entering and leaving nests, fights), view-generic map accessors |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
@@ -165,8 +166,12 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
        (tile 0x10 → Rand8, 0x11..0x13 shrink, food - 1). Dead code.
      - `f_7b59b`: no callers; a variant of exit_to_surface (f_7b661). Dead code.
    - still to do, UI that draws from the RNG:
-     - `f_06a4d` (← f_07128 ← the window draw f_038a6) draws **animated markers at four recorded
-       spots**. It runs only while the patch is visible (T:07B2) and T:07BE == -1.
+     - (done: `f_06a4d` (← f_07128 ← the window draw f_038a6) is the **speech balloons**: taunts
+       during fights, the brood's chatter, the queen's complaints and resting ants' remarks, from STR#
+       lists 1220..1260. `simant_ref/balloons.py`, `test_balloons.py` ALL OK (9 cases, plus a check of
+       the five list lengths against memory); SIM_NOTES "Speech balloons". The CS of f_07128 must be
+       pinned to 0x250 in the test (see Gotchas). Details from the first look:)
+       It runs only while the patch is visible (T:07B2) and T:07BE == -1.
        - Gates and positions: G:0F06, G:0EF6, G:0F10 and G:0F2E, with positions G:08EC, G:0852,
          G:0A02 and G:0AA2. They are written by the four **event recorders** (done:
          `simant_ref/markers.py`, `test_markers.py` ALL OK over 32 cases; SIM_NOTES "Event markers"),
@@ -175,8 +180,8 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
        - Each source has a real-time-clock timer (G:050C / G:0732 / G:059A / G:0620 / G:07C4...) that
          re-arms at clock + Rand32() + 60, 0xAA or 0xB4. Each re-arm draws Rand2 or Rand4; 0 means
          draw the next frame of a bitmap group through `f_0696a`.
-       - The groups are handles G:020A / G:0218 / G:021C / G:0234 = bitmaps 1220 / 1230 / 1240 / 1250
-         (art not identified yet; the frame index wraps at a null handle).
+       - The lists are handles G:020A / G:0218 / G:021C / G:0234 / G:023A = STR# 1220..1260 (far
+         heap; the index wraps at the null entry).
        Because the timing comes from the clock, a tick-for-tick remake has to model the clock reads
        (`State.clock`) to stay in step.
      - `f_70601` / `f_706d0` (← f_702f7 ← f_6fa6c ← f_6fac7 ← f_6fc36 / thunk 0x2f62c) belong to a
@@ -208,6 +213,9 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
   segment (the 0x74FE0 overlay has a second one at 0x76F40). A routine there that uses a CS-relative jump
   table (`jmp cs:[bx + n]`) then jumps into the wrong code. Pin the CS in the test (`test_tools.py` does
   this for `f_770f6`). The table normally sits right after the jump, which gives away the real base.
+  Resident code has the same trap: if `seg_of` picks a segment based between a routine and the target
+  of one of its near calls, the call wraps around 64K and the emulator runs garbage or hangs
+  (`test_balloons.py` pins `f_07128` to CS 0x250, the segment the game's far calls use there).
 - C semantics matter: signed division and remainder truncate toward zero (`colony._cdiv`, `world._cmod`),
   16-bit wraparound (`s16`), and the short-circuit order decides which `Rand` calls happen.
 - Some original code reads uninitialised locals in unreachable states; ports raise NotImplementedError
