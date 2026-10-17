@@ -125,7 +125,34 @@ def render(st, view, path, art=None, crop=None):
                 for x in range(16):
                     r, g, bb = art.pal[pix[y][x]]
                     row[ox + x] = (r, g, bb, 255)
+    if view <= 1:
+        spider(st, img, art, a0 * 16, b0 * 16)
     write_png(path, len(img[0]), len(img), img)
+
+
+def spider_frame(st):
+    """f_03de7: the spider's bitmap and its offset from its 1/16-cell position G:0F12 / G:0F34 (1 px at
+    16 px per cell): walking frame 1000 + G:1004 (offsets T:09BC / T:09C4), or 1050 + G:1042 while its
+    state G:0FB8 is 5 (T:09CC / T:09D0). (A second, smaller animated part drawn after it is not done.)"""
+    if st.u16(G, 0xfb8) == 5:
+        f = st.u16(G, 0x1042)
+        return 1050 + f, st.s8(T, 0x9cc + f), st.s8(T, 0x9d0 + f)
+    f = st.u16(G, 0x1004)
+    return 1000 + f, st.s8(T, 0x9bc + f), st.s8(T, 0x9c4 + f)
+
+
+def spider(st, img, art, ox, oy):
+    import bitmaps
+    rid, dx, dy = spider_frame(st)
+    path = os.path.join(tiles.EXTRACTED, 'bitmap', f'{rid:05d}.bin')
+    if not os.path.exists(path):
+        return
+    w, h, rows, _ = bitmaps.decode(open(path, 'rb').read(), palette=art.pal)
+    x0, y0 = st.s16(G, 0xf12) + dx - ox, st.s16(G, 0xf34) + dy - oy
+    for y in range(h):
+        for x in range(w):
+            if rows[y][x][3] and 0 <= y0 + y < len(img) and 0 <= x0 + x < len(img[0]):
+                img[y0 + y][x0 + x] = rows[y][x]
 
 
 def main():
