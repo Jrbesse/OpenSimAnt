@@ -105,6 +105,10 @@ as the spec). The remaining open items can wait.
 
 ## Notes for the Godot remake (what the reference teaches)
 
+- **Art and audio**: read `docs/ART_PLAN.md`. It covers the two asset modes ("Use your own copy" for a
+  pixel-identical look, plus a clean-room asset pack), the clean-room process, and the measured specs.
+  `tools/asset_inventory.py` regenerates the metadata (sizes, frame counts, durations) from the
+  player's own files without copying any art.
 - **Assets**: never ship or commit Maxis data. The remake should read the player's own SIMANT files at
   runtime (or on first run) with ports of `tools/extract.py`, `bitmaps.py`, `tiles.py`, `fonts.py`,
   `layouts.py` and the sound/MIDI tools; the Python versions are the spec. Palette: HCEGANT type 15, the
