@@ -1,7 +1,7 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-17.
+old transcript. Last updated 2026-10-17 (evening).
 
 ## Goals (from the owner)
 
@@ -26,6 +26,7 @@ Constraints:
 | `tools/re/` | RE tooling: `build_flat.py` (flat memory image), `adis.py` (annotated disassembler), `decomp.py` (Ghidra pseudo-C with our names), `emu.py` (Unicorn emulator of the game), `symbols.json` (names). |
 | `tools/re/build/` | Generated, git-ignored: `flat.bin`, Ghidra project + `decomp/`, `asm/` scratch dumps, `snapshots/` (verifier cache). Exists on the owner's machine. |
 | `tools/ref/simant_ref/` | **The Python reference port** of the simulation, verified against the original. |
+| `tools/ref/render_view.py` | Renders a State's surface / nests to PNG with the game's art (from the user's extracted files). |
 | `tools/ref/test_*.py`, `verify.py`, `linecov.py` | Differential tests against the emulator, and a line-coverage helper. |
 
 ## How verification works
@@ -56,7 +57,8 @@ python test_yard.py; python test_player.py; python test_sim.py 3000
 python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py
 ```
 
-All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical").
+All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical"); last full run
+2026-10-17 after the rendering commits.
 
 ## What is ported and verified (`tools/ref/simant_ref/`)
 
@@ -124,7 +126,20 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    visible** (SIM_NOTES "The redraw draws from the game's RNG"). Open: that spider animation (the body
    is drawn: bitmap 1000 + G:1004 / 1050 + G:1042), the human, mower, bird and dog overlays, the DS:19D0 != 0 path (ids 15..20), the overview
    map window, the yard map, the other windows, the menus.)
-9. Then the Godot remake (RECREATION_PLAN.md).
+9. **Unported routines that draw from the game's RNG** (found 2026-10-17 by cross-referencing the
+   callers of Rand* in `build/calls.tsv` with the `f_xxxxx` names in `simant_ref`; f_0cb3b / f_0cc8f are
+   red-nest helpers already covered by their ported callers). Each can shift the random sequence, so
+   each needs classifying and, if the remake must match tick for tick, porting:
+   - map drawing: `f_03de7` (documented, see SIM_NOTES), `f_04666` (from it), `f_07128` and `f_07558`
+     (from the window draw `f_038a6`; f_07558 also from `f_07134`, `f_753e5`)
+   - input / tools: `f_6be50`, `f_6bf06` (from `f_6b592`, and via thunks from the input poll `f_01572`;
+     f_6be50 also from `f_0e4e4` ← `f_0e425`, a UI action with message boxes)
+   - cheats: `f_6a920` ("CHEAT %d", via thunk 0x2f924 from `f_74386`)
+   - others to identify: `f_008ae` (← f_0052a, f_00572), `f_00a11` (← f_07558), `f_01707` (← f_022bc,
+     f_6f733), `f_06a4d` (← f_07128), `f_70601` / `f_706d0` (← f_702f7 ← f_6fa6c), `f_7723f`, `f_77672`,
+     `f_77790`, `f_778bd` (← f_770f6 ← f_76f4a), `f_77ad6`, `f_7b59b`, `f_0c7cb`, `f_0c853` (no direct
+     callers: look for vector thunks, see step 5)
+10. Then the Godot remake (RECREATION_PLAN.md).
 
 ## Gotchas learned the hard way
 
@@ -144,6 +159,9 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 ## Commit log since the last summary
 
 ```
+b015a51 Notes: the map redraw (f_03de7) draws from the game's RNG when the patch is visible
+532c7e0 Rendering: the spider overlay (f_03de7)
+908541d Rendering: the surface uses sprite sheet 14, the nests 13 (f_02b43)
 6267910 Rendering: decode the tile and sprite sheets; render views with the game's art
 0d690ae Port saved games (.ANT): save (f_6c328) and load (f_6c1a0, f_6cf1a, f_6cf5b)
 ea46cec Port the game flow: the rating (f_70fb0), game over (f_71d95), starting a game (f_725b6)
