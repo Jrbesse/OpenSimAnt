@@ -52,6 +52,7 @@ Run everything (each takes a few minutes):
 cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
+python test_yard.py
 ```
 
 All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical").
@@ -69,18 +70,14 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `nestgrid.py`, `nest.py` | nest grids, digging, exit field; **black nest** ants (all handlers, queen, brood, invaders); shared helpers take a colony dict |
 | `red_nest.py` | **red nest** ants (a separate, different copy in the original) |
 | `world.py` | slow phases, history graph, advisor status, weather/flooding, ant lions, caterpillar + bugs, **spider** |
+| `yard.py` | the yard layer: human walk/roam + lawnmower, foot stamps, bird crossing, bird, dog, rain control, yard colonies |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
 `NotImplementedError` for the ones that change state, so a test fails loudly if it reaches unported code.
 
 ## Next steps, in order
 
-1. **Port sec8 `f_68513` (the yard layer)** into a new `simant_ref/yard.py` with `test_yard.py`. It is fully
-   decoded in SIM_NOTES "The yard layer": human walk and roam/mower, foot stamps, bird crossing, bird,
-   dog, rain control, yard colonies. Asm dumps can be regenerated with
-   `python tools/re/adis.py <flat_hex> 3000` (for example `68e30`, `68659`, `6959f`, `6986c`, `69ba3`,
-   `685ac`, `6a1f4`). The snapshots sit mostly in human state 38 (`f_68659` runs), so force the other
-   states with `pre_once` scenarios. Screen-only effects (sounds, messages) go to `st.player.effect`.
+1. (done: the yard layer, sec8 `f_68513`, in `simant_ref/yard.py` / `test_yard.py`.)
 2. Port the remaining SimStep pieces: `f_7bf7e` and `f_7b7b8` (yellow ant per tick; the player system),
    `f_71d95` (game over), then **SimStep itself (`f_0894e`)**, and run a full-tick check: from each
    snapshot run N ticks of the original and the port and compare. The SimStep schedule is in SIM_NOTES
@@ -106,6 +103,7 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 ## Commit log since the last summary
 
 ```
+(this session) Port the yard layer (sec8 f_68513); verified over 114 scenarios
 b66ff09 Port the spider (f_0ce63 and helpers); verified over 37 scenarios
 f7642c9 Port the caterpillar and wandering bugs (f_0b6cc, f_0ae4c); verified
 ab29ecc Port ant lions (f_0b163 and helpers); verifier gains pre_once

@@ -730,7 +730,8 @@ Still to do:
    Still to do:
    - SimStep's overlay calls are vector thunks: `f_2f7a8` → sec8 `f_68513`, `f_2f79e` → `BlackNestLoop`,
      `f_2f794` → `f_7bf7e`, `f_2f78a` → `f_7b7b8`, `f_2f780` → `f_71d95`; SimStep ends with `T?:02C2 = 1`.
-   - sec8 `f_68513`, the yard layer: **decoded below, not yet ported** (next step).
+   - (done: sec8 `f_68513`, the yard layer, ported in `simant_ref/yard.py`, verified by `test_yard.py`
+     over 114 scenarios; see "The yard layer" below.)
    - `f_7bf7e` / `f_7b7b8` the yellow ant (player) per tick: health `f_12d43`, queen egg laying, movement
      towards the cursor `f_7d24f`, trail laying, entering/leaving nests.
 
@@ -742,7 +743,21 @@ timeouts). In the port it is `State.clock` (an input set by the engine; `read_cl
 The emulator normally advances it on every read (needed during boot); `Verifier` freezes it after boot
 (`emu.clock_frozen`) and copies its value into `State.clock`, so original and port read the same value.
 
-## The yard layer (sec8 `f_68513`, segment 783a; decoded, port pending)
+## The yard layer (sec8 `f_68513`, segment 783a; ported: `simant_ref/yard.py`)
+
+Ported and verified (`test_yard.py`, 114 scenarios). Details found while porting, beyond the summary below:
+- The scripted walk (states < 0x1E and 20/21) only crosses yard columns 0..2 (by the house); the
+  sound for new state 7 and 0x10 can never fire (no transition table leads there from a state < 0x1E).
+- The human's sounds f_00ed8(0x18) (walk frames), 0x23 (foot_stamp), 9 (after a walk stamp), the bird's
+  7 / 0xD / 0xE and the dog's barks (p 0..3 → 0x17, 0x15, 0x17, 0x16) are screen-only, but their gates
+  (T:07C8 == 0 and G:035C < 2) decide whether `Rand2` / `Rand64` / `Rand(30)` are drawn. T:07C8 is 2 in
+  the verifier's snapshots, so tests force it to 0.
+- Mowing another patch takes a quarter (v - v>>2), which never reaches 0, so G:0A9E/G:0AC8 are never
+  counted there. `f_6a6b4` reads its neighbour offsets as unsigned bytes: only (+1, 0), (0, +1) and the
+  patch itself (twice) count.
+- Clock comparisons (bird G:0220, bark G:0736, crossing G:383A vs G:107E) are signed 32-bit.
+- f_2f7d0(5/6/9) (the foot / mower hits the player) and f_2f91a (Full Game won: end screen) are player
+  hooks (`yard_event`, `win_screen`), not ported yet.
 
 Runs every tick from SimStep. Globals: G:07C2 yard tick (0..0x3FF), the player's patch G:07CA (col 0..11)
 / G:07CC (row 0..15); per-patch colony strengths T:00A4[col*16+row] (black) and T:0164[...] (red),

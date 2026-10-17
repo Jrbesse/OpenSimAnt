@@ -34,6 +34,12 @@ class NoPlayer:
     def nest_follow(self, st, col, depth, d):
         raise NotImplementedError('f_2f7bc (nest ant steps onto the yellow ant)')
 
+    def yard_event(self, st, n):
+        raise NotImplementedError(f'f_2f7d0({n}) (the human or the mower hits the player)')
+
+    def win_screen(self, st):
+        raise NotImplementedError('f_2f91a (Full Game won: the end screen)')
+
     def effect(self, st, name, *args):
         pass                                    # visual effects only (patch_visible)
 

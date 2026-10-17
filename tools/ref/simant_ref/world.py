@@ -565,9 +565,7 @@ def spider(st):
         n = sum(1 for x in range(a - 1, a + 2) for y in range(b - 1, b + 2)
                 if _in_patch(x, y) and st.grid(0x6180, x, y))
         if n > 8:                                                       # swarmed: beaten
-            st.set16(G, 0xfb8, 5)
-            st.set16(G, 0x109a, 500)
-            st.set16(G, 0x1042, 0)
+            spider_beaten(st)
             if st.u16(G, 0xa06) == 1:
                 st.set16(G, 0xa06, 0)
                 st.player.spider_event(st, 3)
@@ -636,6 +634,13 @@ def spider(st):
             else:
                 st.set16(G, 0x1042, st.rand(2) + 2)
     _spider_tail(st)
+
+
+def spider_beaten(st):
+    """f_0db90."""
+    st.set16(G, 0xfb8, 5)
+    st.set16(G, 0x109a, 500)
+    st.set16(G, 0x1042, 0)
 
 
 def _sp_maybe_rest(st):
