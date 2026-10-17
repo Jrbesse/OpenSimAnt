@@ -22,7 +22,7 @@ Constraints:
 |---|---|
 | `docs/SIM_NOTES.md` | **The main knowledge base**: every decoded simulation rule, memory layout, addresses. Read the "Status and TODO" section first, then the section for whatever you port. |
 | `docs/FILE_FORMATS.md`, `docs/RECREATION_PLAN.md` | Asset formats; the overall plan. |
-| `tools/*.py` | Asset extraction (archives, bitmaps, palette, MIDI, sound). |
+| `tools/*.py` | Asset extraction (archives, bitmaps, palette, MIDI, sound); `tiles.py` the map tile / ant sprite sheets. |
 | `tools/re/` | RE tooling: `build_flat.py` (flat memory image), `adis.py` (annotated disassembler), `decomp.py` (Ghidra pseudo-C with our names), `emu.py` (Unicorn emulator of the game), `symbols.json` (names). |
 | `tools/re/build/` | Generated, git-ignored: `flat.bin`, Ghidra project + `decomp/`, `asm/` scratch dumps, `snapshots/` (verifier cache). Exists on the owner's machine. |
 | `tools/ref/simant_ref/` | **The Python reference port** of the simulation, verified against the original. |
@@ -116,8 +116,13 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    screen-only memory, each range traced to UI / library code with a write hook.)
 7. (done: **saved games** `.ANT`, `simant_ref/savefile.py`, `test_savefile.py`; the format is in
    FILE_FORMATS.md "Saved games".)
-8. Next (owner's order): rendering (tile and sprite mapping for the surface / nest views, the map
-   windows, the UI), then the Godot remake.
+8. (started: **rendering**. `tools/tiles.py` decodes the tile and sprite sheets (HCEGANT type 9),
+   `tools/ref/render_view.py` renders a State's surface and nests with the game's art the way
+   `f_03518` / `f_02c21` do; FILE_FORMATS "Map tiles and ant sprites", SIM_NOTES "Rendering the map
+   windows". Checked by eye against the art (no pixel comparison: the emulator stubs drawing and has
+   no planar VGA). Open: which sprite sheet each video mode uses (`f_028b6`; ids 15..20), the
+   overview map window, the yard map, the other windows, the menus.)
+9. Then the Godot remake (RECREATION_PLAN.md).
 
 ## Gotchas learned the hard way
 
@@ -137,6 +142,7 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 ## Commit log since the last summary
 
 ```
+6267910 Rendering: decode the tile and sprite sheets; render views with the game's art
 0d690ae Port saved games (.ANT): save (f_6c328) and load (f_6c1a0, f_6cf1a, f_6cf5b)
 ea46cec Port the game flow: the rating (f_70fb0), game over (f_71d95), starting a game (f_725b6)
 62484f3 Port the player events (f_75d01): the yellow ant's death and the takeover

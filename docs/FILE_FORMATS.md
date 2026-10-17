@@ -75,7 +75,7 @@ needed for decoding.
 | 2 | 212 | 16-color bitmaps |
 | 15 | 2 | Palette. id 0 is u16 count (16) followed by 16 RGB triplets: the Mac 4-bit system palette (**index 0 = white, 15 = black**). |
 | 0 | 37 | Window/dialog layouts (rectangles plus items, not decoded yet) |
-| 9 | 11 | Rectangle tables (screen layout) |
+| 9 | 11 | id 0: rectangle table (320 bytes). **ids 9 / 10: the house / yard tile sheets; 13..20: ant sprite sheets** (see "Map tiles and ant sprites") |
 | 4 | 6 | Tutorial `STR#` strings |
 | 7, 8 | 3 | Cursors |
 
@@ -125,12 +125,31 @@ The pixel data is never compressed beyond the archive-level LZSS.
 | 9100–9203, 12000–12003 | Cutscene art: yellow ant, pupa, black vs. red fight, ant lion, jumping spider |
 | 9150–9156 | 32×32 event icons (e.g. ant drowning) |
 
-The tiny ants that walk around the surface and nest views are not among the type 2 bitmaps. They are
-probably drawn in code or stored in the undecoded type 8 resources; this needs confirming in the EXE.
+The tiny ants that walk around the surface and nest views are not among the type 2 bitmaps: they are
+the type 9 sprite sheets below.
 | 13000–16212 | Graph/history window, Game Over screen, map and status panels |
 | 17000–17013 | Small UI widgets |
 | 21004/21005 | Button strips (BACK / PREVIOUS / TOP) |
 | 28000/28003 | Large panels |
+
+## Map tiles and ant sprites (HCEGANT type 9)
+
+Decoder: `tools/tiles.py` (contact sheets); renderer: `tools/ref/render_view.py`.
+
+- **Tile sheets**, ids 10 (yard) and 9 (house), 32768 bytes: 256 tiles of 16x16, 128 bytes each; each
+  of the 16 rows is 8 bytes = planes 0..3, 2 bytes each (MSB = leftmost). A surface cell's tile number is
+  its surface byte; nest cells use `(dirt - 0x70) & 0xFF` from the same sheet; 0xF1..0xFF are the
+  pheromone overlay ramp (shown instead of the ground when a scent view, T:07BE 0..4, is on and the
+  level > 0x10: tile `(level >> 4) - 0x10`). Unused slots hold numbered yellow / orange placeholders.
+- **Sprite sheets**, ids 13 and 14 (24576 bytes, 128 sprites of 192 bytes): 16 rows of 12 bytes =
+  mask (1 = opaque), recolour mask, planes 0..3. Index = ant type byte & 0x7F (caste << 3 | heading):
+  0 unused, 1..7 brood, then each caste in 8 headings (with carrying variants), 0x60..0x6F the queen's
+  head and tail, 0x70 fight clouds, letters / numbers as placeholders. 13 is drawn on the surface, 14 in
+  the nests (an assumption for this video mode: the loader `f_028b6` picks sheets per video mode, ids
+  15..20 are 160-byte variants, 10 bytes per row, used when DS:19D0 != 0; not traced yet).
+- Colours: sprites are stored as the **yellow** ant. Black ants XOR all four planes with the recolour
+  mask (yellow 1 → 14), red ants (type 0x80+) only plane 1 (yellow 1 → red 3), the yellow ant none
+  (mode = low byte of the word at DS:1A58 + ((id & 0xFFBF) >> 6): 0, 3, 1).
 
 ## Saved games (`.ANT`)
 

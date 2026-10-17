@@ -917,7 +917,8 @@ yard_colonies (f_6a1f4), every 32 yard ticks (G:07C2 & 0x1F == 0):
    patch" and "The house" below. Mating-flight colonisation is the yard layer's (`f_6a721`); `f_01315`
    is an empty stub.)
 7. Scoring/ratings, history graph sampling, timers (`G:0c26` total ticks), game speed.
-8. Rendering: tile and sprite mapping for surface/nest views (find the draw routines), map windows, UI.
+8. Rendering: (started: the cell → tile / sprite mapping and the sheets, "Rendering the map windows";
+   still to do: the overview map window, the yard map, the other windows and the UI.)
 9. Save-file format (`.ANT`).
 
 ## The player (yellow ant): sec27 `f_7bf7e` and `f_7b7b8` (ported: `simant_ref/player.py`)
@@ -1043,6 +1044,17 @@ G:0AF6 / G:0B04 += 1, population counters.
   0x206 tutorial (0), 0x205 quit, 0x207 load; then G:0EAC = mode, G:0354 = 1, G:07C8 = 0, `f_6b36b`;
   tutorial: T:07A4 = 1, T:07A6 = 0.
 - Win screen `f_2f91a` → `f_72750`: an animation only.
+
+## Rendering the map windows (`f_0379e`, `f_03518`, `f_02fdb`, `f_02c21`)
+
+A map window is 40 x 30 cells (`f_0379e(x, y)`), its origin G:0508 (a) / G:050A (b), its view G:032E
+(1 surface, 2 black nest, 3 red nest), screen cell size DS:19BE x DS:19C0 at G:110C / G:110E. A cell's
+(background, foreground) pair is cached in the dirty map G:15C4 (40 x 30 words) and the tile cache
+G:1114 (40 x 30 bytes); only changed cells are redrawn. `f_03518` (ported as `render_view.cell`) picks
+them, see FILE_FORMATS "Map tiles and ant sprites"; `f_02fdb` draws a background tile only, `f_02c21`
+a tile with a sprite (sheet by view, sprite = id & 0x7F, recoloured). Rows past b 63 wrap to a + 64.
+The tile sheet is loaded by `f_02756` (yard / house) and the sprite sheets by `f_028b6` per video mode
+(DS:5A97); render paths by G:1102 (1 EGA/VGA planar, 2 and 3 other adapters).
 
 ## Verification harness (tools/re/emu.py)
 
