@@ -72,7 +72,12 @@ print(len(vectors), 'overlay vectors patched')
 CHK = bytes.fromhex('9acc02f429')
 chk_sites = [m.start() for m in re.finditer(re.escape(CHK), bytes(out))]
 for a in chk_sites:
-    out[a:a + 5] = bytes.fromhex('2be0909090')
+    if out[a - 3] == 0xb8:                    # mov ax, N ; call _chkstk  ->  sub sp, N ; 4 x nop
+        out[a - 3:a + 5] = b'\x81\xec' + bytes(out[a - 2:a]) + b'\x90' * 4
+    elif out[a - 2:a] == b'\x33\xc0':         # xor ax, ax ; call _chkstk  ->  7 x nop
+        out[a - 2:a + 5] = b'\x90' * 7
+    else:
+        out[a:a + 5] = bytes.fromhex('2be0909090')
 CHK_RELOCS = {a + 3 for a in chk_sites}
 print(len(chk_sites), '_chkstk calls replaced')
 

@@ -650,13 +650,90 @@ Still to do:
 
 ## Verification harness (tools/re/emu.py)
 
-Status: **working for self-contained routines**. The emulated `Rand8` matches the Python LFSR model
-exactly. A minimal DOS layer (memory blocks, file reads from the game directory, console) is in place.
-Calling the new-game routine `f_6b36b` (`6b36:000b`) directly gets as far as allocating memory and opening
-files, then fails because the game's startup (Ralloc memory manager, resource database, globals) has not
-run. Next step: run the real startup from the entry point (`2cff:06f8` → C runtime → `main`) with
-video/mouse/keyboard stubbed, stop once the main loop is reached, then drive new game + `SimStep`
-headless and snapshot the sim segment every tick.
+Status: **the original game runs headless and plays complete games.**
+
+- `SimEmu(base=0x100).boot()` loads the flat image like DOS would, with all relocations applied, a PSP
+  and an environment. It runs the real startup (overlay-manager stub → C runtime → `main` → resource
+  loading → video mode 0x12) until the title screen polls the keyboard.
+- `call_lin(addr)` calls any routine with its correct code segment (overlay base, or the segment the
+  program's own far calls use). Calling with a wrong `seg:off` split breaks near calls.
+- Headless pieces: the game's clock (`1b73:0012`, normally bumped by its INT 8 handler) advances on each
+  read; drawing (`f_259de`), the game-over screen (`f_71a7d`) and message boxes (`f_71b1a`, logged as
+  `(tick, STR id)`) are stubbed; `SIMANT.CFG` is served with sound off; DOS file handles are reused
+  (MSC refuses handles >= 20).
+- `run_quickgame.py`: Quick Game (mode 1) + `SimStep` loop with a fixed LFSR seed. Deterministic. With
+  seed 0x1234 the red queen starves at tick 7705 and black wins at tick 7745 (messages 10016, 10012,
+  10013); ~650 ticks/s. `--dump` writes the sim segment per sample as ground truth.
+- `render_state.py`: debug renders of the surface, both nests and the pheromone maps from a live run.
+
+Observed at the start of a Quick Game: `max_passable_tile` = 0x50; black entrance at surface (a 20,
+b 32), red at (a 121, b 32), both nest column 32.
+
+## Patch generation (`f_6ae20`, overlay 10; called by new game `f_6b36b`)
+
+The yard is 192 patches (12 × 16). Each has a random seed (`SIM:0000 + 2*index`, filled at new game with
+`(crt_rand() % 0x7fff - 0xc000) & 0x7fff`), and the player starts on patch (11, 8). Generation is
+**deterministic per patch**:
+
+```
+GeneratePatch(seed, n_black, n_red, ..., house_args):
+    SeedLfsr(seed) (f_009bf); BuildSurfaceTerrain() (f_0cdb0); f_2f94c(house args)
+    n_black += n_black/4; n_red += n_red/4
+    nests: every cell dirt 0x2E (diggable), exit field 0, cells empty; surface occupancy cleared
+    nest row 0 (top soil): yard 0x1C + Rand4 (black and red separately); house: 0x1C/0x1D or 0x1E
+    exit field row 0 = 0xFF; all pheromone maps cleared
+    for each colony (black: a = RandLow(128), red: a = 127 - RandLow(128); b = Rand64):
+        w = 7 + Rand(6); s = 15 - Rand2                  # per-colony caste odds (out of 16)
+        repeat n times: pick (a, b); skip if tile >= 0x50 (retry); if occupied, retry (up to 50 times)
+            r = Rand16(): r < w → worker (caste 2); r < s → soldier (6); else Rand2 ? male (4) : new queen (8)
+            occ[a][b] = caste<<3 | Rand8() (| 0x80 for red)
+    entrance tables cleared; MakeSurfaceHoleBlack(32) / f_15247(32) (red) → both entrances in nest column 32
+    nest stats, capacities and centroids reset; G:0242 = 64
+    if n > 1: pre-dig the nests (f_6b616(n_black*16) / f_6b6f3(n_red*16))
+    f_0f329: build the surface ant arrays from the occupancy grid
+```
+
+### Surface terrain (section 20, entry `f_73020(row, col)`)
+
+`idx = row*16 + col`. Patches with `idx < 38` (near the house) use hand-made layouts in a switch
+(`f_7304b`). All other patches use the generic generator `f_73c33`. RNG = LFSR seeded with the patch
+seed (`SeedLfsr` `f_009bf` just sets `DS:8ba2`), so a patch is identical every time it is generated.
+
+```
+GenericPatch():                                    # f_73c33
+    for a in 0..127: for b in 0..63: surface[a][b] = Rand16()     # 16 ground variants
+    repeat Rand(3)+2 times:                        # rocks, f_73dfd
+        for shape in 0..5: RockStamp(Rand(122), Rand(58), shape)
+    FoodPiles(Rand4()+1)                           # f_0afce, max 10
+    HazardsReset()                                 # f_0b66c: clears counters; yard: SpecialObjects()
+    20 ×: a, b = Rand(125)+1, Rand(61)+1; if the 2×2 block at (a..a+1, b..b+1) is all < 0x18:
+          (a,b)=0x20, (a+1,b)=0x21, (a,b+1)=0x22, (a+1,b+1)=0x23
+    30 ×: same position rule; if (a,b) and (a+1,b) < 0x18: t = (Rand(2)+0x12)*2 → (a,b)=t, (a+1,b)=t+1
+    100 ×: single cell < 0x18 → 0x28
+    128 ×: single cell < 0x18 → 0x51 (rock, impassable)
+
+RockStamp(a, b, shape):                            # f_73fc6, shape table T:08c2 [6][5 b][5 a] bytes
+    if any nonzero shape cell lands on a tile > 0x10: return   # all or nothing
+    copy the nonzero shape cells into the surface
+
+FoodPiles(n):                                      # f_0afce → n × f_0b016
+    up to 200 tries: a = Rand(65)+Rand(64); b = Rand(33)+Rand(32)          # centre-biased
+        if centre and all 8 neighbours are open ground: stamp; stop
+        (after 100 tries a centre that is merely open is accepted)
+    stamp (f_0b09c): centre = 0x38; each open neighbour i = 0x30 + DS:1b92[i]
+    pile table (10 slots): G:0a92 a, G:0aa8 b, G:0aba/0acc/0ade = 0; T:0c4a = count
+
+SpecialObjects():                                  # f_0ad9c (yard only), 2 objects
+    a, b = Rand(128), Rand(64) on a tile < 0x10; kind = Rand(8)
+    remember a, b, kind, old tile (G:0eae, 0f00, 0f1a, 0f28); tile = T:0c52[kind]
+```
+Open ground (`f_1145c(view, a, b)`): tile < 0x10 on the surface (< 8 in a nest) and no occupant except
+the player. Map accessors used everywhere: `GetTile(view, a, b)` `f_117c0`, `GetOccupant` `f_11737`,
+`SetTile(view, a, b, t)` `f_1183e` (view 1 = surface).
+
+Surface tile summary: `0x00–0x0F` ground, `0x10–0x17` corpses, `0x18–0x1F`/`0x20–0x28` passable
+decorations, `0x30–0x38` food pile (3×3), `0x48–0x4B` food crumbs (what ants pick up), `0x50` nest
+entrance, `0x51–0x5F` rocks (impassable), `0x71`/`0x73` special objects.
 
 ## Verification plan
 
