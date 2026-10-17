@@ -80,6 +80,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `savefile.py` | saved games: the block table, save, load with its fix-ups |
 | `cheats.py` | the cheat codes `f_6a920`: key matching and all 23 cheats |
 | `debug.py` | hidden debug commands: add / kill ants, clear food, the random action `f_022bc` |
+| `tools.py` | the map tools `f_770f6`: rocks, dig, ants, food, pheromone, insecticide |
 | `player.py` | the yellow ant (also its death and the takeover, `player_event`): upkeep `f_7bf7e`, actions `f_7b7b8` (pathfinding to the cursor, picking up / dropping / eating, entering and leaving nests, fights), view-generic map accessors |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
@@ -147,9 +148,37 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
      types all 23 codes plus broken prefixes and toggles twice, key by key, from every snapshot: ALL OK.
      UI stubbed: f_277da, thunk 0x2f6ea (f_71b1a messages), f_00ed0, f_0125f; sound f_00ed8 runs.)
    - startup seeding: `f_00a11` (documented in SIM_NOTES "RNG"; called from the init near 0x075B0)
-   - others to identify: `f_008ae` (← f_0052a, f_00572), `f_06a4d` (← f_07128), `f_70601` / `f_706d0` (← f_702f7 ← f_6fa6c), `f_7723f`, `f_77672`,
-     `f_77790`, `f_778bd` (← f_770f6 ← f_76f4a), `f_77ad6`, `f_7b59b`, `f_0c7cb`, `f_0c853` (no direct
-     callers: look for vector thunks, see step 5)
+   - (done: the **map tools** `f_770f6` (rocks f_7723f, dig f_7739f, ants f_77672, food f_77790 /
+     f_77ad6, pheromone f_7783a, insecticide f_778bd), SIM_NOTES "Map tools", `simant_ref/tools.py`;
+     `test_tools.py` runs 306 tool scenarios (3 views x 7 tools x options x Alt x 3 previous points,
+     8 clicks each): ALL OK. Not ported: the mouse handler around them, f_74fe0 → f_76f4a, which
+     also sets the previous point G:09FC / G:09FE.)
+   - classified, nothing to port:
+     - `f_008ae` doesn't draw. The Rand calls `calls.tsv` puts in it belong to the next routine,
+       `f_00932(n) = max(Rand(n), Rand(n))`, which has no callers; `calls.tsv` attributes call sites
+       to the nearest function start above them, so check where a routine really begins.
+     - `f_0c7cb` / `f_0c853`: no callers, segments hard-coded; a black / red nest "eat the food here"
+       (tile 0x10 → Rand8, 0x11..0x13 shrink, food - 1). Dead code.
+     - `f_7b59b`: no callers; a variant of exit_to_surface (f_7b661). Dead code.
+   - still to do, UI that draws from the RNG:
+     - `f_06a4d` (← f_07128 ← the window draw f_038a6) is the **speech balloons**. It runs only while
+       the patch is visible (T:07B2) and T:07BE == -1. There are four sources, gated on G:0F06, G:0EF6,
+       G:0F10 and G:0F2E: when one is 0 and its position (e.g. G:08EC / G:08EE) is >= 0, it latches the
+       position and arms. Each source has a real-time-clock timer (G:050C / G:0732 / G:059A / G:0620 /
+       G:07C4...) that re-arms at clock + Rand32() + 60, 0xAA or 0xB4. Each re-arm draws Rand2 or Rand4;
+       0 means show the next string of a far-pointer table (G:020A, G:0218, G:021C, G:0234...; the index
+       wraps at a null) through `f_0696a`.
+       Because the timing comes from the clock, a tick-for-tick remake has to model the clock reads
+       (`State.clock`) to stay in step.
+     - `f_70601` / `f_706d0` (← f_702f7 ← f_6fa6c ← f_6fac7 ← f_6fc36 / thunk 0x2f62c) belong to a
+       pre-game screen (its strings mention PSG / MIDI channels: the title or sound-setup screen).
+       `f_70601` draws 15 sprites (bitmap 0x3E8) at random spots in rect G:10D2, Rand(400) + 50 by
+       Rand(150), halved on a 320-wide screen. They draw from the game RNG **before the game starts**,
+       so they shape the sequence a new game starts from; check the boot order before relying on the
+       startup seed.
+       Earlier notes on this pair: / `f_706d0` (← f_702f7 ← f_6fa6c ← f_6fac7: a
+     window's drawing, rects G:10D2.., drawing library calls; f_706d0 reads the yard position
+     G:07CA / G:07CC)
 10. Then the Godot remake (RECREATION_PLAN.md).
 
 ## Gotchas learned the hard way
@@ -162,6 +191,10 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 - Overlay calls go through vector thunks (for example `f_2f7da` → `f_7a69d`); `decomp.py <thunk>` shows the
   target.
 - Unicorn harness: SS must equal DS; `call_lin` returns AX only.
+- `emu.seg_of` gives an overlay routine its overlay's base as CS. An overlay can hold more than one code
+  segment (the 0x74FE0 overlay has a second one at 0x76F40). A routine there that uses a CS-relative jump
+  table (`jmp cs:[bx + n]`) then jumps into the wrong code. Pin the CS in the test (`test_tools.py` does
+  this for `f_770f6`). The table normally sits right after the jump, which gives away the real base.
 - C semantics matter: signed division and remainder truncate toward zero (`colony._cdiv`, `world._cmod`),
   16-bit wraparound (`s16`), and the short-circuit order decides which `Rand` calls happen.
 - Some original code reads uninitialised locals in unreachable states; ports raise NotImplementedError

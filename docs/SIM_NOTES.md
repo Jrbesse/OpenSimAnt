@@ -1137,6 +1137,89 @@ The routines they call:
 
 All of these draw from the game's RNG except the toggles and messages.
 
+## Map tools (`f_770f6`, overlay 0x74FE0, second code segment 0x76F40; ported: `simant_ref/tools.py`)
+
+The map's mouse handler `f_74fe0` → `f_76f4a` → `f_770f6(a, b)` applies tool G:104C at the clicked cell
+in the view on screen G:032E (1 surface, 2 black nest, 3 red nest). Rocks and dig run from the previous
+point (G:09FC, G:09FE) to the click.
+
+`f_76f4a(a, b)` is the drag loop (UI, not ported):
+- Only when G:032E != 0. The previous point is first set to (a, b), and the tool is applied if (a, b)
+  is in the view.
+- Then, while the button is down (`f_0122c`), it reads the mouse (`f_201f0`) and turns it into a cell:
+  through the yard-map rect G:10D2 / cell size G:3856 when `f_23612(0x100)`, otherwise through the patch
+  window G:110C / DS:19BE + the view origin G:0508.
+- When the cell changes, the previous point becomes the old cell and the tool is applied at the new one.
+- Tools >= 5 (pheromone, insecticide) are also applied on every poll, and G:106C ^= 1.
+- G:0A9C counts the polls. Option bytes T:07B7..T:07BC belong to tools 1..6. Alt (0000:0417 bit 3)
+reverses food, pheromone, rocks and dig.
+
+| G:104C | Tool | What it does |
+|---|---|---|
+| 0 | info | GetOccupant != 0 → `f_2f8fc(a, b, view)` (UI) |
+| 1 | rocks `f_7723f` | surface only; see below |
+| 2 | dig `f_7739f` | see below |
+| 3 | ants `f_77672` | see below |
+| 4 | food `f_77790` | T:07BA == 0: one crumb `f_77ad6`, sound 0x1D if placed; else sound 0x20 and 20 crumbs at (a + Rand(9) - 4, b + Rand(9) - 4) |
+| 5 | pheromone `f_7783a` | surface only; see below |
+| 6 | insecticide `f_778bd` | see below |
+
+**Rocks.** Steps from (x, y) toward the click, one axis per step: x += T:0010[d], or y += T:001A[d] when
+that is 0, with d = DirTo. It stops after the step with d == 0, or when the cell leaves the patch. Per cell:
+- Alt: tiles 0x51..0x67 become Rand(16), then the walls are refitted.
+- T:07B7 == 0: free open ground (tile < 0x50, no occupant) becomes wall 0x60, the walls are refitted,
+  sound 0x28.
+- Otherwise: free open ground becomes a pebble, Rand(3) + 0x51, then sound 0x0A at pitch
+  Rand(10000) + 0x7D0.
+
+Refitting the walls (`f_77bec`) handles the cell and then its in-patch neighbours (above, right, below,
+left): each wall tile (0x60..0x67) becomes DS:2DF4[mask]. The mask's bits are the wall neighbours: left 8,
+below 4, right 2, above 1.
+
+**Dig.** Steps diagonally (x += T:0010[d], y += T:001A[d]) until d == 0, with no bounds check. The mode
+is T:07B8, XOR 1 with Alt.
+- Dig, on the surface: `try_found_nest` (sound 0x13); if that fails, sound 1 and a status message.
+- Dig, in a nest: a diggable cell (`f_1345e`) below row 0 is dug (DigAt); at row 1 a surface hole is
+  opened too. Sound 0x13.
+- Fill, on the surface: sound 1 and a status message.
+- Fill, in a nest, on a cell that is not diggable and below row 0:
+  - if an ant is there, every live nest ant on the cell is removed (`f_775a2` / `f_7760a`);
+  - the cell is refilled (`f_77d75` / `f_77e44`): dirt 0x2E, cell and exit field cleared, the four
+    neighbours reclassified; while the capacity is > 1, the dig sums lose (col, depth) (32-bit, clamped
+    at 0) and the capacity drops by 1;
+  - sound 0x12.
+
+**Ants.** Type Rand(8) + 0x10, + 0x80 when T:07B9 == 1.
+- Surface: open ground only, `f_0f167` with state 2.
+- Nest: not at row 0. A cell with dirt >= 0x1C is dug first, then AddNestAnt with state 2 for the nest's
+  own colony, 7 (invader) for the other.
+- Sound 0x1C, except when the surface check or row 0 stops it.
+
+**Food crumb `f_77ad6`.** The base tile is 0x48 on the surface and 0x10 in a nest.
+- Alt: only a crumb (base..base + 3) is taken. It becomes Rand(8), and G:1040 - 1 (if > 0) on the
+  surface only. The code that would count down the nest counters (G:1050, then G:1060) is reached only
+  with view 1, where its view == 2 test fails: dead code.
+- Otherwise: refused when the tile is above base + 2. A crumb grows by 1, ground below 0x18 becomes base,
+  and any other tile is kept but still counted: G:1040 / G:1050 / G:1060 + 1.
+
+**Pheromone.** Works on the map chosen by T:07BB (0 black nest marker SIM:E09F, 1 black trail E89F, 2 red
+nest F09F, 3 red trail 4DA7:0000, 4 alarm D09F; 64 x 32, index a * 32 + b) at the cell (a >> 1, b >> 1).
+- The cell gets + 0x46, or - 0x28 with Alt, clamped to 0..255. A read off the map gives -1, and writes off
+  the map are dropped.
+- Then `f_77f13` smooths the cell, its four neighbours (above, right, below, left) and the cell again.
+  Each smooth (`f_77f71`) sets the cell to (sum of the four neighbours / 4 + the cell) / 2, with C
+  truncation; a negative result is stored as its low byte.
+- Sound 0x1B.
+
+**Insecticide.** Always 8 sprays. With T:07BC set, each hits (a, b) with sound 9. Otherwise each hits
+(a + Rand(9) - 4, b + Rand(9) - 4) with sound 9 at pitch Rand(1000) + 0x278F; the Rands run in that order.
+- Surface:
+  - an occupied cell: the ant there (SurfaceAntAt → G:0F18) becomes a corpse, PlaceCorpse(x, y,
+    type & 0x80); its type and the occupancy are cleared;
+  - the spider (G:0F12 >> 4, G:0F34 >> 4) on the cell: `f_0db90`;
+  - an ant-lion tile (0x38..0x3E): `f_0b5c8(f_0b58c(x, y))`.
+- Nest: the ant on the cell (by its type) is removed: its type and the cell are cleared.
+
 ## Rendering the map windows (`f_0379e`, `f_03518`, `f_02fdb`, `f_02c21`)
 
 A map window is 40 x 30 cells (`f_0379e(x, y)`), its origin G:0508 (a) / G:050A (b), its view G:032E
