@@ -53,7 +53,7 @@ cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
 python test_yard.py; python test_player.py; python test_sim.py 3000
-python test_newgame.py; python test_newgame.py play
+python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py
 ```
 
 All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical").
@@ -74,7 +74,8 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `yard.py` | the yard layer: human walk/roam + lawnmower, foot stamps, bird crossing, bird, dog, rain control, yard colonies |
 | `sim.py` | **SimStep**: one full game tick |
 | `newgame.py` | **new game** `f_6b36b`, the Full Game's move to another patch `f_01d48`, and patch setup `f_6ae20`: clearing, colony settings, patch seeds, terrain, scattered colonies, pre-dug nests, queens, the yellow ant's start per mode |
-| `player.py` | the yellow ant: upkeep `f_7bf7e`, actions `f_7b7b8` (pathfinding to the cursor, picking up / dropping / eating, entering and leaving nests, fights), view-generic map accessors |
+| `game.py` | game flow: rating, game-over screen, starting a game |
+| `player.py` | the yellow ant (also its death and the takeover, `player_event`): upkeep `f_7bf7e`, actions `f_7b7b8` (pathfinding to the cursor, picking up / dropping / eating, entering and leaving nests, fights), view-generic map accessors |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
 `NotImplementedError` for the ones that change state, so a test fails loudly if it reaches unported code.
@@ -107,10 +108,13 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    house and to another patch and plays 2000 ticks. Overlay callers go through vector thunks in
    segment 3cff (`90 90 90 EA off seg`); scan for them to find who calls an overlay routine.
    Mating-flight colonisation was already in yard.py; `f_01315` is an empty stub.)
-6. Next: the remaining player-facing game logic outside SimStep, then rendering, UI, save files
-   (`.ANT`), and the Godot remake. Candidates: the yard map / patch selection UI, the scenario games
-   (mode 3?), save/load, the game-over / win screens' state changes (`f_71d95`, `f_2f91a`), and the
-   player-event UI `f_75d01` (becoming another ant). Decide with the owner which comes first.
+6. (done: the **player events** `f_75d01` (`player.player_event`: deaths, animations, the takeover,
+   the queen scene `f_758e0`), `test_events.py`, now also run inside `test_sim.py`; the **game flow**
+   (`game.py`: rating `f_70fb0`, game over `f_71d95`, starting a game `f_725b6`), `test_game.py`.
+   See SIM_NOTES "Player events and the game flow". test_sim.prepare(v) holds the UI stubs and the
+   screen-only memory, each range traced to UI / library code with a write hook.)
+7. Next (owner's order): save files (`.ANT`, load/save routines: the new-game dialog's 0x207 button
+   leads to `f_2f960` → `f_6c1a0`), then rendering and the Godot remake.
 
 ## Gotchas learned the hard way
 
@@ -130,7 +134,9 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 ## Commit log since the last summary
 
 ```
-(this session) Port the Full Game's move between patches (f_01d48) and the house patches (f_7304b)
+ea46cec Port the game flow: the rating (f_70fb0), game over (f_71d95), starting a game (f_725b6)
+62484f3 Port the player events (f_75d01): the yellow ant's death and the takeover
+73a8ea8 Port the Full Game's move between patches (f_01d48) and the house patches (f_7304b)
 8f7f04f Port the new game (f_6b36b) and patch setup (f_6ae20); verified
 (this session) Port the yard layer (sec8 f_68513); verified over 114 scenarios
 b66ff09 Port the spider (f_0ce63 and helpers); verified over 37 scenarios

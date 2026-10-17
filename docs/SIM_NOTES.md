@@ -1005,6 +1005,45 @@ the dirty map G:15C4 (ignored by the tests). Thunks: f_2f802 → f_71a7d (full-s
 (alarm-trail mode on/off: G:104E, T:07BE, menu check mark), f_2f82a → f_7686d (help message box, UI),
 f_2f834 → f_7c7e5 (enter a nest). f_2f7d0 → f_75d01 is the player-event UI (dialogs, death, becoming another ant): a hook.
 
+## Player events and the game flow (ported: `player.player_event`, `game.py`)
+
+**Player events** `f_75d01(n)` (via `f_2f7d0`), verified by `test_events.py` (42 checks) and in full ticks
+(`test_sim.py`: a starving yellow ant dies, event 8, and the player takes over):
+```
+    if not the spider (G:0A06 == 0) and carrying (type & 8): drop the load (f_1317c); failing that,
+        type = (type & 0x80) | T:0094[caste] << 3 (T:07AC zeroed meanwhile)
+    7 <= n < 10: AnimYellowInsane f_7c3b1 (staggers: C-runtime rand targets within 3, pathfinder f_7a69d)
+    n: 0 starved (Rand(5) sound; message 0x272E / 0x2730 by G:1058)
+       1 spider (f_71f52 scene: Rand(2) picks message 0x273F / 0x2740), 2 ant lion (f_76707 scene):
+         G:0F20 += 1; Rand(5) sound; f_7c149(mode n): pit frames 0x38 + k for the lion
+       3, 4: messages 0x272A / 0x272C; 5..9 (Rand(5) sound): 0x2732 0x2734 0x2736 0x2738 0x273A
+       G:0EFC += 1 (8: G:0F30 += 1); 10 squashed: G:0EFC += 1, f_7c149(10) (the ground flickers)
+       messages only when T:07AE; f_7c149 frame count: 6 (fight), else 8, or 0x20 / 0x40 (T:07AA) when
+       the game window is active (DS:5702 == 0); events 1..9 stop early once the sound has finished
+    take the yellow ant off the map; release recruits f_14005(1) (state 6 → 0, red nest 7); alarm off
+    become (each search starts one past the last ant, sic): black nest types 1..7 → queen scene f_758e0;
+        else the last black-nest adult (types 8..0x67), surface adult, red-nest adult: removed from its
+        list and map, the yellow ant there as type & 0xF8 (occupancy value type + heading), health 100
+    none: Quick Game over (G:0376 = 1, G:0366 = 0); Full Game: G:03E2 < 2 → over (message 0x2748),
+        else message 0x274A and the yard map (f_7650c, UI → move_to_patch); mode 3: reads an unset local
+```
+`f_758e0(view, a, b, t, found)`: found 0 = the new queen leaves her cocoon (G:0502 frames 1..7, heading
+2 or 6); found 1 (from `f_76cb9`) = the yellow queen founds a nest: queen chamber `f_6ba1c` / `f_6bb70`,
+G:0AF6 / G:0B04 += 1, population counters.
+
+**Game flow** (`test_game.py`):
+- Rating `f_70fb0`: eight parts (history average G:073C, % G:0626 of G:0626 + G:06AE over the last T:0828
+  history entries, % eggs not lost, % G:09FA of G:09FA + G:0A00; Full Game / mode 3: yard colony
+  ratios, % of the 155 yard and 37 house patches held), score = health + 51 x sum(part x DS:2AF8
+  weight), Quick: x 29 / 10 and x (ticks / 100) / 41 under 4100 ticks; Full: x (ticks / 100) / 81
+  under 8100 ticks, x 5; plus the ticks played. Rank `f_71d95`: thresholds 0x344CC, 0x68998, 0x9CE64,
+  0xD1330 (Full Game: score / 5), + 5 when lost.
+- Game over `f_71d95`: the rating window, one Rand2 for the fanfare once the ending's sound is done,
+  then the new-game dialog `f_725b6`: buttons 0x202 Quick (1), 0x203 Full (2), 0x204 experimental (3),
+  0x206 tutorial (0), 0x205 quit, 0x207 load; then G:0EAC = mode, G:0354 = 1, G:07C8 = 0, `f_6b36b`;
+  tutorial: T:07A4 = 1, T:07A6 = 0.
+- Win screen `f_2f91a` → `f_72750`: an animation only.
+
 ## Verification harness (tools/re/emu.py)
 
 Status: **the original game runs headless and plays complete games.**
