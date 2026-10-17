@@ -103,6 +103,40 @@ Suggested next session: start step 10. Read RECREATION_PLAN.md, propose the Godo
 `simant_ref` maps onto it (a straight GDScript / C# port of the verified modules, with the Python tests
 as the spec). The remaining open items can wait.
 
+## Notes for the Godot remake (what the reference teaches)
+
+- **Assets**: never ship or commit Maxis data. The remake should read the player's own SIMANT files at
+  runtime (or on first run) with ports of `tools/extract.py`, `bitmaps.py`, `tiles.py`, `fonts.py`,
+  `layouts.py` and the sound/MIDI tools; the Python versions are the spec. Palette: HCEGANT type 15, the
+  Mac 4-bit palette (index 0 white, 15 black); sprites are stored as the yellow ant and recoloured.
+- **State model**: `simant_ref` mirrors the original's memory (`State`: segments SIM / G / T / DS, u8 /
+  u16 / s16 accessors). That made byte-for-byte checks possible; the remake can keep the same layout
+  first (easiest to port and to diff) and refactor into objects later. 16-bit wraparound, C truncating
+  division (`_cdiv`, `_cmod`) and short-circuit order matter for exactness.
+- **Randomness**: two generators. The game's LFSR (`State.rand*`, `rng.py`) drives the simulation; MSC
+  `rand()` (`crt_rand_mod`) is used in a few places (new game, cheats, the Mystery Button). Every
+  `Rand` call in the reference is in the original's order. UI that also draws from the LFSR: the spider
+  composite, speech balloons, the yard window's rain and swarms (SIM_NOTES). For tick-for-tick fidelity
+  the remake must make those draws at the same moments; otherwise give the UI its own generator.
+- **Clock**: some timers read the real-time clock (`State.read_clock` ~18.2 Hz, `clock3` x3): the yard
+  layer, speech balloons, the spider's remarks. A remake should feed a clock that advances with the game.
+- **Seeding**: a real game seeds both generators from the time of day (SIM_NOTES "RNG").
+- **The UI boundary**: everything screen-only goes through `st.player.effect(st, name, ...)` (sounds,
+  redraws, messages, balloons, markers, pause) and `st.player` hooks (`player.Hooks`: game events, dialogs,
+  the win / game-over screens). These hook names are the remake's event list: grep `effect(st, '` in
+  `simant_ref` for all of them.
+- **Tick**: `sim.sim_step` is one game tick; the yard, nests, surface ants, spider, weather and colony
+  logic all run inside it in the original's order (SIM_NOTES "Simulation step").
+- **Screens**: `render_view.py` shows how each view is composed (cells, sprites, recolouring, the spider
+  polylines, the map window, the yard window from layout 25); `render_windows.py` and `layouts.py --json`
+  give every window's geometry and item types (FILE_FORMATS "Window layouts"). Coordinates are 640 x 480.
+- **Testing the remake**: the cheapest oracle is the Python reference. Record traces from it (State bytes
+  after N ticks for fixed seeds, `test_sim.py`-style) and compare the Godot port against them; the
+  emulator is only needed for new reverse engineering.
+- **Running the tests**: each test file takes minutes; run them in the background, e.g. the list under
+  "How verification works". All 23 passed at this handoff (test_commands.py and test_balloons /
+  test_panels / test_markers ran on their own after the last full run).
+
 ## Next steps, in order
 
 1. (done: the yard layer, sec8 `f_68513`, in `simant_ref/yard.py` / `test_yard.py`.)
