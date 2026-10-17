@@ -134,7 +134,12 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
      (from the window draw `f_038a6`; f_07558 also from `f_07134`, `f_753e5`)
    - input / tools: `f_6be50`, `f_6bf06` (from `f_6b592`, and via thunks from the input poll `f_01572`;
      f_6be50 also from `f_0e4e4` ← `f_0e425`, a UI action with message boxes)
-   - cheats: `f_6a920` ("CHEAT %d", via thunk 0x2f924 from `f_74386`)
+   - cheats: `f_6a920` ("CHEAT %d", via thunk 0x2f924 from `f_74386`): each typed key is stored
+     bitwise-NOT in G:0B0A (length T:06DE) and matched against the strings behind the far-pointer table
+     at T:067E (also NOT-ed); then a switch of ~20 cheats (+10 colonies G:07C8 / G:0850, health and
+     no-health-loss T:0C18, black / red brood around the yellow ant (C rand + Rand8), nest holes, queen
+     chambers f_6ba1c / f_6bb70, yard colony counters, flags T:0C12 / T:0C14, ...). Player-facing:
+     a good next port (verify with v.check on 0x6a920 per key).
    - startup seeding: `f_00a11` (documented in SIM_NOTES "RNG"; called from the init near 0x075B0)
    - others to identify: `f_008ae` (← f_0052a, f_00572), `f_01707` (← f_022bc,
      f_6f733), `f_06a4d` (← f_07128), `f_70601` / `f_706d0` (← f_702f7 ← f_6fa6c), `f_7723f`, `f_77672`,
