@@ -130,6 +130,9 @@ Seeding (found 2026-10-17): at startup (init around 0x075B0, unless the check `f
 non-zero) the game seeds the LFSR from the clock, `f_009fe`: DS:8BA2 = clock ^ 0x3751, then `f_00a11`
 draws Rand128, seeds the C runtime rand() from the clock (`f_2c8d8`) and calls rand() that many times.
 So every real game starts from the time of day; the verifier sets the seeds itself.
+Between the seeding and the first tick, a pre-game screen draws from the LFSR too (`f_70601` /
+`f_706d0`, see HANDOFF step 9), and so does every map redraw with the spider in it. To replay a real
+session, those draws have to be replayed too; a remake that seeds from the clock anyway can ignore them.
 
 ## Simulation step (`f_0894e`, called once per game tick; ported: `simant_ref/sim.py`, verified tick by tick)
 
