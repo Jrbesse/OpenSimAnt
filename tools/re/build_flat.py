@@ -102,4 +102,8 @@ struct.pack_into('<2s13H', hdr, 0, b'MZ', total % 512, (total + 511) // 512, len
 for i, (o, s) in enumerate(rel):
     struct.pack_into('<HH', hdr, 0x1c + 4 * i, o, s)
 open('build/SIMFLAT.EXE', 'wb').write(hdr + out)
+# linear addresses of every segment word that a DOS loader would relocate (for emu.py)
+open('build/relocs.bin', 'wb').write(b''.join(struct.pack('<I', s * 16 + o) for o, s in rel))
+layout['entry'] = dict(cs=orig[10], ip=orig[9], ss=orig[6], sp=orig[7])
+json.dump(layout, open('build/layout.json', 'w'), indent=1)
 print('synthetic MZ', len(rel), 'relocs', total, 'bytes')
