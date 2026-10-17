@@ -1383,6 +1383,28 @@ local. It fills the window with `f_2318a` (number) / `f_23943` (formatted text):
 
 It then waits for a click.
 
+### The tool palette (window 9, `f_680a4`)
+
+- Window 9 (bitmap 5000) has eight hotspots, 0x902..0x909: a click selects the map tool G:104C =
+  item - 0x902 (see "Map tools").
+- Holding the button opens the tool's options palette (windows 10..17, bitmaps 5010, 5011, 5001..5006;
+  "openSub" in the debug output). Releasing on entry e stores e - 2 in T:07B6 + tool: the option bytes
+  T:07B7..T:07BC.
+- Keys 0x0D / 0x1B end the palette loop (`f_1f610`).
+
+### The Ant Info window (window 29, `f_67c1c(a, b, view)` via thunk 0x2f8fc, map tool 0)
+
+- o = the occupant byte of the cell (surface occupancy, or the black / red nest cells); 0: return -1.
+- Window 29 opens at ((a - G:0508 + 1) * DS:19BE + G:110C, (b - G:050A - 1) * DS:19C0 + G:110E). It
+  moves left by a cell + its width if it would pass the screen's width (DS:3DB2), and up to fit the
+  height (DS:3DB4).
+- Lines (font 2), with caste = (o & 0x78) >> 3:
+  - 0x1D02: STR# 1100 (G:106E) [o & 7] for brood (caste 0), else STR# 1101 (G:1078) [caste];
+  - 0x1D03: STR# 1102 (G:1086) [state of the ant found there: SurfaceAntAt / BlackNestAntAt /
+    `f_0ef3c`; 0 if none];
+  - 0x1D04: STR# 1103 (G:1096) [caste].
+- It waits for a click and returns o.
+
 ### The population report (main window items 0x119..0x11E, `f_6eea5`)
 
 - 0x119 / 0x11A: the black / red populations G:0330 / G:0350 as text (formats DS:29D8 / DS:29DC).
