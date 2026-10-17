@@ -586,8 +586,8 @@ N_DigIn(ant):                                     # f_7b197
     target = cell + dir[d]; if target depth < 1: ExitToSurface; return
     if target dirt >= 0x30: return
     if IsDiggable(target): if DigCellBlack(target): caste += 3 (dirt); state = DIG_OUT; sound 0x11
-                           else: state = StateForCaste
-                           return
+                           else: state = StateForCaste; return
+                           (after a successful dig the ant moves into the new cell, as below)
     if target holds an enemy (and not our yellow ant): NestFightAt(...); return
     move; if Rand64() > black_health: EatIfOnFoodBlack; if Rand4() == 0: UpdateExitField(new cell)
 ```
@@ -619,12 +619,55 @@ ExitToSurface(col):                               # f_7b661, ant at depth 0..1 t
 ```
 Nest column `col` == surface `b`; the surface `a` comes from the entrance table.
 
-## Nursing (`N_Nesting` f_7ab6e) — summary, full translation pending
+## Nursing (`N_Nesting` f_7ab6e)
 
-Workers in Nesting carry brood around: a worker (caste 2) standing on brood picks it up (caste → 1,
-brood stage saved in `b_e` low bits, bit 3 = direction flag), walks it through the tunnels (`NestClimbDir`
-up / `NestStepDir` down) and sets it down (`SpawnBlackBrood` at the new cell; caste back to 2) then picks a
-job. Each tick: `Rand(100) > health` → `EatIfOnFoodBlack`; 1/8 → `StateForCaste`.
+`b_e` of a nurse: bits 0–2 = carried brood stage, bit 3 = "going up" flag. `here` = contents cell at the ant.
+```
+caste 1 (worker carrying brood):
+    if !up: d = NestStepDir(...); if d < 0: up = 1 (b_e |= 8);  move d (else random)    # carry it deeper
+    else:
+        if here == 0 or here > 8:            # (own cell normally holds the ant itself; quirk: heading 0 = 8)
+            caste = 2; SpawnBlackBrood(col, depth, stage); cell = ant; b_e = 8; state = StateForCaste(1)
+        d = NestClimbDir(...) - 1 (0 → Rand8); move d (else random)
+caste 2 (worker):
+    if !up:
+        if here is brood (1..7) and a brood ant is there: remove it; caste = 1; b_e = stage; return (pick up)
+        Rand(100) > health ? EatIfOnFood : (1/16 → StateForCaste(2));  move heading (else random)
+    else: 1/8 → b_e = 0;  d = NestClimbDir(...) - 1 (0 → Rand8); move d (else random)
+other castes: Rand(100) > health → EatIfOnFood; 1/8 → StateForCaste; move heading (else random)
+```
+`NestMoveTo` (f_7aa3b) moves into any cell with dirt < 0x1C and **overwrites** the contents grid there
+(no occupancy check); above row 1 it calls `ExitToSurface`.
+
+## Other nest handlers
+
+```
+N_Wander (0, 14, >17):  1/32 → StateForCaste; unless NestFightAt(here): move heading, else random
+                        Pre-Flight (14) then: black_flight_timer > 100 → Take Off (15)
+N_GotFood (3):          d = NestStepDir; d < 0 or 1/16: StoreFood(here); Rand(100) > health → EatFood(here);
+                        StateForCaste. Else turn to d and step in (dirt < 0x30; fights red ants in the way)
+N_Defense (6):          player viewing the black nest (G:048c == 2): stay and fight/wander; else GoToSurface
+N_Resting (13):         unless fighting: 1/20 → StateForCaste, else rest effect
+N_Fighting (10):        heading jitter Rand(7); 1/16 → the winner (b_e) replaces the fight entity: a black
+                        winner gets StateForCaste, a red one Attack (7); a caste-12 winner regrows its
+                        abdomen (f_7a8a2 adds a caste-13 Egg Laying ant behind it)
+state 17 (79f70):       on tunnel/food (dirt < 0x14): StateForCaste; else jitter and die with 1/100
+NestFightAt (7a233):    cell holds the yellow ant and the player is red → AttackPlayer(2); a red ant/fight
+                        (0x88..0xE7) → ResolveFight; the black ant becomes the fight entity (type
+                        (winner & 0x80) + 0x70, state 10, b_e = winner)
+```
+Invaders (red ants in the black nest, branch of `BlackNestAntTick`): Attack-state ones (`79d6f`) wander
+deeper (`Rand(3)` jitter, then `NestStepDir`) until on stored food, eat a unit (`InvaderEatFood`) and turn
+Got Food carrying (state 3, type |= 8); stuck → state 1. Others (`79e40`) climb the exit field towards the
+entrance (any direction) and leave like black ants do.
+
+`ExitToSurface`: on success the ant appears on the surface via `AddSurfaceAnt` (f_0f047): the first of the
+8 neighbours of the entrance that is in the patch with surface tile < 0x50; the occupancy grid is **not**
+written. `s_e` = carried value for Defense, else 0 — or 0x78 (nest marker countdown) for ants coming out of
+their own colony's half, unless Got Food / Attack. With no free neighbour the ant stays (state Bored).
+`MakeSurfaceHoleBlack` (f_150b0): tries 34 surface rows `a = (Rand(31)+i) % 32 + 2` in that column for an
+open 3×3 (yard: tile 0x50 + entrance ring from DS:1BB2; house: `f_151f7` floor → entrance tile), records
+the entrance (T:02AC/02AE, T:02A4), sets `T:0224[col] = a` and digs (col, 1).
 
 ---
 
@@ -636,8 +679,7 @@ manual behaviour, brood development, queen + egg laying, food economy, nest terr
 leaving/entering the nest.
 
 Still to do:
-1. Nest handlers in full detail: Nesting (brood carrying), Wander, Resting, Defense, Fighting, invaders
-   (`79d6f`, `79e40`, `7a233`), state 17 (`79f70`), `QueenMove`.
+1. (done: black nest ported and verified in `simant_ref/nest.py`.)
 2. Compare the red nest code (`f_0f465`, resident) with the black one (section 27). They may differ.
 3. Surface world per tick: `f_0c22c`, `f_0b163`, `f_0ce63`, `f_0b6cc`, `f_0e2ea`, sec8 `f_68513`,
    sec26 `f_798c8`, `f_0c20f`: food spawning, predators (spider, ant lion), humans/mower/rain/insecticide.

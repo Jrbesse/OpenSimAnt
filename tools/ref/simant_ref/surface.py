@@ -22,6 +22,9 @@ class NoPlayer:
     def nudge_player(self, st, a, b, d):
         raise NotImplementedError('f_769c5 (player follow nudge)')
 
+    def nest_follow(self, st, col, depth, d):
+        raise NotImplementedError('f_2f7bc (nest ant steps onto the yellow ant)')
+
     def effect(self, st, name, *args):
         pass                                    # visual effects only (patch_visible)
 
@@ -100,6 +103,34 @@ def encounter_enemy(st, ant, a, b, na, nb):
 
 
 # ------------------------------------------------------------------------------------------- nests
+def add_surface_ant(st, a, b, t, state, e):
+    """f_0f047 AddSurfaceAnt: an ant leaving a nest appears on a free tile next to the entrance (a, b).
+    The occupancy grid is not written. Ants fresh out of their own nest get a nest-marker countdown."""
+    for d in range(8):
+        na, nb = a + mv.dx(st, d), b + mv.dy(st, d)
+        if mv.in_patch(na, nb) and st.grid(SURFACE, na, nb) < 0x50:
+            break
+    else:
+        return 0
+    i = st.u16(G, 0xd6a)
+    _set(st, SX, i, na)
+    _set(st, SY, i, nb)
+    _set(st, STYPE, i, t)
+    _set(st, SSTATE, i, state)
+    if state == 6:
+        _set(st, SE, i, e)
+    else:
+        _set(st, SE, i, 0)
+        if state not in (3, 7) and ((t & 0x80 and a > 0x40) or (not t & 0x80 and a < 0x40)):
+            _set(st, SE, i, 0x78)
+    if s16(st.u16(G, 0xd6a)) >= 1000:
+        ng.compact_surface(st)
+        if s16(st.u16(G, 0xd6a)) >= 1000:
+            return 1
+    st.inc16(G, 0xd6a)
+    return 1
+
+
 def enter_nest(st, a, b, ant):
     """f_0a5ae: the ant leaves the surface into the nest of that half of the patch (column = b)."""
     t, state, e = _get(st, STYPE, ant), _get(st, SSTATE, ant), _get(st, SE, ant)
