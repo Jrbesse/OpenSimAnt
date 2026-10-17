@@ -53,7 +53,7 @@ cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
 python test_yard.py; python test_player.py; python test_sim.py 3000
-python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py
+python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py
 ```
 
 All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical").
@@ -75,6 +75,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `sim.py` | **SimStep**: one full game tick |
 | `newgame.py` | **new game** `f_6b36b`, the Full Game's move to another patch `f_01d48`, and patch setup `f_6ae20`: clearing, colony settings, patch seeds, terrain, scattered colonies, pre-dug nests, queens, the yellow ant's start per mode |
 | `game.py` | game flow: rating, game-over screen, starting a game |
+| `savefile.py` | saved games: the block table, save, load with its fix-ups |
 | `player.py` | the yellow ant (also its death and the takeover, `player_event`): upkeep `f_7bf7e`, actions `f_7b7b8` (pathfinding to the cursor, picking up / dropping / eating, entering and leaving nests, fights), view-generic map accessors |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
@@ -113,8 +114,10 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    (`game.py`: rating `f_70fb0`, game over `f_71d95`, starting a game `f_725b6`), `test_game.py`.
    See SIM_NOTES "Player events and the game flow". test_sim.prepare(v) holds the UI stubs and the
    screen-only memory, each range traced to UI / library code with a write hook.)
-7. Next (owner's order): save files (`.ANT`, load/save routines: the new-game dialog's 0x207 button
-   leads to `f_2f960` → `f_6c1a0`), then rendering and the Godot remake.
+7. (done: **saved games** `.ANT`, `simant_ref/savefile.py`, `test_savefile.py`; the format is in
+   FILE_FORMATS.md "Saved games".)
+8. Next (owner's order): rendering (tile and sprite mapping for the surface / nest views, the map
+   windows, the UI), then the Godot remake.
 
 ## Gotchas learned the hard way
 
@@ -134,6 +137,7 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 ## Commit log since the last summary
 
 ```
+0d690ae Port saved games (.ANT): save (f_6c328) and load (f_6c1a0, f_6cf1a, f_6cf5b)
 ea46cec Port the game flow: the rating (f_70fb0), game over (f_71d95), starting a game (f_725b6)
 62484f3 Port the player events (f_75d01): the yellow ant's death and the takeover
 73a8ea8 Port the Full Game's move between patches (f_01d48) and the house patches (f_7304b)

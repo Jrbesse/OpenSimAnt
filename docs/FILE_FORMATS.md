@@ -132,6 +132,28 @@ probably drawn in code or stored in the undecoded type 8 resources; this needs c
 | 21004/21005 | Button strips (BACK / PREVIOUS / TOP) |
 | 28000/28003 | Large panels |
 
+## Saved games (`.ANT`)
+
+Ported and verified: `tools/ref/simant_ref/savefile.py`, `tools/ref/test_savefile.py`.
+
+A saved game has **no header and no checksum**: it is 307 blocks of the game's memory written one after
+another, 48386 bytes in all. The block list is a table in SIMANT.EXE at 4E4B:0000 (flat 0x4E4B0):
+8-byte entries `{int16 count, uint16 size, far pointer}`, ending at size 0; each block is `count * size`
+bytes. In file order: the surface tiles (8192), both nests' dirt and exit fields (4 x 4096), the
+surface / black / red ant arrays (x, y, state, type, e: 5 x 1000, 10 x 500), the alarm, black nest,
+black trail, red nest and red trail pheromone maps (5 x 2048), the entrance rows, the yard colony grids
+(2 x 192), the 192 patch seeds, then counters, statistics, the history graphs and ~230 single globals
+(the game mode, the yellow ant, timers, the human / bird / dog state, ...). All values little-endian,
+laid out exactly as in memory (see SIM_NOTES for the meaning of each address).
+
+Not saved: the surface occupancy, the nest cell grids, the p2 pheromone map, the LFSR and C runtime
+random states, and the screen state. Loading (`f_6c1a0`) starts a new game (`f_6cf1a` → `f_6b36b`),
+reads the blocks over it (a short file: "Read error, game not loaded", game mode -1, the blocks read so
+far stay), then `f_6cf5b` restores the tile set, rebuilds the occupancy and nest cells from the ant
+lists, puts the yellow ant back and runs the census. Because the random state and census are not
+saved, a reloaded game does not continue exactly like the original one would have (in the original
+too). Saving (`f_6c328`) writes the blocks and clears the unsaved-changes flag T:02C2 (SimStep sets it).
+
 ## The executable, briefly
 
 - It is not packed. The 216 KB resident MZ image is followed by ~290 KB of further code and data
