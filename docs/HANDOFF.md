@@ -90,6 +90,19 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
 `NotImplementedError` for the ones that change state, so a test fails loudly if it reaches unported code.
 
+## Where things stand (2026-10-17, end of day)
+
+**The reference is ready for the Godot remake.** The whole simulation (SimStep, new game, patches,
+house, yard, player, events, game flow, saves, cheats, debug commands, map tools, menu commands) is
+ported to `simant_ref` and verified byte for byte against the original. The rendering, the windows
+(layouts, fonts) and the UI logic that feeds the simulation (triangle panels, tool palette, menus) are
+decoded. What is left (step 8 "Open") is visual polish and sound mapping, which can be decoded alongside
+the remake when each screen is built.
+
+Suggested next session: start step 10. Read RECREATION_PLAN.md, propose the Godot project layout and how
+`simant_ref` maps onto it (a straight GDScript / C# port of the verified modules, with the Python tests
+as the spec). The remaining open items can wait.
+
 ## Next steps, in order
 
 1. (done: the yard layer, sec8 `f_68513`, in `simant_ref/yard.py` / `test_yard.py`.)
@@ -152,15 +165,16 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    prey / Chase mode; verified), and the **Exchange swap** `f_11b81` → `f_11c18` (`commands.exchange`, 32
    click scenarios ALL OK; SIM_NOTES "The yellow ant's menu and commands"). All menu commands are ported.
    `game.py` calls the G:105E modes 0x0A / 0x0B "a pending yard map edit": they are Exchange / Chase.
-   Open:
+   Also documented (SIM_NOTES): the Ant Info window (`f_67c1c`), the tool palette (`f_680a4`), the
+   four in-game menus.
+   Open (all visual detail; none blocks the Godot port):
    - colours 0x10.. in the map window (driver dither, DS:914C; drawn as a plain ramp);
-   - the panels' bar charts (`f_0839a` / `f_08255`), the History Window's line drawing, the Ant Info
-     window (overlay 7, 0x67c1c), the tool palettes (windows 9..17) and menus (6 / 7 / 8 / 29 / 32);
-   - the text colours (+26?);
-   - the item fields +10 / +18 / +20 and the frame styles (named from their drawing routines only);
-   - the UI tables 128 / 129 / 131 (129: 24 entries of 4 colour bytes);
+   - the panels' bar charts (`f_0839a` / `f_08255`), the History Window's line drawing;
+   - the text colours (+26?), the frame styles (named from their drawing routines only), the item
+     fields +10 / +18 / +20, the UI tables 128 / 129 / 131;
    - the line algorithm of `f_16b58` (Bresenham assumed);
-   - the other windows and the menus.)
+   - which tool options palette (windows 10..17) belongs to which tool; the help screens (`f_76eb5`);
+   - sounds: which effect id plays which SOUND resource, and the music (MIDI) triggers.)
 9. **Unported routines that draw from the game's RNG** (found 2026-10-17 by cross-referencing the
    callers of Rand* in `build/calls.tsv` with the `f_xxxxx` names in `simant_ref`; f_0cb3b / f_0cc8f are
    red-nest helpers already covered by their ported callers). Each can shift the random sequence, so
