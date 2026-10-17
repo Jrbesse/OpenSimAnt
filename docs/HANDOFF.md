@@ -84,7 +84,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `markers.py` | the event-marker recorders behind the 'brood' / 'fight' / 'queen' / 'rest' effects |
 | `balloons.py` | the speech balloons `f_06a4d` (timers, RNG draws, line choice; drawing is a hook) |
 | `panels.py` | the Behavior / Caste Control triangles: weights ↔ marker point |
-| `commands.py` | the yellow ant's menu commands `f_76cb9`: recruit, release, modes, alarm, dig, brood, hunt |
+| `commands.py` | the yellow ant's menu commands `f_76cb9`: recruit, release, modes, alarm, dig, brood, hunt; the Exchange swap `f_11b81` / `f_11c18`; the spider's map click `f_756a6` |
 | `player.py` | the yellow ant (also its death and the takeover, `player_event`): upkeep `f_7bf7e`, actions `f_7b7b8` (pathfinding to the cursor, picking up / dropping / eating, entering and leaving nests, fights), view-generic map accessors |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
@@ -149,8 +149,8 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    - the Efficiency Score window, the population report, the History Window's scaling (SIM_NOTES).
    **Done: the yellow ant's commands** `f_76cb9` / `f_13f32` (`simant_ref/commands.py`,
    `test_commands.py` ALL OK), and the spider's map click `f_756a6` (`commands.spider_click`, walk /
-   prey / Chase mode; verified). **Next:** the Exchange swap `f_11b81` → `f_11c18` (long;
-   `commands.exchange_click` raises NotImplementedError).
+   prey / Chase mode; verified), and the **Exchange swap** `f_11b81` → `f_11c18` (`commands.exchange`, 32
+   click scenarios ALL OK; SIM_NOTES "The yellow ant's menu and commands"). All menu commands are ported.
    `game.py` calls the G:105E modes 0x0A / 0x0B "a pending yard map edit": they are Exchange / Chase.
    Open:
    - colours 0x10.. in the map window (driver dither, DS:914C; drawn as a plain ramp);

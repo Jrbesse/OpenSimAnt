@@ -1383,7 +1383,7 @@ local. It fills the window with `f_2318a` (number) / `f_23943` (formatted text):
 
 It then waits for a click.
 
-### The yellow ant's menu and commands (`f_67e93` → `f_76cb9`; ported: `simant_ref/commands.py`, `test_commands.py`, except the Exchange swap)
+### The yellow ant's menu and commands (`f_67e93` → `f_76cb9`; ported: `simant_ref/commands.py`, `test_commands.py`, all of them)
 
 `f_67e93` opens a pop-up menu (`f_2379b`) and turns the choice into a command through a byte table in
 DS:
@@ -1405,12 +1405,50 @@ Window 6 (6000) is the scent-layer menu (Off, Alarm, B-Nest, B-Trail, R-Nest, R-
 - 6: Exchange, `f_11b21`. It toggles the cursor mode G:105E = 0x0A: G:048E = G:047E, then `f_2f816(1)`
   pauses; `f_11b5f` cancels, with G:105E = -1 and `f_2f816(G:048E)`. The next map click (`f_74fe0`)
   calls `f_11b81(view or 1, a, b)`:
-  - G:1074 = 1, then `f_11c18(view, a, b)` makes the swap. It is long and not traced yet: GetOccupant;
-    on the surface within squared distance 0x200 of the spider; a new yellow type from the clicked ant's
-    caste (T:0094 load table) and colour; it places the yellow ant (and a queen's second cell) with
-    `f_114bd`.
-  - On success: cancel the mode and play sound 0x0F (as a queen: also a redraw, a wait for the sound,
-    and a voice line). On failure: sound 1.
+  - G:1074 = 1, then `f_11c18(view, a, b)` makes the swap (`commands.exchange`, returns 1 / 0):
+    - The yellow ant's leftover type: caste c = (G:04C2 & 0x78) >> 3 and e = 0. If bit 3 of the type
+      is set, castes 5 / 9 map through the load table T:0094[c]; caste 1 keeps e = T:0C22.
+    - **An empty cell** (GetOccupant <= 0): only on the surface (view 1), and only within squared
+      Distance 0x200 of the spider's cell centre (a * 16 + 8, b * 16 + 8) vs (G:0F12, G:0F34). The
+      player becomes the spider; G:0A06 is not checked, so a yellow ant can do it too.
+      1. `f_114bd` adds an ant at the yellow ant's spot with type (G:04E2 & 0x80) | G:0496 | c << 3,
+         state 9 for a queen (G:04C2 == 0x60, plus her second cell behind her, type + 8, e 0), else 0.
+         If either add fails (list full): return 0.
+      2. `f_119b4(..., 0)` then clears the yellow ant's cells, so the occupancy of the ant just added
+         is 0 again (as in the original).
+      3. The spider state: G:0FFC = -2, (G:0F42, G:0F7E) = (G:0F12 >> 4, G:0F34 >> 4),
+         G:0A06 = 1, and G:0FB8 = G:06AC = G:04E2 = 0.
+      4. `f_2f820` → `f_757dd(view, those)` (`player.stop_action`), health 100 (`f_12d43`), return 1.
+    - **The player itself** (`f_134b8`, `debug.player_at`) or a yellow cell (0xFE / 0xFF): return 1,
+      nothing changes. Exchange still ends with sound 0x0F.
+    - **A queen's cell**:
+      - caste 12: her second cell is behind her, (a, b) + dir[(o & 7) ^ 4];
+      - caste 13 (the second cell): the queen is at (a, b) + dir[o & 7]. (a, b) and o move to her, and
+        c = 12.
+      i = `f_11327(view, a, b, o)`, the second cell's i2 likewise. i < 0: return 0.
+    - Taking the clicked ant (o) needs:
+      - Shift + Alt (BIOS flags 0:0417 & 8 and & 3) for a red ant (o & 0x80);
+      - Shift + Alt **and** T:0798 for caste 0 (brood), 10, 11 or > 13.
+      Otherwise: return 0. Castes 5 / 9 become T:0094[c] (heading kept); caste 1 copies its e
+      (`f_10fcd`) into T:0C22.
+    - **As the yellow ant** (G:0A06 == 0): the leftover ant's type is c << 3 | G:0496 | (o & 0x80),
+      with the clicked ant's colour. The red check comes before the caste check.
+      1. Redraws (`f_0250e`).
+      2. The clicked ant (and i2) is zeroed in its list (`f_11121(view, i, 0, 0, 0, 0, 0)`).
+      3. `f_114bd` adds the leftover ant at the yellow ant's spot (a queen: state 9, with the second
+         cell); a failed add returns 0, after the clicked ant was already removed.
+    - **As the spider** (G:0A06 != 0): the same checks, then the clicked ant (and i2) is zeroed. Nothing
+      is left behind.
+    - Both then: G:04E2 = o & 0x80, G:049A = G:0A06 = G:06AC = 0, health 100,
+      `f_119b4(view, a, b, o & 0x78, o & 7, 0xFF)` (the new yellow ant, type o & 0x78, heading o & 7),
+      and G:0502 = G:0496 if G:04C2 < 8. Return 1.
+  - On 1: cancel the mode and play sound 0x0F; as a queen also the redraw `f_03391` and the voice line
+    0x2AFE (the wait between them, `f_00f1d`, always returns 1 in this build). On 0: sound 1.
+  - `test_commands.py`: 32 click scenarios, each from every snapshot, through both `f_11c18` and
+    `f_11b81`. They click surface, black and red nest ants, brood and odd castes, queens and their second
+    cells, empty cells, the yellow ant itself and cells around the spider. Each runs as the yellow ant, as
+    the spider, as a queen and as castes 1 / 5 / 9, with and without the cheat keys, and with full or
+    nearly full lists.
 - 7: `f_76a37(G:104E == 0, 0)` (alarm mode toggle; ported: `player.alarm_mode`).
 - 8: Dig Hole. On the surface `f_13644(view, a, b)` (`player.act_on_cell`); if that returns -1, or off
   the surface: sound 1.
