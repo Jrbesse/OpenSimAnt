@@ -71,7 +71,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `red_nest.py` | **red nest** ants (a separate, different copy in the original) |
 | `world.py` | slow phases, history graph, advisor status, weather/flooding, ant lions, caterpillar + bugs, **spider** |
 | `yard.py` | the yard layer: human walk/roam + lawnmower, foot stamps, bird crossing, bird, dog, rain control, yard colonies |
-| `player.py` | (in progress) the yellow ant's upkeep `f_7bf7e`, view-generic map accessors, pathfinding to the cursor |
+| `player.py` | the yellow ant: upkeep `f_7bf7e`, actions `f_7b7b8` (pathfinding to the cursor, picking up / dropping / eating, entering and leaving nests, fights), view-generic map accessors |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
 `NotImplementedError` for the ones that change state, so a test fails loudly if it reaches unported code.
@@ -79,15 +79,13 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 ## Next steps, in order
 
 1. (done: the yard layer, sec8 `f_68513`, in `simant_ref/yard.py` / `test_yard.py`.)
-2. **The player system** (`simant_ref/player.py`, `test_player.py`; plan and decoded pseudo-code in
-   SIM_NOTES "The player (yellow ant)"). Done and verified: `f_7bf7e` (`yellow_tick`), layer A (map
-   accessors), layer B (pathfinding), layer C (`f_13644` acting on a cell) and layer D (nests,
-   fights). Next: E (`f_7b7b8` itself). Asm dumps for the
-   player are in `tools/re/build/asm/player/` (regenerate with `adis.py`). For the routines that call UI
-   (`f_01c52` → `f_01aa7`, `f_03391` → `f_03381`), stub those UI routines in the emulator; note that
-   `Verifier.load` restores code too, so extra stubs must be re-applied after each load.
-   `debug_player.py <label> [snapshot]` finds the first call where a player check diverges.
-3. Then `f_71d95` (game over) and **SimStep itself (`f_0894e`)**, and a full-tick check: from each
+2. (done: the player system, `simant_ref/player.py` / `test_player.py`; SIM_NOTES "The player (yellow
+   ant)". UI routines the player code calls are stubbed per check via `Verifier.extra_stubs`, re-applied
+   after each load because loads restore code; `test_player.configure` holds the setup, including an
+   unfrozen clock for the fight animation, which busy-waits on it. `debug_player.py <label>
+   [snapshot]` finds the first call where a check diverges. Not ported: `f_2f7d0` → `f_75d01`, the
+   player-event UI (the yellow ant's death, becoming another ant, dialogs), which is a hook.)
+3. **Next: `f_71d95` (game over) and SimStep itself (`f_0894e`)**, and a full-tick check: from each
    snapshot run N ticks of the original and the port and compare. The SimStep schedule is in SIM_NOTES
    "Simulation step"; note that it ends by setting `02C2 = 1`.
 4. Patch setup / new game (`6ae20`, `6b36b` and helpers; listed in SIM_NOTES).

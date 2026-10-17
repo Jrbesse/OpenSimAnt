@@ -364,6 +364,76 @@ LAYER_D = [
 ]
 
 
+def action(view, pos, target, mode=0, t=0x10, g=(), tt=(), plant=(), ant=None):
+    """pre hook (args idx_args): before the first call, the yellow ant (type t) at view / pos with an
+    action pending: mode, cursor target (view, a, b); ant = (view, k) targets the k-th live ant."""
+    def pre(set16, a):
+        if a[0]:
+            return
+        st = VER.state_from_emu()
+        for off, val in ((0x48c, view), (0x47c, pos[0]), (0x48a, pos[1]), (0x4c2, t), (0xaa0, 1),
+                         (0xa8e, mode), (0xaf8, target[0]), (0xad6, target[1]), (0xae8, target[2]),
+                         (0xd6c, 0xfffe), (0xab6, 0xffff), (0xac6, 0xffff)):
+            set16(G, off, val)
+        if ant is not None:
+            av, k = ant
+            f = player._ants(av)
+            live = [j for j in range(st.s16(G, f['count'])) if st.u8(SIM_, f['type'] + j)]
+            j = live[-1 - k % len(live)]
+            set16(G, 0x8da, av)
+            set16(G, 0x7c0, j)
+            set16(G, 0x84e, st.u8(SIM_, f['type'] + j))
+        for off, val in g:
+            set16(G, off, val)
+        for off, val in tt:
+            set16(T, off, val)
+        for seg, off, val in plant:
+            set16.byte(seg, off, val)
+    return pre
+
+
+def idx(st, i):
+    return (i,)
+
+
+ACTIONS = [
+    ('action walk surface', action(1, (60, 30), (1, 90, 40))),
+    ('action walk surface far', action(1, (10, 5), (1, 120, 60))),
+    ('action walk nest', action(2, (34, 9), (2, 10, 30))),
+    ('action dig nest', action(2, (34, 9), (2, 50, 40), mode=2)),
+    ('action walk red nest', action(3, (32, 12), (3, 5, 40))),
+    ('action into black nest', action(1, (60, 30), (2, 20, 20))),
+    ('action into red nest', action(1, (60, 30), (3, 40, 20))),
+    ('action out of nest', action(2, (34, 9), (1, 60, 30))),
+    ('action black to red', action(2, (34, 9), (3, 40, 20))),
+    ('action queen out', action(2, (32, 3), (1, 60, 30), t=0x60)),
+    ('action new queen walk', action(1, (60, 30), (1, 90, 40), t=0x40, tt=((0xc24, 0), (0xc18, 0)))),
+    ('action carry food', action(1, (60, 30), (1, 25, 33), t=0x18, g=((0x4c4, 200),))),
+    ('action carry food red', action(1, (100, 30), (1, 118, 33), t=0x38, g=((0x4c4, 30), (0x4e2, 1)))),
+    ('action alarm trail', action(1, (60, 30), (1, 90, 40), g=((0x104e, 1),))),
+    ('action pick up food', action(1, (60, 30), (1, 70, 30), mode=1, plant=((SIM_, 0x180 + 70 * 64 + 30, 0x4a),))),
+    ('action pick up pebble', action(1, (60, 30), (1, 70, 30), mode=1, plant=((SIM_, 0x180 + 70 * 64 + 30, 0x52),))),
+    ('action drop food', action(2, (34, 9), (2, 30, 12), mode=1, t=0x18)),
+    ('action act on rock', action(1, (60, 30), (1, 70, 30), mode=1, plant=((SIM_, 0x180 + 70 * 64 + 30, 0x60),))),
+    ('action hole to red', action(2, (34, 9), (2, 36, 9), plant=((SIM_, 0x2180 + 36 * 64 + 9, 0x14),))),
+    ('action follow ant', action(2, (20, 20), (2, 0, 0), mode=4, ant=(2, 5))),
+    ('action talk to ant', action(2, (34, 9), (2, 0, 0), mode=4, ant=(2, 0))),
+    ('action ant gone', action(2, (34, 9), (2, 0, 0), mode=4, ant=(2, 0), g=((0x84e, 0xf8),))),
+    ('action attack nest ant', action(2, (34, 9), (2, 0, 0), mode=3, ant=(2, 2))),
+    ('action attack surface ant', action(1, (60, 30), (1, 0, 0), mode=3, ant=(1, 4))),
+    ('action attack soldier', action(1, (60, 30), (1, 0, 0), mode=3, t=0x30, ant=(1, 9))),
+    ('action at target', action(1, (60, 30), (1, 60, 30))),
+    ('action none', setter_g(((0xaa0, 0),))),
+    ('action follow screen', action(1, (60, 30), (2, 20, 20), tt=((0x7a8, 1),))),
+    ('action act at edge', action(1, (0, 0), (1, -1, -1), mode=1)),
+    ('action walk in house', action(1, (60, 30), (1, 90, 40), g=((0xf24, 1),))),
+    ('action cursor on entrance', action(1, (25, 36), (1, 20, 32))),
+    ('action cursor on entrance shown', action(1, (25, 36), (1, 20, 32), g=((0x32e, 1),))),
+    ('action cursor on entrance follow', action(1, (25, 36), (1, 20, 32), g=((0x32e, 1),), tt=((0x7a8, 1),))),
+]
+LAYER_E = [(label, 0x7b7b8, quiet(player.player_action), 250, pre, idx) for label, pre in ACTIONS]
+
+
 CHECKS = [
     ('is walkable surface', 0x1323e, port(player.is_walkable, 7), 600,
      None, sweep((0, 1), (-2, 129), (-2, 65), (0, 3), (0, 127), (0, 63), (0, 1))),
@@ -398,7 +468,7 @@ CHECKS = [
      sweep((1, 3), (1, 62), (1, 62), (0x60, 0x60), (0, 7), seed=16)),
     ('jingle', 0x0cd37, port(player.jingle), 5, setter_g(((0x214, 0), (0x216, 0))), None),
     ('jingle wait', 0x0cd37, port(player.jingle), 5, None, None),
-] + WALK_CHECKS + LAYER_C + LAYER_D + [
+] + WALK_CHECKS + LAYER_C + LAYER_D + LAYER_E + [
     # (label, original, port, repeat, pre, args_fn)
     ('upkeep', 0x7bf7e, port(player.yellow_tick), 200, yellow(), tick_args),
     ('upkeep queen', 0x7bf7e, port(player.yellow_tick), 200, yellow(t=0x60, heading=2), tick_args),
@@ -429,6 +499,13 @@ CHECKS = [
 ]
 
 
+def configure(v, label):
+    """Emulator setup for one check: UI stubs; the fight animation waits on the clock, so unfreeze it."""
+    fights = 'attack' in label
+    v.extra_stubs = (0x01aa7, 0x03381, 0x22f65) + ((0x2f7d0, 0x2f82a) if fights or 'action' in label else ())
+    v.e.clock_frozen = not fights
+
+
 def main():
     global VER
     only = sys.argv[1:]
@@ -438,8 +515,7 @@ def main():
         if only and not any(o in label for o in only):
             continue
         # UI: scroll to the yellow ant, redraw, menu check marks; the player-event UI where hooks are quiet
-        v.extra_stubs = (0x01aa7, 0x03381, 0x22f65) + ((0x2f7d0,) if label.startswith('attack') else ())
-        v.e.clock_frozen = not label.startswith('attack')     # the fight animation waits on the clock
+        configure(v, label)
         ok &= v.check(lin, fn, label=label, repeat=repeat, pre=pre, ignore=SCREEN, args_fn=args_fn)
     print('ALL OK' if ok else 'SOME MISMATCHES')
     return ok

@@ -950,6 +950,150 @@ def attack_player(st, view, i):
     st.player.game_event(st, 0)                                         # the yellow ant dies
 
 
+# ------------------------------------------------------------------------------------------- the action
+def player_action(st):
+    """f_7b7b8 (each tick while an action is pending, G:0AA0): walk one step towards the cursor (or the
+    target ant), act on the target cell, enter / leave / switch nests; when the action ends: fight or
+    talk to the target ant, then stop_action."""
+    if st.u16(G, 0xaa0) == 0:
+        return
+    g = lambda off: s16(st.u16(G, off))
+    res = 0
+    mode = g(0xa8e)
+    ant = None
+    done = False
+    if mode >= 3:
+        ant = get_ant(st, g(0x8da), g(0x7c0))
+        if ant is None or (st.u8(G, 0x84e) ^ ant[2]) & 0xf0:
+            res, done = -2, True                                       # the target ant is gone
+        elif g(0x48c) == g(0x8da) and abs(g(0x47c) - ant[0]) <= 1 and abs(g(0x48a) - ant[1]) <= 1:
+            d = mv.dir_to(g(0x47c), g(0x48a), ant[0], ant[1]) - 1        # next to it: face it
+            if d >= 0:
+                st.set16(G, 0x496, d)
+            st.player.effect(st, 'redraw_all')                          # f_03391
+            res, done = -1, True
+        else:                                                          # the cursor follows it
+            for off, v in ((0x8e2, ant[0]), (0xad6, ant[0]), (0x9f0, ant[1]), (0xae8, ant[1])):
+                st.set16(G, off, v)
+    if not done and g(0xa8e) == 1 and g(0xaf8) == g(0x48c):
+        d = mv.dir_to(g(0x47c), g(0x48a), g(0xad6), g(0xae8))
+        ca = st.s8(T, 0x10 + d) + g(0x47c)
+        cb = st.s8(T, 0x1a + d) + g(0x48a)
+        if not 0 <= ca <= 0x7f:
+            ca = g(0x47c)
+        if not 0 <= cb <= 0x3f:
+            cb = g(0x48a)
+        if g(0xad6) == ca and g(0xae8) == cb:                          # the target cell is next to it
+            r = act_on_cell(st, g(0x48c), ca, cb)
+            if r:
+                res, done = (-1 if r == 1 else -2), True
+    if not done:
+        res, done = _step(st)
+    if st.u16(T, 0x7a8):
+        ui_follow(st)
+    if (res == 0 and g(0xaf8) == g(0x48c) and g(0xad6) == g(0x47c) and g(0xae8) == g(0x48a)
+            and g(0xa8e) == 0):
+        res = -1                                                       # arrived
+    if res == 0:
+        return
+    if res == -2:
+        st.player.effect(st, 'sound', 1)
+        ui_follow(st)
+    elif g(0xa8e) == 3:
+        st.set16(G, 0x1058, 1)
+        attack_player(st, g(0x8da), g(0x7c0))
+        st.set16(G, 0x1058, 0)
+    elif g(0xa8e) == 4:
+        x, y, t, state, e = ant
+        d = mv.dir_to(x, y, g(0x47c), g(0x48a)) - 1
+        if d >= 0 and t & 0x70 != 0x60:                                # the ant turns to face the yellow one
+            t = (t & 0xf8) | d
+            set_ant(st, g(0x48c), g(0x7c0), x, y, t, state, e)
+            set_occ(st, g(0x48c), x, y, t)
+            st.player.effect(st, 'redraw_all')
+        eat(st, 1)                                                      # MenuCommand12de1(1)
+    stop_action(st, g(0x48c), g(0x47c), g(0x48a))                      # f_2f820
+    if st.u16(G, 0xf24) and g(0x48c) == 1:                             # on the house's 0x76 / 0x78 tiles
+        o = ((st.u16(G, 0x47c) << 6) + st.u16(G, 0x48a)) & 0xffff
+        if st.u8(SIM, SURFACE + o) in (0x76, 0x78):
+            st.player.game_event(st, 10)
+
+
+def _step(st):
+    """The walking part of f_7b7b8: (res, done)."""
+    g = lambda off: s16(st.u16(G, off))
+    view = g(0x48c)
+    d = step_to_cursor(st, view, g(0x47c), g(0x48a), g(0xaf8), g(0xad6), g(0xae8))
+    if d < 0:
+        return d, True
+    nb = st.s8(T, 8 + d) + g(0x48a)
+    st.set16(G, 0xab6, g(0x47c))
+    st.set16(G, 0xac6, g(0x48a))
+    na = g(0x47c) + st.s8(T, d)
+    move_yellow(st, view, na, nb, g(0x4c2), d)
+    st.inc16(G, 0xc3e)
+    t = g(0x4c2)
+    if view == 1:
+        if g(0x4c4) > 0 and t in (0x18, 0x38):                         # carrying food: lay the trail
+            ph.lay_max(st, ph.BLACK_TRAIL if st.u16(G, 0x4e2) == 0 else ph.RED_TRAIL, g(0x47c), g(0x48a),
+                       st.u16(G, 0x4c4))
+            if g(0x4c4) > 10:
+                st.inc16(G, 0x4c4, -1)
+        if st.u16(G, 0x104e):
+            alarm_add(st, g(0x47c), g(0x48a), 0x32)
+    else:
+        ng.update_exit_field(st, ng.BLACK if view == 2 else ng.RED, g(0x47c), g(0x48a))
+    if st.u8(G, 0xc3e) & 1:
+        if t == 0x40 and st.u16(T, 0xc24) == 0 and g(0x10be) > 0 and st.u16(T, 0xc18) == 0:
+            st.inc16(G, 0x10be, -1)
+        set_health(st, _hp(st) - 1)
+    if g(0x48c) == 1:
+        if not mv.at_nest_entrance(st, g(0x47c), g(0x48a)):
+            return 0, True
+        if not (g(0xaf8) > 1 or (g(0xaf8) == g(0x48c) and g(0xad6) == g(0x47c) and g(0xae8) == g(0x48a))):
+            return 0, True
+        st.player.effect(st, 'redraw_all')                              # f_11ab0
+        old = g(0x48c)
+        enter_nest(st)
+        return _after_switch(st, old, na, nb)
+    if g(0x48a) == 0:
+        st.player.effect(st, 'redraw_all')
+        old = g(0x48c)
+        leave_nest(st)
+        return _after_switch(st, old, na, nb)
+    if (get_tile(st, g(0x48c), g(0xad6), g(0xae8)) == 0x14 and t != 0x60
+            and g(0xad6) == g(0x47c) and g(0xae8) == g(0x48a)):           # through the hole into the other nest
+        take_yellow(st, g(0x48c), g(0x47c), g(0x48a), t, st.u16(G, 0x496))
+        st.set16(G, 0x48c, 3 if g(0x48c) == 2 else 2)
+        put_yellow(st, g(0x48c), g(0x47c), g(0x48a), t, st.u16(G, 0x496), 0xff)
+        st.player.effect(st, 'sound', 1)
+        ui_follow(st)
+        if g(0x48c) == 3:
+            st.player.effect(st, 'status', 'red nest')                  # f_15e2c
+        return -1, True
+    return 0, True
+
+
+def _after_switch(st, old_view, na, nb):
+    """L_bc43: after entering or leaving a nest the walk goes on, unless the cursor was on the entrance
+    cell just stepped onto (and the new view is not the one shown, G:032E)."""
+    g = lambda off: s16(st.u16(G, off))
+    if not (g(0xaf8) == old_view and g(0xad6) == na and g(0xae8) == nb):
+        return 0, True
+    if g(0x48c) == g(0x32e):
+        return 0, True
+    if st.u16(T, 0x7a8) == 0:
+        ui_follow(st)
+    return -1, True
+
+
+def alarm_add(st, a, b, n):
+    """f_14cad: alarm scent += n (max 200)."""
+    i = (s16(a) >> 1) * 32 + (s16(b) >> 1)
+    v = st.u8(SIM, 0xd09f + i) + n
+    st.set8(SIM, 0xd09f + i, min(v, 200))
+
+
 def _s32(v):
     v &= 0xffffffff
     return v - 0x100000000 if v & 0x80000000 else v

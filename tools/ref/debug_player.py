@@ -11,6 +11,7 @@ label = sys.argv[1]
 check = next(c for c in tp.CHECKS if c[0] == label)
 _, lin, fn, repeat, pre, args_fn = check
 v = tp.VER = Verifier()
+tp.configure(v, label)
 tick, mem = v.snaps[int(sys.argv[2]) if len(sys.argv) > 2 else 0]
 for n in range(1, repeat + 1):
     v.load(mem)

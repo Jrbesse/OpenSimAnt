@@ -918,7 +918,7 @@ yard_colonies (f_6a1f4), every 32 yard ticks (G:07C2 & 0x1F == 0):
 8. Rendering: tile and sprite mapping for surface/nest views (find the draw routines), map windows, UI.
 9. Save-file format (`.ANT`).
 
-## The player (yellow ant): sec27 `f_7bf7e` and `f_7b7b8` (port in progress: `simant_ref/player.py`)
+## The player (yellow ant): sec27 `f_7bf7e` and `f_7b7b8` (ported: `simant_ref/player.py`)
 
 State: position G:047C (a) / G:048A (b) in view G:048C (1 surface, 2 black nest, 3 red nest), type
 G:04C2, colour G:04E2 (0 black), heading G:0496, health G:0F78 (0..100), G:1006 ticks at zero health. On
@@ -938,7 +938,7 @@ f_7bf7e (each tick, G:0A06 == 0), ported and verified (`yellow_tick`):
   health <= 0: G:1006 += 1; at 100: f_2f7d0(7 drowned / 8 died)
 f_12d43(hp): G:0F78 = T:0C16 ? 100 : hp, clamped 0..100; > 0 clears G:1006; G:1044 = low-health warning
 
-f_7b7b8 (each tick, if G:0AA0), decoded, not yet ported:
+f_7b7b8 (each tick, if G:0AA0), ported and verified (`player_action`):
   res = 0
   if mode >= 3: (a, b, t, x, y) = ant G:07C0 of view G:08DA (f_10fcd); gone or (t ^ G:084E) & 0xF0 → res -2
       same view and |da| <= 1 and |db| <= 1: face it (DirTo - 1 → G:0496); res -1
@@ -954,6 +954,8 @@ f_7b7b8 (each tick, if G:0AA0), decoded, not yet ported:
         odd G:0C3E: health -= 1 (a black queen 0x40 also costs black health unless T:0C24 / T:0C18)
         surface on an entrance (f_0acfb), cursor in a nest or here: f_7c7e5 (enter the nest)
         nest row 0: f_7c8fe (climb out)
+            after entering / climbing out the walk goes on (res 0), unless the cursor was on the cell
+            just stepped onto in the old view and the new view is not the one shown (G:032E): res -1
         nest, target tile 0x14 (hole into the other nest) here, not a queen: switch nests (view 2 <-> 3)
   res == 0 and at the cursor in mode 0 → res -1
   res -2: sound, f_01c52; res != 0: mode 3 → AttackPlayer(G:08DA, G:07C0) with G:1058 = 1;
@@ -994,7 +996,7 @@ Port plan, bottom-up, each layer verified on its own (`test_player.py`):
   fight cloud with random headings: Rand2 + Rand8 each; it busy-waits on the clock, so the verifier
   unfreezes the clock for these checks), f_757dd stop_action. f_15e2c is the status line (screen only),
   f_14cad alarm += n (max 200).
-- E f_7b7b8 itself.
+- E (done): f_7b7b8 itself, verified by 33 action scenarios run tick by tick until the action ends.
 UI pieces to stub in the emulator (they write G screen state): f_01aa7 (scroll the view to the yellow
 ant, from f_01c52, which also sets G:1074 = 1), f_03381 (redraw, from f_03391 / f_11ab0); f_0250e marks
 the dirty map G:15C4 (ignored by the tests). Thunks: f_2f802 → f_71a7d (full-screen picture, stubbed), f_2f80c → f_76a37
