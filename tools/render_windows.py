@@ -47,8 +47,38 @@ def render_window(wid, path, pal):
         for y in range(t, b):
             plot(l, y, c)
             plot(r - 1, y, c)
+        if it.get('text'):
+            draw_text(img, it, wl, wt)
     write_png(path, len(img[0]), len(img), img)
     return True
+
+
+_fonts = {}
+
+
+def draw_text(img, it, wl, wt, rgb=(0, 0, 0, 255)):
+    """f_21fa2: font = the byte at +28 (f_24d5d), alignment = (word +24 & 0x180) >> 7: 0 / 3 centred
+    ((left + right - width) / 2), 1 left + 4, 2 right - width - 4, never left of `left`; vertically
+    centred, y = (top + bottom - font height) / 2 (3 also underlines). Strings with % are printf formats
+    filled at run time (drawn as is). Colour (+26?) not decoded: black."""
+    from fonts import Font
+    extra = bytes.fromhex(it['extra'])
+    fid = extra[4] if len(extra) > 4 else 0
+    if fid not in _fonts:
+        try:
+            _fonts[fid] = Font(fid)
+        except (OSError, ValueError):
+            _fonts[fid] = None
+    f = _fonts[fid]
+    if f is None:
+        return
+    align = ((extra[0] | extra[1] << 8) & 0x180) >> 7 if len(extra) > 1 else 0
+    l, t, r, b = it['rect']
+    w = f.width(it['text'])
+    x = {1: l + 4, 2: r - w - 4}.get(align, (l + r - w) // 2)
+    x = max(x, l)
+    y = (t + b - f.height) // 2
+    f.draw(img, x - wl, y - wt, it['text'], rgb)
 
 
 def main():

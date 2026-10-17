@@ -63,7 +63,7 @@ needed for decoding.
 | 2 | 40 | 1-bit bitmaps (bitmap header below, `planes=1`, 1 = black). Encyclopedia pictures and small icons. |
 | 4 | 113 | `STR#` string lists: u16 **BE** count, then Pascal strings. Speech-balloon strings use a literal `\n` (backslash-n) for line breaks. |
 | 10 | 94 | Plain text (Mac Roman, CR line endings, NUL-terminated). Help and SimAntipedia text. |
-| 11 | 4 | Fonts (Mac `FONT` format, BE; id 0 has a different header that is still undecoded) |
+| 11 | 4 | Fonts (`tools/fonts.py`): 0 / 1 the game's own PC-style format (LE; 0 bold, 15 rows; 1 8 x 10), 2 / 3 Apple `FONT` (BE; 2 Geneva-like, 3 Times-like, 10 rows). Layout: see `fonts.py` |
 | 17 | 53 | Encyclopedia card layouts: references to `PICT` ids and rectangles (HyperCard-like) |
 | 19 | 53 | Card names (`Top_Card`, `Ant_Anatomy`, `Castes`, `Scent_Trails`, …) |
 | 21 | 88 | Text style runs for the type 10 texts (like Mac `styl`) |
@@ -128,6 +128,19 @@ item record
 | 0x11 | strlen + 0x31 | filled text, string at +2E |
 | 0x12 | strlen + 0x31 | caption, string at +2E ("%s": the window's title) |
 | 0x13..0x16 | 0x29 | more frame styles, +28 |
+
+Text items (types 0x05, 0x09, 0x0C, 0x10..0x12) are drawn by `f_21fa2`:
+- Font: the byte at +28 (`f_24d5d`; ids are SHARED type 11). Captions and the status numbers use font
+  0, "Click here to continue" font 2, the yard counters font 3.
+- Alignment: (word +24 & 0x180) >> 7.
+  - 0 / 3: centred, x = (left + right - width) / 2 (3 also underlines).
+  - 1: left + 4.
+  - 2: right - width - 4.
+  - x is never less than left.
+- Vertical position: y = (top + bottom - font height) / 2.
+- Type 0x10's string can come from a far pointer at +2A / +2C at run time. Strings with % are printf
+  formats ("%s" captions are the window titles).
+- The text colour (+26?) is not decoded.
 
 The windows:
 
