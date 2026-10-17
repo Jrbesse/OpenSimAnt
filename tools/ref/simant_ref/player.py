@@ -811,9 +811,143 @@ def ui_follow(st):
     st.player.effect(st, 'follow')
 
 
+# ------------------------------------------------------------------------------------------- nests and fights
+def alarm_mode(st, on, quiet):
+    """f_76a37 (via f_2f80c): the yellow ant lays alarm scent as it walks (G:104E; surface only)."""
+    if on:
+        if s16(st.u16(G, 0x48c)) == 1 and st.u16(G, 0xa06) == 0:
+            st.set16(T, 0x7be, 0)
+            st.player.effect(st, 'menu_check', 0x10, on)                # f_22f65
+            st.set16(G, 0x104e, 1)
+            if not quiet:
+                st.player.effect(st, 'sound', 0xf)
+        elif not quiet:
+            st.player.effect(st, 'sound', 1)
+    else:
+        st.set16(G, 0x104e, 0)
+        st.player.effect(st, 'menu_check', 0x10, on)
+        st.set16(T, 0x7be, 0xffff)
+        if not quiet:
+            st.player.effect(st, 'sound', 0xf)
+    st.player.effect(st, 'redraw_rect')                                  # f_0256e
+
+
 def enter_nest(st):
-    """f_7c7e5 (via f_2f834): not ported yet."""
-    raise NotImplementedError('f_7c7e5 (the yellow ant enters a nest)')
+    """f_7c7e5 (also via f_2f834): from a surface entrance into the top of nest column b (the black nest
+    on the left half of the patch, the red one on the right); alarm-trail mode ends."""
+    jingle(st)
+    if st.u16(G, 0x104e):
+        alarm_mode(st, 0, 1)
+    view, a, b = s16(st.u16(G, 0x48c)), s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a))
+    t, h = s16(st.u16(G, 0x4c2)), st.u16(G, 0x496)
+    take_yellow(st, view, a, b, t, h)
+    st.set16(G, 0x48c, 3 if a > 0x40 else 2)
+    st.set16(G, 0x47c, b)
+    st.set16(G, 0x48a, 2 if t == 0x60 else 1)
+    st.set16(G, 0x496, 4)
+    view, a, b = s16(st.u16(G, 0x48c)), s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a))
+    dig_through(st, view, a, b)
+    put_yellow(st, view, a, b, t, 4, 0xff)
+
+
+def leave_nest(st):
+    """f_7c8fe: climb out of the nest's entrance (opening one if there is none) onto a free cell next to it
+    (2 cells for a queen), facing the cursor if it is on the surface."""
+    jingle(st)
+    view, a, b = s16(st.u16(G, 0x48c)), s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a))
+    t = s16(st.u16(G, 0x4c2))
+    put_yellow(st, view, a, b, t, st.u16(G, 0x496), 0)
+    col = st.u8(G, 0x47c) & 0x3f
+    st.set16(G, 0x48a, col)
+    n = NESTS[2] if view == 2 else NESTS[3]
+    if st.u8(T, n['entr'] + col) == 0:
+        nest.make_surface_hole(st, n, s16(st.u16(G, 0x47c)))
+    st.set16(G, 0x47c, st.u8(T, n['entr'] + col))
+    a, b = s16(st.u16(G, 0x47c)), col
+    k = 2 if t == 0x60 else 1
+    tv = s16(st.u16(G, 0xaf8))
+    if tv == 1:
+        d = mv.dir_to(a, b, s16(st.u16(G, 0xad6)), s16(st.u16(G, 0xae8)))
+        base = d - 1 if d > 0 else d
+    elif tv == view:
+        base = 2 if a < 0x40 else 6
+    else:
+        base = step_to_cursor(st, 1, a, b, tv, s16(st.u16(G, 0xad6)), s16(st.u16(G, 0xae8)))
+        if base < 0:
+            base = st.rand8()
+    for i in range(8):
+        d = (st.s8(T, 0x6c + i) + base) & 7
+        x, y = a + st.s8(T, d) * k, b + st.s8(T, 8 + d) * k
+        if can_drop(st, 1, x, y):
+            st.set16(G, 0x47c, x)
+            st.set16(G, 0x48a, y)
+            st.set16(G, 0x496, d)
+            break
+    else:
+        st.set16(G, 0x496, base)
+        st.set16(G, 0x47c, (st.u8(G, 0x47c) + k) & 0x7f)
+    st.set16(G, 0x48c, 1)
+    put_yellow(st, 1, s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a)), t, st.u16(G, 0x496), 0xff)
+
+
+def fight_animation(st, view, a, b, heading, t, mode):
+    """f_7c149 mode 0 (the fight): the yellow ant flashes as a fight cloud (type t) with random headings
+    six times, then is lifted off the map with its state restored. The original waits on the clock
+    between frames; other modes (animations started by the player-event UI) are not ported."""
+    if mode != 0:
+        raise NotImplementedError(f'f_7c149 mode {mode}')
+    saved = (view, a, b, st.u16(G, 0x4c2))
+    put_yellow(st, s16(st.u16(G, 0x48c)), s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a)),
+               s16(st.u16(G, 0x4c2)), st.u16(G, 0x496), 0xff)
+    for _ in range(6):
+        if st.rand2():
+            st.player.effect(st, 'sound', 0x25)
+        move_yellow(st, view, a, b, t, st.rand8())
+    take_yellow(st, view, a, b, t, st.u16(G, 0x496))
+    for off, v in zip((0x48c, 0x47c, 0x48a, 0x4c2), saved):
+        st.set16(G, off, v)
+    st.set16(G, 0x496, heading)
+
+
+def stop_action(st, view, a, b):
+    """f_757dd (via f_2f820): the action is over; the cursor rests on the yellow ant."""
+    for off in (0x48c, 0xaf8):
+        st.set16(G, off, view)
+    for off in (0x47c, 0xab6, 0xad6):
+        st.set16(G, off, a)
+    for off in (0x48a, 0xac6, 0xae8):
+        st.set16(G, off, b)
+    for off in (0xa8e, 0xaa0, 0xb1e, 0xc38, 0xc3e):
+        st.set16(G, off, 0)
+    st.set16(G, 0xd6c, 0xfffe)
+
+
+def attack_player(st, view, i):
+    """AttackPlayer f_7c5ab: the yellow ant fights ant i of the view's list."""
+    f = _ants(view)
+    t = st.u8(SIM, f['type'] + i)
+    x, y = st.u8(SIM, f['x'] + i), st.u8(SIM, f['y'] + i)
+    clear_occ_if(st, view, x, y, t)
+    from .surface import resolve_fight, place_corpse
+    w = resolve_fight(st, st.u16(G, 0x4c2), st.u8(SIM, f['type'] + i))
+    if st.u16(G, 0x4c2) != w:
+        ui_follow(st)
+    ya, yb = s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a))
+    fight_animation(st, s16(st.u16(G, 0x48c)), ya, yb, st.u16(G, 0x496), 0x70, 0)
+    if st.u16(G, 0x4c2) == w:                                          # the yellow ant wins
+        put_yellow(st, s16(st.u16(G, 0x48c)), s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a)),
+                   s16(st.u16(G, 0x4c2)), st.u16(G, 0x496), 0xff)
+        if view <= 1:
+            place_corpse(st, st.u8(SIM, f['x'] + i), st.u8(SIM, f['y'] + i), st.u8(SIM, f['type'] + i) & 0x80)
+        st.set8(SIM, f['type'] + i, 0)
+        if (st.u16(G, 0xa8e) == 3 and st.u16(G, 0x48c) == st.u16(G, 0x8da)
+                and st.u16(G, 0x7c0) == i & 0xffff):
+            stop_action(st, s16(st.u16(G, 0x48c)), s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a)))
+        return
+    set_occ(st, view, st.u8(SIM, f['x'] + i), st.u8(SIM, f['y'] + i), st.u8(SIM, f['type'] + i))
+    if view <= 1:
+        place_corpse(st, s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a)), st.u16(G, 0x4e2))
+    st.player.game_event(st, 0)                                         # the yellow ant dies
 
 
 def _s32(v):

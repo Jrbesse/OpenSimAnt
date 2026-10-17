@@ -252,6 +252,118 @@ LAYER_C = [
 ]
 
 
+class QuietPlayer(sf.NoPlayer):
+    """Player hooks for checks where the original's f_2f7d0 (player-event UI) is stubbed."""
+    def game_event(self, st, n):
+        pass
+
+
+def quiet(fn, nargs=0):
+    def run(st, *args):
+        st.player = QuietPlayer()
+        return fn(st, *args[:nargs])
+    return run
+
+
+def live_ant(view, k=0):
+    """args (view, i): the k-th live ant (from the top) of the view's list."""
+    def args(st, i):
+        f = player._ants(view)
+        n = st.s16(G, f['count'])
+        live = [j for j in range(n) if st.u8(SIM_, f['type'] + j)]
+        if not live:
+            return None
+        return (view, live[-1 - ((k + i * 7) % len(live))])
+    return args
+
+
+def entrance(nest_view, k=0):
+    """(a, b) of a surface entrance of the black (2) or red (3) nest."""
+    def get(st):
+        base = 0x224 if nest_view == 2 else 0x264
+        cols = [c for c in range(64) if st.u8(T, base + c)]
+        c = cols[k % len(cols)]
+        return st.u8(T, base + c), c
+    return get
+
+
+def yellow_on(view, where, t=0x10, g=(), tt=()):
+    """pre hook: put the yellow ant (type t) at view / where (a tuple or a function of the state)."""
+    def pre(set16, a):
+        st = VER.state_from_emu()
+        pos = where(st) if callable(where) else where
+        set16(G, 0x48c, view)
+        set16(G, 0x47c, pos[0])
+        set16(G, 0x48a, pos[1])
+        set16(G, 0x4c2, t)
+        for off, val in g:
+            set16(G, off, val)
+        for off, val in tt:
+            set16(T, off, val)
+    return pre
+
+
+def boxed_exit(box, t=0x10):
+    """pre hook: the yellow ant leaves the black nest at column 32, the cursor in the red nest whose
+    entrance is moved onto the black one (so the step there fails); box: rocks all around the entrance."""
+    def pre(set16, a):
+        st = VER.state_from_emu()
+        ea = st.u8(T, 0x224 + 32)
+        set16(G, 0x48c, 2)
+        set16(G, 0x47c, 32)
+        set16(G, 0x48a, 0)
+        set16(G, 0x4c2, t)
+        set16(G, 0xaf8, 3)
+        set16(T, 0x2b0, ea)
+        set16(T, 0x2b2, 32)
+        if box:
+            for da in range(-2, 3):
+                for db in range(-2, 3):
+                    if (da, db) != (0, 0):
+                        set16.byte(SIM_, 0x180 + (ea + da) * 64 + 32 + db, 0x60)
+    return pre
+
+
+LAYER_D = [
+    ('enter nest black', 0x7c7e5, port(player.enter_nest), 1, yellow_on(1, entrance(2)), None),
+    ('enter nest red', 0x7c7e5, port(player.enter_nest), 1, yellow_on(1, entrance(3)), None),
+    ('enter nest queen', 0x7c7e5, port(player.enter_nest), 1, yellow_on(1, entrance(2), t=0x60), None),
+    ('enter nest alarm mode', 0x7c7e5, port(player.enter_nest), 1, yellow_on(1, entrance(2), g=((0x104e, 1),)),
+     None),
+    ('enter nest anywhere', 0x7c7e5, port(player.enter_nest), 1, yellow_on(1, (70, 20)), None),
+    ('enter nest jingle', 0x7c7e5, port(player.enter_nest), 1,
+     yellow_on(1, entrance(2), g=((0x214, 0), (0x216, 0))), None),
+] + [
+    (f'leave nest {k}', 0x7c8fe, port(player.leave_nest), 1,
+     yellow_on(v, pos, t=t, g=((0xaf8, tv), (0xad6, 60), (0xae8, 30))), None)
+    for k, (v, pos, t, tv) in enumerate((
+        (2, (34, 0), 0x10, 1), (2, (34, 0), 0x10, 2), (2, (34, 0), 0x10, 3), (2, (34, 0), 0x60, 1),
+        (3, (32, 0), 0x10, 1), (3, (32, 0), 0x10, 3), (3, (32, 0), 0x10, 2), (2, (10, 0), 0x10, 1),
+        (3, (50, 0), 0x10, 1), (2, (20, 0), 0x10, 3)))
+] + [
+    ('leave nest cursor step fails', 0x7c8fe, port(player.leave_nest), 1, boxed_exit(False), None),
+    ('leave nest boxed in', 0x7c8fe, port(player.leave_nest), 1, boxed_exit(True), None),
+    ('leave nest boxed in queen', 0x7c8fe, port(player.leave_nest), 1, boxed_exit(True, t=0x60), None),
+] + [
+    (f'alarm mode {on} {q} view {v}', 0x76a37, port(player.alarm_mode, 2), 1, setter_g(((0x48c, v),)),
+     lambda st, i, on=on, q=q: (on, q)) for on in (0, 1) for q in (0, 1) for v in (1, 2)
+] + [
+    ('stop action', 0x757dd, port(player.stop_action, 3), 3, None, sweep((1, 3), (0, 63), (0, 63), seed=90)),
+] + [
+    (f'attack view {v} type {t:#x} {k}', 0x7c5ab, quiet(player.attack_player, 2), 6,
+     yellow_on(yv, ypos, t=t, g=g), live_ant(v, k))
+    for k, (v, yv, ypos, t, g) in enumerate((
+        (2, 2, (34, 9), 0x10, ()), (2, 2, (34, 9), 0x30, ()), (1, 1, (60, 30), 0x10, ()),
+        (1, 1, (60, 30), 0x30, ()), (3, 3, (32, 12), 0x10, ()), (2, 2, (34, 9), 0x60, ()),
+        (2, 2, (34, 9), 0x10, ((0xa8e, 3), (0x8da, 2))), (1, 1, (60, 30), 0x90, ()),
+        (2, 2, (34, 9), 0x10, ((0x4e2, 1),)),
+    ))
+] + [
+    ('attack T:0C14', 0x7c5ab, quiet(player.attack_player, 2), 4, yellow_on(2, (34, 9), tt=((0xc14, 1),)),
+     live_ant(2, 3)),
+]
+
+
 CHECKS = [
     ('is walkable surface', 0x1323e, port(player.is_walkable, 7), 600,
      None, sweep((0, 1), (-2, 129), (-2, 65), (0, 3), (0, 127), (0, 63), (0, 1))),
@@ -286,7 +398,7 @@ CHECKS = [
      sweep((1, 3), (1, 62), (1, 62), (0x60, 0x60), (0, 7), seed=16)),
     ('jingle', 0x0cd37, port(player.jingle), 5, setter_g(((0x214, 0), (0x216, 0))), None),
     ('jingle wait', 0x0cd37, port(player.jingle), 5, None, None),
-] + WALK_CHECKS + LAYER_C + [
+] + WALK_CHECKS + LAYER_C + LAYER_D + [
     # (label, original, port, repeat, pre, args_fn)
     ('upkeep', 0x7bf7e, port(player.yellow_tick), 200, yellow(), tick_args),
     ('upkeep queen', 0x7bf7e, port(player.yellow_tick), 200, yellow(t=0x60, heading=2), tick_args),
@@ -321,11 +433,13 @@ def main():
     global VER
     only = sys.argv[1:]
     v = VER = Verifier()
-    v.extra_stubs = (0x01aa7, 0x03381)      # UI: scroll to the yellow ant, redraw
     ok = True
     for label, lin, fn, repeat, pre, args_fn in CHECKS:
         if only and not any(o in label for o in only):
             continue
+        # UI: scroll to the yellow ant, redraw, menu check marks; the player-event UI where hooks are quiet
+        v.extra_stubs = (0x01aa7, 0x03381, 0x22f65) + ((0x2f7d0,) if label.startswith('attack') else ())
+        v.e.clock_frozen = not label.startswith('attack')     # the fight animation waits on the clock
         ok &= v.check(lin, fn, label=label, repeat=repeat, pre=pre, ignore=SCREEN, args_fn=args_fn)
     print('ALL OK' if ok else 'SOME MISMATCHES')
     return ok

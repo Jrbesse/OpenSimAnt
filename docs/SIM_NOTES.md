@@ -986,8 +986,14 @@ Port plan, bottom-up, each layer verified on its own (`test_player.py`):
   old health / (black pop - 1), n 2 costs 10; f_14ee2 / f_14f59 a new queen (0x40, or T:0798) founds a
   nest on open ground (then f_2f834 = f_7c7e5 enters it). Drops and pick-ups read the BIOS keyboard
   flags at 0000:0417: Shift + Alt keeps the load (a cheat; `State.bios_kbd`).
-- D f_7c7e5 (enter a nest), f_7c8fe (climb out), AttackPlayer f_7c5ab + f_7c149, MenuCommand12de1,
-  f_15e2c, f_14cad (alarm += n, max 200).
+- D (done): f_7c7e5 enter a nest (left half of the patch → black, right → red; top of nest column = the
+  surface b; a queen one row deeper; alarm-trail mode off via f_76a37), f_7c8fe climb out (opens an
+  entrance if the column has none; a free cell next to it, 2 away for a queen, facing the cursor),
+  AttackPlayer f_7c5ab (ResolveFight(yellow, ant); winner keeps the cell; the loser's corpse on the
+  surface; the yellow ant losing → f_2f7d0(0)), f_7c149 mode 0 the fight animation (6 frames of a 0x70
+  fight cloud with random headings: Rand2 + Rand8 each; it busy-waits on the clock, so the verifier
+  unfreezes the clock for these checks), f_757dd stop_action. f_15e2c is the status line (screen only),
+  f_14cad alarm += n (max 200).
 - E f_7b7b8 itself.
 UI pieces to stub in the emulator (they write G screen state): f_01aa7 (scroll the view to the yellow
 ant, from f_01c52, which also sets G:1074 = 1), f_03381 (redraw, from f_03391 / f_11ab0); f_0250e marks

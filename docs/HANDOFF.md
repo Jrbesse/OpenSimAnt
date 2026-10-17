@@ -81,8 +81,8 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 1. (done: the yard layer, sec8 `f_68513`, in `simant_ref/yard.py` / `test_yard.py`.)
 2. **The player system** (`simant_ref/player.py`, `test_player.py`; plan and decoded pseudo-code in
    SIM_NOTES "The player (yellow ant)"). Done and verified: `f_7bf7e` (`yellow_tick`), layer A (map
-   accessors), layer B (pathfinding) and layer C (`f_13644` acting on a cell). Next: D
-   (entering / leaving nests, `AttackPlayer`, `MenuCommand12de1`), E (`f_7b7b8`). Asm dumps for the
+   accessors), layer B (pathfinding), layer C (`f_13644` acting on a cell) and layer D (nests,
+   fights). Next: E (`f_7b7b8` itself). Asm dumps for the
    player are in `tools/re/build/asm/player/` (regenerate with `adis.py`). For the routines that call UI
    (`f_01c52` → `f_01aa7`, `f_03391` → `f_03381`), stub those UI routines in the emulator; note that
    `Verifier.load` restores code too, so extra stubs must be re-applied after each load.
