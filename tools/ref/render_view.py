@@ -427,45 +427,77 @@ def _fill_poly(img, pts, rgb):
                 img[yy][xx] = rgb
 
 
-def render_yard(st, path, art=None, human=True, top=(7010,), colonies=None):
-    """Write the yard picture in yard coordinates (the window's corner G:10D2 / G:10D4 at 0, 0): `top`
-    (strips above the grid, drawn by the window's layout, not traced: 7010 is the yard window's toolbar),
-    the grid strips 7020..7022 from y 64 (f_6fac7 starts them at the bottom of item 0x1914), then
-    yard_sprites (top-left corners) or a colony view ('strat' / 'graphic', yard_colonies)."""
+def _layout(wid):
+    sys.path.insert(0, os.path.join(HERE, '..'))
+    import layouts
+    return layouts.load(wid)
+
+
+def _bitmap(art, rid):
     import bitmaps
+    p = os.path.join(tiles.EXTRACTED, 'bitmap', f'{rid:05d}.bin')
+    if not os.path.exists(p):
+        return None
+    return bitmaps.decode(open(p, 'rb').read(), palette=art.pal)
+
+
+def render_yard(st, path, art=None, human=True, colonies=None):
+    """Write the yard window (layout 25) in screen coordinates, cropped to the window: its frame, the
+    toolbar 7010 (item 0x1904), then
+    - the yard (view G:035C 0 / 1): the yard picture, items 0x1903 (7000, the house) and 0x190F (7003,
+      the lawn; its grid is the patch grid), with yard_sprites at the yard origin G:10D2 / G:10D4 = item
+      0x1902's corner + (1, 0) = (65, 83) (set by the code at 0x01002);
+    - a colony view (`colonies` 'strat' / 'graphic', G:035C >= 2; f_6fac7 draws the grid strips then, on
+      640-wide 16-colour screens): the strips 7020..7022 from (item 0x1902's left, item 0x1914's bottom)
+      = (64, 148), with yard_colonies at the same origin."""
+    house = not colonies
     art = art or Art()
-    strips = []
-    for rid in tuple(top) + (7020, 7021, 7022):
-        p = os.path.join(tiles.EXTRACTED, 'bitmap', f'{rid:05d}.bin')
-        if not os.path.exists(p):
+    win = _layout(25)
+    items = {it['id']: it for it in win['items']}
+    wl, wt, wr, wb = win['rect']
+    img = [[tuple(art.pal[12]) + (255,)] * (wr - wl) for _ in range(wb - wt)]
+    img = [list(r) for r in img]
+
+    def put(rid, x, y):
+        bm = _bitmap(art, rid)
+        if bm is None:
             return False
-        strips.append(bitmaps.decode(open(p, 'rb').read(), palette=art.pal))
-    w = max(s[0] for s in strips)
-    # the grid's top is at y 64 in yard coordinates: the colony views put row 0 at y 64..74 (DS:2A42 /
-    # f_70cf5); the strips above it end there (an 18 px band above 7010 is left black)
-    above = sum(s[1] for s in strips[:len(top)])
-    img = [[(0, 0, 0, 255)] * w for _ in range(max(0, 64 - above))]
-    for sw, sh, rows, _ in strips:
-        for r in rows:
-            img.append([tuple(px) if px[3] else (0, 0, 0, 255) for px in r] + [(0, 0, 0, 255)] * (w - sw))
-    dy = max(0, above - 64)
-    if colonies:
-        rgb = lambda code: tuple(art.pal[code & 0xf]) + (255,)
-        for shape in yard_colonies(st, colonies):
-            if shape[0] == 'poly':
-                pts = [(x, y + dy) for x, y in shape[1]]
-                _fill_poly(img, pts, rgb(shape[2]))
-                for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]):
-                    _line(img, x0, y0, x1, y1, rgb(shape[3]))
-            else:
-                l, t, r, b = shape[1]
-                for yy in range(t + dy, b + dy):
-                    for xx in range(l, r):
-                        if 0 <= yy < len(img) and 0 <= xx < len(img[0]):
-                            img[yy][xx] = rgb(shape[2])
-    else:
+        w, h, rows, _ = bm
+        for yy in range(h):
+            for xx in range(w):
+                px = rows[yy][xx]
+                if px[3] and 0 <= y - wt + yy < len(img) and 0 <= x - wl + xx < len(img[0]):
+                    img[y - wt + yy][x - wl + xx] = tuple(px)
+        return True
+    put(7010, *items[0x1904]['rect'][:2])
+    ox, oy = items[0x1902]['rect'][0] + 1, items[0x1902]['rect'][1]
+    if house:
+        put(7000, *items[0x1903]['rect'][:2])
+        put(7003, *items[0x190f]['rect'][:2])
         for rid, x, y in yard_sprites(st, human):
-            _blit_bitmap(img, rid, x, y + dy, art)
+            put(rid, x + ox, y + oy)
+    else:
+        x, y = items[0x1902]['rect'][0], items[0x1914]['rect'][3]
+        for rid in (7020, 7021, 7022):
+            bm = _bitmap(art, rid)
+            if bm is None:
+                return False
+            put(rid, x, y)
+            y += bm[1]
+        if colonies:
+            rgb = lambda code: tuple(art.pal[code & 0xf]) + (255,)
+            for shape in yard_colonies(st, colonies):
+                if shape[0] == 'poly':
+                    pts = [(x + ox - wl, y + oy - wt) for x, y in shape[1]]
+                    _fill_poly(img, pts, rgb(shape[2]))
+                    for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]):
+                        _line(img, x0, y0, x1, y1, rgb(shape[3]))
+                else:
+                    l, t, r, b = shape[1]
+                    for yy in range(t + oy - wt, b + oy - wt):
+                        for xx in range(l + ox - wl, r + ox - wl):
+                            if 0 <= yy < len(img) and 0 <= xx < len(img[0]):
+                                img[yy][xx] = rgb(shape[2])
     write_png(path, len(img[0]), len(img), img)
     return True
 

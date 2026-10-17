@@ -74,7 +74,7 @@ needed for decoding.
 |---|---|---|
 | 2 | 212 | 16-color bitmaps |
 | 15 | 2 | Palette. id 0 is u16 count (16) followed by 16 RGB triplets: the Mac 4-bit system palette (**index 0 = white, 15 = black**). |
-| 0 | 37 | Window/dialog layouts (rectangles plus items, not decoded yet) |
+| 0 | 37 | Window/dialog layouts: 0..33 are windows, 128 / 129 / 131 UI tables (see "Window layouts") |
 | 9 | 11 | id 0: rectangle table (320 bytes). **ids 9 / 10: the house / yard tile sheets; 13..20: ant sprite sheets** (see "Map tiles and ant sprites") |
 | 4 | 6 | Tutorial `STR#` strings |
 | 7, 8 | 3 | Cursors |
@@ -85,6 +85,92 @@ needed for decoding.
 | 20 | 30 | **Standard MIDI files** (SMF format 1, 10 tracks, 240 PPQ). Written out as-is to `.mid`. |
 | 18 | 33 | Per-song metadata, 18 bytes: BE id, channel/instrument hints |
 | 5 | 57 | Sound effects. The first 16 bytes are a signed delta table, followed by 4-bit codes (high nibble first). Start at 0, add `table[code]`, clamp to ±127. The sample rate is not stored; 11025 Hz is a guess to confirm by ear. Sound 56 has a near-linear table and may use a different scheme. |
+
+## Window layouts (HCEGANT type 0; `tools/layouts.py`, `tools/render_windows.py`)
+
+Layout n is window n, loaded into memory as-is: the window table DS:9230 holds a handle per window id.
+An item id is (window << 8) | item index. The game asks for an item's rectangle with `f_252d8(id)`
+(window struct + 0x2C + 4 * index → the item → its first 8 bytes), and the main window's buttons
+arrive as commands with their item id (`f_6e5c0`: 0x102..0x118).
+
+```
+window header (0x2C bytes)
+  +00 rect: left, top, right, bottom (i16, 640 x 480 screen coordinates)
+  +08 2 x u16 (0)
+  +0C u16 item count
+  +0E u16 resource size
+  +10 ... (4 x 0x14, then flags; not decoded)
+  +2C item table: 4 bytes per item (offset into the resource + a placeholder segment); the loader
+      f_25098 rebuilds it by walking the records (next = item + its length)
+item record
+  +00 rect (absolute)      +08 x, y relative to the window      +0C width, height
+  +10 u16 parent id, +12 u16 container id, +14 u16 link id, +16 u16 own id
+  +18 4 x u16 (1, 2, 1, 2 mostly; attachment modes?)
+  +20 u8 state (0, 1, 2, 3 seen)
+  +21 u8 type
+  +22 u16 record length (by type, f_2512d)
+  +24.. by type; +28 the type's parameter; strings are NUL-terminated
+```
+
+| Type | Length | What (drawing by `f_223b3`) |
+|---|---|---|
+| 0x00 | 0x29 | box, style +28 (`f_22226`) |
+| 0x01, 0x03, 0x0A, 0x0B, 0x0E | 0x28 | not drawn: hotspots (buttons over a picture) |
+| 0x02 | 0x29 | frame (`f_22170`) |
+| 0x04 | 0x38 | scroll bar? (`f_241f2`) |
+| 0x05, 0x09 | strlen + 0x2D | text, string at +2A |
+| 0x06 | 0x2A | picture, bitmap id at +28 (`f_25c75`) |
+| 0x07, 0x08 | 0x2A | icon / check control (`f_244cc`) |
+| 0x0C | strlen + 0x2D | framed text button, string at +2A |
+| 0x0D | 0x2C | two-state picture: +24 bit 2 picks the bitmap word at +26 or +28 |
+| 0x0F | 0x29 | 3-D frame, style +28 (`f_22248`) |
+| 0x10 | strlen + 0x31 | formatted field: +2C, printf format at +2E ("%d", "%d%%") |
+| 0x11 | strlen + 0x31 | filled text, string at +2E |
+| 0x12 | strlen + 0x31 | caption, string at +2E ("%s": the window's title) |
+| 0x13..0x16 | 0x29 | more frame styles, +28 |
+
+The windows:
+
+| Window | What | Pictures |
+|---|---|---|
+| 0 | the Map window (`f_6efd6`) | 15000, 15001 (help overlay) |
+| 1 | the main window: map area, map views, scent layers, buttons | 14000, 14001 (help overlay) |
+| 2 | "Select a Game" | 2500 |
+| 3 | title | 2000, 2001 |
+| 4 | | 16100 |
+| 5 | message window | |
+| 6 / 7 / 8 / 9 / 29 / 32 | menus and palettes | 6000, 4500, 4502, 5000, 4510, 4504 |
+| 10..17 | tool option palettes | 5010, 5011, 5001, 5005, 5006, 5002, 5003, 5004 |
+| 18 / 19 | Behavior Control / Caste Control | 4600 / 4601, 4620 / 4621 |
+| 20 | | |
+| 21 | History Window | 16000, 16001 |
+| 22 | file dialog ("Path:", "Select Drive:") | |
+| 23 | | 14002 |
+| 24 | status ("%d%%" fields) | 13000 |
+| 25 | the yard (`f_702f7`): house 7000 + lawn 7003 (items 0x1903 / 0x190F), toolbar 7010 (0x1904), its help overlay 7011, the yard picture item 0x1902 (7002; G:10D2 / G:10D4 = its corner + (1, 0)), grid area 0x1914 | 7000, 7002, 7003, 7010, 7011 |
+| 26 | | 2100 |
+| 27 / 30 | "Click here to continue" boxes | |
+| 28 | DEBUG | |
+| 31 | about box | 3000, 3001 |
+| 33 | save prompt ("DON'T SAVE", "Save", "Cancel") | |
+
+Main window commands (`f_6e5c0`, command id = item id), names from its help overlay 14001:
+
+| Ids | Control |
+|---|---|
+| 0x102 | the map area |
+| 0x105..0x108 | map views: Yard, Surface, Black Nest, Red Nest |
+| 0x109..0x10D | scent layers (nest scents, food trails, alarm scent) |
+| 0x10E | Show Trails |
+| 0x10F | Behavior Control |
+| 0x110 | Center on Yellow (Ctrl variants: the debug actions, SIM_NOTES "Debug commands") |
+| 0x111 | Caste Control |
+| 0x112 | Mystery Button (the random action `f_022bc`) |
+| 0x113 | History Display |
+| 0x114 | Efficiency Score |
+| 0x115 | Ant Info Window |
+| 0x116 / 0x117 | Experimental Menu |
+| 0x118 | population report area |
 
 ## Bitmap format (type 2)
 

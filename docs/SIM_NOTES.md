@@ -1106,16 +1106,18 @@ spawn / chamber helpers draw too is not checked yet). Of the cheats, only FUND, 
 ## Debug commands (segment 015b; ported: `simant_ref/debug.py`, verified by `test_debug.py`)
 
 Reached from the menu-command handler `f_6e5c0(event)` (via thunk 0x2f9c4 from `f_74140`): command id
-event[0x0C] 0x102..0x118 through a jump table at 0x6e5e8 (cs base 0x6e460). Which menu items or controls
-carry ids 0x110 / 0x112 is not known yet (the HCEGANT type 0 layouts are undecoded).
+event[0x0C] 0x102..0x118 through a jump table at 0x6e5e8 (cs base 0x6e460). The ids are the main window's
+items (FILE_FORMATS "Window layouts"): 0x110 is the "Center on Yellow" button and 0x112 the "Mystery
+Button".
 
-- Command 0x110 → `f_6f733(event)`: the BIOS shift flags 0000:0417 pick a hidden action.
+- Command 0x110 ("Center on Yellow") → `f_6f733(event)`: the BIOS shift flags 0000:0417 pick a hidden
+  action.
   - No Ctrl: `f_01c52` (the normal action: follow the yellow ant).
   - Ctrl + Shift: left half of control 0x110's rect (from `f_252d8`) = black, right half = red.
     With Alt that colony loses ants (`f_0161f`), without Alt it gains ants (`f_015be`).
   - Ctrl + Alt: sound `f_00ed8(0x20, 0, 0x7E)`, then clear all food (`f_01707`).
   - Ctrl only: drop food, `f_6bca5(0x96, 1)`.
-- Command 0x112 → `f_022bc`: one of 15 actions by `rand() % 15`:
+- Command 0x112 (the "Mystery Button") → `f_022bc`: one of 15 actions by `rand() % 15`:
   - 0, 1: 2 x add red ants; 2: 2 x add black ants
   - 3: 2 x kill red ants; 4: 2 x kill black ants
   - 5: drop food `f_6bca5(0x96, 1)`
@@ -1308,8 +1310,13 @@ On a 320-wide screen the factors halve.
 
 `f_6fc36` → `f_6fac7` → `f_6fa6c` → `f_702f7(mode)`, from the yard map (`f_7650c` / `f_01823`) and the
 win screen (`f_72750`).
-- **Background.** Grid strips 7020..7022 (on 640-wide 16-colour screens; 7002 otherwise) under the
-  window's toolbar (7010). In the window's coordinates (corner G:10D2 / G:10D4) the grid starts at y 64.
+- **Background** (window 25, FILE_FORMATS "Window layouts").
+  - The yard view (G:035C 0 / 1) shows the window's pictures: the house 7000 (item 0x1903) and the
+    lawn 7003 (item 0x190F), whose grid is the patch grid, above the toolbar 7010 (item 0x1904).
+  - The colony views (G:035C >= 2) get the grid strips 7020..7022 from `f_6fac7` on 640-wide 16-colour
+    screens, from (item 0x1902's left, item 0x1914's bottom) = (64, 148); otherwise 7002.
+  - The yard origin G:10D2 / G:10D4 is item 0x1902's corner + (1, 0) = (65, 83) (code at 0x01002),
+    so the grid's top is at yard y 65.
 - **Sprites.** The actors live on a sprite layer (G:10DA): `f_26968` creates a sprite, `f_26f2d` moves
   it, `f_26bbc` removes it, `f_272c2` composites. The handles are DS:2A2A.. per actor, and G:38CA.. /
   G:38E8.. / G:390A.. for the raindrops and the swarms.

@@ -137,11 +137,15 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    - the yard window `f_702f7`: the grid, the cat, dog, human, mower, bird crossing, "For Sale" sign,
      rain and mating swarms, and the Strat / Graphic colony views (`render_view.render_yard`).
    The DS:19D0 path is EMS storage, not a different look. All of it is checked by eye.
+   Also done: the **window layouts** (HCEGANT type 0: FILE_FORMATS "Window layouts",
+   `tools/layouts.py` (dump / JSON), `tools/render_windows.py` (an atlas of all 34 windows)). The yard
+   window is now composed from its layout: the house 7000 + lawn 7003, the toolbar at the bottom, the
+   actors at G:10D2 / G:10D4 = (65, 83), and the grid strips only under the colony views.
    Open:
    - colours 0x10.. in the map window (driver dither, DS:914C; drawn as a plain ramp);
-   - the yard window layout above the grid (7010 is placed by eye at y 18; the layouts, HCEGANT
-     type 0, are undecoded);
-   - the house window (7000 / 7001 / 7003);
+   - the fonts (SHARED type 11, Mac FONT; id 0's header undecoded): no text is drawn yet;
+   - the item fields +10 / +18 / +20 and the frame styles (named from their drawing routines only);
+   - the UI tables 128 / 129 / 131 (129: 24 entries of 4 colour bytes);
    - the line algorithm of `f_16b58` (Bresenham assumed);
    - the other windows and the menus.)
 9. **Unported routines that draw from the game's RNG** (found 2026-10-17 by cross-referencing the
@@ -161,7 +165,8 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    - (done: the **debug commands**, SIM_NOTES "Debug commands", `simant_ref/debug.py`, `test_debug.py`
      ALL OK over 25 cases: add ants `f_015be`, kill ants `f_0161f` (+ `f_134b8` player_at), clear food
      `f_01707`, the random action `f_022bc` (menu command 0x112, all 15 cases), and the Ctrl-click
-     dispatch `f_6f733` documented (UI, not ported). Open: which menu item / control is 0x110 / 0x112.)
+     dispatch `f_6f733` documented (UI, not ported). 0x110 is the main window's "Center on Yellow"
+     button, 0x112 its "Mystery Button" (FILE_FORMATS "Window layouts").)
    - (done: cheats `f_6a920`, SIM_NOTES "Cheat codes", `simant_ref/cheats.py`; `test_cheats.py`
      types all 23 codes plus broken prefixes and toggles twice, key by key, from every snapshot: ALL OK.
      UI stubbed: f_277da, thunk 0x2f6ea (f_71b1a messages), f_00ed0, f_0125f; sound f_00ed8 runs.)
