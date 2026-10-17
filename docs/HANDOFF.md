@@ -142,9 +142,15 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    `tools/layouts.py` (dump / JSON), `tools/render_windows.py` (an atlas of all 34 windows)). The yard
    window is now composed from its layout: the house 7000 + lawn 7003, the toolbar at the bottom, the
    actors at G:10D2 / G:10D4 = (65, 83), and the grid strips only under the colony views.
+   Also done:
+   - the fonts (`tools/fonts.py`; text placement in `render_windows.py`);
+   - the Behavior / Caste Control triangles (`simant_ref/panels.py`, verified);
+   - the Efficiency Score window, the population report, the History Window's scaling (SIM_NOTES).
    Open:
    - colours 0x10.. in the map window (driver dither, DS:914C; drawn as a plain ramp);
-   - the fonts (SHARED type 11, Mac FONT; id 0's header undecoded): no text is drawn yet;
+   - the panels' bar charts (`f_0839a` / `f_08255`), the History Window's line drawing, the Ant Info
+     window (overlay 7, 0x67c1c), the tool palettes (windows 9..17) and menus (6 / 7 / 8 / 29 / 32);
+   - the text colours (+26?);
    - the item fields +10 / +18 / +20 and the frame styles (named from their drawing routines only);
    - the UI tables 128 / 129 / 131 (129: 24 entries of 4 colour bytes);
    - the line algorithm of `f_16b58` (Bresenham assumed);

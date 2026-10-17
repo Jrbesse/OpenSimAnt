@@ -1383,6 +1383,27 @@ local. It fills the window with `f_2318a` (number) / `f_23943` (formatted text):
 
 It then waits for a click.
 
+### The population report (main window items 0x119..0x11E, `f_6eea5`)
+
+- 0x119 / 0x11A: the black / red populations G:0330 / G:0350 as text (formats DS:29D8 / DS:29DC).
+- Gauges `f_23971(item, 16.16 fraction)`:
+  - 0x11B: black health G:10BE / 100;
+  - 0x11C: red health G:01FE / 100 (0 when there are no red ants);
+  - 0x11D / 0x11E: each population / max(1, black, red).
+
+### The History Window (window 21, `f_792d2` handler, `f_795ec` plot)
+
+- Buttons 0x1503..0x150C toggle the plotted series (`f_79373`), up to 4 at once (DS:2EF0[4], 0x8000 =
+  empty). 0x150D shows the help overlay 16001, and a click on the graph area 0x150E redraws.
+- Series s plots its black and red data: far pointers T:082A[(s & 1) * 5 + (s >> 1)] (black) and
+  T:0852[...] (red), each a 64-entry ring (the history graph in `world.py`: head G:04F4, count T:0828).
+- The graph's height H is item 0x150E's height - 16 (8 px margin top and bottom); the width is its
+  width - 0x40.
+- Scale: M = the largest value of both rings over the last T:0828 entries.
+  - If M * 2 < H: y = bottom - v * mult, with mult the largest integer that keeps M * mult < H.
+  - Otherwise: y = bottom - v / div, with div the smallest that brings M / div <= H.
+- The line drawing itself is not traced.
+
 ### Behavior / Caste Control triangles (windows 18 / 19; ported: `simant_ref/panels.py`, `test_panels.py`)
 
 Each panel holds three 16-bit weights summing to 0xFFFF:
