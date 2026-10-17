@@ -128,9 +128,22 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    `f_03518` / `f_02c21` do; FILE_FORMATS "Map tiles and ant sprites", SIM_NOTES "Rendering the map
    windows". Checked by eye against the art (no pixel comparison: the emulator stubs drawing and has
    no planar VGA). **Note: the redraw `f_03de7` draws from the game's LFSR when the patch is
-   visible** (SIM_NOTES "The redraw draws from the game's RNG"). Open: that spider animation (the body
-   is drawn: bitmap 1000 + G:1004 / 1050 + G:1042), the human, mower, bird and dog overlays, the DS:19D0 != 0 path (ids 15..20), the overview
-   map window, the yard map, the other windows, the menus.)
+   visible** (SIM_NOTES "The redraw draws from the game's RNG").
+   Done 2026-10-17 (SIM_NOTES "The spider composite", "The map window", "The yard window"):
+   - the spider's legs and fangs: polyline programs extracted by `tools/re/polylines.py`,
+     `render_view.spider_lines`;
+   - the map window `f_6efd6`: surface, nests and pheromone maps, plus the spider, human and mower
+     overlays (`render_view.render_map`);
+   - the yard window `f_702f7`: the grid, the cat, dog, human, mower, bird crossing, "For Sale" sign,
+     rain and mating swarms, and the Strat / Graphic colony views (`render_view.render_yard`).
+   The DS:19D0 path is EMS storage, not a different look. All of it is checked by eye.
+   Open:
+   - colours 0x10.. in the map window (driver dither, DS:914C; drawn as a plain ramp);
+   - the yard window layout above the grid (7010 is placed by eye at y 18; the layouts, HCEGANT
+     type 0, are undecoded);
+   - the house window (7000 / 7001 / 7003);
+   - the line algorithm of `f_16b58` (Bresenham assumed);
+   - the other windows and the menus.)
 9. **Unported routines that draw from the game's RNG** (found 2026-10-17 by cross-referencing the
    callers of Rand* in `build/calls.tsv` with the `f_xxxxx` names in `simant_ref`; f_0cb3b / f_0cc8f are
    red-nest helpers already covered by their ported callers). Each can shift the random sequence, so
@@ -184,12 +197,12 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
          heap; the index wraps at the null entry).
        Because the timing comes from the clock, a tick-for-tick remake has to model the clock reads
        (`State.clock`) to stay in step.
-     - `f_70601` / `f_706d0` (← f_702f7 ← f_6fa6c ← f_6fac7 ← f_6fc36 / thunk 0x2f62c) belong to a
-       pre-game screen (its strings mention PSG / MIDI channels: the title or sound-setup screen).
-       `f_70601` draws 15 sprites (bitmap 0x3E8) at random spots in rect G:10D2, Rand(400) + 50 by
-       Rand(150), halved on a 320-wide screen. They draw from the game RNG **before the game starts**,
-       so they shape the sequence a new game starts from; check the boot order before relying on the
-       startup seed.
+     - `f_70601` / `f_706d0` (← f_702f7 ← f_6fa6c ← f_6fac7 ← f_6fc36, from the yard map f_7650c
+       and the win screen) are the **yard window's rain and mating swarms** (corrected 2026-10-17: an
+       earlier note called this a pre-game screen, misled by `profile.py`'s string annotations,
+       which tag any immediate that equals a DS string's offset). While it rains (G:0352) every
+       yard-window frame draws 15 raindrops at random spots (Rand(400) + 50, Rand(150)), and the
+       swarm queens jitter by Rand(3) - 1 (SIM_NOTES "The yard window").
        Earlier notes on this pair: / `f_706d0` (← f_702f7 ← f_6fa6c ← f_6fac7: a
      window's drawing, rects G:10D2.., drawing library calls; f_706d0 reads the yard position
      G:07CA / G:07CC)
@@ -209,6 +222,9 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
   routine has no entry of its own (no direct callers), its calls are credited to the previous one
   (`f_008ae` and `f_07558` looked like Rand callers this way). Check where the routine really ends
   (`retf`) before classifying it.
+- The string annotations of `adis.py` and the scratch profilers (`'...'` after an immediate) only mean
+  that the immediate equals some DS string's offset. They are often false (a window id, a constant), so
+  don't classify a routine by them.
 - `emu.seg_of` gives an overlay routine its overlay's base as CS. An overlay can hold more than one code
   segment (the 0x74FE0 overlay has a second one at 0x76F40). A routine there that uses a CS-relative jump
   table (`jmp cs:[bx + n]`) then jumps into the wrong code. Pin the CS in the test (`test_tools.py` does

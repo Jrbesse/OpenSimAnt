@@ -438,7 +438,8 @@ def _s32(v):
 
 def bird(st):
     """f_6986c: the bird on the yard map (state G:0254, x G:02BE, y G:032C, heading G:0240, frame G:0244,
-    timer G:022C); it may land when the dog sits, and swoops at the dog when close."""
+    timer G:022C); it may land when the dog sits, and swoops at the dog when close. (The yard window draws
+    this actor with the cat frames, bitmaps 1300 + G:0244 (f_7004e): it is the cat; the name is kept.)"""
     state = st.u16(G, 0x254)
     if state == 0:
         if _s32(st.u32(G, 0x220)) >= _s32(st.clock3()):

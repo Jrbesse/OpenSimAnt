@@ -130,9 +130,13 @@ Seeding (found 2026-10-17): at startup (init around 0x075B0, unless the check `f
 non-zero) the game seeds the LFSR from the clock, `f_009fe`: DS:8BA2 = clock ^ 0x3751, then `f_00a11`
 draws Rand128, seeds the C runtime rand() from the clock (`f_2c8d8`) and calls rand() that many times.
 So every real game starts from the time of day; the verifier sets the seeds itself.
-Between the seeding and the first tick, a pre-game screen draws from the LFSR too (`f_70601` /
-`f_706d0`, see HANDOFF step 9), and so does every map redraw with the spider in it. To replay a real
-session, those draws have to be replayed too; a remake that seeds from the clock anyway can ignore them.
+UI drawing draws from the LFSR as well:
+- the yard window's rain and mating swarms (`f_70601` / `f_706d0`, see "The yard window");
+- the spider composite;
+- the speech balloons.
+
+To replay a real session, those draws have to be replayed too; a remake that seeds from the clock
+anyway can ignore them.
 
 ## Simulation step (`f_0894e`, called once per game tick; ported: `simant_ref/sim.py`, verified tick by tick)
 
@@ -1251,9 +1255,89 @@ So in the original, whenever this redraw runs (the window is shown and gets redr
 the UI), the simulation's random sequence shifts. The verifier never sees it because the patch stays
 hidden. A remake that must match the original tick for tick has to call this at the same redraws; a
 remake that only needs to play the same way can draw these from a separate generator.
-The spider's legs (`f_04666`, drawn right after its body at 0x0420a) take one more draw: Rand(4)
-picks the leg offsets (tables T:09E4 / T:09E8 / ...) when the spider's state G:0FB8 > 1 or G:06AC >= 6,
+The spider's fangs (`f_04666`, drawn right after its legs at 0x0420a) take one more draw: Rand(4)
+picks their offsets (tables T:09E4 / T:09E8 / ...) when the spider's state G:0FB8 > 1 or G:06AC >= 6,
 on every redraw that draws the spider, whether or not the patch is visible.
+
+### The spider composite (`f_03de7`; rendered by `render_view.spider` / `spider_lines`)
+
+`f_03de7` is not the whole map redraw: it redraws the 7 x 7 cells around the spider (block origin
+G:37D2 / G:37D4) into an off-screen buffer (G:1F26) and draws the spider on it.
+- Body: bitmap 1000 + G:1004, or 1050 + G:1042 in state 5.
+- Except in state 5: the legs `f_04c44(x, y, heading G:1004, frame G:1042 & 7)` and the fangs
+  `f_04666(x, y, heading)`, at the spider's position (G:0F12, G:0F34).
+- Both are polylines: `f_045a5` moves the pen, `f_045fa` draws a line (`f_16b58`), with coordinates
+  scaled by 3/4 on video mode 2.
+- Each heading has its own program, a jump-table case: 8 legs of move + 2 lines for `f_04c44`, and
+  2 fangs of move + 2 lines for `f_04666`. Each point is the argument + a signed T byte, indexed by the
+  frame (si), the opposite-phase frame (di = (si + 4) & 7, the other side's legs, mirrored in x), or
+  fixed.
+- `tools/re/polylines.py` extracts the programs from the user's EXE into the git-ignored
+  `build/spider_legs.json`.
+- Colour 15; the fangs are colour 1 when the player is the spider (G:0A06 == 1).
+- Then the spider's remarks (STR# 1210 = G:10B4, see the timer above) go through the balloon routine
+  `f_0696a`.
+
+### The map window (`f_6efd6`; rendered by `render_view.render_map`)
+
+The small "Map" window draws one colour byte per cell into an image 128 bytes wide (64 for a nest),
+stretched to G:3856 x G:3858 px per cell (4 x 4 at 640 x 480) by the video driver (DS:914C). Its
+content is T:07C8:
+- 0: "Draw map - yard", which calls the fatal-error routine `f_1c62c`. The map window has no yard.
+- 1, the surface (`f_6e892`): an occupied cell gets T:046E[occupant >> 3]; a free one gets
+  T:030E[tile], or T:039E[tile] in the house.
+- 2 / 3, the black / red nest (`f_6ec6e`): the yellow ant 1, red ants 3, black ants 15, else
+  T:04A6[dirt >> 2].
+- 4..8, the black nest marker, black trail, red nest marker, red trail and alarm maps (`f_6eb66`):
+  each map cell is 2 x 2 bytes, v ? 0x10 + (v >> 5) : 0x0B.
+- Bytes 0x10 and up are dithered by the driver; not decoded.
+
+These are the 16-colour tables, used when the video mode DS:5A97 has bit 0 clear (8 in the
+snapshots). The other set (T:061E, T:04CE, T:054E, T:0656) holds 256-colour values.
+
+With DS:2994 set, only the ants are redrawn over a cached background (G:10E2). After the image, when
+the window shows the surface and DS:2994 is 0:
+- the small spider (`f_6f505`): bitmap 1100 + G:1004 at (its cell × 4 - 3) + the window's corner
+  G:10D2 / G:10D4, while G:0F0C != 0;
+- the human (`f_6f5e1`): while T:0C3E, the sneaker 1200 + T:0C30 at (G:03E0, G:046A) × 4, and while
+  mowing (T:0C28 3 or 4) the mower 1210 + (T:0C30 & 1) at (G:0470, G:047A) × 4.
+
+On a 320-wide screen the factors halve.
+
+### The yard window (`f_702f7`; rendered by `render_view.render_yard`)
+
+`f_6fc36` → `f_6fac7` → `f_6fa6c` → `f_702f7(mode)`, from the yard map (`f_7650c` / `f_01823`) and the
+win screen (`f_72750`).
+- **Background.** Grid strips 7020..7022 (on 640-wide 16-colour screens; 7002 otherwise) under the
+  window's toolbar (7010). In the window's coordinates (corner G:10D2 / G:10D4) the grid starts at y 64.
+- **Sprites.** The actors live on a sprite layer (G:10DA): `f_26968` creates a sprite, `f_26f2d` moves
+  it, `f_26bbc` removes it, `f_272c2` composites. The handles are DS:2A2A.. per actor, and G:38CA.. /
+  G:38E8.. / G:390A.. for the raindrops and the swarms.
+- **Actors, mode <= 1**, each at its position + per-frame offsets from signed-byte tables in DS:
+
+| Actor | Routine | Shown while | Bitmap | Position |
+|---|---|---|---|---|
+| cat | `f_7004e` | G:0254 | 1300 + G:0244 | (G:02BE, G:032C); frames 10..19 + DS:2AA4 / 2AA8[f], 20.. + DS:2AA2 / 2AAC[f] |
+| dog | `f_6feb3` | T:0C44 == 0 | 8500 + G:04E4 | (G:04BE, G:04C6) + DS:2A8E / 2A9A[f] (f < 12), else DS:2A42 / 2A46[f] |
+| human | `f_6fc6e` | T:0C32 >= 0 (and T:0C28 != 0 when mode 0) | 8000 + T:0C32 | (T:0C2C, T:0C2E) + DS:2A56 / 2A62[f] (< 12), DS:2A5A / 2A5E[f] (< 24), DS:2A12 / 2A1E[f] (< 200); speech bubble: line G:10BC of STR# 1200 while G:10B0 (cleared when clock3 passes G:109C) |
+| mower | `f_701a5` | always | 8800 / 8801 / 8802 | parked at (0x62, 0xB5); while mowing (sound 0x24 per frame) 8801 at the human + (0x13, 0xF) on frames 0x67..0x69, 8802 at + (-0xF, 0xF) on 0x6D..0x6F, hidden on the others |
+| bird crossing | `f_6ff93` | G:10A0 | 1250 + G:108C | (G:10AC - 10, G:10BA - 3), + (1, 2) on frame 1 |
+| "For Sale" sign | `f_70126` | T:0C44 | 1260 | (0xAA, 0xBA) |
+| raindrops | `f_70601` | rain G:0352 | 7005 | 15 drops at (Rand(400) + 50, Rand(150)), new every frame |
+| mating swarms | `f_706d0` | rain G:0352, T:07C8 == 0 | 7006 / 7007 | G:07C8 black / G:0850 red queens (16 at most) around the player's patch corner (G:103C = 28 col - 10 row + 0xB2, G:1048 = 10 row + 0x2E) + offsets G:0F46 / G:0F84 (black) and G:0FC6 / G:1008 (red). Each frame they jitter by Rand(3) - 1; when one strays (`f_70a50`) it resets to Rand16 - 10 (black) or 0 (red) |
+
+The actor `yard.py` calls the bird (G:0254, `bird`) is drawn with the cat frames 1300..1329; the bird
+proper is the crossing (G:10A0, 1250).
+
+- **Colony views, mode >= 2** (T:0C20 = 0). For each patch (col, row), with corner
+  (28 col - 10 row, 10 row):
+  - Strat (mode 2, `f_70b82`): a parallelogram, corner + the word pairs DS:2A42 + 4i (169, 67 ...),
+    filled with DS:2AD2[k] and outlined with DS:2ACA[k] (`f_1faa6`); k = 0 black only, 1 both, 2 red
+    only, 3 none.
+  - Graphic (`f_70cf5`): bars (strength + 3) >> 2 tall standing on 10 row + 0x47, 9 px wide; black
+    (0x0F) at x + 168, red (0x23) at x + 180 (`f_1d28d`).
+  - Colour codes go through `f_1b4ed(c) = (c & 0xF0) | DS:41C0[c & 0xF]`: the low nibble is the
+    palette colour, the high nibble a pattern.
 ### Event markers (recorders ported: `simant_ref/markers.py`, verified by `test_markers.py`)
 
 While the patch is visible (T:07B2), the simulation reports four kinds of events; the port sends them to

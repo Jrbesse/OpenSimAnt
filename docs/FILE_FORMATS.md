@@ -113,8 +113,15 @@ The pixel data is never compressed beyond the archive-level LZSS.
 | 1100–1107 | Small spider, 8 directions |
 | 1200–1203 | Human's sneaker stomping, 4 directions |
 | 1210/1211 | Lawn mower, top-down |
+| 1250/1251 | Bird crossing the yard, two wing frames |
 | 1260 | "For Sale" sign |
-| 1300–1329 | Cat: walking, scared, running |
+| 1300–1329 | Cat: walking, scared, running (the yard actor `yard.py` calls the bird, G:0254) |
+| 7005 | Raindrop (yard window) |
+| 7006 / 7007 | Black / red winged queen of a mating swarm (yard window, 8 x 1) |
+| 7010 | Yard window toolbar (Patch / House / Strat / Graphic, Mate, Queens, Place, colony counts) |
+| 7020–7022 | Yard grid strips (stacked, the grid from y 64) |
+| 8500+ | Dog (yard window) |
+| 8800–8802 | Lawn mower in the yard window: parked, and two mowing positions |
 | 2000/2001 | Title screen (2001: 512×200 ant head, "© 1991 MAXIS") |
 | 2500 | "Select a Game" screen (Tutorial / Quick / Full / Experimental / Load) |
 | 3000, 3001 | About box, credits ("By Justin McCormick & Will Wright, IBM Version by Daniel Goldman") |
@@ -146,7 +153,9 @@ Decoder: `tools/tiles.py` (contact sheets); renderer: `tools/ref/render_view.py`
   0 unused, 1..7 brood, then each caste in 8 headings (with carrying variants), 0x60..0x6F the queen's
   head and tail, 0x70 fight clouds, letters / numbers as placeholders. 14 is the surface's, 13 the
   nests' (loaded on demand by `f_02b43` with `f_1a5ea(id, 9)`); ids 15..20 are 160-byte variants (10
-  bytes per row) for the DS:19D0 != 0 drawing path (`f_02aeb`, not traced).
+  bytes per row) for the DS:19D0 != 0 drawing path (`f_02aeb`). DS:19D0 is an EMS handle (set by the
+  startup code at 0x026bb when at least 8 EMS pages are free, "TILESXXX"): the sheets are kept in
+  expanded memory then; it is a storage path, not a different look.
 - Colours: sprites are stored as the **yellow** ant. Black ants XOR all four planes with the recolour
   mask (yellow 1 → 14), red ants (type 0x80+) only plane 1 (yellow 1 → red 3), the yellow ant none
   (mode = low byte of the word at DS:1A58 + ((id & 0xFFBF) >> 6): 0, 3, 1).
