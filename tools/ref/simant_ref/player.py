@@ -15,6 +15,7 @@ from . import movement as mv
 from . import colony as co
 from . import pheromones as ph
 from . import world
+from . import surface
 from .movement import s16
 
 SURFACE, OCC = 0x0180, 0x6180
@@ -1092,6 +1093,44 @@ def alarm_add(st, a, b, n):
     i = (s16(a) >> 1) * 32 + (s16(b) >> 1)
     v = st.u8(SIM, 0xd09f + i) + n
     st.set8(SIM, 0xd09f + i, min(v, 200))
+
+
+def nudge(st, a, b, d):
+    """f_769c5 (also via f_2f7bc): an ant at (a, b) bumps the yellow ant along heading d; it turns to face
+    the ant (and MenuCommand12de1(1) runs)."""
+    na, nb = a + st.s8(T, d), b + st.s8(T, 8 + d)
+    h = mv.dir_to(na, nb, a, b) - 1
+    move_yellow(st, s16(st.u16(G, 0x48c)), na, nb, s16(st.u16(G, 0x4c2)), h)
+    st.player.effect(st, 'redraw_all')
+    eat(st, 1)
+
+
+class Hooks(surface.NoPlayer):
+    """The player hooks the simulation calls, routed to this module. Still hooks (UI, not ported):
+    game_event (f_2f7d0 → f_75d01), win_screen (f_2f91a), game_over (f_71d95); effect is screen only."""
+
+    def attack_player(self, st, view, ant):
+        attack_player(st, view, ant)
+
+    def nudge_player(self, st, a, b, d):
+        nudge(st, a, b, d)
+
+    def nest_follow(self, st, col, depth, d):
+        nudge(st, col, depth, d)
+
+    def spider_eats_player(self, st, a, b):
+        move_yellow(st, s16(st.u16(G, 0x48c)), a, b, s16(st.u16(G, 0x4c2)), st.u16(G, 0x496))
+        self.game_event(st, 1)
+
+    def lion_eats_player(self, st, a, b):
+        move_yellow(st, 1, a, b, s16(st.u16(G, 0x4c2)), st.u16(G, 0x496))
+        self.game_event(st, 2)
+
+    def spider_event(self, st, n):
+        self.game_event(st, n)
+
+    def yard_event(self, st, n):
+        self.game_event(st, n)
 
 
 def _s32(v):

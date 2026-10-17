@@ -562,7 +562,7 @@ def spider(st):
             st.set16(G, 0x1004, 0)
         return
     if st.u8(G, 0x1072) & 3 == 0 and s16(st.u16(G, 0xfb8)) < 5:
-        n = sum(1 for x in range(a - 1, a + 2) for y in range(b - 1, b + 2)
+        n = sum(1 for x in range(a - 1, a + 3) for y in range(b - 1, b + 3)    # f_0db10: 4x4 (sic)
                 if _in_patch(x, y) and st.grid(0x6180, x, y))
         if n > 8:                                                       # swarmed: beaten
             spider_beaten(st)

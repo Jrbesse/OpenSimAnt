@@ -126,7 +126,7 @@ x = (x << 1) & 0xffff; if carry_out: x ^= 0x1bf5
 
 How the seed is initialised is still to be found (look for writes to `DS:0x8ba2`).
 
-## Simulation step (`f_0894e`, called once per game tick)
+## Simulation step (`f_0894e`, called once per game tick; ported: `simant_ref/sim.py`, verified tick by tick)
 
 ```
 tick = G:0f08 + 1; if tick > 0x1000: tick = 0      # 12-bit tick counter
@@ -725,7 +725,7 @@ Still to do:
    into food 0x4B) and three wandering bugs (`f_0ae4c`, G:0EAE..0F28).
    Also ported and verified: the **spider** (`f_0ce63` + helpers, `world.spider`, 37 scenarios; see the
    comment block in world.py: 1/16-tile position G:0F12/0F34, states G:0FB8 0..5, prey G:0FFC, modes
-   G:06AC 7/8, beaten when > 8 of the 3x3 around it are occupied, drops food when it finally leaves).
+   G:06AC 7/8, beaten when > 8 cells of the 4x4 block a-1..a+2, b-1..b+2 are occupied (f_0db10 loops -1..2, sic; > 4: flees), drops food when it finally leaves).
    With G:0A06 == 1 the player is the spider (ported, partly covered).
    Still to do:
    - SimStep's overlay calls are vector thunks: `f_2f7a8` → sec8 `f_68513`, `f_2f79e` → `BlackNestLoop`,

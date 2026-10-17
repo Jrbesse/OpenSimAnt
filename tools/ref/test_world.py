@@ -82,7 +82,7 @@ def swarm_cat(n_occ):
 
 
 def spider_at(state=None, mode=None, near=True, off=(3, 0), g=(), t=(), swarm=False, prey=None,
-              crowd=0, tile=None, yellow=None, cursor=None):
+              crowd=0, tile=None, yellow=None, cursor=None, ring=False):
     """pre hook: an active spider near a surface ant (in 1/16 tiles), optional state / mode / globals."""
     from simant_ref.state import SIM, T as TT
 
@@ -121,6 +121,11 @@ def spider_at(state=None, mode=None, near=True, off=(3, 0), g=(), t=(), swarm=Fa
         for k, (x, y) in enumerate((x, y) for x in range(sa - 1, sa + 2) for y in range(sb - 1, sb + 2)):
             if k < crowd:
                 set8(SIM, 0x6180 + x * 64 + y, 0x10)
+        if ring:                                # the far row / column of the 4x4 block f_0db10 counts
+            for x in range(sa - 1, sa + 3):
+                for y in range(sb - 1, sb + 3):
+                    if x == sa + 2 or y == sb + 2:
+                        set8(SIM, 0x6180 + x * 64 + y, 0x10)
         if tile is not None:
             set8(SIM, 0x180 + sa * 64 + sb, tile)
         if yellow is not None:
@@ -180,6 +185,8 @@ CHECKS = [
     ('spider swarmed', 0x0ce63, world.spider, 40, spider_at(1, swarm=True, g=[(0x1072, 3)])),
     ('spider swarmed often', 0x0ce63, world.spider, 40, spider_at(1, swarm=True, g=[(0x1072, 3), (0x108a, 4)])),
     ('spider crowded', 0x0ce63, world.spider, 20, spider_at(1, crowd=6, g=[(0x1072, 3)])),
+    ('spider swarmed 4x4', 0x0ce63, world.spider, 20, spider_at(1, crowd=2, ring=True, g=[(0x1072, 3)])),
+    ('spider crowded 4x4', 0x0ce63, world.spider, 20, spider_at(1, ring=True, g=[(0x1072, 3)])),
     ('spider hunts yellow', 0x0ce63, world.spider, 2, spider_at(2, prey=0xffff, yellow=(12, 0), g=[(0x48c, 1)])),
     ('spider yellow underground', 0x0ce63, world.spider, 5, spider_at(2, prey=0xffff, g=[(0x48c, 2)])),
     ('spider yellow far', 0x0ce63, world.spider, 5, spider_at(2, prey=0xffff, yellow=(70, 0), g=[(0x48c, 1)])),

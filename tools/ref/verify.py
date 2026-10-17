@@ -89,6 +89,26 @@ class Verifier:
         for lin in self.extra_stubs:
             self.e.stub(lin)
 
+    def clock_neutral(self, entry, ret):
+        """Let the routine at flat `entry` (returning at its `ret` instruction) run on a moving clock, as
+        the original does for animations that busy-wait on it, and put the clock back afterwards so the
+        rest of the simulation sees the frozen value. Applies to every later check."""
+        from unicorn import UC_HOOK_CODE
+        b = self.e.base * 16
+        saved = {}
+
+        def on_entry(uc, address, size, user):
+            saved['clock'] = bytes(uc.mem_read(self.e.game_clock, 4))
+            saved['frozen'] = self.e.clock_frozen
+            self.e.clock_frozen = False
+
+        def on_ret(uc, address, size, user):
+            if 'clock' in saved:
+                uc.mem_write(self.e.game_clock, saved.pop('clock'))
+                self.e.clock_frozen = saved.pop('frozen')
+        self.e.uc.hook_add(UC_HOOK_CODE, on_entry, None, b + entry, b + entry)
+        self.e.uc.hook_add(UC_HOOK_CODE, on_ret, None, b + ret, b + ret)
+
     def state_from_emu(self):
         b = self.e.base * 16
         st = State(bytes(self.e.uc.mem_read(LO + b, HI - LO)))

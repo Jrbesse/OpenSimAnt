@@ -40,6 +40,9 @@ class NoPlayer:
     def game_event(self, st, n):
         raise NotImplementedError(f'f_2f7d0({n}) -> f_75d01 (player event: dialogs, the yellow ant dies, ...)')
 
+    def game_over(self, st):
+        raise NotImplementedError('f_71d95 (the game-over screen: rating, new game)')
+
     def win_screen(self, st):
         raise NotImplementedError('f_2f91a (Full Game won: the end screen)')
 
