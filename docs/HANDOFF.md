@@ -54,7 +54,7 @@ cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
 python test_yard.py; python test_player.py; python test_sim.py 3000
-python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py; python test_debug.py; python test_markers.py; python test_balloons.py
+python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py; python test_debug.py; python test_markers.py; python test_balloons.py; python test_panels.py
 ```
 
 All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical"); last full run
@@ -83,6 +83,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `tools.py` | the map tools `f_770f6`: rocks, dig, ants, food, pheromone, insecticide |
 | `markers.py` | the event-marker recorders behind the 'brood' / 'fight' / 'queen' / 'rest' effects |
 | `balloons.py` | the speech balloons `f_06a4d` (timers, RNG draws, line choice; drawing is a hook) |
+| `panels.py` | the Behavior / Caste Control triangles: weights ↔ marker point |
 | `player.py` | the yellow ant (also its death and the takeover, `player_event`): upkeep `f_7bf7e`, actions `f_7b7b8` (pathfinding to the cursor, picking up / dropping / eating, entering and leaving nests, fights), view-generic map accessors |
 
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises

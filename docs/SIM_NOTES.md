@@ -1368,6 +1368,34 @@ it with the clock (see HANDOFF step 9). SimStep clears the gates and records whe
 Since the verifier's patch window is never on screen, the full-tick checks never see these writes. A
 remake that shows the window should call `markers.record` from its effect hook.
 
+### Behavior / Caste Control triangles (windows 18 / 19; ported: `simant_ref/panels.py`, `test_panels.py`)
+
+Each panel holds three 16-bit weights summing to 0xFFFF:
+- behaviour G:049E / 04A0 / 04A2 = forage (apex), dig (bottom left), nurse (bottom right);
+- caste G:0482 / 0484 / 0486 = breeders (apex), workers (bottom left), soldiers (bottom right).
+
+The triangle is item 0x120D / 0x130D's rectangle (`f_07980`): apex (left + w/2, top), corners (left,
+bottom) and (right, bottom). Its sizes go to G:3814 (w), G:3810 = G:3812 (w/2), G:380E (h) and G:382E
+(32-bit (w/2 << 8) / h, not verified); the points go to G:3816 / G:3822. The marker is G:0358 / G:022E.
+
+```
+weights → marker (f_087c7), unsigned unless noted:
+  y = top + (0xFFFF - v0) * (h - 2) / 0xFFFF
+  k = w/2 * v0 / 0xFFFF;  m = w - 2k
+  x = (v0 != 0xFFFF and m >= 3) ? left + k + (signed) v2 * (m - 3) / (0xFFFF - v0) : apex x;  x += 2
+click → weights (f_086a1):
+  dx = px - left;  dy = py - top
+  v0 = dy > h - 2 ? 0 : (h - dy - 2) * 0xFFFF / (h - 2)
+  k, m as above; m <= 2: v1 = v2 = 0
+  c = dx - k: v2 = c >= m - 2 ? 0xFFFF - v0 : c <= 2 ? 0 : (0xFFFF - v0) * c / (m - 2)  (signed)
+  v1 = 0xFFFF - v0 - v2
+```
+
+The redraws `f_07a57` / `f_07a19` (marker) run from InitColonySettings and from the drag handlers
+`f_07d07` / `f_07ac1`, which loop on the mouse (`f_201f0`). After a change the caste weights become
+the percentages T:07DA.. (`f_085f8`, `newgame.caste_targets`). The bar charts on the right (item 0x0C:
+F D N / B W S) are drawn by `f_0839a` / `f_08255` (not traced).
+
 ### Speech balloons (`f_06a4d`; ported: `simant_ref/balloons.py`, verified by `test_balloons.py`)
 
 The window draw `f_038a6` → `f_07128` → `f_06a4d` shows the ants' remarks at the spots the event
