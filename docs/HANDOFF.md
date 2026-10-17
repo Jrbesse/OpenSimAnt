@@ -120,8 +120,9 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    `tools/ref/render_view.py` renders a State's surface and nests with the game's art the way
    `f_03518` / `f_02c21` do; FILE_FORMATS "Map tiles and ant sprites", SIM_NOTES "Rendering the map
    windows". Checked by eye against the art (no pixel comparison: the emulator stubs drawing and has
-   no planar VGA). Open: the spider's second animated part (after the body, `f_03de7` ~0x41D6;
-   the body is drawn: bitmap 1000 + G:1004 / 1050 + G:1042), the human, mower, bird and dog overlays, the DS:19D0 != 0 path (ids 15..20), the overview
+   no planar VGA). **Note: the redraw `f_03de7` draws from the game's LFSR when the patch is
+   visible** (SIM_NOTES "The redraw draws from the game's RNG"). Open: that spider animation (the body
+   is drawn: bitmap 1000 + G:1004 / 1050 + G:1042), the human, mower, bird and dog overlays, the DS:19D0 != 0 path (ids 15..20), the overview
    map window, the yard map, the other windows, the menus.)
 9. Then the Godot remake (RECREATION_PLAN.md).
 

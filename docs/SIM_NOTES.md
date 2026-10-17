@@ -1056,6 +1056,27 @@ a tile with a sprite (sheet by view, sprite = id & 0x7F, recoloured). Rows past 
 The tile sheet is loaded by `f_02756` (yard / house) and the sprite sheets by `f_028b6` per video mode
 (DS:5A97); render paths by G:1102 (1 EGA/VGA planar, 2 and 3 other adapters).
 
+### The redraw draws from the game's RNG (`f_03de7`)
+
+**Important for a faithful remake.** The map window's full redraw `f_03de7` draws the spider overlay
+(see FILE_FORMATS / render_view.spider_frame) and then, **only when the patch is visible (T:07B2 != 0)**,
+times a small spider animation with the game's LFSR:
+```
+    if G:047E == 0 and clock >= T:098E (32-bit):
+        T:098E = clock + Rand64 + 180
+        Rand2 == 0: G:0D6E = 1, T:0992 = (T:0992 + 1), back to 0 at 5    else: G:0D6E = 0
+    if the spider's state G:0FB8 == G:0EB4 and <= 4:
+        if G:0D6E: draw G:10B4 handle [5 * state + T:0992] at the spider's position + heading * 8 (f_0696a)
+    else: T:098E = clock + Rand32 + 30; G:0D6E = 0; G:0EB4 = state
+```
+So in the original, whenever this redraw runs (the window is shown and gets redrawn, which depends on
+the UI), the simulation's random sequence shifts. The verifier never sees it because the patch stays
+hidden. A remake that must match the original tick for tick has to call this at the same redraws; a
+remake that only needs to play the same way can draw these from a separate generator.
+Bitmap handles (`f_0765e`): 1000 → G:046C, 1001 → G:0324, 1010 → G:034C, 1020 → G:0360,
+1050 → G:02BA, 1100..1103 → G:106E / 1078 / 1086 / 1096, 1200 → G:10A8, 1210 → G:10B4, 1220 → G:020A,
+1230 → G:0218, 1240 → G:021C, 1250 → G:0234, 1260 → G:023A, 1900 → G:0328, 1800 → G:0368.
+
 ## Verification harness (tools/re/emu.py)
 
 Status: **the original game runs headless and plays complete games.**
