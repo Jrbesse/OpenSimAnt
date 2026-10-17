@@ -717,6 +717,23 @@ Still to do:
 2. (done: red nest compared, see "The red nest".)
 3. Surface world per tick: `f_0c22c`, `f_0b163`, `f_0ce63`, `f_0b6cc`, `f_0e2ea`, sec8 `f_68513`,
    sec26 `f_798c8`, `f_0c20f`: food spawning, predators (spider, ant lion), humans/mower/rain/insecticide.
+   First read of the decompiles (`tools/re/build/asm/world.c`, not committed):
+   - SimStep's overlay calls are vector thunks: `f_2f7a8` → sec8 `f_68513`, `f_2f79e` → `BlackNestLoop`,
+     `f_2f794` → `f_7bf7e`, `f_2f78a` → `f_7b7b8`, `f_2f780` → `f_71d95`; SimStep ends with `T?:02C2 = 1`.
+   - `f_0c22c` weather: while raining (G:0352, yard only) puddle tiles 0x74..0x77 grow on the 100 object
+     slots (T:02C0 a / T:0256 b; others are washed away by `DropObjectRandom`) and G:0242 sinks (`f_0c4d2`);
+     afterwards puddles revert to ground and G:0242 recovers 1/10 per tick up to 64 (`f_0c56e`).
+   - `f_0b163` ant lions: G:0C4A pits, state T?:0ABA (0 waiting / 1 eating / 2 gone), pos 0AA8/0A92; eats a
+     neighbouring ant (`f_0ed8f`, counts G:0F20 black / G:0F80 red), or the yellow ant (`f_11a3e`); new pits
+     from `f_0b016` (1/1024 when G:08EA > 0).
+   - `f_0ce63` the human/lawnmower (pos in 1/16 tiles G:0F12/0F34, G:0F0C active, G:0FB8 phase, G:06AC mode;
+     spawns 1/300 when G:0EAC) - switch on G:0FB8 garbled in Ghidra, needs asm.
+   - `f_0b6cc` (odd ticks, yard only) the spider: segmented body of tiles 0x68..0x6F at G:0C4E/0C50 heading
+     G:0C3C, step counter G:0C36.
+   - `f_0e2ea` advisor messages (`f_15e2c` from the table at G:0360), Quick-Game end checks.
+   - `f_798c8` (slow phase 2) history graph: 64-entry ring at G:04F4 of pops, food, health, kills.
+   - `f_7bf7e` / `f_7b7b8` the yellow ant (player) per tick: health `f_12d43`, queen egg laying, movement
+     towards the cursor `f_7d24f`, trail laying, entering/leaving nests.
 4. Yellow (player) ant: movement, recruit/release/exchange, dig, pick up, `f_7bf7e`, `AttackPlayer`.
 5. New game / map generation (overlay 10 `6ae20`, `6c010`), initial colonies, entrance tables.
 6. Full Game: the yard of patches, house, transfers, mating-flight colonisation (`f_01315`).
