@@ -1050,6 +1050,52 @@ G:0AF6 / G:0B04 += 1, population counters.
   tutorial: T:07A4 = 1, T:07A6 = 0.
 - Win screen `f_2f91a` → `f_72750`: an animation only.
 
+## Cheat codes (`f_6a920`, overlay 10; not ported yet)
+
+Called once per typed key (`f_6a920(key)`, via thunk 0x2f924 from `f_74386`). Matching:
+
+- The key is stored bitwise-NOT in G:0B0A[T:06DE], then T:06DE += 1.
+- The table at T:067E holds 4-byte codes, also NOT-ed, and ends at an entry whose first byte is 0.
+  Entries are scanned in order; the first one whose first T:06DE bytes equal the buffer wins (a prefix
+  match).
+- No entry matches: T:06DE = 0 and G:0B0A[0..3] = 0. The key that broke the match is dropped, not
+  retried as the start of a new code ("hhole" does nothing).
+- Match with T:06DE >= 4: clear the same way, `f_277da("CHEAT %d", index)`, then run the cheat.
+- Codes are case sensitive; the capitalised ones are the red twins.
+
+`snd(n)` below is `f_00ed8(n, 0, 0x7E)`; "toggle X" is `X = (X == 0)`, then snd(2) if it is now on,
+snd(1) if off.
+
+| # | Code | Effect |
+|---|---|---|
+| 0 | oops | snd(10); G:0850 (red new colonies) += 10 |
+| 1 | rand | snd(1); `f_12d43(100)` (yellow ant health) |
+| 2 | erad | snd(1); `f_12d43(1)` |
+| 3 | FUND | `f_71b1a(0, 0x2724, 0)` (via thunk 0x2f6ea; a message) |
+| 4 | joke | `f_71b1a(0, 0x2726, 0)`, `f_0151c()`, `f_0125f(6)`, `f_00ed0(0)`, `f_0125f(0)`, `f_71b1a(0, 0x2728, 0)` |
+| 5 | hole | `MakeSurfaceHoleBlack(i)` for i = 0..63 |
+| 6 | HOLE | `f_15247(i)` (red entrance) for i = 0..63 |
+| 7 | qeen | black queen chamber `f_6ba1c(yellow_a + 2, yellow_b, 2)` (thunk 0x2f938) |
+| 8 | QEEN | red queen chamber `f_6bb70(yellow_a + 2, yellow_b, 2)` (thunk 0x2f92e) |
+| 9 | eggs | 16 x `SpawnBlackBrood(yellow_a + T:0000[Rand8()], yellow_b + T:0008[Rand8()], rand() % 6 + 1)` |
+| 10 | EGGS | the same with `SpawnRedBrood` and type `rand() % 6 + 0x81` |
+| 11 | heal | G:10BE (black health) = 100 |
+| 12 | HEAL | G:01FE (red health) = 100 |
+| 13 | zhea | G:01FE = 0 |
+| 14 | ZHEA | T:0C18 (no health loss) = 0, G:10BE = 0 |
+| 15 | just | G:07C8 (black new colonies) += 10, `NewColonyNoop()`, snd(0x29) |
+| 16 | will | toggle T:0C14 |
+| 17 | mick | toggle T:0C12 |
+| 18 | jeff | snd(2); every yard cell (12 x 16): T:00A4[cell] += 4 (black yard colonies), G:0A90 += 1 |
+| 19 | joel | snd(1); every yard cell: Rand2() == 0 ? T:00A4[cell] += 1, G:0A90 += 1 : T:0164[cell] += 1, G:0AC4 += 1 |
+| 20 | fred | the win screen `f_2f91a` |
+| 21 | jenn | toggle T:0C16 (yellow ant invulnerable, see `f_12d43`); on: G:0F78 = 100 |
+| 22 | susi | toggle T:0C18 (no health loss); on: G:10BE = 100 |
+
+Evaluation order for eggs / EGGS (C pushes right to left): `rand()` first, then the Rand8 for the y
+offset, then the Rand8 for the x offset. eggs, EGGS and joel draw from the game's RNG (whether the
+spawn / chamber helpers draw too is not checked yet). Of the cheats, only FUND, joke and fred are pure UI.
+
 ## Rendering the map windows (`f_0379e`, `f_03518`, `f_02fdb`, `f_02c21`)
 
 A map window is 40 x 30 cells (`f_0379e(x, y)`), its origin G:0508 (a) / G:050A (b), its view G:032E
