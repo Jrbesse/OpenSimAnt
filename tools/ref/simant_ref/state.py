@@ -23,6 +23,17 @@ class State:
             mem = open(FLAT, 'rb').read()[LO:HI]
             mem = mem + bytes(HI - LO - len(mem))
         self.mem = bytearray(mem)
+        # the game's real-time clock (f_1bc34: 32-bit counter at 1b73:0012, ~18.2 ticks/s, kept by its
+        # INT 8 handler); the engine sets it, the sim only reads it
+        self.clock = 0
+
+    def read_clock(self):
+        """f_1bc34."""
+        return self.clock & 0xffffffff
+
+    def clock3(self):
+        """f_0123e: the clock x3 (about 1/60 s units, like Mac ticks)."""
+        return (self.read_clock() * 3) & 0xffffffff
 
     # ---- raw access by (segment, offset)
     def _a(self, seg, off):

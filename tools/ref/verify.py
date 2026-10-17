@@ -59,6 +59,7 @@ class Verifier:
             self.e.boot(max_insns=1_000_000_000)
             self.e.stub_drawing()
             self.snaps = [(t, open(p, 'rb').read()) for t, p in zip(ticks, paths)]
+            self.e.clock_frozen = True        # the clock is an input: frozen during checks (see State.clock)
             return
         t0 = time.time()
         self.e.boot(max_insns=1_000_000_000)
@@ -78,6 +79,7 @@ class Verifier:
             open(p, 'wb').write(mem)
             self.snaps.append((t, mem))
         print(f'[verify] recorded {len(ticks)} snapshots in {time.time() - t0:.1f}s')
+        self.e.clock_frozen = True
 
     def load(self, mem):
         self.e.uc.mem_write(0, mem)
@@ -85,7 +87,9 @@ class Verifier:
 
     def state_from_emu(self):
         b = self.e.base * 16
-        return State(bytes(self.e.uc.mem_read(LO + b, HI - LO)))
+        st = State(bytes(self.e.uc.mem_read(LO + b, HI - LO)))
+        st.clock = int.from_bytes(bytes(self.e.uc.mem_read(self.e.game_clock, 4)), 'little')
+        return st
 
     def check(self, lin, port_fn, args_fn=None, label=None, repeat=1, ignore=(), pre=None, post_args=None,
               pre_once=False):

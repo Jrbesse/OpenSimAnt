@@ -723,19 +723,179 @@ Still to do:
    row go to state 17), ant lions (`f_0b163`, count T:0C4A, arrays G:0A92..0ADE), the caterpillar
    (`f_0b6cc`: enters from an edge, 6 cells long, one cell per 5 odd ticks, swarmed by > 5 ants it turns
    into food 0x4B) and three wandering bugs (`f_0ae4c`, G:0EAE..0F28).
+   Also ported and verified: the **spider** (`f_0ce63` + helpers, `world.spider`, 37 scenarios; see the
+   comment block in world.py: 1/16-tile position G:0F12/0F34, states G:0FB8 0..5, prey G:0FFC, modes
+   G:06AC 7/8, beaten when > 8 of the 3x3 around it are occupied, drops food when it finally leaves).
+   With G:0A06 == 1 the player is the spider (ported, partly covered).
    Still to do:
    - SimStep's overlay calls are vector thunks: `f_2f7a8` → sec8 `f_68513`, `f_2f79e` → `BlackNestLoop`,
      `f_2f794` → `f_7bf7e`, `f_2f78a` → `f_7b7b8`, `f_2f780` → `f_71d95`; SimStep ends with `T?:02C2 = 1`.
-   - `f_0ce63` the **spider** (not a mower): position in 1/16 tiles G:0F12 a / G:0F34 b, active G:0F0C
-     (appears 1/300 per tick when G:0EAC, at a = 0x200 + Rand(1024) /16, from the top or bottom edge),
-     state G:0FB8 (0..5, jump table at cs:0x4CC of segment 1cdb, i.e. flat 0x0D27C), heading G:1004 via
-     T:0024 walk table, steps T:0994/099C (x5 when charging), animation G:1042, target ant G:0FFC chosen
-     by `f_0dbb9` (type remembered in G:10AE), distance `f_0dec8`, kills counted in G:0F20/0F80, eats the
-     yellow ant (`f_11a3e` + `f_2f7d0(1)`), driven off after enough hits (`f_0db10`/`f_0db90`, counter
-     G:108A, mode G:06AC 7/8 → `f_0dd40`). Helpers to read: 0dbb9 0dd40 0db10 0db90 0dec8 0c692.
-     The listing is ~1100 instructions (adis needs a larger limit than 900).
+   - sec8 `f_68513`, the yard layer: **decoded below, not yet ported** (next step).
    - `f_7bf7e` / `f_7b7b8` the yellow ant (player) per tick: health `f_12d43`, queen egg laying, movement
      towards the cursor `f_7d24f`, trail laying, entering/leaving nests.
+
+## The real-time clock
+
+`f_1bc34` returns the 32-bit counter at 1b73:0012 (bumped by the game's INT 8 handler, ~18.2/s);
+`f_0123e` returns it x3. The sim uses it only for ambient timers (bird, dog barks, sound/message
+timeouts). In the port it is `State.clock` (an input set by the engine; `read_clock()`, `clock3()`).
+The emulator normally advances it on every read (needed during boot); `Verifier` freezes it after boot
+(`emu.clock_frozen`) and copies its value into `State.clock`, so original and port read the same value.
+
+## The yard layer (sec8 `f_68513`, segment 783a; decoded, port pending)
+
+Runs every tick from SimStep. Globals: G:07C2 yard tick (0..0x3FF), the player's patch G:07CA (col 0..11)
+/ G:07CC (row 0..15); per-patch colony strengths T:00A4[col*16+row] (black) and T:0164[...] (red),
+0..0xFA. All DS tables below are read with ds (= ss). Segments as given; when the decompile and the asm
+disagree, the asm wins.
+
+```
+f_68513:  G:07C2 += 1, wraps at 0x400 to 0
+          if T:0C48 < 0x26: human_walk (f_68e30) else human_roam (f_68659)
+          bird_crossing (f_6959f); bird (f_6986c); if T:0C44 == 0: dog (f_69ba3)
+          rain_control (f_685ac); yard_colonies (f_6a1f4)
+
+f_6856a(n) "human sound/message": if n <= 0x16: G:109C(32) = clock3() + 300; G:10B0 = 1; G:10BC = n
+
+human_walk (f_68e30), the scripted human walking through (state T:0C48, timer T:0C46):
+  if T:0C44 == 1: return
+  if c48 < 0x1E:
+      T:0C46 += 1; if s8 DS:245E[c48] < c46: c46 = 0; c48 = DS:[(2612, 2628, 263E)[Rand(3)] + c48]
+          sound by new c48: 0x21 → f_6856a(0x14), 6 → 0x15, 7 → 0x16, 0xE → Rand(3)+0xF, 0x10 → Rand(2)+0x12
+  frame (si, x, y) by c48 (jump table at flat 0x68F39; all unsigned bytes [c46 + base]):
+      0: 2474/2478/247C   1: 2480/2484/2488   2: 248C/24A0/24B4   3: 24C8/24DC/24F0
+      4: 2504/2508/250C   5: 2510/2514/2518   6: 251C/2528/2534   7: 2540/254C/2558
+      8: 2564/256A/2570   9: 2576/257C/2582  10: 2588/258C/2590  11: 2594/2598/259C
+     12: 25A0/25A6/25AC  13: 25B2/25B8/25BE  14: 25C4/25C8/25CC  15: 25D0/25D4/25D8
+     20: si = word 25DC[c46*2], x 25EC, y 25F4      21: si = word 25FC[c46*2], x 2606, y 260C
+     16..19, 22..29: uninitialised locals (unreachable from the tables: raise)
+     0x1E..0x26: d = c48-0x1E; si = word 2654[d*2], x 2666[d], y 2670[d];
+                 if Rand(DS:267A[d]) == 0: c48 = DS:2684[d]; c46 = 0     (entries 6, 7 are Rand(0): unreachable)
+  T:0C28 = 0; if c48 == 0x26: T:0C30 = 1, T:0C28 = 1
+  if c48 == 0x14 and c46 > 2: T:0C28 = 1;  if c48 == 0x15 and c46 < 3: T:0C28 = 1
+  T:0C2C = x; T:0C2E = y; T:0C32 = si
+  v = c2e + c2c - 0xC8; G:0246 = v / 28 (C division); T:0C3E = 0; T:0C42 = (T:0C42 == 0)
+  G:023E = (c2e - 0x26) / 10
+  foot lands on the player's patch iff G:023E == G:07CC and G:07CA == G:0246 and col*16+row not in
+  (0, 1, 0x10, 0x20) — then:
+      T:0C30 = DS:268E[c32] if 0 <= c32 < 12 else 2;  T:0C3E = 1
+      G:046A = (c2e - 0x26) % 10 (C remainder) → r10;  G:03E0 = ((v % 28) * 4 + 6) & 0x7F
+      G:046A = ((r10 + 1) * 6) & 0x3F
+      if T:0C30 & 1: G:046A += T:0C42 ? 6 : -6   else: G:03E0 += T:0C42 ? 6 : -6
+      foot_stamp(G:03E0, G:046A)
+      repeat (s16(G:0330) + s16(G:0350)) << 3 times (re-evaluated each pass):
+          a = Rand128(); b = Rand64()
+          if occ(a, b): G:0F18 = SurfaceAntAt(a, b); if >= 0: PlaceCorpse(a, b, s_type & 0x80);
+                        s_type = 0; occ = 0
+          if spider at (a, b) (G:0F12 >> 4, G:0F34 >> 4): spider beaten (f_0db90)
+      if G:0EAC == 2 and G:048C == 1 and Rand4() == 0: f_2f7d0(9)   (player event)
+
+foot_stamp (f_69f53, x, y): w, h = (6, 16) if T:0C30 & 1 == 0 else (16, 6)
+  every occupied cell (0 <= a < 0x80, 0 <= b < 0x80 — sic) in [x, x+w) x [y, y+h): yellow ant →
+  f_2f7d0(5); else the ant there dies (PlaceCorpse(a, b, red), s_type = 0)
+  if G:0F42 in [x, x+w) and G:0F7E in [y, y+h): f_0db90; and if G:0A06 == 1: f_2f7d0(5)
+
+human_roam (f_68659), the human/lawnmower wandering the yard (T:0C28 mode 1..5, G:0202 mowing):
+  if T:0C3E != 0 and G:07C2 & 3: return
+  if G:0202: if (G:0246, G:023E) != (G:0488, G:0492): T:0C30 = f_68d07(G:0246, G:023E)
+  else: T:0C34 -= 1; if < 0: T:0C30 = (Rand(3) + T:0C30 - 1) & 3; T:0C34 = 4
+  mode 1: Rand(900)==0 → f_6856a(1), mode 2
+          else if Rand(600) == 0 or G:0EAC in (0, 3): f_6856a(2), mode 5
+          else: Rand(200)==0 → f_6856a(Rand(8)+7); if G:0352 (rain): mode 5
+  mode 2: G:023E < 12 → T:0C30 = 2; > 12 → 0; else G:0246 > 3 → 3;
+          else mode 3, G:0488 = 3, G:0492 = 13, G:0202 = 1, f_68dff, T:0C30 = 2, T:0C2C = 0x7D, T:0C2E = 0xAA
+  mode 3: Rand(100)==0 → f_6856a(Rand(3)+3); Rand(200)==0 → f_6856a(6), mode 4
+          G:0488 = G:0246; G:0492 = G:023E; G:0202 = 1
+  mode 4: like mode 2's steering, but at the target: mode 5, G:0202 = 0; then G:0488/0492 = G:0246/023E
+  mode 5: G:023E < 5 → T:0C30 = 2; > 5 → 0; else G:0246 > 3 → 3; else mode 1
+  then: T:0C32 = s8 DS:269E[c30] + s8 DS:269A[G:07C2 & 3]
+        mowing: T:0C32 += 100; move: T:0C2C += s8 T:0C36[c30]; T:0C2E += s8 T:0C3A[c30]
+        else if T:0C40 == 0: (Rand32() == 0 → T:0C40 = 20); move as above
+        else: T:0C40 -= 1; T:0C32 = c30 + 20 (standing)
+  v = c2e + c2c - 0xC8; G:0246 = clamp(v / 28, 0, 11); G:023E = clamp((c2e - 0x26) / 10, 0, 15)
+  not mowing: G:023E < 1 → c30 = 2, > 14 → 0; then G:0246 > 10 → 3; elif G:023E < 5: G:0246 < 4 → 1;
+              else G:0246 < 3 → c30 = 0 and, if G:023E < 6: mode 3 ? c30 = 1 : T:0C48 = 0x15
+  T:0C3E = 0; T:0C42 = (T:0C42 == 0)
+  on the player's patch: T:0C3E = 1; G:046A/G:03E0 as in human_walk; G:0470 = G:03E0 + s16 DS:26A2[c30&3];
+      G:047A = G:046A + s16 DS:26AA[c30&3]; ±6 nudge as in human_walk; foot_stamp; mowing → f_6a08a
+  elsewhere, mowing: patch strengths T:00A4/T:0164[col*16+row] lose a quarter (v - v>>2);
+      reaching 0 counts G:0A9E (black) / G:0AC8 (red)
+  f_68d07(col, row): for d = 3..0: (col + s8 DS:26B2[d], row + s8 DS:26B6[d]) in the 12x16 yard and its
+      bit is set in the mowing mask (word G:0334[col] bit row, cleared on use, f_68d97) → d;
+      else col >= 11 → 0, row >= 15 → 1, row < 1 → f_6856a(6), mode 4, 2; else G:07C2 & 3
+  f_68dff: G:0334..0338 = 0, G:033A..0349 (cols 3..11) = 0xFFFF
+  f_6a08a (mower over the player's patch): if G:0EAC: each live surface ant dies with 3/4
+      (occ = 0, s_type = 0, no corpse); spider present and Rand4() → f_0db90;
+      G:0A06 < 2 and G:048C == 1 and Rand4() → f_2f7d0(6)
+
+bird_crossing (f_6959f), state G:10A0 (0 idle, 1 diving, 2 leaving), x G:10AC (0..0x1FF), y G:10BA:
+  idle: when G:383A(32) > G:107E(32): G:107E = G:383A + 20; if G:07CA >= 5 and Rand2() == 0 and
+        (G:06AA > 0 or G:073A > 0) (flying black / red queens): target G:0208 = col*28 - row*10 + 0xB2,
+        G:0210 = row*10 + 0x2E; state 1; x = 0; y = Rand64() + 4; G:108C = 0
+  else: x += 16 (state 1) or 8; state 1: y steps towards G:0210 by 4 (|d| >= 4) or 1; else y -= 8
+        G:108C = (G:108C + 1) & 1
+        off the map (x < 0 or > 0x1FF or y < 0 or > 0xFF): state 0, G:107E = G:383A + 30
+        state 1 at the target (x >= G:0208, |y - G:0210| <= 4): each of G:06AA, G:07C8 (+ f_01315 no-op),
+            G:073A, G:0850 loses (v + 7) >> 3 if > 0; if T:07C8 == 0 and G:035C < 2: Rand2() (sound);
+            state 2
+
+bird (f_6986c), state G:0254, x G:02BE, y G:032C, heading G:0240, frame G:0244, timer G:022C:
+  0: if clock3() > G:0220(32): G:0220 = clock3() + 200; if Rand16() == 0 or G:0B20 == 0x8D:
+        state 1, x 0xFC, y 0x19, heading 2, frame 0, timer 0
+  else G:022C = (G:022C + 1) & 0xFFF, then
+  1 (flying): nx = s8 T:[heading]*4 + x; if Rand16() == 0 or nx < 0xFC or nx > 0x1EF:
+        heading 2 → 6, frame 4; else heading 2, frame 1
+      else x = nx; y += s8 T:[8+heading]*4; frame += 1; frame wraps: heading != 2: >= 6 → 4; == 2: >= 3 → 1
+      then if T:07C8 == 0 and G:035C < 2 and Rand64() == 0: sound 0xD, done
+      else: if Rand16() == 0 and G:022C > 100 and G:0506 == 2 (dog) and T:0C28 == 0:
+                state 2, timer 0, frame 10; done
+            if timer >= 0x33 and Distance(x, y, G:04BE, G:04C6) <= 0x960 (32-bit): state 3, frame 20
+                (sound 0xE if T:07C8 == 0 and G:035C < 2)
+  2: frame += 1 (max 11 → kept at 11 once > 12); timer += 1; at 0x1F: timer 0, state 1, frame 0/3
+  3+: frame += 1; at 0x1E: frame 0, state 0, G:0220 = clock3() + 600
+
+dog (f_69ba3), heading G:0506 (0..3 walking, 4/5 sitting), x G:04BE, y G:04C6, sprite G:04E4,
+  patch G:0510 (col) / G:059E (row), turn timer G:0624:
+  G:0624 -= 1; if < 0: heading = G:0254 ? f_69e5f() : (T:0C48 < 0x26 ? (Rand(3) + heading - 1) & 3
+                                                                    : f_69daf()); G:0624 = 4
+  heading 1 and Rand(10) == 0: heading = Rand2() + 4, G:0624 = 6
+  sprite = s8 DS:2458[heading] + (heading > 3 ? G:07C2 & 1 : s8 DS:2454[G:07C2 & 3])
+  y += s8 DS:244E[heading]; G:059E = clamp((y - 0x26) / 10, 0, 15)
+  x += s8 DS:2448[heading]; G:0510 = clamp((x + y - 0xC8) / 28, 0, 11)
+  G:059E < 1 → heading 2, > 14 → 0; G:0510 > 10 → 3, < 4 → 1
+  sprite in 100..103 and Rand(6) == 0: bark (f_69ea8(Rand4(), 5))
+  f_69e5f: G:0510 < 5 → 1; < 9 → (G:059E < 1 ? G:07C2 & 3 : 0); else 3
+  f_69daf: chase the human: dr = G:059E - G:023E, dc = G:0510 - G:0246; same patch and G:0202 →
+      bark(1, 0x7F); if |dc| > 1 or |dr| > 1: dr < 0 → 2, dr > 1 → 0, dc < 0 → 1, dc > 1 → 3;
+      else G:07C2 & 3
+  f_69ea8 bark (p, vol): only if T:07C8 == 0, G:035C < 2 and clock3() > G:0736(32);
+      G:0736 = clock3() + Rand(30) + 60
+
+rain_control (f_685ac), yard only (G:0F24 != 1):
+  not raining: if G:0B20 == 0xA8 or (crt_rand() % 32 == 0 and crt_rand() % 128 == 0):
+      G:0352 = 1; G:0356 = Rand(150) + 150; DropObjectRandom(0..99) (f_0c4ba); f_6856a(0)
+  raining: G:0356 -= 1 if > 0; when < 1: G:0352 = 0
+
+yard_colonies (f_6a1f4), every 32 yard ticks (G:07C2 & 0x1F == 0):
+  T:0C20 = 1; f_6a13d: G:06AA (and G:073A) decay: v < 4 ? v - 1 : v - v>>2 (if > 0), at least G:07C8
+      (resp. G:0850), at most 50
+  G:03E2 = G:0400 = G:0478 = 0; G:03E2 = 1 if black_pop > 0; G:0400 = 1 if red_pop > 0
+  this patch: T:00A4 = min(black_pop & 0x3FF, 0xFA); T:0164 = min(red_pop & 0x3FF, 0xFA)
+  every other patch with any colony: G:0EAC == 2 and (col < 2 or (col == 3 and row < 5)) → G:0478 += 1
+      adj = f_6a6b4 (+3 per black, -3 per red among 6 neighbours at DS:26BA/26C0 offsets, unsigned bytes)
+      black: G:03E2 += 1; v += adj or 1; v <= 0 → 0, G:0A9E += 1; v >= 0xFA → 0xFA and 1/10 f_6a721(…, 0)
+      red:   G:0400 += 1; v -= adj (or += 1); v <= 0 → 0, G:0AC8 += 1, and in col 11: row := 8,
+             T:0184[Rand(6)*16] = 0x14; v >= 0xFA → 0xFA and 1/10 f_6a721(…, 1)
+  if T:02C0 == 1: G:105C += 1; when > Rand8() + 10: G:105C = 0; while G:07C8 > 0: f_6a721(player patch, 0), G:07C8 -= 1
+  G:1066 += 1; when > Rand8() + 10: G:1066 = 0; while G:0850 > 0: f_6a721(player patch, 1), G:0850 -= 1
+  Full Game only (G:0EAC == 2): messages 0x2744/0x2747 when the reds vanish; G:0364 = G:03E2,
+      G:036E = G:0400; the human arrives (T:0C44 = 1, T:0C48 = 0, T:0C28 = 0, T:0C32 = -1) when
+      G:0478 > 24; win (G:0376 = G:0366 = 1, f_2f91a) when the human is there and no reds remain;
+      lose (G:0376 = 1, G:0366 = 0, message 0x2748) when <= 1 black patch and no queen/brood/males/queens.
+  f_6a721(col, row, red): new colony at (col + f_00984(4), row + f_00984(4)) clamped; if it moved:
+      cell += 1 (an empty cell also counts G:0A90 black / G:0AC4 red)
+  f_00984(n): m = min(Rand(n), Rand(n)); Rand2() ? -m : m
+```
 4. Yellow (player) ant: movement, recruit/release/exchange, dig, pick up, `f_7bf7e`, `AttackPlayer`.
 5. New game / map generation (overlay 10 `6ae20`, `6c010`), initial colonies, entrance tables.
 6. Full Game: the yard of patches, house, transfers, mating-flight colonisation (`f_01315`).

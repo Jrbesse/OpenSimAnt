@@ -115,7 +115,7 @@ class SimEmu:
         self.stub(MESSAGE_BOX)
 
     def _on_game_clock_read(self, uc, access, address, size, value, user):
-        if address == self.game_clock:
+        if address == self.game_clock and not getattr(self, 'clock_frozen', False):
             v = struct.unpack('<I', bytes(uc.mem_read(address, 4)))[0] + 1
             uc.mem_write(address, struct.pack('<I', v & 0xffffffff))
 
