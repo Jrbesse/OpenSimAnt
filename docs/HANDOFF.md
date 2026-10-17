@@ -146,6 +146,12 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    - the fonts (`tools/fonts.py`; text placement in `render_windows.py`);
    - the Behavior / Caste Control triangles (`simant_ref/panels.py`, verified);
    - the Efficiency Score window, the population report, the History Window's scaling (SIM_NOTES).
+   **Next: port the yellow ant's commands** (SIM_NOTES "The yellow ant's menu and commands"):
+   - the dispatcher `f_76cb9` and recruiting `f_13f32` (both small);
+   - the Exchange swap `f_11b81` → `f_11c18` (long) and the spider's Chase click `f_756a6`;
+   - verify each with v.check, like test_tools.py. The overlay at 0x74FE0 uses its own base as CS for
+     `f_76cb9`.
+   `game.py` calls the G:105E modes 0x0A / 0x0B "a pending yard map edit": they are Exchange / Chase.
    Open:
    - colours 0x10.. in the map window (driver dither, DS:914C; drawn as a plain ramp);
    - the panels' bar charts (`f_0839a` / `f_08255`), the History Window's line drawing, the Ant Info

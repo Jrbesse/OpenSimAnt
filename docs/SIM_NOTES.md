@@ -1383,6 +1383,46 @@ local. It fills the window with `f_2318a` (number) / `f_23943` (formatted text):
 
 It then waits for a click.
 
+### The yellow ant's menu and commands (`f_67e93` → `f_76cb9`; not ported yet)
+
+`f_67e93` opens a pop-up menu (`f_2379b`) and turns the choice into a command through a byte table in
+DS:
+
+| Window | Who | Entries → command |
+|---|---|---|
+| 32 (4504) | the spider (G:0A06 == 1) | Chase 0x0A, Hunt 0x0B (Alt held: 0x0C), Exchange 6, Help 0 (DS:23DA) |
+| 8 (4502) | a queen (G:04C2 == 0x40) with T:0C24 == 0 | Dig Hole 8, Start Brood 9, Help 0 (DS:23D0) |
+| 7 (4500) | any other ant | Recruit 5 → 1, Recruit 10 → 2 (Shift held: 3), Release 1/2 → 4, Release All → 5, Exchange 6, Help 0 (DS:23D4) |
+
+Window 6 (6000) is the scent-layer menu (Off, Alarm, B-Nest, B-Trail, R-Nest, R-Trail: T:07BE, `f_679c0`).
+
+`f_2f906` → `f_76cb9(command)` (only while G:0A06 <= 1), through a jump table at 0x76CE3 (cs base 0x74FE0):
+- 0: help (`f_76eb5`, UI).
+- 1 / 2 / 3: voice `f_00ea1` + `f_13f32(5 / 10 / 1000)`, recruiting n.
+  `f_13f32` walks the surface ants from the last down, then the black-nest ants. Each live black ant
+  of caste 2 or 6 that is not in state 6 gets state 6 and e = 0, until n are recruited.
+- 4 / 5: voice + `f_14005(0 / 1)` (release half / all; ported: `player.release_recruits`).
+- 6: Exchange, `f_11b21`. It toggles the cursor mode G:105E = 0x0A: G:048E = G:047E, then `f_2f816(1)`
+  pauses; `f_11b5f` cancels, with G:105E = -1 and `f_2f816(G:048E)`. The next map click (`f_74fe0`)
+  calls `f_11b81(view or 1, a, b)`:
+  - G:1074 = 1, then `f_11c18(view, a, b)` makes the swap. It is long and not traced yet: GetOccupant;
+    on the surface within squared distance 0x200 of the spider; a new yellow type from the clicked ant's
+    caste (T:0094 load table) and colour; it places the yellow ant (and a queen's second cell) with
+    `f_114bd`.
+  - On success: cancel the mode and play sound 0x0F (as a queen: also a redraw, a wait for the sound,
+    and a voice line). On failure: sound 1.
+- 7: `f_76a37(G:104E == 0, 0)` (alarm mode toggle; ported: `player.alarm_mode`).
+- 8: Dig Hole. On the surface `f_13644(view, a, b)` (`player.act_on_cell`); if that returns -1, or off
+  the surface: sound 1.
+- 9: Start Brood. In the black nest at depth >= 3: `f_0125f(6)` and
+  `f_758e0(view, a + 2 dx[h ^ 4], b + 2 dy[h ^ 4], 0x10, 1)` (`player.queen_scene`, founding); else
+  sound 1.
+- 0x0A: Chase, `f_11ac1`: like Exchange with cursor mode 0x0B. Its click, on the surface while the
+  player is the spider, calls `f_756a6(a, b, ...)`, which sets the spider's target (G:0F42 / G:0F7E,
+  G:0FFC, G:10AE, G:0FB8, G:06AC...; not traced).
+- 0x0B: Hunt. G:06AC == 7 ? 0 (sound 2, pitch 0x56EE) : 7 (sound 2, pitch 0x2B77).
+- 0x0C: Hunt with Alt. G:06AC == 8 ? 0 (sound 2, pitch 0x56EE) : 8 (sound 0x29).
+
 ### The tool palette (window 9, `f_680a4`)
 
 - Window 9 (bitmap 5000) has eight hotspots, 0x902..0x909: a click selects the map tool G:104C =
