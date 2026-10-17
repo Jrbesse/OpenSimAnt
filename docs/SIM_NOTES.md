@@ -717,21 +717,23 @@ Still to do:
 2. (done: red nest compared, see "The red nest".)
 3. Surface world per tick: `f_0c22c`, `f_0b163`, `f_0ce63`, `f_0b6cc`, `f_0e2ea`, sec8 `f_68513`,
    sec26 `f_798c8`, `f_0c20f`: food spawning, predators (spider, ant lion), humans/mower/rain/insecticide.
-   First read of the decompiles (`tools/re/build/asm/world.c`, not committed):
+   Ported and verified in `simant_ref/world.py` (`test_world.py`): slow phases, history graph (`f_798c8`),
+   advisor (`f_0e2ea`, status line as an effect), weather (`f_0c22c`: puddles on the 100 rain objects
+   G:0256 a / G:02C0 b, flooding nest rows from below as the water level G:0242 sinks, ants on a flooded
+   row go to state 17), ant lions (`f_0b163`, count T:0C4A, arrays G:0A92..0ADE), the caterpillar
+   (`f_0b6cc`: enters from an edge, 6 cells long, one cell per 5 odd ticks, swarmed by > 5 ants it turns
+   into food 0x4B) and three wandering bugs (`f_0ae4c`, G:0EAE..0F28).
+   Still to do:
    - SimStep's overlay calls are vector thunks: `f_2f7a8` → sec8 `f_68513`, `f_2f79e` → `BlackNestLoop`,
      `f_2f794` → `f_7bf7e`, `f_2f78a` → `f_7b7b8`, `f_2f780` → `f_71d95`; SimStep ends with `T?:02C2 = 1`.
-   - `f_0c22c` weather: while raining (G:0352, yard only) puddle tiles 0x74..0x77 grow on the 100 object
-     slots (T:02C0 a / T:0256 b; others are washed away by `DropObjectRandom`) and G:0242 sinks (`f_0c4d2`);
-     afterwards puddles revert to ground and G:0242 recovers 1/10 per tick up to 64 (`f_0c56e`).
-   - `f_0b163` ant lions: G:0C4A pits, state T?:0ABA (0 waiting / 1 eating / 2 gone), pos 0AA8/0A92; eats a
-     neighbouring ant (`f_0ed8f`, counts G:0F20 black / G:0F80 red), or the yellow ant (`f_11a3e`); new pits
-     from `f_0b016` (1/1024 when G:08EA > 0).
-   - `f_0ce63` the human/lawnmower (pos in 1/16 tiles G:0F12/0F34, G:0F0C active, G:0FB8 phase, G:06AC mode;
-     spawns 1/300 when G:0EAC) - switch on G:0FB8 garbled in Ghidra, needs asm.
-   - `f_0b6cc` (odd ticks, yard only) the spider: segmented body of tiles 0x68..0x6F at G:0C4E/0C50 heading
-     G:0C3C, step counter G:0C36.
-   - `f_0e2ea` advisor messages (`f_15e2c` from the table at G:0360), Quick-Game end checks.
-   - `f_798c8` (slow phase 2) history graph: 64-entry ring at G:04F4 of pops, food, health, kills.
+   - `f_0ce63` the **spider** (not a mower): position in 1/16 tiles G:0F12 a / G:0F34 b, active G:0F0C
+     (appears 1/300 per tick when G:0EAC, at a = 0x200 + Rand(1024) /16, from the top or bottom edge),
+     state G:0FB8 (0..5, jump table at cs:0x4CC of segment 1cdb, i.e. flat 0x0D27C), heading G:1004 via
+     T:0024 walk table, steps T:0994/099C (x5 when charging), animation G:1042, target ant G:0FFC chosen
+     by `f_0dbb9` (type remembered in G:10AE), distance `f_0dec8`, kills counted in G:0F20/0F80, eats the
+     yellow ant (`f_11a3e` + `f_2f7d0(1)`), driven off after enough hits (`f_0db10`/`f_0db90`, counter
+     G:108A, mode G:06AC 7/8 → `f_0dd40`). Helpers to read: 0dbb9 0dd40 0db10 0db90 0dec8 0c692.
+     The listing is ~1100 instructions (adis needs a larger limit than 900).
    - `f_7bf7e` / `f_7b7b8` the yellow ant (player) per tick: health `f_12d43`, queen egg laying, movement
      towards the cursor `f_7d24f`, trail laying, entering/leaving nests.
 4. Yellow (player) ant: movement, recruit/release/exchange, dig, pick up, `f_7bf7e`, `AttackPlayer`.
