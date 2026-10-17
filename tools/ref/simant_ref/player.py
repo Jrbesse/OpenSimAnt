@@ -891,23 +891,300 @@ def leave_nest(st):
     put_yellow(st, 1, s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a)), t, st.u16(G, 0x496), 0xff)
 
 
+def _anim_frames(st):
+    """f_23612(0): the game window is the active one (DS:5702 == 0) → long animations."""
+    return st.u16(0x55b3, 0x5702) == 0
+
+
+def sound_done(st):
+    """f_00f28: the last sound has finished (always, without sound hardware DS:1926 or with sound off)."""
+    if st.u16(0x55b3, 0x1926) == 0 or st.u16(T, 0x7aa) == 0:
+        return True
+    return st.player.sound_done(st)
+
+
 def fight_animation(st, view, a, b, heading, t, mode):
-    """f_7c149 mode 0 (the fight): the yellow ant flashes as a fight cloud (type t) with random headings
-    six times, then is lifted off the map with its state restored. The original waits on the clock
-    between frames; other modes (animations started by the player-event UI) are not ported."""
-    if mode != 0:
-        raise NotImplementedError(f'f_7c149 mode {mode}')
-    saved = (view, a, b, st.u16(G, 0x4c2))
+    """f_7c149: the yellow ant flashes as type t with random headings, then is lifted off the map with its
+    state restored. Mode 0 (a fight, 6 frames, type 0x70 cloud) or a player event (1 eaten by the spider,
+    2 by an ant lion: the pit opens under it; 10 squashed: the ground flickers): 8 frames, 0x20 / 0x40
+    (sound on) when the game window is active, events 1..9 stop early once their sound has finished.
+    The original waits on the clock between frames (screen only)."""
     put_yellow(st, s16(st.u16(G, 0x48c)), s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a)),
                s16(st.u16(G, 0x4c2)), st.u16(G, 0x496), 0xff)
-    for _ in range(6):
-        if st.rand2():
+    saved = (view, a, b, st.u16(G, 0x4c2))
+    if mode == 0:
+        n = 6
+    elif _anim_frames(st):
+        n = 0x40 if st.u16(T, 0x7aa) else 0x20
+    else:
+        n = 8
+    if mode == 10:
+        under = st.grid(SURFACE, a, b)
+        n = 0x20
+    k = 3
+    for _ in range(n):
+        if mode == 0 and st.rand2():
             st.player.effect(st, 'sound', 0x25)
+        if mode == 10:
+            st.player.effect(st, 'sound', 0x31)
+            st.set_grid(SURFACE, a, b, under - 3 if st.rand2() else under)
+        if 0 < mode < 10 and st.u16(T, 0x7aa) and sound_done(st):
+            break
+        if mode == 2:
+            set_tile(st, view, a, b, k + 0x38)                         # the pit's frames
+            if k < 5:
+                k += 1
+            elif k > 3:
+                k -= 1
         move_yellow(st, view, a, b, t, st.rand8())
+    if mode == 10:
+        st.set_grid(SURFACE, a, b, under)
     take_yellow(st, view, a, b, t, st.u16(G, 0x496))
     for off, v in zip((0x48c, 0x47c, 0x48a, 0x4c2), saved):
         st.set16(G, off, v)
     st.set16(G, 0x496, heading)
+
+
+def path_dir(st, view, a, b, ta, tb):
+    """f_7a69d: the heading of the neighbour that gets closest to (ta, tb), preferring free open ground;
+    -1 if already there, -2 if no neighbour is closer."""
+    dist = _dist(a, b, ta, tb)
+    if dist <= 0:
+        return -1
+    best, fallback = -1, -2
+    for d in range(8):
+        na, nb = a + st.s8(T, d), b + st.s8(T, 8 + d)
+        t = get_tile(st, view, na, nb)
+        if not can_drop(st, view, na, nb) or is_rock(view, t):
+            continue
+        nd = _dist(na, nb, ta, tb)
+        if nd >= dist:
+            continue
+        if get_occ(st, view, na, nb) <= 0 and is_open_ground(st, view, na, nb):
+            best = d
+        else:
+            fallback = d
+        dist = nd
+    return best if best >= 0 else fallback
+
+
+def insane_animation(st, view, a, b, heading, t):
+    """f_7c3b1 (AnimYellowInsane, events 7..9): the yellow ant (as type t) staggers around its spot: back
+    there is a random target within 3 cells (C runtime rand), then it heads home; 8 frames, 0x20 when the
+    game window is active. Its state is restored afterwards."""
+    put_yellow(st, s16(st.u16(G, 0x48c)), s16(st.u16(G, 0x47c)), s16(st.u16(G, 0x48a)),
+               s16(st.u16(G, 0x4c2)), st.u16(G, 0x496), 0xff)
+    a0, b0, saved_t = a, b, st.u16(G, 0x4c2)
+    n = 0x20 if _anim_frames(st) else 8
+    for i in range(n):
+        if co.distance(a, b, a0, b0) & 0xffff == 0 and n - i - 1 != 0:
+            tb = st.crt_rand_mod(7) + b - 3
+            ta = st.crt_rand_mod(7) + a - 3
+        else:
+            ta, tb = a0, b0
+        d = path_dir(st, view, a, b, ta, tb)
+        if d >= 0:
+            a += st.s8(T, d)
+            b += st.s8(T, 8 + d)
+        else:
+            d = st.rand8()
+        move_yellow(st, view, a, b, t, d)
+    take_yellow(st, view, a, b, t, st.u16(G, 0x496))
+    for off, v in ((0x48c, view), (0x47c, a0), (0x48a, b0), (0x4c2, saved_t), (0x496, heading)):
+        st.set16(G, off, v)
+
+
+def release_recruits(st, more):
+    """f_14005: let recruited ants (state 6) go: half the census count G:0D4C, or it + 100; surface and
+    black nest ants of the black colony return to state 0, black invaders in the red nest to 7."""
+    n = s16(st.u16(G, 0xd4c))
+    n = n + 100 if more else int(n / 2)
+    for count, tf, sf, new in ((0xd6a, 0xad3b, 0xa952, 0), (0xda8, 0xbaec, 0xb8f7, 0), (0xeaa, 0xc4b5, 0xc2c0, 7)):
+        i = s16(st.u16(G, count))
+        while i > 0 and n > 0:
+            i -= 1
+            t = st.u8(SIM, tf + i)
+            if t and not t & 0x80 and st.u8(SIM, sf + i) == 6:
+                st.set8(SIM, sf + i, new)
+                n -= 1
+
+
+def queen_scene(st, view, a, b, t, found):
+    """f_758e0: the yellow ant becomes the queen. found == 0 (the old one died, f_75d01): she comes out of
+    her cocoon (G:0502 frames 1..7) as type t. found != 0 (f_76cb9): the yellow queen at (a, b) founds a
+    nest there: a queen chamber (f_6ba1c / f_6bb70) and one more adult. The waits are screen only."""
+    saved_7ac, old_t = st.u16(T, 0x7ac), st.u16(G, 0x4c2)
+    st.set16(T, 0x7ac, 0)
+    st.set16(G, 0xa06, 0)
+    if found == 0:
+        st.set16(G, 0x502, 1)
+        put_yellow(st, view, a, b, 0, st.u16(G, 0x496), 0xff)
+    else:
+        g = lambda off: s16(st.u16(G, off))
+        take_yellow(st, g(0x48c), g(0x47c), g(0x48a), g(0x4c2), st.u16(G, 0x496))
+        put_yellow(st, g(0x48c), g(0x47c), g(0x48a), 0x60, st.u16(G, 0x496), 0xff)
+    if found == 0:
+        ui_follow(st)
+    st.player.effect(st, 'redraw_all')                                  # f_11ab0
+    if found:
+        st.player.effect(st, 'sound', 0x4e20)
+        set_occ(st, view, a, b, 1)
+        st.player.effect(st, 'redraw_all')
+    st.set16(T, 0x7ac, saved_7ac)
+    st.player.effect(st, 'sound', 0x1c)
+    g = lambda off: s16(st.u16(G, off))
+    stop_action(st, g(0x48c), g(0x47c), g(0x48a))
+    st.set16(T, 0xc24, 1)
+    set_health(st, 100)
+    if found == 0:
+        st.set16(G, 0x496, 2 if old_t == 0x60 else 6)
+    for frame in range(2, 8):
+        if found == 0:
+            st.set16(G, 0x502, frame)
+            put_yellow(st, g(0x48c), g(0x47c), g(0x48a), 0, st.u16(G, 0x496), 0xff)
+        else:
+            set_occ(st, g(0x48c), a, b, frame)
+        st.player.effect(st, 'redraw')                                 # f_03391
+    st.player.effect(st, 'sound', 0x31)
+    if found == 0:
+        put_yellow(st, g(0x48c), g(0x47c), g(0x48a), t, st.u16(G, 0x496), 0xff)
+    else:
+        from . import newgame
+        take_yellow(st, g(0x48c), g(0x47c), g(0x48a), g(0x4c2), st.u16(G, 0x496))
+        if g(0x48c) == 2:
+            newgame._queen_chamber(st, nest.BLACK, g(0x47c), g(0x48a), st.u16(G, 0x496))   # f_6ba1c
+            st.inc16(G, 0xaf6)
+        else:
+            newgame._queen_chamber(st, nest.RED, g(0x47c), g(0x48a), st.u16(G, 0x496))     # f_6bb70
+            st.inc16(G, 0xb04)
+        put_yellow(st, g(0x48c), a, b, t, st.u16(G, 0x496) ^ 4, 0xff)
+        if st.u16(G, 0x4e2) == 0:
+            st.inc16(G, 0xaee)
+            st.inc16(G, 0xaf4, -1)
+            st.inc16(G, 0x330)
+        else:
+            st.inc16(G, 0xafc)
+            st.inc16(G, 0xb02, -1)
+            st.inc16(G, 0x350)
+    st.player.effect(st, 'redraw')
+    st.player.effect(st, 'sound', 0x4e21 if found else 0x2afd)
+    st.player.effect(st, 'help', 0x238d, found + 1)                    # f_7686d
+
+
+# the death messages per event (f_75d01), shown when T:07AE (messages on)
+EVENT_MESSAGE = {3: 0x272a, 4: 0x272c, 5: 0x2732, 6: 0x2734, 7: 0x2736, 8: 0x2738, 9: 0x273a, 10: 0x273d}
+
+
+def player_event(st, n):
+    """f_75d01 (via f_2f7d0): the yellow ant dies (n: 0 starved, 1 spider, 2 ant lion, 3..10 other deaths,
+    see EVENT_MESSAGE) and the player takes over another ant: the black queen if she is gone ... (types
+    1..7 in the black nest), else the last adult of the black nest, the surface, the red nest. With
+    none left: Quick Game over, or in the Full Game the yard map (another colony) or game over."""
+    g = lambda off: s16(st.u16(G, off))
+    st.player.effect(st, 'picture', 1)                                 # f_2f802 → f_71a7d
+    if st.u16(G, 0xa06) == 0 and st.u16(G, 0x4c2) & 8:                 # drop what it carries
+        saved = st.u16(T, 0x7ac)
+        st.set16(T, 0x7ac, 0)
+        if not drop_load(st, g(0x48c), g(0x47c), g(0x48a), g(0x47c), g(0x48a)):
+            t = st.u16(G, 0x4c2)
+            st.set16(G, 0x4c2, (t & 0x80) | ((st.s8(T, 0x94 + ((t & 0x78) >> 3)) << 3) & 0xffff))
+        st.set16(T, 0x7ac, saved)
+    ui_follow(st)
+    st.player.effect(st, 'redraw_all')
+    if 7 <= n < 10:
+        insane_animation(st, g(0x48c), g(0x47c), g(0x48a), st.u16(G, 0x496), st.u16(G, 0x4c2))
+    msg = st.u16(T, 0x7ae)
+    if n == 0:
+        st.player.effect(st, 'sound', st.rand(5) + 0x4e27)
+        if msg:
+            st.player.effect(st, 'message_box', 0x272e if st.u16(G, 0x1058) else 0x2730, 1)
+    elif n in (1, 2):
+        if msg:
+            if n == 1:                                                 # f_71f52: the spider scene
+                st.player.effect(st, 'message_box', 0x2740 if st.rand(2) else 0x273f, 1)
+            else:
+                st.player.effect(st, 'scene', 0x1a00)                  # f_76707: the ant lion scene
+        st.inc32(G, 0xf20)
+        st.player.effect(st, 'sound', st.rand(5) + 0x4e27)
+        fight_animation(st, g(0x48c), g(0x47c), g(0x48a), st.u16(G, 0x496), st.u16(G, 0x4c2), n)
+    elif n in (3, 4):
+        st.player.effect(st, 'sound', 0x7e)
+        if msg:
+            st.player.effect(st, 'message_box', EVENT_MESSAGE[n], 1)
+        st.inc32(G, 0xefc)
+    elif 5 <= n <= 9:
+        st.player.effect(st, 'sound', st.rand(5) + 0x4e27)
+        if msg:
+            st.player.effect(st, 'message_box', EVENT_MESSAGE[n], 1)
+        st.inc32(G, 0xf30 if n == 8 else 0xefc)
+    elif n == 10:
+        st.inc32(G, 0xefc)
+        fight_animation(st, g(0x48c), g(0x47c), g(0x48a), st.u16(G, 0x496), st.u16(G, 0x4c2), 10)
+        if msg:
+            st.player.effect(st, 'message_box', EVENT_MESSAGE[n], 1)
+    if 1 <= n <= 2:
+        st.player.effect(st, 'help', 0x238c, 0)                        # f_7686d
+    st.player.effect(st, 'redraw_all')                                  # f_0151c
+    if st.u16(G, 0xa06) == 0:
+        take_yellow(st, g(0x48c), g(0x47c), g(0x48a), g(0x4c2), st.u16(G, 0x496))
+    release_recruits(st, 1)
+    if st.u16(G, 0x104e):
+        alarm_mode(st, 0, 1)
+    found = _take_over(st)
+    if found == 0:
+        mode = g(0xeac)
+        if mode <= 1:
+            st.set16(G, 0x376, 1)
+            st.set16(G, 0x366, 0)
+        elif mode == 2:
+            if g(0x3e2) < 2:
+                st.set16(G, 0x376, 1)
+                st.set16(G, 0x366, 0)
+                st.player.effect(st, 'message_box', 0x2748, 1)
+            else:
+                st.player.effect(st, 'message_box', 0x274a, 1)
+                st.player.choose_patch(st)                             # f_7650c: the yard map
+        else:
+            raise NotImplementedError('f_75d01: no ant left in mode 3 (reads an unset local)')
+        return
+    if found[0] == 1:                                                  # the queen
+        if st.u16(G, 0x4c2) == 0x60:
+            st.set16(G, 0x4c2, 0x10)
+        queen_scene(st, g(0x48c), g(0xf0e), g(0xf26), g(0x4c2), 0)
+        return
+    st.set16(G, 0xa06, 0)
+    t = found[1] & 0xf8
+    h = st.u16(G, 0x496)
+    put_yellow(st, g(0x48c), g(0xf0e), g(0xf26), t, h, t + h)
+    stop_action(st, g(0x48c), g(0xf0e), g(0xf26))
+    set_health(st, 100)
+    ui_follow(st)
+    st.player.effect(st, 'redraw_all')
+    st.player.effect(st, 'message_box', 0x274b, 1)
+
+
+def _take_over(st):
+    """Part of f_75d01: pick the ant to become, remove it from its list and map. Returns 0, (1, t) for the
+    black nest's types 1..7, or (2, t) for an adult (types 8..0x67). Each search starts one past the last
+    ant (sic)."""
+    lists = ((1, 0xda8, 0xbaec, 0xb50d, 0xb702, 0x8180, 2, 1, 8),
+             (2, 0xda8, 0xbaec, 0xb50d, 0xb702, 0x8180, 2, 8, 0x68),
+             (2, 0xd6a, 0xad3b, 0xa180, 0xa569, 0x6180, 1, 8, 0x68),
+             (2, 0xeaa, 0xc4b5, 0xbed6, 0xc0cb, 0x9180, 3, 8, 0x68))
+    for kind, count, tf, xf, yf, cells, view, lo, hi in lists:
+        i = s16(st.u16(G, count))
+        while i >= 0:
+            t = st.u8(SIM, tf + i)
+            if lo <= t < hi:
+                y, x = st.u8(SIM, yf + i), st.u8(SIM, xf + i)
+                st.set16(G, 0xf26, y)
+                st.set8(SIM, tf + i, 0)
+                st.set16(G, 0xf0e, x)
+                st.set_grid(cells, x, y, 0)
+                st.set16(G, 0x48c, view)
+                return kind, t
+            i -= 1
+    return 0
 
 
 def stop_action(st, view, a, b):
@@ -1107,7 +1384,18 @@ def nudge(st, a, b, d):
 
 class Hooks(surface.NoPlayer):
     """The player hooks the simulation calls, routed to this module. Still hooks (UI, not ported):
-    game_event (f_2f7d0 → f_75d01), win_screen (f_2f91a), game_over (f_71d95); effect is screen only."""
+    win_screen (f_2f91a), game_over (f_71d95); effect is screen only. choose_patch is the yard map (the
+    UI lets the player pick a patch, then calls newgame.move_to_patch); sound_done asks the sound driver
+    (only with sound hardware)."""
+
+    def game_event(self, st, n):
+        player_event(st, n)
+
+    def choose_patch(self, st):
+        self.effect(st, 'yard_map')
+
+    def sound_done(self, st):
+        return True
 
     def attack_player(self, st, view, ant):
         attack_player(st, view, ant)

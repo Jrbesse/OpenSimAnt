@@ -46,6 +46,12 @@ class NoPlayer:
     def win_screen(self, st):
         raise NotImplementedError('f_2f91a (Full Game won: the end screen)')
 
+    def choose_patch(self, st):
+        raise NotImplementedError('f_7650c (the yard map: pick a patch)')
+
+    def sound_done(self, st):
+        raise NotImplementedError('f_284a4 (the sound driver: has the sound finished?)')
+
     def effect(self, st, name, *args):
         pass                                    # visual effects only (patch_visible)
 

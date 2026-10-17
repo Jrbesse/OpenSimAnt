@@ -87,8 +87,8 @@ class Verifier:
     def load(self, mem):
         self.e.uc.mem_write(0, mem)
         self.e.uc.ctl_remove_cache(0, 0x100000)
-        for lin in self.extra_stubs:
-            self.e.stub(lin)
+        for lin in self.extra_stubs:             # lin, or (lin, ax) to return a value
+            self.e.stub(*lin) if isinstance(lin, tuple) else self.e.stub(lin)
 
     def clock_neutral(self, entry, ret):
         """Let the routine at flat `entry` (returning at its `ret` instruction) run on a moving clock, as

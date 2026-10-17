@@ -68,8 +68,7 @@ def replay_pieces(n):
 snap = int(sys.argv[1]) if len(sys.argv) > 1 else 0
 limit = int(sys.argv[2]) if len(sys.argv) > 2 else 3000
 v = Verifier()
-v.extra_stubs = ts.STUBS
-v.clock_neutral(0x7c149, 0x7c3b0)
+ts.prepare(v)
 tick0, mem = v.snaps[snap]
 v.load(mem)
 st = v.state_from_emu()

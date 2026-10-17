@@ -110,8 +110,7 @@ MOVE_CHECKS = [
 def play(v, ticks):
     """Start a game on both sides (each its own way), then run SimStep side by side; compare every 100
     ticks and at the end."""
-    v.extra_stubs = test_sim.STUBS
-    v.clock_neutral(0x7c149, 0x7c3b0)
+    test_sim.prepare(v)
     ignore = SCREEN + test_sim.SCREEN
     stack_top = 0x55b3 * 16 + v.e.call_sp + 0x10
     ignore += ((stack_top - 0x800, stack_top),)
