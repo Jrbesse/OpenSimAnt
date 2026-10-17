@@ -5,7 +5,7 @@ python render_view.py [snapshot index] [out_dir]
 Per cell (f_03518): a background tile from the 256-tile sheet (HCEGANT type 9: id 10 the yard, 9 the
 house): the surface tile, in the nests (dirt - 0x70) & 0xFF, or a pheromone level 0xF1..0xFF when a
 scent view is on; and a foreground sprite: an ant's type byte (caste << 3 | heading) indexes a 128-sprite
-sheet (type 9 id 13 the surface, 14 the nests; the yellow ant uses its type, its queen's tail type + 8).
+sheet (type 9 id 14 the surface, 13 the nests, loaded by f_02b43; the yellow ant uses its type, its queen's tail type + 8).
 Sprites are drawn in the yellow ant's colours and recoloured on the way (f_02c21 / f_34b0f): each 12-byte
 sprite row is mask, recolour mask, 4 planes; black ants XOR all planes with the recolour mask, red ants
 (type 0x80+) only plane 1, the yellow ant none. Reads the user's own extracted resources.
@@ -113,7 +113,7 @@ def render(st, view, path, art=None, crop=None):
             pix = [row[:] for row in art.tile(house, bg)]
             if fg:
                 f = fg - (0x280 if fg >= 0x380 else 0x200 if fg >= 0x200 else 0x100)
-                sheet = 14 if 0x200 <= fg < 0x380 else 13
+                sheet = 13 if 0x200 <= fg < 0x380 else 14                 # f_02b43: nests 13, surface 14
                 spr = art.sprite(sheet, f & 0x7f, colour_mode(st, f))
                 for y in range(16):
                     for x in range(16):

@@ -144,9 +144,9 @@ Decoder: `tools/tiles.py` (contact sheets); renderer: `tools/ref/render_view.py`
 - **Sprite sheets**, ids 13 and 14 (24576 bytes, 128 sprites of 192 bytes): 16 rows of 12 bytes =
   mask (1 = opaque), recolour mask, planes 0..3. Index = ant type byte & 0x7F (caste << 3 | heading):
   0 unused, 1..7 brood, then each caste in 8 headings (with carrying variants), 0x60..0x6F the queen's
-  head and tail, 0x70 fight clouds, letters / numbers as placeholders. 13 is drawn on the surface, 14 in
-  the nests (an assumption for this video mode: the loader `f_028b6` picks sheets per video mode, ids
-  15..20 are 160-byte variants, 10 bytes per row, used when DS:19D0 != 0; not traced yet).
+  head and tail, 0x70 fight clouds, letters / numbers as placeholders. 14 is the surface's, 13 the
+  nests' (loaded on demand by `f_02b43` with `f_1a5ea(id, 9)`); ids 15..20 are 160-byte variants (10
+  bytes per row) for the DS:19D0 != 0 drawing path (`f_02aeb`, not traced).
 - Colours: sprites are stored as the **yellow** ant. Black ants XOR all four planes with the recolour
   mask (yellow 1 → 14), red ants (type 0x80+) only plane 1 (yellow 1 → red 3), the yellow ant none
   (mode = low byte of the word at DS:1A58 + ((id & 0xFFBF) >> 6): 0, 3, 1).

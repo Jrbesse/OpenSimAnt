@@ -120,8 +120,9 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    `tools/ref/render_view.py` renders a State's surface and nests with the game's art the way
    `f_03518` / `f_02c21` do; FILE_FORMATS "Map tiles and ant sprites", SIM_NOTES "Rendering the map
    windows". Checked by eye against the art (no pixel comparison: the emulator stubs drawing and has
-   no planar VGA). Open: which sprite sheet each video mode uses (`f_028b6`; ids 15..20), the
-   overview map window, the yard map, the other windows, the menus.)
+   no planar VGA). Open: the large overlay sprites (spider: rect G:37D6..37DC = its 1/16-cell
+   position - 48 px, `f_03de7`; human, mower, bird, dog), the DS:19D0 != 0 path (ids 15..20), the overview
+   map window, the yard map, the other windows, the menus.)
 9. Then the Godot remake (RECREATION_PLAN.md).
 
 ## Gotchas learned the hard way
