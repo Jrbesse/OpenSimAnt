@@ -1383,7 +1383,7 @@ local. It fills the window with `f_2318a` (number) / `f_23943` (formatted text):
 
 It then waits for a click.
 
-### The yellow ant's menu and commands (`f_67e93` → `f_76cb9`; ported: `simant_ref/commands.py`, `test_commands.py`, except the Exchange swap and the Chase click)
+### The yellow ant's menu and commands (`f_67e93` → `f_76cb9`; ported: `simant_ref/commands.py`, `test_commands.py`, except the Exchange swap)
 
 `f_67e93` opens a pop-up menu (`f_2379b`) and turns the choice into a command through a byte table in
 DS:
@@ -1417,9 +1417,13 @@ Window 6 (6000) is the scent-layer menu (Off, Alarm, B-Nest, B-Trail, R-Nest, R-
 - 9: Start Brood. In the black nest at depth >= 3: `f_0125f(6)` and
   `f_758e0(view, a + 2 dx[h ^ 4], b + 2 dy[h ^ 4], 0x10, 1)` (`player.queen_scene`, founding); else
   sound 1.
-- 0x0A: Chase, `f_11ac1`: like Exchange with cursor mode 0x0B. Its click, on the surface while the
-  player is the spider, calls `f_756a6(a, b, ...)`, which sets the spider's target (G:0F42 / G:0F7E,
-  G:0FFC, G:10AE, G:0FB8, G:06AC...; not traced).
+- 0x0A: Chase, `f_11ac1`: like Exchange with cursor mode 0x0B. Map clicks on the surface while the
+  player is the spider go to `f_756a6(a, b, k)` (`commands.spider_click`):
+  - k < 1 outside Chase mode: walk to (a, b). G:0FFC = -2, G:10AE = -1, G:0FB8 = 0, (G:0F42, G:0F7E)
+    = (a, b), G:0A8E = k.
+  - Otherwise, an ant on the cell (`f_11327`) becomes the prey: G:10AE = its type, G:0FFC = its index,
+    G:0FB8 = 2. In Chase mode also sound 0x0F, G:06AC = 6, and the mode ends.
+  - An empty cell: in Chase mode sound 1, otherwise walk.
 - 0x0B: Hunt. G:06AC == 7 ? 0 (sound 2, pitch 0x56EE) : 7 (sound 2, pitch 0x2B77).
 - 0x0C: Hunt with Alt. G:06AC == 8 ? 0 (sound 2, pitch 0x56EE) : 8 (sound 0x29).
 

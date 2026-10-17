@@ -148,8 +148,9 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
    - the Behavior / Caste Control triangles (`simant_ref/panels.py`, verified);
    - the Efficiency Score window, the population report, the History Window's scaling (SIM_NOTES).
    **Done: the yellow ant's commands** `f_76cb9` / `f_13f32` (`simant_ref/commands.py`,
-   `test_commands.py` ALL OK, 23 cases). **Next:** the Exchange swap `f_11b81` → `f_11c18` (long) and
-   the spider's Chase click `f_756a6` (stubs in commands.py raise NotImplementedError).
+   `test_commands.py` ALL OK), and the spider's map click `f_756a6` (`commands.spider_click`, walk /
+   prey / Chase mode; verified). **Next:** the Exchange swap `f_11b81` → `f_11c18` (long;
+   `commands.exchange_click` raises NotImplementedError).
    `game.py` calls the G:105E modes 0x0A / 0x0B "a pending yard map edit": they are Exchange / Chase.
    Open:
    - colours 0x10.. in the map window (driver dither, DS:914C; drawn as a plain ramp);

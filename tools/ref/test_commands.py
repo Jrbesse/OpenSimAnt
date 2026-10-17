@@ -42,12 +42,40 @@ CASES = [(f'command {c:#x}', [c], setter()) for c in (1, 2, 3, 4, 5, 7, 8, 9, 0x
 ]
 
 
+def port_click(st, a, b, k):
+    st.player = test_sim.Player()
+    commands.spider_click(st, a, b, k)
+
+
+def _surface_ant(k):
+    def at(st, i):
+        n = st.u16(G, 0xd6a)
+        if not n:
+            return None
+        j = (i * 11) % n
+        return st.u8(0x3e1d, 0xa180 + j), st.u8(0x3e1d, 0xa569 + j), k
+    return at
+
+
+CLICKS = [
+    ('spider walks', lambda st, i: ((i * 17) % 128, (i * 7) % 64, 0), setter(g=((0xa06, 1),))),
+    ('spider clicks with k = 1', lambda st, i: ((i * 17) % 128, (i * 7) % 64, 1), setter(g=((0xa06, 1),))),
+    ('spider picks surface ants', _surface_ant(1), setter(g=((0xa06, 1),))),
+    ('chase mode on ants', _surface_ant(0), setter(g=((0xa06, 1), (0x105e, 0xb)))),
+    ('chase mode on empty cells', lambda st, i: (0, (i * 5) % 64, 0), setter(g=((0xa06, 1), (0x105e, 0xb)))),
+]
+
+
 def main():
     filters = sys.argv[1:]
     v = Verifier()
     test_sim.prepare(v)
     v.extra_stubs = STUBS
     ok = True
+    for label, where, pre in CLICKS:
+        if filters and not any(f in label for f in filters):
+            continue
+        ok &= v.check(0x756a6, port_click, args_fn=where, repeat=10, label=label, pre=pre, ignore=test_sim.SCREEN)
     for label, cmds, pre in CASES:
         if filters and not any(f in label for f in filters):
             continue

@@ -102,6 +102,36 @@ def exchange_click(st, view, a, b):
     raise NotImplementedError('f_11b81 / f_11c18 (Exchange)')
 
 
-def chase_click(st, a, b, k):
-    """f_756a6: not ported yet."""
-    raise NotImplementedError('f_756a6 (Chase)')
+def _spider_walk(st, a, b, k):
+    st.set16(G, 0xffc, 0xfffe)
+    st.set16(G, 0x10ae, 0xffff)
+    st.set16(G, 0xfb8, 0)
+    st.set16(G, 0xf42, a & 0xffff)
+    st.set16(G, 0xf7e, b & 0xffff)
+    st.set16(G, 0xa8e, k & 0xffff)
+
+
+def spider_click(st, a, b, k):
+    """f_756a6: a map click while the player is the spider (from f_74fe0; in the Chase cursor mode G:105E ==
+    0x0B, or with k >= 1): an ant on the cell becomes its prey (G:10AE its type, G:0FFC its index, state
+    G:0FB8 = 2; in Chase mode also sound 0x0F, G:06AC = 6 and the mode ends); otherwise it walks there
+    (G:0F42 / G:0F7E, G:0A8E = k), or in Chase mode just sound 1."""
+    chase = st.u16(G, 0x105e) == 0xb
+    if s16(k) < 1 and not chase:
+        _spider_walk(st, a, b, k)
+        return
+    o = st.grid(0x6180, a, b)
+    i = player.find_ant_exact(st, 1, a, b, o) if o else -1
+    if i >= 0:
+        st.set16(G, 0x10ae, o)
+        st.set16(G, 0xffc, i & 0xffff)
+        st.set16(G, 0xfb8, 2)
+        if chase:
+            st.player.effect(st, 'sound', 0xf)
+            st.set16(G, 0x6ac, 6)
+            cancel_target_mode(st)
+        return
+    if chase:
+        st.player.effect(st, 'sound', 1)
+        return
+    _spider_walk(st, a, b, k)
