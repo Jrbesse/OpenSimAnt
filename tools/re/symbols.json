@@ -61,7 +61,6 @@
   "G:0eb6": "caste_count[32]",
   "G:0da8": "bnest_count",
   "G:0eaa": "rnest_count",
-  "SIM:f89f": "pher_rtrail[64*32]",
   "SIMhi:0000": "pher_rtrail[64*32]",
   "T:02ac": "black_entrance_xy[4]",
   "T:02b0": "red_entrance_xy[4]",

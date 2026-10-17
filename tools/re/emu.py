@@ -352,6 +352,9 @@ class SimEmu:
         finally:
             self.stop_after_polls = None
         cs, ip = uc.reg_read(UC_X86_REG_CS), uc.reg_read(UC_X86_REG_IP)
+        # the game's own stack (SS == DGROUP, as MSC code requires); call() runs below the suspended frames
+        self.call_ss = uc.reg_read(UC_X86_REG_SS)
+        self.call_sp = (uc.reg_read(UC_X86_REG_SP) - 0x80) & 0xfffe
         return cs - b, ip
 
     # ---------------------------------------------------------------- address helpers
@@ -385,15 +388,18 @@ class SimEmu:
 
     # ---------------------------------------------------------------- calls and memory (flat segments)
     def call(self, seg, off, args=(), max_insns=200_000_000):
-        """Far-call flat seg:off with word args (cdecl, pushed right-to-left). Returns AX."""
+        """Far-call flat seg:off with word args (cdecl, pushed right-to-left). Returns AX.
+        MSC code assumes SS == DS == DGROUP (it addresses locals through DS), so the call runs on a stack
+        inside DGROUP: the game's own stack after boot(), otherwise the top of DGROUP's free space."""
         uc = self.uc
-        sp = 0xfff0
+        ss = getattr(self, 'call_ss', DGROUP + self.base)
+        sp = getattr(self, 'call_sp', 0xa4e0)
         for a in reversed(args):
             sp -= 2
-            uc.mem_write(STACK_SEG * 16 + sp, struct.pack('<H', a & 0xffff))
+            uc.mem_write(ss * 16 + sp, struct.pack('<H', a & 0xffff))
         sp -= 4
-        uc.mem_write(STACK_SEG * 16 + sp, struct.pack('<HH', 0, RET_SEG))
-        for reg, v in ((UC_X86_REG_SS, STACK_SEG), (UC_X86_REG_SP, sp), (UC_X86_REG_DS, DGROUP + self.base),
+        uc.mem_write(ss * 16 + sp, struct.pack('<HH', 0, RET_SEG))
+        for reg, v in ((UC_X86_REG_SS, ss), (UC_X86_REG_SP, sp), (UC_X86_REG_DS, DGROUP + self.base),
                        (UC_X86_REG_ES, DGROUP + self.base), (UC_X86_REG_BP, 0)):
             uc.reg_write(reg, v)
         uc.reg_write(UC_X86_REG_CS, seg + self.base)
