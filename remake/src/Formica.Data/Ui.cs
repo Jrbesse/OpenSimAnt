@@ -67,6 +67,15 @@ public sealed class UiArt
             Fill(r - 1, t, r, b, c);
         }
 
+        /// <summary>Invert the colours of a rectangle (a highlighted menu entry).</summary>
+        public void Invert(int l, int t, int r, int b)
+        {
+            l = Math.Max(l, L); t = Math.Max(t, T); r = Math.Min(r, R); b = Math.Min(b, B);
+            for (int y = t; y < b; y++)
+                for (int x = l; x < r; x++)
+                    Px[y * Stride + x] ^= 0x00ffffffu;
+        }
+
         /// <summary>Copy a block of ARGB pixels (w x h) with its top-left at (x, y).</summary>
         public void Blit(uint[] src, int w, int h, int x, int y)
         {

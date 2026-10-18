@@ -86,6 +86,7 @@ public partial class Main : Node2D
                 for (int t = int.Parse(arg["--ticks=".Length..]); t > 0 && !session.Over; t--) session.Step();
         ui = new UiArt(session.Files, session.Art);
         if (OS.GetCmdlineUserArgs().Contains("--efficiency")) OpenEfficiency();
+        if (OS.GetCmdlineUserArgs().Contains("--popup")) OpenPopup(200, 150);
         font = ui.Font(2);
         argb = new uint[ScreenW * ScreenH];
         mapBuf = new uint[Cols * Cell * Rows * Cell];
@@ -279,6 +280,14 @@ public partial class Main : Node2D
             return;
         }
         int target = st.U16(Seg.G, 0x105e);
+        // f_74fe0: a left press on the player itself, with the button still held (f_0122c → f_20262), opens its
+        // menu (f_2f8e8 → f_67e93) at the mouse
+        if (target != 0xa && target != 0xb && mb.ButtonIndex == MouseButton.Left && view == session.Yellow.view
+            && DebugCommands.PlayerAt(st, view, a, b) == 1)
+        {
+            OpenPopup((int)mb.Position.X, (int)mb.Position.Y);
+            return;
+        }
         if (target == 0xa) Commands.ExchangeClick(st, view, a, b);                  // Exchange: pick the ant to become
         else if (st.U16(Seg.G, 0xa06) == 1 || target == 0xb)
         {
@@ -439,6 +448,65 @@ public partial class Main : Node2D
             case 20: OpenEfficiency(); break;
             case 22: case 23: lastMessage = "The Experimental menu is not built yet."; break;
             case 21: antInfoArmed = true; lastMessage = "Ant Info: click an ant in the Edit window."; break;
+        }
+    }
+
+    // ------------------------------------------------------------------------------- the yellow ant's menu
+    // f_67e93 (SIM_NOTES "The yellow ant's menu and commands"): layout 32 (4504) as the spider (G:0A06 == 1), 8
+    // (4502) as a queen (G:04C2 == 0x40) with T:0C24 == 0, else 7 (4500). Entries (items 2..) → f_76cb9 commands;
+    // Shift on Recruit 10 gives 3 (recruit all), Alt on Hunt gives 0x0C (lash out). 0 is help (f_76eb5, UI).
+    static readonly Dictionary<int, int[]> PopupCommands = new()
+    {
+        [7] = new[] { 1, 2, 4, 5, 6, 0 }, [8] = new[] { 8, 9, 0 }, [32] = new[] { 0xa, 0xb, 6, 0 },
+    };
+    int popup = -1, popupHover = -1;
+    (int dx, int dy) popupOff;
+
+    void OpenPopup(int x, int y)
+    {
+        var st = session.St;
+        popup = st.U16(Seg.G, 0xa06) == 1 ? 32 : st.U16(Seg.G, 0x4c2) == 0x40 && st.U16(Seg.T, 0xc24) == 0 ? 8 : 7;
+        var (l, t, r, b) = ui.Layouts[popup].Rect;
+        popupOff = (Math.Clamp(x, 0, ScreenW - (r - l)) - l, Math.Clamp(y, 0, ScreenH - (b - t)) - t);
+        popupHover = -1;
+    }
+
+    void DrawPopup(UiArt.Canvas c)
+    {
+        ui.DrawWindow(c, popup, popupOff.dx, popupOff.dy, null);
+        if (popupHover >= 2)
+        {
+            var (l, t, r, b) = ui.Layouts[popup].Items[popupHover].Rect;
+            c.Invert(l + popupOff.dx, t + popupOff.dy, r + popupOff.dx, b + popupOff.dy);
+        }
+    }
+
+    int PopupEntry(Vector2 p)
+    {
+        int i = ui.HitTest(popup, popupOff.dx, popupOff.dy, (int)p.X, (int)p.Y);
+        return i >= 2 && i - 2 < PopupCommands[popup].Length ? i : -1;
+    }
+
+    /// <summary>Mouse events while the menu is open: the entry under the pointer is highlighted; releasing on an
+    /// entry runs it (press-and-hold, or a second click); a press outside closes the menu.</summary>
+    void PopupInput(InputEvent ev)
+    {
+        if (ev is InputEventMouseMotion mm) popupHover = PopupEntry(mm.Position);
+        else if (ev is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left)
+        {
+            int entry = PopupEntry(mb.Position);
+            var (l, t, r, b) = ui.Layouts[popup].Rect;
+            bool inside = Inside((l + popupOff.dx, t + popupOff.dy, r + popupOff.dx, b + popupOff.dy), mb.Position);
+            if (mb.Pressed && !inside) popup = -1;
+            else if (!mb.Pressed && entry >= 0)
+            {
+                int cmd = PopupCommands[popup][entry - 2];
+                if (cmd == 2 && mb.ShiftPressed) cmd = 3;
+                if (cmd == 0xb && mb.AltPressed) cmd = 0xc;
+                popup = -1;
+                if (cmd == 0) lastMessage = "Help: the original's help screens (f_76eb5) are not built yet.";
+                else Commands.Command(session.St, cmd);
+            }
         }
     }
 
@@ -811,6 +879,7 @@ public partial class Main : Node2D
                 if (win == EditWin) DrawEditWindow(canvas);
                 else DrawMapWindow(canvas);
             if (modal == EfficiencyWin) DrawEfficiency(canvas);
+            if (popup >= 0) DrawPopup(canvas);
         }
         if (history && !yardMap) DrawHistory(argb, ScreenW);
         else if (historyLabel != null) historyLabel.Visible = false;
@@ -844,6 +913,11 @@ public partial class Main : Node2D
     public override void _UnhandledInput(InputEvent ev)
     {
         if (session == null) return;
+        if (popup >= 0 && ev is InputEventMouse)
+        {
+            PopupInput(ev);
+            return;
+        }
         if (ev is InputEventMouseMotion mm && dragWin >= 0)
         {
             var d = mm.Position - dragFrom;
