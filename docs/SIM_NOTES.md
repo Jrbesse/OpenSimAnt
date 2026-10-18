@@ -1513,6 +1513,15 @@ Window 6 (6000) is the scent-layer menu (Off, Alarm, B-Nest, B-Trail, R-Nest, R-
   - 0x11C: red health G:01FE / 100 (0 when there are no red ants);
   - 0x11D / 0x11E: each population / max(1, black, red).
 
+Holding the button on the report (command 0x118 → thunk 0x2f9ce → `f_7179d`) shows window 23 (bitmap
+14002, rows Larvae, Workers, Soldiers, Males, New Queens, Queens) until the button is released (G:1074 = 1
+meanwhile). In item 0x1702, font 2 (font 0 on a 320-wide screen), for caste i = 0..5: the black count
+G:0AEC[i] as text at the item's left, the red count G:0AFA[i] one font line below, and for i > 0 a bar each
+from x = left + 4 x the widest digit + 2, of length count x (right - that x) / M (32-bit), M = the largest
+count of castes 1..5 of both colours (at least 1), from 1 px below the text line's top to 2 px above its
+bottom. The rows share the spare height (height - 12 font lines, + 3 at 640 x 480) in fifths, the remainder
+added a pixel at a time; the last row sits 1 px higher. The remake draws it (`Main.cs`).
+
 ### The History Window (window 21, `f_792d2` handler, `f_795ec` plot)
 
 - Buttons 0x1503..0x150C toggle the plotted series (`f_79373`), up to 4 at once (DS:2EF0[4], 0x8000 =

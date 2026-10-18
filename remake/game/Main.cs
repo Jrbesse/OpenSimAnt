@@ -93,6 +93,7 @@ public partial class Main : Node2D
         if (OS.GetCmdlineUserArgs().Contains("--yard")) OpenYard(false);
         if (OS.GetCmdlineUserArgs().Contains("--scent-menu")) OpenScentMenu();
         if (OS.GetCmdlineUserArgs().Contains("--trails")) session.St.Set16(Seg.DS, 0x2994, 1);
+        if (OS.GetCmdlineUserArgs().Contains("--report")) popReport = true;
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--message=") && session.Files.Strings(int.Parse(arg["--message=".Length..])) is { } box)
                 OpenMessageBox(box);                                        // --message=<STR# id>: show a message box
@@ -498,6 +499,7 @@ public partial class Main : Node2D
             case 17: ToggleWindow(CasteWin); break;
             case 16: SetView(session.Yellow.view); follow = true; break;
             case 18: DebugCommands.RandomAction(st); break;                              // the Mystery Button (f_022bc)
+            case >= 24 and <= 30: popReport = true; break;                               // held: the population report
             case 19: ToggleWindow(HistoryWin); break;
             case 20: OpenEfficiency(); break;
             case 22: case 23: ExperimentalMenu(mb.Position); break;
@@ -800,6 +802,47 @@ public partial class Main : Node2D
             Text(11, efficiency.score.ToString(), 0);
         }
         Text(12, S(1010, 14));
+    }
+
+    // ------------------------------------------------------------------------------- the population report (layout 23)
+    // f_7179d (Map toolbar 0x118, while the button is held): bitmap 14002 lists the castes (larvae, workers,
+    // soldiers, males, new queens, queens); for caste i the black count G:0AEC[i] and below it the red G:0AFA[i]
+    // in item 0x1702, as text from its left edge, and for i > 0 a bar from x = left + 4 x the widest digit + 2,
+    // of length count x (right - that x) / the largest count of castes 1..5 (at least 1), from 1 px below the
+    // line's top to 2 px above its bottom. The rows share the item's spare height (height - 12 font lines + 3,
+    // in fifths, the remainder spread in steps), the last row 1 px higher. Font 2 at 640 x 480.
+    bool popReport;
+
+    void DrawPopulationReport(UiArt.Canvas c)
+    {
+        var st = session.St;
+        const int Win = 23;
+        var (dx, dy) = Off(MapWin);
+        ui.DrawWindow(c, Win, dx, dy, null);
+        var r = ui.Layouts[Win].Items[2].Rect;
+        int left = r.left + dx, top = r.top + dy, right = r.right + dx, bottom = r.bottom + dy;
+        var f = ui.Font(2);
+        int digit = Enumerable.Range('0', 10).Max(ch => f.Advance(ch));
+        int x0 = digit * 4 + left + 2, len = right - x0, fh = f.Height;
+        int spare = bottom - top - fh * 12 + 3, extra = spare % 5, acc = 0;
+        spare /= 5;
+        int max = 1;
+        for (int i = 1; i < 6; i++) max = Math.Max(max, Math.Max((int)st.S16(Seg.G, 0xaec + 2 * i), (int)st.S16(Seg.G, 0xafa + 2 * i)));
+        int y = top;
+        for (int i = 0; i < 6; i++)
+        {
+            acc += extra;
+            int row = y;
+            if (acc > 5) { row++; acc -= 5; }
+            if (i == 5) row--;
+            foreach (var (off, k, colour) in new[] { (0xaec, 0, UiArt.Black), (0xafa, 1, session.Art.Palette[3]) })
+            {
+                int v = st.S16(Seg.G, off + 2 * i), ry = row + k * fh;
+                f.Draw(c.Px, c.Stride, c.B, left, ry, v.ToString(), colour);
+                if (i != 0) c.Fill(x0, ry + 1, x0 + (int)((long)Math.Max(0, v) * len / max), ry + fh - 2, colour);
+            }
+            y = row + fh * 2 + spare;
+        }
     }
 
     // ------------------------------------------------------------------------------- the History window (layout 21)
@@ -1301,6 +1344,7 @@ public partial class Main : Node2D
                 else if (win == YardWin) DrawYardWindow(canvas);
                 else if (win == ToolWin) DrawToolWindow(canvas);
                 else DrawControlWindow(canvas, win);
+            if (popReport) DrawPopulationReport(canvas);
             if (modal == EfficiencyWin) DrawEfficiency(canvas);
             if (modal == AntInfoWin) DrawAntInfo(canvas);
             if (modal == SelectWin) ui.DrawWindow(canvas, SelectWin, 0, 0, null);
@@ -1351,6 +1395,7 @@ public partial class Main : Node2D
         if (ev is InputEventMouseButton up && !up.Pressed && up.ButtonIndex == MouseButton.Left)
         {
             dragWin = triangleDrag = -1;
+            popReport = false;
             toolDrag = false;
             return;
         }
