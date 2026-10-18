@@ -144,8 +144,11 @@ Suggested next session (in order):
 1. Play the shell and note what feels wrong (speed, controls, missing feedback).
 2. Remaining screens: window 5 is the **SimAntipedia / help text viewer** (the Map toolbar's "Ant Info
    Window" 0x115 → thunk 0x2f9b0 → `f_78db9` opens it; `f_78808` draws a SHARED type 10 text, with type 21
-   style runs, into item 0x502, the caption via 0x501). The shell shows text 200 only: trace the topic
-   choice and paging (and whether the help `f_76eb5` uses it too); the menus (no menu bar is decoded: find how the
+   style runs, into item 0x502, the caption via 0x501). The shell shows text 200 only. Leads: on the
+   first open `f_78db9` sets DS:2E26 = DS:2E04 = 0x80 and DS:2E24 = 0 (a start card 128?), clicks go to
+   `f_790f0` (it calls `f_22882` on window 5), and SHARED also has `card_layout` / `card_name` resources
+   (FILE_FORMATS lists them as the encyclopedia's cards): trace the cards, the links and the paging, and
+   whether the help `f_76eb5` uses the same viewer; the menus (no menu bar is decoded: find how the
    original reaches speed, sound, save / load, quit); the Edit window's bottom strip (item 21); G:1074 (set
    when several windows open: a redraw flag?); the windows' real frame styles; f_70edf's move condition
    (event byte +7 & 0x60). Done since the last list: PLACE, the patch click arithmetic, the corner values,
@@ -413,7 +416,7 @@ Suggested next session (in order):
 
 2026-10-18 afternoon (the screens):
 ```
-(next) Remake shell: the Map toolbar's Ant Info opens the SimAntipedia text viewer (window 5), first page
+7329447 Remake shell: the Map toolbar's Ant Info opens the SimAntipedia text viewer (window 5), first page
 c514379 Remake shell: the control windows' corner values (percent / ants) and bar placement from f_083d9
 76335d3 Remake shell: the yard window's PLACE (f_01efa)
 a387036 Remake shell: window captions from STR# 1000
