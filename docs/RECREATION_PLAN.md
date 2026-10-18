@@ -48,7 +48,9 @@ certainly the original enums, in their original order:
 4. **Use DOSBox as a lab instrument, not as the way to play.** You don't want to *play* in an emulator,
    but running the original side by side is the fastest way to answer "what does it actually do?" The
    DOSBox-X debugger can also dump memory while the game runs, which pairs well with Ghidra.
-5. **Language:** GDScript for everything at first. The original ran on a 286, so the entity counts
+5. **Language (updated 2026-10-18):** C# (.NET 8, Godot 4.6 .NET), the owner's language; the simulation is
+   a plain .NET library ported from the verified Python reference (`remake/`). The original plan was:
+   GDScript for everything at first. The original ran on a 286, so the entity counts
    are small. Only move the hot loop (ant ticks, pheromone diffusion) to C# or a GDExtension if profiling
    says so.
 

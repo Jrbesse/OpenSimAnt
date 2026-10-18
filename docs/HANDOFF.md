@@ -1,7 +1,7 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-17 (late evening: cheats, debug commands, map tools).
+old transcript. Last updated 2026-10-18 (night: the C# port of the whole reference, a first Godot shell).
 
 ## Goals (from the owner)
 
@@ -28,6 +28,8 @@ Constraints:
 | `tools/ref/simant_ref/` | **The Python reference port** of the simulation, verified against the original. |
 | `tools/ref/render_view.py` | Renders a State's surface / nests to PNG with the game's art (from the user's extracted files). |
 | `tools/ref/test_*.py`, `verify.py`, `linecov.py` | Differential tests against the emulator, and a line-coverage helper. |
+| `tools/ref/record_traces.py`, `record_all.sh` | Record the reference's calls during its tests as traces for the C# port. |
+| `remake/` | **The Godot remake (C#)**: `src/Formica.Sim` (the sim), `src/Formica.Data` (files, art, session), `game/` (Godot project), `tests/` (trace replay, xUnit). See `remake/README.md`. |
 
 ## How verification works
 
@@ -90,18 +92,23 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
 `NotImplementedError` for the ones that change state, so a test fails loudly if it reaches unported code.
 
-## Where things stand (2026-10-17, end of day)
+## Where things stand (2026-10-18, night session)
 
-**The reference is ready for the Godot remake.** The whole simulation (SimStep, new game, patches,
-house, yard, player, events, game flow, saves, cheats, debug commands, map tools, menu commands) is
-ported to `simant_ref` and verified byte for byte against the original. The rendering, the windows
-(layouts, fonts) and the UI logic that feeds the simulation (triangle panels, tool palette, menus) are
-decoded. What is left (step 8 "Open") is visual polish and sound mapping, which can be decoded alongside
-the remake when each screen is built.
+**The Godot remake has started (step 10), in C#** (the owner works in C# / Godot 4.6 .NET; see their
+other project's CLAUDE.md). Everything is under `remake/`; read `remake/README.md` first.
+- `remake/src/Formica.Sim`: **the whole of `simant_ref` is ported to C#** (every module, ~6,500 lines) and
+  checked against the Python reference: every recorded call of every reference test (25 trace files,
+  ~225,000 calls, 67,200 SimStep ticks) replays byte for byte (`dotnet test remake/tests/Formica.Sim.Tests`).
+- `remake/src/Formica.Data`: archives + LZSS, the starting State built from SIMANT.EXE (identical to
+  flat.bin over 0x3d570..0x62000), map art (palette, tiles, sprites, recolouring), the map renderer,
+  `GameSession` (new game with time-of-day seeds, ticks, clock, effect queue, `WalkTo`).
+- `remake/game`: a Godot 4.6 C# shell (`Main.cs`): finds the player's files, starts a Quick Game, runs
+  SimStep and draws the 40 x 28-cell map window with the original's art; clicks walk / act / dig, 1/2/3
+  switch views. Checked by a screenshot run (`-- --screenshot=out.png`); not yet played by a human.
+- "Formica" is a placeholder code name (the public name is still open, ART_PLAN).
 
-Suggested next session: start step 10. Read RECREATION_PLAN.md, propose the Godot project layout and how
-`simant_ref` maps onto it (a straight GDScript / C# port of the verified modules, with the Python tests
-as the spec). The remaining open items can wait.
+Suggested next session: see "Next steps" 11.. below. The most valuable next pieces: the boot state
+(what the game's init changes before a new game, step 11), then the UI screens one by one.
 
 ## Notes for the Godot remake (what the reference teaches)
 
@@ -276,7 +283,32 @@ as the spec). The remaining open items can wait.
        Earlier notes on this pair: / `f_706d0` (← f_702f7 ← f_6fa6c ← f_6fac7: a
      window's drawing, rects G:10D2.., drawing library calls; f_706d0 reads the yard position
      G:07CA / G:07CC)
-10. Then the Godot remake (RECREATION_PLAN.md).
+10. (started 2026-10-18: the Godot remake in C#, `remake/`; see "Where things stand" and
+    `remake/README.md`. Traces: `sh tools/ref/record_all.sh` (all tests in parallel, ~15 min) writes
+    `remake/build/traces/*.trace`; `record_traces.py <test> [args]` one test. Each trace record is one
+    outermost `simant_ref` call: args (State refs by name, bytes as hex), player hook class, clock, kbd,
+    zlib'd State before / after.)
+11. **The boot state.** `GameSession` starts from the static image of SIMANT.EXE, but the original runs
+    its init (C runtime, resources, settings, the init near 0x075B0, far heap) before the first new game.
+    Record the emulator's memory right after boot (`Verifier.__init__` boots, then calls f_6b36b: dump
+    before that call), diff it with flat.bin over LO..HI, and classify each changed range: settings the
+    sim reads (T:07AA sound, T:07AE messages, T:07B0, T:07B2, T:07C8, DS:1926, DS:5702, ...), far heap
+    pointers (the balloon string lists G:020A..), UI-only. Then make `GameSession.NewGame` set what
+    matters (from the player's files or the decoded init), and add a test: new game from the boot state
+    in the emulator vs. C# from SIMANT.EXE + init, then N ticks.
+12. **Game speed.** The original's main loop decides how many SimSteps run per real second (speed menu);
+    `Main.cs` uses 2..72 ticks/s with 10 by default. Decode the loop's timing (it reads the clock).
+13. **UI screens**, each from the decoded layouts (`tools/layouts.py --json`, FILE_FORMATS "Window
+    layouts") and fonts (`tools/fonts.py`): status line and messages (STR# text from the archives),
+    the yellow ant's pop-up menu (`Commands.Command`), Behavior / Caste panels (`Panels`), the map window
+    (`render_view.render_map`), the yard window and yard map (patch choice → `NewGame.MoveToPatch`),
+    the History window, the tool palette (`MapTools.ApplyTool`), the game-over / rating screen
+    (`Game.Rating`), save / load (`SaveFile`), cheats (`Cheats.Cheat` per key). Port `fonts.py`,
+    `layouts.py`, `bitmaps.py` to `Formica.Data` as each screen needs them.
+14. **Sprites still missing in the renderer**: the spider and its legs (`render_view.spider`,
+    `spider_lines`), speech balloons and markers (effects `balloon`, the marker globals), the yard window
+    actors. Sound effects (SOUND archive, extract.py `decode_sfx`) and music (MIDI) mapping (step 8 open).
+15. Tutorial mode (G:0EAC = 0) is not ported (`World.Advisor` throws, f_0e425).
 
 ## Gotchas learned the hard way
 
@@ -309,6 +341,16 @@ as the spec). The remaining open items can wait.
 
 ## Commit log since the last summary
 
+2026-10-18 (the remake):
+```
+f6df340 Remake: data layer (archives, state image from SIMANT.EXE, map art and renderer) and a first Godot 4.6 C# shell
+331eacc Remake: port cheats, debug commands, map tools, markers, speech balloons, panels and menu commands
+b81f195 Remake: port the yellow ant, SimStep, new game, terrain, game flow and saved games
+7438c61 Remake: port the nests, world (lions, caterpillar, spider, weather) and yard layer; all traces match
+e642345 Remake: C# simulation library (Formica.Sim) and a trace replayer checked against the Python reference
+```
+
+Earlier:
 ```
 b015a51 Notes: the map redraw (f_03de7) draws from the game's RNG when the patch is visible
 532c7e0 Rendering: the spider overlay (f_03de7)

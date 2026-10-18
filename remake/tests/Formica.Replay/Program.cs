@@ -43,7 +43,7 @@ foreach (var file in files)
 Console.WriteLine(allOk ? "ALL OK" : "SOME FAILURES");
 return allOk ? 0 : 1;
 
-static class TracePaths
+public static class TracePaths
 {
     public static string DefaultDir()
     {

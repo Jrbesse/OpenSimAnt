@@ -11,5 +11,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Formica.Sim\Formica.Sim.csproj" />
+    <ProjectReference Include="..\Formica.Replay\Formica.Replay.csproj" />
   </ItemGroup>
 </Project>
