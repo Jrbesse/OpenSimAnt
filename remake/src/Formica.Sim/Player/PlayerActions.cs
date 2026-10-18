@@ -415,7 +415,11 @@ public static partial class Player
                 }
             }
             else
-                throw new NotImplementedException("f_75d01: no ant left in mode 3 (reads an unset local)");
+            {
+                // DIVERGENCE: f_75d01 reads an unset local here (no ant left in the experimental mode). The
+                // remake makes the player an observer, as mode 3 starts (G:0A06 = 2, see NewGame.PlaceYellow).
+                st.Set16(G, 0xa06, 2);
+            }
             return;
         }
         if (found.Value.kind == 1)                                         // the queen
