@@ -11,6 +11,9 @@ namespace Formica.Game;
 /// Controls: left click walks the yellow ant there (with Shift: acts on the cell, picking up / dropping;
 /// right click: digs its way), 1 / 2 / 3 the surface / black nest / red nest, arrow keys scroll, F follows
 /// the yellow ant, Space pauses, + / - change the speed, N a new Quick Game, M a new Full Game.
+/// Commands: R / Shift+R recruit 5 / 10, E / Shift+E release half / all, X exchange (then click an ant, or
+/// the spider), A alarm trail, H dig a hole, B start brood, C chase (as the spider, then click), U / Shift+U
+/// hunt / lash out.
 /// </summary>
 public partial class Main : Node2D
 {
@@ -163,7 +166,14 @@ public partial class Main : Node2D
         {
             int a = (int)(mb.Position.X / Cell) + originA, b = (int)(mb.Position.Y / Cell) + originB;
             if (mb.Position.Y >= Rows * Cell || a >= MapRenderer.Width(view)) return;
-            if (mb.ButtonIndex == MouseButton.Left)
+            var st = session.St;
+            int target = st.U16(Seg.G, 0x105e);
+            if (target == 0xa) Commands.ExchangeClick(st, view, a, b);          // Exchange: pick the ant to become
+            else if (st.U16(Seg.G, 0xa06) == 1 || target == 0xb)
+            {
+                if (view == 1) Commands.SpiderClick(st, a, b, mb.ButtonIndex == MouseButton.Right ? 1 : 0);
+            }
+            else if (mb.ButtonIndex == MouseButton.Left)
             {
                 if (mb.ShiftPressed) ActOn(a, b);
                 else session.WalkTo(view, a, b);
@@ -186,6 +196,15 @@ public partial class Main : Node2D
                 case Key.Space: session.Paused = !session.Paused; break;
                 case Key.Equal or Key.KpAdd: session.Speed++; break;
                 case Key.Minus or Key.KpSubtract: session.Speed--; break;
+                // the yellow ant's menu commands (f_76cb9)
+                case Key.R: Commands.Command(session.St, k.ShiftPressed ? 2 : 1); break;      // recruit 5 / 10
+                case Key.E: Commands.Command(session.St, k.ShiftPressed ? 5 : 4); break;      // release half / all
+                case Key.X: Commands.Command(session.St, 6); break;                           // exchange (then click)
+                case Key.A: Commands.Command(session.St, 7); break;                           // alarm trail on / off
+                case Key.H: Commands.Command(session.St, 8); break;                           // dig a hole (a queen founds a nest)
+                case Key.B: Commands.Command(session.St, 9); break;                           // start brood (a queen in the nest)
+                case Key.C: Commands.Command(session.St, 0xa); break;                         // the spider: chase (then click)
+                case Key.U: Commands.Command(session.St, k.ShiftPressed ? 0xc : 0xb); break;  // the spider: hunt / lash out
                 case Key.N: Restart(1); break;
                 case Key.M: Restart(2); break;
             }
