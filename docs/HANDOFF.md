@@ -1,7 +1,7 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-18 (afternoon: the shell now uses the original's windows).
+old transcript. Last updated 2026-10-18 (end of the afternoon: the shell is built from the original's windows).
 
 ## Goals (from the owner)
 
@@ -92,72 +92,76 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
 `NotImplementedError` for the ones that change state, so a test fails loudly if it reaches unported code.
 
-## Where things stand (2026-10-18, end of the night session)
+## Where things stand (2026-10-18, end of the afternoon session)
 
 **The Godot remake is under way, in C#** (the owner works in C# / Godot 4.6 .NET; see their other
-project's CLAUDE.md). Everything is under `remake/`; read `remake/README.md` first.
+project's CLAUDE.md). Everything is under `remake/`; read `remake/README.md` first (layout, controls,
+screenshot flags).
 - `remake/src/Formica.Sim`: **the whole of `simant_ref` is ported to C#** and checked against the Python
   reference: every recorded call of every reference test (25 trace files, ~225,000 calls, 67,200 SimStep
-  ticks) replays byte for byte (`dotnet test remake/tests/Formica.Sim.Tests`). One marked DIVERGENCE (grep
-  it) where the original reads an unset local.
+  ticks) replays byte for byte (`dotnet test remake/tests/Formica.Sim.Tests`). Marked DIVERGENCEs (grep
+  them): an unset local in the original, and UI randomness (spider fangs, raindrops) on its own generator.
 - `remake/src/Formica.Data`: archives + LZSS, the starting State from SIMANT.EXE plus the start-up values
-  the sim reads (step 11, verified against the emulator's booted memory), map art and renderer, the
-  spider (bitmaps, legs), the Map window colours, STR# strings, sound effects, the bitmap fonts,
-  `GameSession` (new game, the original's main-loop timing, pause, speed, effects queue, `WalkTo`).
-- `remake/game`: a Godot 4.6 C# shell (`Main.cs`) that is playable: map window with the original's art,
-  yellow ant control, the menu commands on keys, colony triangles, yard map, History graph, overview,
-  scent views, Ant Info, speech balloons, sound effects, quick save / load, game-over rating; status
-  lines in the game's font. Controls: `remake/README.md`. Checked with screenshot runs
-  (`-- --ticks=N --screenshot=out.png`) and `Formica.Replay --fuzz` (150 games x 5000 ticks clean); not
-  yet played by a human: please try it.
+  the sim reads, map art and renderer, the spider, STR# strings (Mac Roman), sound effects, the bitmap
+  fonts, the window layouts (`Layouts.cs`), **`Ui.cs`** (`UiArt`: draws any layout: pictures, frames,
+  captions, text, gauges, hit tests by item index), **`YardRenderer.cs`** (the yard window), `GameSession`
+  (new game, the original's main-loop timing, pause, speed, effects queue, `WalkTo`).
+- `remake/game/Main.cs`: the playable shell, **now built from the original's windows** (a window stack: drag
+  by the caption, click to front):
+  - the Edit window (layout 0: tool strip, the 22 x 21 cell map = G:10E0 / G:10DE, health bars, PAUSE,
+    the go-to buttons, the scent menu 6) and the Map window (layout 1: the map at 4 px per cell, scent
+    layers via T:07C8, Show Trails DS:2994, the small spider / human / mower overlays, the toolbar, the
+    population report and its held detail window 23);
+  - Behavior / Caste Control (18 / 19: triangle, Auto / Manual, Set 1..3 presets, corner values, bars),
+    History (21), Efficiency Score (24), the yellow ant's pop-up menu (7 / 8 / 32), Ant Info (29), the yard
+    window (25: actors, Strat / Graphic views, patch clicks, MATE / AUTOMATIC / MANUAL / PLACE);
+  - the Experimental menu as `f_67010` does it (10 / 11; in Experimental the tool palette 9 as a pop-up,
+    option palettes 12..17, the map tools' drag loop; Start Game returns to a Quick Game);
+  - the title (3), Select a Game (2), the save prompt (33), the about box (31, F3), message boxes (27 /
+    30), the SimAntipedia text viewer (5, first page only), help overlays (F1 / ?), window titles from
+    STR# 1000, quick save / load (F5 / F9), sound effects, speech balloons as text.
+  - The status lines under the windows are the shell's own (no message line is decoded).
+  - Checked with screenshot runs (`-- --ticks=N --screenshot=out.png` plus the flags in the README) and
+    `Formica.Replay --smoke`; **not yet played by a human**.
+- Decoded along the way (all in SIM_NOTES): the Map toolbar's command table, the control windows' and the
+  yard window's handlers, `f_7179d`, `f_67010`, `f_01efa`, `f_70edf`, `f_083d9`, STR# 1000 / 1800.
+  Layout 0 is the Edit window and 1 the Map window (FILE_FORMATS had them the other way round). T:07C8
+  matters to the sim (yard sounds draw from the RNG only while it is 0): the shell sets it only where the
+  original's Map window does.
 - "Formica" is a placeholder code name (the public name is still open, ART_PLAN). The repository has a
   top-level README for GitHub.
 
-**Performance:** the C# SimStep runs well over 10,000 ticks per second (six 5,000-tick fuzz games with
-startup in 1.2 s), so the original's "fast" speed is bounded only by drawing (`GameSession.FastDelay`).
+**Performance:** the C# SimStep runs well over 10,000 ticks per second, so the original's "fast" speed is
+bounded only by drawing (`GameSession.FastDelay`).
 
-**Usage note:** the 2026-10-18 afternoon session stopped at about 97% of the weekly allowance, which resets
-2026-10-18 22:00 UTC; after that there is plenty of room.
-
-**The screens (2026-10-18 afternoon):** the shell is now built from the original's window layouts.
-`Formica.Data/Ui.cs` (`UiArt`) draws any layout (pictures, frames, captions, text in the game's fonts,
-gauges, hit tests by item index; frame styles are approximations). `Main.cs` keeps a window stack (drag by
-the caption, click to front) with: the Edit window (layout 0: tool strip, 22 x 21 cell map = G:10E0 /
-G:10DE, health bars), the Map window (layout 1: the map at 4 px per cell, scent layers via T:07C8, toolbar,
-population report), Behavior / Caste Control (18 / 19 on the ported Panels), History (21: the series table
-T:082A / T:0852 and the original's scaling), Efficiency Score (24), the yellow ant's pop-up menu (7 / 8 / 32,
-opened by pressing on the yellow ant as f_74fe0 does) and the yard window (25, `YardRenderer.cs`, a port of
-render_view's yard code; patch clicks move in a Full Game), the scent overlay menu (6), Ant Info (29),
-Select a Game (2, at start-up and F2), the Experimental menu as `f_67010` does it (Quick Game → Experimental;
-in Experimental the tool palette 9 as a pop-up with the option palettes 12..17 and the map tools' drag
-loop; Start Game returns to a Quick Game; SIM_NOTES "The tool palette"), message
-boxes (27 / 30) for the sim's message_box effects, the detailed population report (23, `f_7179d`, while
-the report is held), Show Trails (DS:2994), the Map window's small spider / human / mower overlays and the
-control windows' preset ratios (decoded: SIM_NOTES "Behavior / Caste Control triangles"), the save prompt
-(33) before F2 replaces a running game, the title (3) and about (31) screens, and the yard window's MATE /
-AUTOMATIC / MANUAL (decoded: SIM_NOTES "The yard window"). Help overlays: F1 or the ? buttons. Screenshot
-flags for each: remake/README.md. Notes: layout 0 is the Edit window and 1 the Map window (FILE_FORMATS had
-them the other way round in places); T:07C8 matters to the sim (yard sounds draw from the RNG only while it
-is 0), so the shell sets it only where the original's Map window does.
+**Usage note:** the 2026-10-18 afternoon session ended at 97% of the weekly allowance (reset 2026-10-18
+22:00 UTC). The owner starts a fresh session after the reset to keep the context light: late in a long
+session each turn costs much more.
 
 Suggested next session (in order):
-1. Play the shell and note what feels wrong (speed, controls, missing feedback).
-2. Remaining screens: window 5 is the **SimAntipedia / help text viewer** (the Map toolbar's "Ant Info
-   Window" 0x115 → thunk 0x2f9b0 → `f_78db9` opens it; `f_78808` draws a SHARED type 10 text, with type 21
-   style runs, into item 0x502, the caption via 0x501). The shell shows text 200 only. Leads: on the
-   first open `f_78db9` sets DS:2E26 = DS:2E04 = 0x80 and DS:2E24 = 0 (a start card 128?), clicks go to
-   `f_790f0` (it calls `f_22882` on window 5), and SHARED also has `card_layout` / `card_name` resources
-   (FILE_FORMATS lists them as the encyclopedia's cards): trace the cards, the links and the paging, and
-   whether the help `f_76eb5` uses the same viewer; the menus (no menu bar is decoded: find how the
-   original reaches speed, sound, save / load, quit); the Edit window's bottom strip (item 21); G:1074 (set
-   when several windows open: a redraw flag?); the windows' real frame styles; f_70edf's move condition
-   (event byte +7 & 0x60). Done since the last list: PLACE, the patch click arithmetic, the corner values,
-   the captions (STR# 1000).
-3. The isometric yard map (f_7650c), if it differs from the yard window's colony views.
-4. Music: the MIDI songs (SOUND types 18 / 20, effect ids 10000+) through a C# SoundFont synth (e.g. the
+1. Ask the owner whether they played the shell; fix what they report first.
+2. **The SimAntipedia viewer** (window 5). The Map toolbar's "Ant Info Window" (0x115 → thunk 0x2f9b0 →
+   `f_78db9`) opens it; `f_78808` draws a SHARED type 10 text (with type 21 style runs) into item 0x502,
+   the caption via 0x501. Leads: on the first open `f_78db9` sets DS:2E26 = DS:2E04 = 0x80 and
+   DS:2E24 = 0 (start card 128?); clicks go to `f_790f0` (it calls `f_22882` on window 5); SHARED has
+   `card_layout` / `card_name` resources. Trace the cards, links and paging, and whether the help
+   (`f_76eb5`, the menus' Help entries) uses the same viewer. The shell's stand-in is `OpenTextViewer`.
+3. Other open screen details: the menus (no menu bar is decoded: find how the original reaches speed,
+   sound, save / load, quit; maybe keys only); the Edit window's bottom strip (item 21); G:1074 (set when
+   several windows open: a redraw flag?); the real frame styles (f_22170, f_22248, ...); `f_70edf`'s move
+   condition (event byte +7 & 0x60); the yard PLACE range highlight (`f_2f708`).
+4. The isometric yard map (f_7650c), if it differs from the yard window's colony views.
+5. Music: the MIDI songs (SOUND types 18 / 20, effect ids 10000+) through a C# SoundFont synth (e.g. the
    MeltySynth library) or pre-rendered OGG; the player supplies or picks a SoundFont.
-5. Event markers and balloon bitmaps (f_0696a), the yard window actors, the tutorial (f_0e425).
-6. The clean-room art pack (ART_PLAN) once the screens exist.
+6. Event markers and balloon bitmaps (f_0696a) in place of the text balloons; the tutorial (f_0e425).
+7. The clean-room art pack (ART_PLAN) once the screens exist.
+
+**Workflow tips for the shell:** build with `dotnet build remake/game/Formica.csproj`, then run Godot
+(path in the user's memory notes) with `--path remake/game -- <flags> --screenshot=<png>` and look at the
+PNG; disassemble with `tools/re/adis.py <hex addr> <count>` and `decomp.py <hex>`; overlay routines are
+reached through `90 90 90 EA off seg` thunks (scan flat.bin for the target), and jump tables sit right
+after the `jmp cs:[bx + n]`, which gives the CS base. Write C# with the Write / Edit tools: Python
+heredocs in bash turn `'\n'` into real line breaks (it happened twice more this session).
 
 ## Notes for the Godot remake (what the reference teaches)
 
