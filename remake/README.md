@@ -53,7 +53,7 @@ Mouse:
 | Edit window map | left click: walk the yellow ant there (Shift: walk and act on the cell: pick up / drop); right click: walk there digging; Ctrl + click: Ant Info |
 | on the yellow ant | press and hold: its menu (recruit, release, exchange; a queen: dig hole, start brood; the spider: chase, hunt); release on an entry |
 | Edit tool strip | MAP (show / hide the Map window), ? (help overlays), Surface / Black / Red nest, go to the yellow ant / spider / queens, PAUSE, SCENT (cycle the scent views) |
-| Map window | click the map to look there; toolbar: Yard (Full Game), the views, scent layers, Behavior / Caste Control, Center on Yellow, the Mystery Button, History, Efficiency Score, Ant Info |
+| Map window | click the map to look there; toolbar: Yard (Full Game), the views, scent layers, Behavior / Caste Control, Center on Yellow, the Mystery Button, History, Efficiency Score, Ant Info (the SimAntipedia text viewer: a first page only) |
 | Behavior / Caste Control | click or drag in the triangle; Auto / Manual |
 | History window | the series buttons (up to four at once) |
 | Experimental button (Map toolbar, Edit strip) | Quick Game: switch to Experimental; Experimental: the tool palette (hold a tool for its options; Start Game returns to a Quick Game), then press / drag on the Edit map |

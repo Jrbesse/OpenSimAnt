@@ -95,6 +95,7 @@ public partial class Main : Node2D
         if (OS.GetCmdlineUserArgs().Contains("--trails")) session.St.Set16(Seg.DS, 0x2994, 1);
         if (OS.GetCmdlineUserArgs().Contains("--report")) popReport = true;
         if (OS.GetCmdlineUserArgs().Contains("--exp-menu")) ExperimentalMenu();
+        if (OS.GetCmdlineUserArgs().Contains("--antipedia")) OpenTextViewer(200);
         if (OS.GetCmdlineUserArgs().Contains("--save-prompt")) { selectMidGame = true; Replace(1); }
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--message=") && session.Files.Strings(int.Parse(arg["--message=".Length..])) is { } box)
@@ -524,7 +525,7 @@ public partial class Main : Node2D
             case 19: ToggleWindow(HistoryWin); break;
             case 20: OpenEfficiency(); break;
             case 22: case 23: ExperimentalMenu(); break;
-            case 21: antInfoArmed = true; lastMessage = "Ant Info: click an ant in the Edit window."; break;
+            case 21: OpenTextViewer(200); break;                                        // 0x115 → thunk 0x2f9b0 → f_78db9
         }
     }
 
@@ -784,6 +785,55 @@ public partial class Main : Node2D
         foreach (var line in boxLines)
         {
             ui.DrawText(c, 2, 0, w.Rect.left + 4, y, w.Rect.right - 4, y + f.Height, line);
+            y += f.Height;
+        }
+    }
+
+    // ------------------------------------------------------------------------------- the text viewer (layout 5)
+    // The Map toolbar's "Ant Info Window" (0x115 → thunk 0x2f9b0 → f_78db9) opens window 5, where f_78808 draws a
+    // text resource (SHARED type 10: the help and the SimAntipedia, Mac Roman; type 21 holds their style runs)
+    // into item 0x502, with the caption through 0x501. How the original picks and pages the topics is not traced
+    // yet: this shows text 200 (the first encyclopedia entry), word-wrapped in font 2; a click closes it.
+    const int TextWin = 5;
+    string[] viewerLines;
+
+    void OpenTextViewer(int id)
+    {
+        var r = session.Files.Shared.FirstOrDefault(x => x.Type == 10 && x.Id == id);
+        if (r == null) return;
+        int end = Array.IndexOf(r.Data, (byte)0);
+        string text = OriginalFiles.MacText(r.Data.AsSpan(0, end < 0 ? r.Data.Length : end));
+        var f = ui.Font(2);
+        var (l, _, rr, _) = ui.Layouts[TextWin].Items[2].Rect;
+        int width = rr - l - 8;
+        var lines = new List<string>();
+        foreach (var para in text.Split('\n'))                                // MacText turns the CR line ends into '\n'
+        {
+            string line = "";
+            foreach (var word in para.Split(' '))
+            {
+                string next = line.Length == 0 ? word : line + " " + word;
+                if (f.Width(next) > width && line.Length > 0) { lines.Add(line); line = word; }
+                else line = next;
+            }
+            lines.Add(line);
+        }
+        viewerLines = lines.ToArray();
+        modal = TextWin;
+    }
+
+    void DrawTextViewer(UiArt.Canvas c)
+    {
+        ui.DrawWindow(c, TextWin, 0, 0, "Ant Info");
+        var (l, t, r, b) = ui.Layouts[TextWin].Items[2].Rect;
+        var f = ui.Font(2);
+        var area = c.Clip(l + 1, t + 1, r - 1, b - 1);
+        area.Fill(l + 1, t + 1, r - 1, b - 1, UiArt.White);
+        int y = t + 4;
+        foreach (var line in viewerLines)
+        {
+            if (y + f.Height > b) break;
+            f.Draw(area.Px, area.Stride, b - 1, l + 4, y, line, UiArt.Black);
             y += f.Height;
         }
     }
@@ -1584,6 +1634,7 @@ public partial class Main : Node2D
             if (modal == SelectWin) ui.DrawWindow(canvas, SelectWin, 0, 0, null);
             if (modal is 27 or 30) DrawMessageBox(canvas);
             if (modal == SavePrompt) DrawSavePrompt(canvas);
+            if (modal == TextWin) DrawTextViewer(canvas);
             if (modal == TitleWin) canvas.Fill(0, 0, ScreenW, ScreenH, UiArt.Black);
             if (modal is TitleWin or AboutWin) ui.DrawWindow(canvas, modal, 0, 0, null);
             if (modal == 11) ui.DrawWindow(canvas, 11, 245, 200, null);       // "not available in the full game"

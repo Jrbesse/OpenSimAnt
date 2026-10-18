@@ -142,9 +142,10 @@ is 0), so the shell sets it only where the original's Map window does.
 
 Suggested next session (in order):
 1. Play the shell and note what feels wrong (speed, controls, missing feedback).
-2. Remaining screens: window 5 is a **text viewer**, not a message log (`f_78db9` opens it, `f_78808`
-   draws a text resource into item 0x502 with the caption via 0x501): most likely the help screens
-   (`f_76eb5`, SHARED "text" / "text_style" resources); the menus (no menu bar is decoded: find how the
+2. Remaining screens: window 5 is the **SimAntipedia / help text viewer** (the Map toolbar's "Ant Info
+   Window" 0x115 → thunk 0x2f9b0 → `f_78db9` opens it; `f_78808` draws a SHARED type 10 text, with type 21
+   style runs, into item 0x502, the caption via 0x501). The shell shows text 200 only: trace the topic
+   choice and paging (and whether the help `f_76eb5` uses it too); the menus (no menu bar is decoded: find how the
    original reaches speed, sound, save / load, quit); the Edit window's bottom strip (item 21); G:1074 (set
    when several windows open: a redraw flag?); the windows' real frame styles; f_70edf's move condition
    (event byte +7 & 0x60). Done since the last list: PLACE, the patch click arithmetic, the corner values,
@@ -412,6 +413,7 @@ Suggested next session (in order):
 
 2026-10-18 afternoon (the screens):
 ```
+(next) Remake shell: the Map toolbar's Ant Info opens the SimAntipedia text viewer (window 5), first page
 c514379 Remake shell: the control windows' corner values (percent / ants) and bar placement from f_083d9
 76335d3 Remake shell: the yard window's PLACE (f_01efa)
 a387036 Remake shell: window captions from STR# 1000
