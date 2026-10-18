@@ -429,7 +429,7 @@ heredocs in bash turn `'\n'` into real line breaks (it happened twice more this 
 
 2026-10-18 evening:
 ```
-(next)  Remake shell: the file dialog (layout 22, f_6c566) for load / save / save as
+df7220f Remake shell: the file dialog (layout 22, f_6c566) for load / save / save as
 2061ca5 Remake shell: the original's keys (f_74386's table DS:2CBE, f_76aeb, the menu commands f_6e26d)
 f1b63e7 Remake shell: the game-over window (layout 4) as f_71d95 fills it
 963dbb5 Remake shell: the SimAntipedia (window 5): cards, links, history, glossary pop-ups; fonts 2..5 from FONT1..4
