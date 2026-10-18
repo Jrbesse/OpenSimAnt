@@ -1491,6 +1491,18 @@ Window 6 (6000) is the scent-layer menu (Off, Alarm, B-Nest, B-Trail, R-Nest, R-
   "openSub" in the debug output). Releasing on entry e stores e - 2 in T:07B6 + tool: the option bytes
   T:07B7..T:07BC.
 - Keys 0x0D / 0x1B end the palette loop (`f_1f610`).
+- The option palettes by their bitmaps: window 12 (5001) Walls / Rocks = tool 1, 15 (5002) Dig / Fill = 2,
+  16 (5003) Black / Red = 3, 17 (5004) 1 Piece / 20 Pieces = 4, 13 (5005) Black Nest / Black Trail / Red
+  Nest / Red Trail / Alarm = 5, 14 (5006) Spray / Stream = 6.
+
+The palette is a pop-up of the Experimental menu `f_67010` (Map toolbar 0x117 via thunk 0x2f88e), placed
+centred over item 0x117 and 4 px above it, by the game mode G:0EAC:
+- 1: window 10 ("EXPERIMENTAL MODE"). Choosing it: `f_2f8a2(G:104C)`, G:0EAC = 3, `f_11918(view, a, b,
+  G:04C2, G:0496)` lifts the yellow ant off the map, G:0A06 = 2, `f_0cdb0()`, a redraw, sound 2 (0x7E).
+- 2: window 11 ("Experimental Mode is not available in the full game.").
+- 3: window 9 through `f_2f8b6`. Entry 7 (Start Game): G:0EAC = 1, and on the surface (G:032E == 1)
+  `f_119b4(..., 0xFF)` puts the yellow ant back, voice 0x2AFB. Then `f_2f8a2(entry)`, and item 0x117 shows
+  bitmap 5100 + G:104C (the current tool's icon).
 
 ### The Ant Info window (window 29, `f_67c1c(a, b, view)` via thunk 0x2f8fc, map tool 0)
 
