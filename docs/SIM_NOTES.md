@@ -1651,6 +1651,42 @@ STR# 1000 holds window titles: entries 0..8 name the Map window's contents T:07C
 modes G:035C ("Yard View", "House View", "Strategic View", "Graphic View"). Which routine fills the
 captions with them is not traced (matched by their order).
 
+### Keys and menu commands (`f_74386`, `f_76aeb`, `f_6e26d`, `f_8414_0000`)
+
+The main loop's event dispatcher (8414:0000) sends events by type (high byte): 0 → `f_1250_0c0f`, 0xFA
+(keys) → 8414:0383 (some key codes become 0xFD15 / 0xFD16 / 0xFD22..28 commands), 0xFD (menu commands) →
+thunk 0x2f992 → `f_6e26d`, 0xFE (open a pull-down menu) → thunk 0x2fa0a → `f_6d7e3`. The pull-down itself
+is a generic text-cell menu (7d62:0384, "Menu data too long"; item n of menu m posts 0xFD00 + 16 m + n + 1)
+whose item strings are not in the executable or the archives: no menu labels are known.
+
+`f_74386` (a typed key; it also feeds the cheats, `f_6a920`): with Ctrl (`f_1c160(0x1d)`) Alt+F 0x817 /
+0x820 / 0x821 / 0x82F are debug keys. Then the table DS:2CBE (u16 key, u16 command; 0-terminated) posts
+the command (`f_1ba3f`): Alt+F / W / V / O / S and F2..F6 → 0xFE00..04; ')' 0xFD41, '!' 0xFD43, '@'
+0xFD44, '#' 0xFD45, '$' 0xFD46; ^N 0xFD03, ^S 0xFD05, ^A 0xFD06, ^L 0xFD04, ^E 0xFD11, ^M 0xFD12, ^B
+0xFD13, ^C 0xFD14, ^T 0xFD17, ^G 0xFD31, ^J 0xFD32, ^K 0xFD33, ^X / ^Q 0xFD08, ^Y 0xFD21. Other keys go to
+`f_76aeb` (thunk 0x2fa28):
+- '0' → `f_76cb9(7)` (alarm); '1' → 10 for the spider (G:0A06 != 0), 8 for a queen that can dig
+  (G:04C2 == 0x40, G:0C24 == 0), else 1; '2' → 0x0B / 9 / 2 likewise; '3' → 4; '4' → 5; 'X' / 'x' → 6.
+- Backspace (0x88) without Shift (0000:0417 & 3): the yellow ant (G:0A06 == 0) walking (G:0AA0 != 0) →
+  `f_757dd(G:048C, G:047C, G:048A)` (stop); the spider (G:0A06 == 1) with its target G:0F42 / G:0F7E off its
+  position → target = position, G:0FB8 = 0; else `f_01c03` (G:1074 = 1, view and centre on the yellow ant).
+  With Shift: `f_01c52` (follow). 0x824 (the spider only) → 0x0C; 0x847 → sound 15 and `f_01c52`.
+
+`f_6e26d(event)` switches on the command's low byte (jump table at 0x6E296, CS base 0x6E0E0):
+- 0x01 → `f_2f99c`; 0x03 → music 0x2711 and `f_2f848(0)` (the new-game dialog);
+- 0x04 / 0x05 / 0x06 / 0x08 → DS:2CBC = n, done by the main loop (8414:0000): 4 load (`f_2f970`, and the
+  new-game dialog when no game runs, G:0EAC == -1), 5 save (`f_2f97a(1)`), 6 save as (`f_2f97a(0)`), 8 quit;
+- 0x11 → `f_03370` (the Edit window), 0x12 → `f_0148a` (the Map window), 0x13 → `f_07aab` (Behavior),
+  0x14 → `f_07a95` (Caste), 0x15 → `f_2f9ba` (History), 0x16 → `f_2f9b0` (the SimAntipedia), 0x17 →
+  `f_2f9a6` (Efficiency Score);
+- 0x21..0x24 → the yard window's mode G:035C = n - 0x21 (`f_01823` when it changes), `f_01aec(0)` when
+  G:032E != 0, open the yard window (0x1900, `f_01447`) if it is not; 0x26 / 0x27 / 0x28 → `f_01aec(1 / 2 /
+  3)` (surface / black / red nest);
+- 0x31..0x36 → toggle T:0746 + 2n, i.e. T:07A8, T:07AA (0x32 also stops the music, `f_285aa`), T:07AC
+  (sound effects), T:07AE (messages), T:07B0, T:07B2;
+- 0x41 → G:047E ^= 1 (pause) and `f_6e17e(G:047E)`; 0x43..0x46 → T:07CC = 0..3 (3 reads the delay
+  T:07D4 = -1), then `f_6e0e0` (probably the menus' check marks).
+
 ### The SimAntipedia (window 5, `f_78db9` / `f_78808` / `f_790f0`, overlay 881a; remake: `Formica.Data/Antipedia.cs`)
 
 The Map toolbar's 0x115 "Ant Info Window" → thunk 0x2f9b0 → `f_78db9`: if window 0x500 is not open

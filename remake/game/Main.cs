@@ -932,6 +932,7 @@ public partial class Main : Node2D
         modal = -1;
         selectMidGame = false;
         if (what == 4) QuickLoad();
+        else if (what == 5) GetTree().Quit();                               // 0xFD08 (DS:2CBC = 8)
         else Restart(what);
     }
 
@@ -949,7 +950,8 @@ public partial class Main : Node2D
         var (bl, _, br, _) = items[2].Rect;                                  // the wider of the two text items
         var f = ui.Font(0);
         for (int k = 0; k < 3; k++)
-            ui.DrawText(c, 0, 0, bl, bt + 12 + k * (f.Height + 4), br, bt + 12 + k * (f.Height + 4) + f.Height, lines?[8 + k] ?? "");
+            ui.DrawText(c, 0, 0, bl, bt + 12 + k * (f.Height + 4), br, bt + 12 + k * (f.Height + 4) + f.Height,
+                        lines?[8 + k + (k == 2 && pendingGame == 5 ? 1 : 0)] ?? "");   // [11] "before quitting SimAnt™?"
     }
 
     void SavePromptClick(int index)
@@ -1799,11 +1801,12 @@ public partial class Main : Node2D
                 selectMidGame = false;
                 return;
             }
+            if (OriginalKey(k)) return;
             switch (k.Keycode)
             {
-                case Key.Key1: SetView(1); break;
-                case Key.Key2: SetView(2); break;
-                case Key.Key3: SetView(3); break;
+                case Key.Key1 when k.CtrlPressed: SetView(1); break;                // the views (menu items 0xFD26..28, no key in the original)
+                case Key.Key2 when k.CtrlPressed: SetView(2); break;
+                case Key.Key3 when k.CtrlPressed: SetView(3); break;
                 case Key.Left: Scroll(-4, 0); break;
                 case Key.Right: Scroll(4, 0); break;
                 case Key.Up: Scroll(0, -4); break;
@@ -1815,7 +1818,6 @@ public partial class Main : Node2D
                 // the yellow ant's menu commands (f_76cb9)
                 case Key.R: Commands.Command(session.St, k.ShiftPressed ? 2 : 1); break;      // recruit 5 / 10
                 case Key.E: Commands.Command(session.St, k.ShiftPressed ? 5 : 4); break;      // release half / all
-                case Key.X: Commands.Command(session.St, 6); break;                           // exchange (then click)
                 case Key.A: Commands.Command(session.St, 7); break;                           // alarm trail on / off
                 case Key.H: Commands.Command(session.St, 8); break;                           // dig a hole (a queen founds a nest)
                 case Key.B: Commands.Command(session.St, 9); break;                           // start brood (a queen in the nest)
@@ -1846,6 +1848,67 @@ public partial class Main : Node2D
                 case Key.K: Restart(3); break;
             }
         }
+    }
+
+    /// <summary>The original's keys (SIM_NOTES "Keys and menu commands"): f_74386's table DS:2CBE turns Ctrl and
+    /// shifted keys into menu commands 0xFDmn (f_6e26d), and f_76aeb handles the plain ones. Alt+F/W/V/O/S and
+    /// F2..F6 open the pull-down menus 0xFE00..04, whose items are not in the data: the shell keeps F2 / F3.</summary>
+    bool OriginalKey(InputEventKey k)
+    {
+        var st = session.St;
+        bool spider = st.U16(Seg.G, 0xa06) != 0, queen = st.U16(Seg.G, 0x4c2) == 0x40 && st.U16(Seg.G, 0xc24) == 0;
+        if (k.CtrlPressed)
+            switch (k.Keycode)
+            {
+                case Key.N: modal = SelectWin; selectMidGame = true; return true;          // 0xFD03 new game (f_2f848)
+                case Key.L: QuickLoad(); return true;                                        // 0xFD04 load (DS:2CBC = 4)
+                case Key.S or Key.A: QuickSave(); return true;                               // 0xFD05 save, 0xFD06 save as
+                case Key.Q or Key.X: pendingGame = 5; modal = SavePrompt; return true;       // 0xFD08 quit (save first?)
+                case Key.E: Front(EditWin); return true;                                     // 0xFD11 f_03370
+                case Key.M: Front(MapWin); return true;                                      // 0xFD12 f_0148a
+                case Key.B: ToggleWindow(BehaviorWin); return true;                          // 0xFD13 f_07aab
+                case Key.C: ToggleWindow(CasteWin); return true;                             // 0xFD14 f_07a95
+                case Key.T: OpenEfficiency(); return true;                                   // 0xFD17 f_2f9a6
+                case Key.Y: st.Set16(Seg.G, 0x35c, 0); if (!zOrder.Contains(YardWin)) OpenYard(false); return true;  // 0xFD21 Yard View
+                case Key.G or Key.J or Key.K:                                                // 0xFD31..33: T:07A8 / 07AA / 07AC on / off
+                    int flag = k.Keycode == Key.G ? 0x7a8 : k.Keycode == Key.J ? 0x7aa : 0x7ac;    // 07AC: sound effects
+                    st.Set16(Seg.T, flag, st.U16(Seg.T, flag) == 0 ? 1 : 0);
+                    return true;
+                default: return false;
+            }
+        if (k.ShiftPressed && k.Keycode is Key.Key0 or Key.Key1 or Key.Key2 or Key.Key3)
+        {
+            if (k.Keycode == Key.Key0) session.Paused = !session.Paused;                    // ')' 0xFD41: G:047E ^= 1
+            else session.Speed = (int)(k.Keycode - Key.Key1);                                     // '!' '@' '#' 0xFD43..45: T:07CC = 0..2
+            return true;                                                                     // ('$' 0xFD46 sets 3: a delay of -1)
+        }
+        if (k.AltPressed || k.ShiftPressed && k.Keycode != Key.Backspace) return false;
+        switch (k.Keycode)
+        {
+            case Key.Key0: Commands.Command(st, 7); return true;                             // alarm trail
+            case Key.Key1: Commands.Command(st, spider ? 0xa : queen ? 8 : 1); return true;  // chase / dig hole / recruit 5
+            case Key.Key2: Commands.Command(st, spider ? 0xb : queen ? 9 : 2); return true;  // hunt / start brood / recruit 10
+            case Key.Key3: Commands.Command(st, 4); return true;                             // release half
+            case Key.Key4: Commands.Command(st, 5); return true;                             // release all
+            case Key.X: Commands.Command(st, 6); return true;                                // exchange
+            case Key.Backspace:
+                var (yv, ya, yb) = session.Yellow;
+                if (k.ShiftPressed) { st.Set16(Seg.G, 0x1074, 1); follow = true; return true; }   // f_01c52
+                if (!spider && st.U16(Seg.G, 0xaa0) != 0) { Player.StopAction(st, yv, ya, yb); return true; }   // f_757dd
+                if (spider && st.U16(Seg.G, 0xa06) == 1 && (st.S16(Seg.G, 0xf42) != ya || st.S16(Seg.G, 0xf7e) != yb))
+                {
+                    st.Set16(Seg.G, 0xf42, ya);                                              // the spider stops where it is
+                    st.Set16(Seg.G, 0xf7e, yb);
+                    st.Set16(Seg.G, 0xfb8, 0);
+                    return true;
+                }
+                if (spider && st.U16(Seg.G, 0xa06) != 1) return true;
+                st.Set16(Seg.G, 0x1074, 1);                                                  // f_01c03: recentre
+                SetView(yv);
+                CenterOnYellow();
+                return true;
+        }
+        return false;
     }
 
     /// <summary>Walk to the cell and act on it (mode 1: pick up / drop, as the original's click on a cell next to

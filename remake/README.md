@@ -63,20 +63,27 @@ Keys:
 
 | Input | Action |
 |---|---|
-| 1 / 2 / 3 | surface / black nest / red nest |
+| **The original's keys** (f_74386's table, f_76aeb; the SimAntipedia's "Keyboard Shortcuts" card) | |
+| 1 / 2 | recruit 5 / 10 (a queen: dig hole / start brood; the spider: chase / hunt) |
+| 3 / 4, X, 0 | release half / all; exchange (then click an ant or the spider); alarm trail |
+| Backspace, Shift+Backspace | stop the yellow ant's walk (else recentre on it); follow it |
+| Shift+0, Shift+1 / 2 / 3 | pause (G:047E); speed slow / medium / fast (T:07CC) |
+| Ctrl+N, Ctrl+L, Ctrl+S / A, Ctrl+Q / X | Select a Game; load; save; quit (asks to save first) |
+| Ctrl+E, Ctrl+M, Ctrl+B, Ctrl+C, Ctrl+T, Ctrl+Y | Edit window; Map window; Behavior / Caste Control; Efficiency Score; the yard window |
+| Ctrl+G / J / K | toggle T:07A8 / T:07AA / T:07AC (K: sound effects) |
+| Tab | Map window (front / hide) |
+| **The shell's own keys** | |
+| Ctrl+1 / 2 / 3 | surface / black nest / red nest |
 | Arrows, F | scroll; follow the yellow ant |
-| Space, + / - | pause (G:047E); speed slow / medium / fast (T:07CC) |
-| R, Shift+R | recruit 5 / 10 |
-| E, Shift+E | release half / all |
-| X | exchange: then click an ant (or the spider) to become it |
-| A, H, B | alarm trail; dig a hole (a queen founds a nest); start brood |
+| Space, + / - | pause; speed |
+| R, Shift+R, E, Shift+E, A, H, B | recruit 5 / 10, release half / all, alarm trail, dig a hole, start brood |
 | C, U, Shift+U | as the spider: chase (then click), hunt, lash out |
 | P, O | Behavior and Caste Control windows; automatic / manual jobs (G:0378) |
-| G, Tab, V | History window; Map window (front / hide); scent views (T:07BE) |
+| G, V | History window; scent views (T:07BE) |
 | F1, F2, F3 | the help overlays; Select a Game (after the title at start-up; asks to save a running game); the about box |
-| Y, Esc | yard map in a Full Game (click a patch to move; also opens when another colony must be picked) |
+| Y, Esc | yard map in a Full Game (click a patch to move; also opens when another colony must be picked); Esc also closes the SimAntipedia |
 | F5 / F9 | quick save / load (the original's .ANT format, in Godot's user:// folder) |
-| S | sound effects on / off |
+| S | sound effects on / off (the shell's mute) |
 | N / M / K | new Quick Game / Full Game / Experimental game |
 
 Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`, `--efficiency`, `--popup`,
