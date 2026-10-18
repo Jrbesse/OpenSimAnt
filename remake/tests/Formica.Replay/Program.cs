@@ -14,6 +14,7 @@ for (int i = 0; i < args.Length; i++)
     else paths.Add(args[i]);
 }
 if (paths.Count == 0) paths.Add(TracePaths.DefaultDir());
+Formica.Sim.GameData.Flat = File.ReadAllBytes(TracePaths.FlatImage());
 var files = paths.SelectMany(p => Directory.Exists(p) ? (IEnumerable<string>)Directory.GetFiles(p, "*.trace").OrderBy(x => x) : new[] { p }).ToList();
 bool allOk = true;
 foreach (var file in files)
@@ -46,4 +47,7 @@ static class TracePaths
         while (d != null && !File.Exists(Path.Combine(d.FullName, "Formica.sln"))) d = d.Parent;
         return Path.Combine(d?.FullName ?? ".", "build", "traces");
     }
+
+    /// <summary>tools/re/build/flat.bin, the flat image built from the user's own SIMANT.EXE.</summary>
+    public static string FlatImage() => Path.Combine(DefaultDir(), "..", "..", "..", "tools", "re", "build", "flat.bin");
 }

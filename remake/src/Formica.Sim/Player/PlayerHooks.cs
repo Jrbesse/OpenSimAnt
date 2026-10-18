@@ -9,7 +9,7 @@ public class PlayerHooks : NoPlayer
     public override void GameEvent(State st, int n) => Player.PlayerEvent(st, n);
     public override void GameOver(State st) => Game.GameOverScreen(st);
     public override void WinScreen(State st) => Effect(st, "win_screen");
-    public override int NewGameDialog(State st) { Effect(st, "new_game_dialog"); return -1; }
+    public override int? NewGameDialog(State st) { Effect(st, "new_game_dialog"); return null; }
     public override void ChoosePatch(State st) => Effect(st, "yard_map");
     public override bool SoundDone(State st) => true;
     public override void AttackPlayer(State st, int view, int ant) => Player.AttackPlayer(st, view, ant);

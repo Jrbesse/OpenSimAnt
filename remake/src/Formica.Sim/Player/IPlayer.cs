@@ -16,7 +16,7 @@ public interface IPlayer
     void GameEvent(State st, int n);
     void GameOver(State st);
     void WinScreen(State st);
-    int NewGameDialog(State st);
+    int? NewGameDialog(State st);
     void ChoosePatch(State st);
     bool SoundDone(State st);
 
@@ -38,7 +38,7 @@ public class NoPlayer : IPlayer
     public virtual void GameEvent(State st, int n) => throw new NotImplementedException($"f_2f7d0({n}) -> f_75d01 (player event)");
     public virtual void GameOver(State st) => throw new NotImplementedException("f_71d95 (the game-over screen: rating, new game)");
     public virtual void WinScreen(State st) => throw new NotImplementedException("f_2f91a (Full Game won: the end screen)");
-    public virtual int NewGameDialog(State st) => throw new NotImplementedException("f_725b6 (the new-game dialog)");
+    public virtual int? NewGameDialog(State st) => throw new NotImplementedException("f_725b6 (the new-game dialog)");
     public virtual void ChoosePatch(State st) => throw new NotImplementedException("f_7650c (the yard map: pick a patch)");
     public virtual bool SoundDone(State st) => throw new NotImplementedException("f_284a4 (the sound driver: has the sound finished?)");
     public virtual void Effect(State st, string name, params object[] args) { }

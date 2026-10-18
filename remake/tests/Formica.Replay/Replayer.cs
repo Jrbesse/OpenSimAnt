@@ -15,7 +15,7 @@ public class TestSimPlayer : PlayerHooks
 
 public class FlowPlayer : TestSimPlayer
 {
-    public override int NewGameDialog(State st) => 0;
+    public override int? NewGameDialog(State st) => 0;
 }
 
 public class QuietPlayer : NoPlayer
@@ -44,6 +44,12 @@ public sealed class Replayer
 
     static readonly Assembly SimAsm = typeof(State).Assembly;
 
+    /// <summary>Reference names that differ from the C# ones (a method cannot share its class's name).</summary>
+    static readonly Dictionary<string, string> Alias = new()
+    {
+        ["newgame.new_game"] = "NewGameStart",
+    };
+
     public readonly Dictionary<string, FuncStats> Stats = new();
     public int MaxNotes = 4;
     public bool Verbose;
@@ -67,6 +73,7 @@ public sealed class Replayer
         if (MethodCache.TryGetValue(key, out var mi)) return mi;
         int dot = func.IndexOf('.');
         string mod = func[..dot], name = func[(dot + 1)..];
+        if (Alias.TryGetValue(func, out var alias)) name = alias;
         mi = null;
         if (ModuleClass.TryGetValue(mod, out var cls))
         {
@@ -103,6 +110,7 @@ public sealed class Replayer
         if (e.ValueKind == JsonValueKind.Object && e.TryGetProperty("$", out var tag))
         {
             if (tag.GetString() == "ref") return ResolveRef(e.GetProperty("name").GetString());
+            if (tag.GetString() == "bytes" && t == typeof(byte[])) return System.Convert.FromHexString(e.GetProperty("hex").GetString());
             if (tag.GetString() == "callable" && typeof(Delegate).IsAssignableFrom(t))
             {
                 // a Python test lambda for a screen-only callback: a no-op of the parameter's delegate type
@@ -149,6 +157,8 @@ public sealed class Replayer
         JsonValueKind.Number => e.GetInt64(),
         JsonValueKind.String => e.GetString(),
         JsonValueKind.Array => e.EnumerateArray().Select(Raw).ToList(),
+        JsonValueKind.Object when e.TryGetProperty("$", out var tag) && tag.GetString() == "bytes" =>
+            System.Convert.FromHexString(e.GetProperty("hex").GetString()).Select(b => (object)(long)b).ToList(),
         _ => e.ToString(),
     };
 
@@ -160,6 +170,7 @@ public sealed class Replayer
             case null: return null;
             case bool b: return b ? 1L : 0L;
             case int i: return (long)i;
+            case byte by: return (long)by;
             case long l: return l;
             case string s: return s;
             case System.Runtime.CompilerServices.ITuple tu:
@@ -254,7 +265,9 @@ public sealed class Replayer
         }
         var sb = new StringBuilder();
         if (rec.Raise != null) sb.Append($"python raised {rec.Raise}; ");
-        if (rec.Raise == null && rec.Ret.HasValue)
+        bool opaque = rec.Ret.HasValue && rec.Ret.Value.ValueKind == JsonValueKind.Object
+                      && rec.Ret.Value.TryGetProperty("$", out var rt) && rt.GetString() != "bytes";
+        if (rec.Raise == null && rec.Ret.HasValue && !opaque)
         {
             var want = Raw(rec.Ret.Value);
             var got = Norm(ret);

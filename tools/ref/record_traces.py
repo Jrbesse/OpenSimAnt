@@ -54,6 +54,8 @@ class Recorder:
             return v
         if isinstance(v, State):
             return {'$': 'state'}
+        if isinstance(v, (bytes, bytearray)):
+            return {'$': 'bytes', 'hex': bytes(v).hex()}
         if id(v) in self.named:
             return {'$': 'ref', 'name': self.named[id(v)]}
         if isinstance(v, (tuple, list)):
