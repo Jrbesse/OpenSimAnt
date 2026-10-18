@@ -116,7 +116,7 @@ project's CLAUDE.md). Everything is under `remake/`; read `remake/README.md` fir
 **Performance:** the C# SimStep runs well over 10,000 ticks per second (six 5,000-tick fuzz games with
 startup in 1.2 s), so the original's "fast" speed is bounded only by drawing (`GameSession.FastDelay`).
 
-**Usage note:** the 2026-10-18 afternoon session stopped at 96% of the weekly allowance, which resets
+**Usage note:** the 2026-10-18 afternoon session stopped at about 97% of the weekly allowance, which resets
 2026-10-18 22:00 UTC; after that there is plenty of room.
 
 **The screens (2026-10-18 afternoon):** the shell is now built from the original's window layouts.
@@ -142,11 +142,13 @@ is 0), so the shell sets it only where the original's Map window does.
 
 Suggested next session (in order):
 1. Play the shell and note what feels wrong (speed, controls, missing feedback).
-2. Remaining screens: the message window (5) in place of the status lines; the menus (no menu bar is
-   decoded: find how the original reaches speed, sound, save / load, quit); the yard window's PLACE
-   (`f_01efa`, a mouse loop) and its patch click `f_70edf` (the shell uses its own patch hit test); the
-   control windows' corner labels (0x120F..: 0x7f06); the Edit window's bottom strip (item 21) and its
-   caption text; G:1074 (set when several windows open: a redraw flag?); the windows' real frame styles.
+2. Remaining screens: window 5 is a **text viewer**, not a message log (`f_78db9` opens it, `f_78808`
+   draws a text resource into item 0x502 with the caption via 0x501): most likely the help screens
+   (`f_76eb5`, SHARED "text" / "text_style" resources); the menus (no menu bar is decoded: find how the
+   original reaches speed, sound, save / load, quit); the Edit window's bottom strip (item 21); G:1074 (set
+   when several windows open: a redraw flag?); the windows' real frame styles; f_70edf's move condition
+   (event byte +7 & 0x60). Done since the last list: PLACE, the patch click arithmetic, the corner values,
+   the captions (STR# 1000).
 3. The isometric yard map (f_7650c), if it differs from the yard window's colony views.
 4. Music: the MIDI songs (SOUND types 18 / 20, effect ids 10000+) through a C# SoundFont synth (e.g. the
    MeltySynth library) or pre-rendered OGG; the player supplies or picks a SoundFont.
@@ -410,6 +412,10 @@ Suggested next session (in order):
 
 2026-10-18 afternoon (the screens):
 ```
+c514379 Remake shell: the control windows' corner values (percent / ants) and bar placement from f_083d9
+76335d3 Remake shell: the yard window's PLACE (f_01efa)
+a387036 Remake shell: window captions from STR# 1000
+7ea5c3f Remake shell: yard patch clicks use f_70edf's arithmetic
 b92e9ef Remake shell: the yard window's MATE, AUTOMATIC and MANUAL as f_6f7f0 does them
 afb6836 Remake: Mac Roman 0xAA (™) in strings; BitmapFont maps MacText's special characters back
 195869f Remake shell: the title screen (layout 3) before Select a Game, the about box (layout 31, F3)
