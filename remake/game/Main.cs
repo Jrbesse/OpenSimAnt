@@ -92,6 +92,9 @@ public partial class Main : Node2D
         if (OS.GetCmdlineUserArgs().Contains("--popup")) OpenPopup(200, 150);
         if (OS.GetCmdlineUserArgs().Contains("--yard")) OpenYard(false);
         if (OS.GetCmdlineUserArgs().Contains("--scent-menu")) OpenScentMenu();
+        foreach (var arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--message=") && session.Files.Strings(int.Parse(arg["--message=".Length..])) is { } box)
+                OpenMessageBox(box);                                        // --message=<STR# id>: show a message box
         if (OS.GetCmdlineUserArgs().Contains("--ant-info")) { var (_, ya, yb) = session.Yellow; SetView(session.Yellow.view); CenterOnYellow(); OpenAntInfo(ya, yb); }
         if (OS.GetCmdlineUserArgs().Contains("--strat")) session.St.Set16(Seg.G, 0x35c, 2);
         font = ui.Font(2);
@@ -156,6 +159,7 @@ public partial class Main : Node2D
                 var lines = session.Files.Strings(id);
                 lastMessage = lines != null ? string.Join(" ", lines) : $"message 0x{id:x}";
                 GD.Print("message: " + lastMessage);
+                if (e.Name == "message_box" && lines != null && screenshot == null) OpenMessageBox(lines);
             }
             else if (e.Name == "sound" && e.Args.Length > 0 && e.Args[0] is int sfx && sfx < 57
                      && session.St.U16(Seg.T, 0x7ac) != 0)
@@ -665,6 +669,33 @@ public partial class Main : Node2D
         {
             st.Set16(Seg.G, 0x106c, st.U16(Seg.G, 0x106c) ^ 1);
             MapTools.ApplyTool(st, toolCell.a, toolCell.b);
+        }
+    }
+
+    // ------------------------------------------------------------------------------- message boxes (layouts 27 / 30)
+    // f_71b1a(0, id, 1): the lines of STR# id in a box that waits for a click ("Click here to continue"); the game
+    // does not run meanwhile. Which box the original picks, and the text placement, are not traced: up to four
+    // lines go in layout 27, more in layout 30, centred above the "Click here" line in font 2.
+    string[] boxLines;
+
+    void OpenMessageBox(string[] lines)
+    {
+        boxLines = lines.Select(l => l.Replace("\\n", " ")).ToArray();      // literal backslash-n breaks, as in the balloons
+        modal = lines.Length <= 4 ? 27 : 30;
+    }
+
+    void DrawMessageBox(UiArt.Canvas c)
+    {
+        ui.DrawWindow(c, modal, 0, 0, null);
+        var w = ui.Layouts[modal];
+        var click = w.Items[^1].Rect;
+        var f = ui.Font(2);
+        int top = w.Rect.top + 6, bottom = click.top - 2, n = boxLines.Length;
+        int y = top + Math.Max(0, (bottom - top - n * f.Height) / 2);
+        foreach (var line in boxLines)
+        {
+            ui.DrawText(c, 2, 0, w.Rect.left + 4, y, w.Rect.right - 4, y + f.Height, line);
+            y += f.Height;
         }
     }
 
@@ -1239,6 +1270,7 @@ public partial class Main : Node2D
             if (modal == EfficiencyWin) DrawEfficiency(canvas);
             if (modal == AntInfoWin) DrawAntInfo(canvas);
             if (modal == SelectWin) ui.DrawWindow(canvas, SelectWin, 0, 0, null);
+            if (modal is 27 or 30) DrawMessageBox(canvas);
             if (modal == 11) ui.DrawWindow(canvas, 11, 245, 200, null);       // "not available in the full game"
             if (popup >= 0) DrawPopup(canvas);
         }
