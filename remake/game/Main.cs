@@ -94,6 +94,7 @@ public partial class Main : Node2D
         if (OS.GetCmdlineUserArgs().Contains("--trails")) session.St.Set16(Seg.DS, 0x2994, 1);
         if (OS.GetCmdlineUserArgs().Contains("--report")) popReport = true;
         if (OS.GetCmdlineUserArgs().Contains("--exp-menu")) ExperimentalMenu();
+        if (OS.GetCmdlineUserArgs().Contains("--save-prompt")) { selectMidGame = true; Replace(1); }
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--message=") && session.Files.Strings(int.Parse(arg["--message=".Length..])) is { } box)
                 OpenMessageBox(box);                                        // --message=<STR# id>: show a message box
@@ -783,17 +784,74 @@ public partial class Main : Node2D
     // ported: World.Advisor's tutorial f_0e425), 0x207 Load Game. Shown at start-up and on F2.
     const int SelectWin = 2;
 
+    bool selectMidGame;                                                      // F2: a game is running, so ask to save first
+
     void SelectClick(int index)
     {
         switch (index)
         {
-            case 2: modal = -1; Restart(1); break;
-            case 3: modal = -1; Restart(2); break;
-            case 4: modal = -1; Restart(3); break;
+            case 2: Replace(1); break;
+            case 3: Replace(2); break;
+            case 4: Replace(3); break;
             case 5: modal = -1; break;
             case 6: lastMessage = "The Tutorial is not ported yet (f_0e425)."; break;
-            case 7: modal = -1; QuickLoad(); break;
+            case 7: Replace(4); break;
         }
+    }
+
+    // ------------------------------------------------------------------------------- the save prompt (layout 33)
+    // "Do you want to save / your current game / before loading a new SimAnt game?" (STR# 1800 [8..10]) with
+    // DON'T SAVE, Save and Cancel (items 0x2103..0x2105) before a running game is replaced.
+    const int SavePrompt = 33;
+    int pendingGame = -1;                                                    // 1..3 a new game, 4 load
+
+    void Replace(int what)
+    {
+        if (!selectMidGame) { Proceed(what); return; }
+        pendingGame = what;
+        modal = SavePrompt;
+    }
+
+    void Proceed(int what)
+    {
+        modal = -1;
+        selectMidGame = false;
+        if (what == 4) QuickLoad();
+        else Restart(what);
+    }
+
+    void DrawSavePrompt(UiArt.Canvas c)
+    {
+        ui.DrawWindow(c, SavePrompt, 0, 0, null);
+        var items = ui.Layouts[SavePrompt].Items;
+        for (int i = 3; i <= 5; i++)
+        {
+            var (l, t, r, b) = items[i].Rect;
+            c.Frame(l, t, r, b, UiArt.Black);
+        }
+        var lines = session.Files.Strings(1800);
+        var (_, bt, _, _) = items[1].Rect;
+        var (bl, _, br, _) = items[2].Rect;                                  // the wider of the two text items
+        var f = ui.Font(0);
+        for (int k = 0; k < 3; k++)
+            ui.DrawText(c, 0, 0, bl, bt + 12 + k * (f.Height + 4), br, bt + 12 + k * (f.Height + 4) + f.Height, lines?[8 + k] ?? "");
+    }
+
+    void SavePromptClick(int index)
+    {
+        switch (index)
+        {
+            case 3: Proceed(pendingGame); break;
+            case 4: QuickSave(); Proceed(pendingGame); break;
+            case 5: modal = -1; selectMidGame = false; break;
+        }
+    }
+
+    void QuickSave()
+    {
+        var path = ProjectSettings.GlobalizePath("user://quicksave.ANT");
+        System.IO.File.WriteAllBytes(path, SaveFile.Save(session.St));
+        lastMessage = "Saved to " + path;
     }
 
     // ------------------------------------------------------------------------------- the Efficiency Score (layout 24)
@@ -1408,6 +1466,7 @@ public partial class Main : Node2D
             if (modal == AntInfoWin) DrawAntInfo(canvas);
             if (modal == SelectWin) ui.DrawWindow(canvas, SelectWin, 0, 0, null);
             if (modal is 27 or 30) DrawMessageBox(canvas);
+            if (modal == SavePrompt) DrawSavePrompt(canvas);
             if (modal == 11) ui.DrawWindow(canvas, 11, 245, 200, null);       // "not available in the full game"
             if (popup >= 0) DrawPopup(canvas);
         }
@@ -1460,6 +1519,11 @@ public partial class Main : Node2D
         }
         if (ev is InputEventMouseButton mb && mb.Pressed)
         {
+            if (modal == SavePrompt)
+            {
+                if (mb.ButtonIndex == MouseButton.Left) SavePromptClick(ui.HitTest(SavePrompt, 0, 0, (int)mb.Position.X, (int)mb.Position.Y));
+                return;
+            }
             if (modal == SelectWin)
             {
                 if (mb.ButtonIndex == MouseButton.Left) SelectClick(ui.HitTest(SelectWin, 0, 0, (int)mb.Position.X, (int)mb.Position.Y));
@@ -1524,15 +1588,9 @@ public partial class Main : Node2D
                 case Key.G: ToggleWindow(HistoryWin); break;                                     // the History graph
                 case Key.P: ToggleWindow(BehaviorWin); ToggleWindow(CasteWin); break;                                       // the colony controls
                 case Key.F1: help = !help; break;                                          // the help overlays
-                case Key.F5:                                                               // save (the original's .ANT format)
-                {
-                    var path = ProjectSettings.GlobalizePath("user://quicksave.ANT");
-                    System.IO.File.WriteAllBytes(path, SaveFile.Save(session.St));
-                    lastMessage = "Saved to " + path;
-                    break;
-                }
+                case Key.F5: QuickSave(); break;                                           // save (the original's .ANT format)
                 case Key.F9: QuickLoad(); break;                                           // load
-                case Key.F2: modal = SelectWin; break;                                     // Select a Game
+                case Key.F2: modal = SelectWin; selectMidGame = true; break;                                     // Select a Game
                 case Key.V: CycleScent(); break;                                           // the scent views (T:07BE)
                 case Key.O: session.St.Set16(Seg.G, 0x378, session.St.U16(Seg.G, 0x378) == 1 ? 0 : 1); break;   // auto / manual jobs
                 case Key.N: Restart(1); break;
