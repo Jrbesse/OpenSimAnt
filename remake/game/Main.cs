@@ -133,6 +133,64 @@ public partial class Main : Node2D
         }
     }
 
+    // ------------------------------------------------------------------------------- the History window (simple)
+    // World.History samples ten values every 64 ticks into 64-entry rings (G:04F4 the next slot, T:0828 how
+    // many are valid). The original's window scales and draws them (SIM_NOTES "History Window"); this plots
+    // the populations and food stores with auto-scaling until that screen is built.
+    static readonly (int ring, int str, uint colour)[] HistorySeries =
+    {
+        (0x516, 0, 0xff202020u), (0x5a0, 5, 0xffd03030u), (0x626, 1, 0xff6060ffu), (0x6ae, 6, 0xffff9020u),
+    };
+    bool history;
+    Label historyLabel;
+
+    void DrawHistory(uint[] dst, int w)
+    {
+        var st = session.St;
+        const int X0 = 8, Y0 = 250, GW = 384, GH = 180;
+        for (int y = 0; y < GH; y++)
+            for (int x = 0; x < GW; x++)
+                dst[(Y0 + y) * w + X0 + x] = (x == 0 || y == GH - 1) ? 0xff000000u : 0xffe8e8d8u;
+        int n = Math.Clamp(st.S16(Seg.T, 0x828), 0, 64);
+        int start = (st.U8(Seg.G, 0x4f4) - n) & 0x3f;
+        int max = 10;
+        foreach (var (ring, _, _) in HistorySeries)
+            for (int i = 0; i < n; i++) max = Math.Max(max, st.S16(Seg.G, ring + 2 * ((start + i) & 0x3f)));
+        foreach (var (ring, _, colour) in HistorySeries)
+        {
+            int px = -1, py = 0;
+            for (int i = 0; i < n; i++)
+            {
+                int v = Math.Max(0, st.S16(Seg.G, ring + 2 * ((start + i) & 0x3f)));
+                int x = 1 + i * (GW - 2) / 63, y = GH - 2 - v * (GH - 4) / max;
+                if (px >= 0)
+                    for (int k = 0; k <= 16; k++)
+                    {
+                        int lx = px + (x - px) * k / 16, ly = py + (y - py) * k / 16;
+                        dst[(Y0 + ly) * w + X0 + lx] = colour;
+                        dst[(Y0 + ly + 1) * w + X0 + lx] = colour;
+                    }
+                px = x;
+                py = y;
+            }
+        }
+        if (historyLabel == null)
+        {
+            var names = session.Files.Strings(1050) ?? new string[10];
+            historyLabel = new Label { Position = new Vector2(X0 + 4, Y0 - 16) };
+            historyLabel.AddThemeFontSizeOverride("font_size", 10);
+            historyLabel.Text = string.Join("   ", HistorySeries.Select(s => (s.str < names.Length ? names[s.str] : "?") + " (" + ColourName(s.colour) + ")"))
+                                + $"   max {max}";
+            status.GetParent().AddChild(historyLabel);
+        }
+        historyLabel.Visible = true;
+    }
+
+    static string ColourName(uint c) => c switch
+    {
+        0xff202020u => "black", 0xffd03030u => "red", 0xff6060ffu => "blue", _ => "orange",
+    };
+
     // ------------------------------------------------------------------------------- sound effects
     readonly Dictionary<int, AudioStreamWav> sfxCache = new();
     readonly List<AudioStreamPlayer> players = new();
@@ -272,6 +330,8 @@ public partial class Main : Node2D
         if (view == 1 && !yardMap)
             SpiderRenderer.Draw(st, session.Files, session.Art, argb, w, Rows * Cell, originA * Cell, originB * Cell, SpiderRenderer.FangJitter(st));
         if (overview && !yardMap) DrawOverview(argb, w);
+        if (history && !yardMap) DrawHistory(argb, w);
+        else if (historyLabel != null) historyLabel.Visible = false;
         for (int i = 0; i < argb.Length; i++)
         {
             uint c = argb[i];
@@ -346,6 +406,7 @@ public partial class Main : Node2D
                 case Key.Escape: yardMap = false; break;
                 case Key.Tab: overview = !overview; break;                                 // the Map window
                 case Key.S: muted = !muted; break;                                         // sound effects on / off
+                case Key.G: history = !history; break;                                     // the History graph
                 case Key.N: Restart(1); break;
                 case Key.M: Restart(2); break;
             }
