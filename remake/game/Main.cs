@@ -117,6 +117,16 @@ public partial class Main : Node2D
                 lastMessage = lines != null ? string.Join(" ", lines) : $"message 0x{id:x}";
                 GD.Print("message: " + lastMessage);
             }
+            else if (e.Name == "game_over" && e.Args.Length >= 2)
+            {
+                // f_71d95's rating window: the rank's title (STR# 1900 = G:0328) and the score (Game.Rating). TODO: how
+                // f_71d95 indexes the list is not decoded; rank 0 is the lowest score but entry 0 reads like the best title.
+                int rank = (int)e.Args[0];
+                var titles = session.Files.Strings(1900);
+                string title = titles != null && rank < titles.Length ? titles[rank] : $"rank {rank}";
+                lastMessage = $"Game over: {title}  (score {e.Args[1]})  N: new Quick Game, M: new Full Game";
+                GD.Print(lastMessage);
+            }
         }
     }
 
