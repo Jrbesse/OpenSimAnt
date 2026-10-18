@@ -1,7 +1,7 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-18 (end of the afternoon: the shell is built from the original's windows).
+old transcript. Last updated 2026-10-18 (evening: the SimAntipedia, the game-over window, the original's keys).
 
 ## Goals (from the owner)
 
@@ -92,7 +92,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
 `NotImplementedError` for the ones that change state, so a test fails loudly if it reaches unported code.
 
-## Where things stand (2026-10-18, end of the afternoon session)
+## Where things stand (2026-10-18, evening session)
 
 **The Godot remake is under way, in C#** (the owner works in C# / Godot 4.6 .NET; see their other
 project's CLAUDE.md). Everything is under `remake/`; read `remake/README.md` first (layout, controls,
@@ -118,11 +118,20 @@ screenshot flags).
   - the Experimental menu as `f_67010` does it (10 / 11; in Experimental the tool palette 9 as a pop-up,
     option palettes 12..17, the map tools' drag loop; Start Game returns to a Quick Game);
   - the title (3), Select a Game (2), the save prompt (33), the about box (31, F3), message boxes (27 /
-    30), the SimAntipedia text viewer (5, first page only), help overlays (F1 / ?), window titles from
-    STR# 1000, quick save / load (F5 / F9), sound effects, speech balloons as text.
+    30), **the SimAntipedia** (5: all 53 cards, links, PREVIOUS history, glossary pop-ups;
+    `Formica.Data/Antipedia.cs`), **the game-over window** (4), help overlays (F1 / ?), window titles
+    from STR# 1000, quick save / load (F5 / F9), sound effects, speech balloons as text.
+  - **The original's keys** (f_74386's table DS:2CBE, f_76aeb, the menu commands f_6e26d): 1 / 2 / 3 / 4,
+    X, 0, Backspace, Shift+0..3, Ctrl+N / L / S / A / Q / E / M / B / C / T / Y / G / J / K. The shell's
+    own extras stay on other keys (views moved to Ctrl+1..3); README has the table.
+  - Fonts 2..5 now come from the FONT1..FONT4 files, as the original loads them (f_34ab_047d).
   - The status lines under the windows are the shell's own (no message line is decoded).
   - Checked with screenshot runs (`-- --ticks=N --screenshot=out.png` plus the flags in the README) and
     `Formica.Replay --smoke`; **not yet played by a human**.
+- Decoded this evening (SIM_NOTES "Keys and menu commands", "The SimAntipedia", "Game flow"): the card
+  format (FILE_FORMATS), f_78808 / f_78232 / f_790f0 / f_78e1c, the glossary 4EE5:0520, the key table and
+  the 0xFDmn command switch, DS:2CBC (load / save / quit), f_71d95's window. The help (f_76eb5, window
+  26) is an empty stub in the DOS version. The pull-down menus' item labels exist nowhere in the data.
 - Decoded along the way (all in SIM_NOTES): the Map toolbar's command table, the control windows' and the
   yard window's handlers, `f_7179d`, `f_67010`, `f_01efa`, `f_70edf`, `f_083d9`, STR# 1000 / 1800.
   Layout 0 is the Edit window and 1 the Map window (FILE_FORMATS had them the other way round). T:07C8
@@ -134,27 +143,27 @@ screenshot flags).
 **Performance:** the C# SimStep runs well over 10,000 ticks per second, so the original's "fast" speed is
 bounded only by drawing (`GameSession.FastDelay`).
 
-**Usage note:** the 2026-10-18 afternoon session ended at 97% of the weekly allowance (reset 2026-10-18
-22:00 UTC). The owner starts a fresh session after the reset to keep the context light: late in a long
-session each turn costs much more.
+**Usage note:** the 2026-10-18 evening session started after the weekly reset with the 5-hour window
+already at 52% and ended around 75% (weekly 3%). Each screen piece (trace + C# + screenshots + notes)
+cost about 5-12% of the 5-hour window.
 
 Suggested next session (in order):
-1. Ask the owner whether they played the shell; fix what they report first.
-2. **The SimAntipedia viewer** (window 5). The Map toolbar's "Ant Info Window" (0x115 → thunk 0x2f9b0 →
-   `f_78db9`) opens it; `f_78808` draws a SHARED type 10 text (with type 21 style runs) into item 0x502,
-   the caption via 0x501. Leads: on the first open `f_78db9` sets DS:2E26 = DS:2E04 = 0x80 and
-   DS:2E24 = 0 (start card 128?); clicks go to `f_790f0` (it calls `f_22882` on window 5); SHARED has
-   `card_layout` / `card_name` resources. Trace the cards, links and paging, and whether the help
-   (`f_76eb5`, the menus' Help entries) uses the same viewer. The shell's stand-in is `OpenTextViewer`.
-3. Other open screen details: the menus (no menu bar is decoded: find how the original reaches speed,
-   sound, save / load, quit; maybe keys only); the Edit window's bottom strip (item 21); G:1074 (set when
-   several windows open: a redraw flag?); the real frame styles (f_22170, f_22248, ...); `f_70edf`'s move
-   condition (event byte +7 & 0x60); the yard PLACE range highlight (`f_2f708`).
-4. The isometric yard map (f_7650c), if it differs from the yard window's colony views.
-5. Music: the MIDI songs (SOUND types 18 / 20, effect ids 10000+) through a C# SoundFont synth (e.g. the
-   MeltySynth library) or pre-rendered OGG; the player supplies or picks a SoundFont.
-6. Event markers and balloon bitmaps (f_0696a) in place of the text balloons; the tutorial (f_0e425).
-7. The clean-room art pack (ART_PLAN) once the screens exist.
+1. Ask the owner whether they played the shell; fix what they report first. (Still not played by a
+   human: keys and clicks are checked only by screenshot flags and builds.)
+2. The file dialog (window 22: Path, a scrolling list, drives A:..H:, CANCEL; "File list", "*.ant",
+   "%-12s" strings near 0x756b9) for Ctrl+L / Ctrl+S / Ctrl+A in place of the quick save / load; find its
+   routine from `f_2f970` / `f_2f97a` (the DS:2CBC handlers in 8414:0000).
+3. The pull-down menus (0xFE00..04, `f_6d7e3`, 7d62:0384): labels are not in the data; decide with the
+   owner whether to show a menu bar with our own labels (the commands are all known) or keep the keys.
+4. Other open screen details: the Edit window's bottom strip (item 21); G:1074 (a redraw flag?); the real
+   frame styles (f_22170, f_22248, ...); `f_70edf`'s move condition (event byte +7 & 0x60); the yard PLACE
+   range highlight (`f_2f708`); T:07A8 / T:07B0 / T:07B2's meaning (menu toggles 0xFD31 / 35 / 36);
+   0xFD01 → `f_2f99c`; key codes -0x5DD / -0x5E9 (→ 0xFD15 / 0xFD16) in 8414:0383.
+5. The isometric yard map (f_7650c), if it differs from the yard window's colony views.
+6. Music: the MIDI songs (SOUND types 18 / 20, effect ids 10000+: 0x2711 new game, 0x2718 / 0x271A the
+   ending, 0x2713 + Rand2 the fanfare) through a C# SoundFont synth (e.g. MeltySynth) or pre-rendered OGG.
+7. Event markers and balloon bitmaps (f_0696a) in place of the text balloons; the tutorial (f_0e425).
+8. The clean-room art pack (ART_PLAN) once the screens exist.
 
 **Workflow tips for the shell:** build with `dotnet build remake/game/Formica.csproj`, then run Godot
 (path in the user's memory notes) with `--path remake/game -- <flags> --screenshot=<png>` and look at the
@@ -417,6 +426,13 @@ heredocs in bash turn `'\n'` into real line breaks (it happened twice more this 
   there rather than guess.
 
 ## Commit log since the last summary
+
+2026-10-18 evening:
+```
+2061ca5 Remake shell: the original's keys (f_74386's table DS:2CBE, f_76aeb, the menu commands f_6e26d)
+f1b63e7 Remake shell: the game-over window (layout 4) as f_71d95 fills it
+963dbb5 Remake shell: the SimAntipedia (window 5): cards, links, history, glossary pop-ups; fonts 2..5 from FONT1..4
+```
 
 2026-10-18 afternoon (the screens):
 ```
