@@ -1374,12 +1374,17 @@ It runs the rating `f_70fb0` (`game.rating`): the score goes to G:0ADA (32-bit),
 local. It fills the window with `f_2318a` (number) / `f_23943` (formatted text):
 - the colony fields 0x1802..0x1805 (Colony Health, Foraging, Eggs Hatched, Fights Won) = p[0..3];
 - the universe fields 0x1806..0x1809 (Colonies Started / Held, Yard / House Filled) = p[4..7] as
-  "%d%%" in the Full Game (G:0EAC == 2); otherwise STR# 1020 (G:0368) entry at +0x40;
+  "%d%%" in the Full Game (G:0EAC == 2); otherwise STR# 1800 (G:0368) entry at +0x40;
 - the bottom lines:
-  - experimental mode: 0x180A / 0x180B are STR# 1020 entries at +0x44 / +0x48;
-  - otherwise: 0x180A = STR# 1020 [+0x34] + the game mode's name (STR# 1001 = G:0324, index G:0EAC)
-    + STR# 1020 [+0x38], and 0x180B = the score through the format at DS:2B16;
+  - experimental mode: 0x180A / 0x180B are STR# 1800 entries at +0x44 / +0x48;
+  - otherwise: 0x180A = STR# 1800 [+0x34] + the game mode's name (STR# 1001 = G:0324, index G:0EAC)
+    + STR# 1800 [+0x38], and 0x180B = the score through the format at DS:2B16;
 - the caption 0x180C = STR# 1010 (G:034C) entry at +0x38.
+
+The lists hold 4-byte far pointers, so +n is entry n / 4: STR# 1800 [13] "Overall ", [14] " Score",
+[16] "N.A.", [17] / [18] "Score not available" / "in Experimental Game"; STR# 1010 [14] "Click here to
+continue". DS:2B16 is "%ld". (An earlier version of this note said STR# 1020; G:0368 is STR# 1800, see
+the handle list under "Speech balloons".) The remake draws this window (`Main.cs`, Efficiency Score).
 
 It then waits for a click.
 

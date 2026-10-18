@@ -85,6 +85,7 @@ public partial class Main : Node2D
             if (arg.StartsWith("--ticks="))                                 // run the game ahead (for checking a build)
                 for (int t = int.Parse(arg["--ticks=".Length..]); t > 0 && !session.Over; t--) session.Step();
         ui = new UiArt(session.Files, session.Art);
+        if (OS.GetCmdlineUserArgs().Contains("--efficiency")) OpenEfficiency();
         font = ui.Font(2);
         argb = new uint[ScreenW * ScreenH];
         mapBuf = new uint[Cols * Cell * Rows * Cell];
@@ -122,7 +123,7 @@ public partial class Main : Node2D
             session.Hooks.YardMapWanted = false;
             yardMap = true;
         }
-        if (!session.Over && !yardMap && session.Advance(delta) > 0) balloonsNow.Clear();
+        if (!session.Over && !yardMap && modal < 0 && session.Advance(delta) > 0) balloonsNow.Clear();
         DrainEffects();
         if (follow) CenterOnYellow();
         Redraw();
@@ -435,10 +436,60 @@ public partial class Main : Node2D
             case 16: SetView(session.Yellow.view); follow = true; break;
             case 18: DebugCommands.RandomAction(st); break;                              // the Mystery Button (f_022bc)
             case 19: history = !history; break;
-            case 20: lastMessage = $"Efficiency Score: not built yet (score {Formica.Sim.Game.Rating(st).score})"; break;
+            case 20: OpenEfficiency(); break;
             case 22: case 23: lastMessage = "The Experimental menu is not built yet."; break;
             case 21: antInfoArmed = true; lastMessage = "Ant Info: click an ant in the Edit window."; break;
         }
+    }
+
+    // ------------------------------------------------------------------------------- the Efficiency Score (layout 24)
+    // f_71576 (SIM_NOTES "The Efficiency Score window"): the rating f_70fb0 (score to G:0ADA), the colony fields
+    // 0x1802..0x1805 = p[0..3] "%d%%", the universe fields 0x1806..0x1809 = p[4..7] in a Full Game, else STR#
+    // 1800 [16] "N.A."; the bottom lines STR# 1800 [13] + the mode's name (STR# 1001) + [14] and the score
+    // ("%ld"), or [17] / [18] in the Experimental game; the caption STR# 1010 [14]. It waits for a click (the
+    // game does not run meanwhile).
+    const int EfficiencyWin = 24;
+    int modal = -1;
+    (long score, int[] parts) efficiency;
+
+    void OpenEfficiency()
+    {
+        var st = session.St;
+        efficiency = Formica.Sim.Game.Rating(st);
+        st.Set32(Seg.G, 0xada, efficiency.score);
+        modal = EfficiencyWin;
+    }
+
+    void DrawEfficiency(UiArt.Canvas c)
+    {
+        var st = session.St;
+        ui.DrawWindow(c, EfficiencyWin, 0, 0, null);
+        var items = ui.Layouts[EfficiencyWin].Items;
+        string S(int id, int k)
+        {
+            var l = session.Files.Strings(id);
+            return l != null && k < l.Length ? l[k] : "";
+        }
+        void Text(int index, string text, int font = -1)
+        {
+            var (l, t, r, b) = items[index].Rect;
+            ui.DrawText(c, font >= 0 ? font : items[index].Param & 0xff, 0, l, t, r, b, text);
+        }
+        var p = efficiency.parts;
+        int mode = st.U16(Seg.G, 0xeac);
+        for (int i = 0; i < 4; i++) Text(2 + i, $"{p[i]}%");
+        for (int i = 0; i < 4; i++) Text(6 + i, mode == 2 ? $"{p[4 + i]}%" : S(1800, 16), 0);
+        if (mode == 3)
+        {
+            Text(10, S(1800, 17), 0);
+            Text(11, S(1800, 18), 0);
+        }
+        else
+        {
+            Text(10, S(1800, 13) + S(1001, mode) + S(1800, 14), 0);
+            Text(11, efficiency.score.ToString(), 0);
+        }
+        Text(12, S(1010, 14));
     }
 
     // ------------------------------------------------------------------------------- the History window (simple)
@@ -759,6 +810,7 @@ public partial class Main : Node2D
             foreach (int win in zOrder)
                 if (win == EditWin) DrawEditWindow(canvas);
                 else DrawMapWindow(canvas);
+            if (modal == EfficiencyWin) DrawEfficiency(canvas);
         }
         if (history && !yardMap) DrawHistory(argb, ScreenW);
         else if (historyLabel != null) historyLabel.Visible = false;
@@ -809,6 +861,11 @@ public partial class Main : Node2D
         }
         if (ev is InputEventMouseButton mb && mb.Pressed)
         {
+            if (modal >= 0)                                                     // a click closes the modal window
+            {
+                modal = -1;
+                return;
+            }
             if (yardMap)
             {
                 YardClick(mb.Position);
