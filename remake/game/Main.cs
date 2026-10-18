@@ -46,7 +46,7 @@ public partial class Main : Node2D
 
     // the window stack (last = front) and each window's offset from its layout position
     readonly List<int> zOrder = new() { MapWin, EditWin };
-    readonly Dictionary<int, (int dx, int dy)> offsets = new() { [EditWin] = (0, 0), [MapWin] = (0, 0) };
+    readonly Dictionary<int, (int dx, int dy)> offsets = new() { [EditWin] = (0, 0), [MapWin] = (0, 0), [BehaviorWin] = (0, 0), [CasteWin] = (0, 0) };
     int dragWin = -1;
     Vector2 dragFrom;
     (int dx, int dy) dragOrig;
@@ -76,7 +76,7 @@ public partial class Main : Node2D
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--screenshot=")) screenshot = arg["--screenshot=".Length..];
             else if (arg == "--history") history = true;
-            else if (arg == "--panels") panels = true;
+            else if (arg == "--panels") { Front(BehaviorWin); Front(CasteWin); }
             else if (arg == "--help-overlay") help = true;
             else if (arg == "--map-front") Front(MapWin);
         session = new GameSession(dir);
@@ -441,7 +441,8 @@ public partial class Main : Node2D
                 break;
             }
             case 14: lastMessage = "Show Trails is not decoded yet."; break;
-            case 15: case 17: panels = !panels; break;
+            case 15: ToggleWindow(BehaviorWin); break;
+            case 17: ToggleWindow(CasteWin); break;
             case 16: SetView(session.Yellow.view); follow = true; break;
             case 18: DebugCommands.RandomAction(st); break;                              // the Mystery Button (f_022bc)
             case 19: history = !history; break;
@@ -618,81 +619,97 @@ public partial class Main : Node2D
         0xff202020u => "black", 0xffd03030u => "red", 0xff6060ffu => "blue", _ => "orange",
     };
 
-    // ------------------------------------------------------------------------------- colony controls (simple)
-    // The Behavior / Caste Control triangles (windows 18 / 19, Panels): weights G:049E.. (forage apex, dig
-    // bottom left, nurse bottom right) and G:0482.. (breeders, workers, soldiers), each summing to 0xFFFF.
-    // The geometry is the shell's own (the original takes it from the layout items 0x120D / 0x130D).
-    static readonly (int left, int top, int right, int bottom) BehaviorRect = (24, 40, 168, 164), CasteRect = (24, 236, 168, 360);
-    bool panels;
-    Label[] panelLabels;
+    // ------------------------------------------------------------------------------- Behavior / Caste Control
+    // Layouts 18 / 19 (bitmaps 4600 / 4620, help overlays 4601 / 4621), the triangles ported in Panels: weights
+    // G:049E.. (forage apex, dig bottom left, nurse bottom right) and G:0482.. (breeders, workers, soldiers), each
+    // summing to 0xFFFF. Items (indices): 3 help, 4 Auto, 5 Manual, 6..8 Set 1..3 (preset ratios, not decoded),
+    // 12 the relative-setting bars (f_0839a / f_08255, drawn here as three plain bars), 13 the triangle
+    // (f_07980 takes its rectangle), 9..11 / 15..17 the corner labels ("click to toggle display", not decoded).
+    // As the original's handlers do, a behaviour drag sets manual jobs G:0378 = 0 (f_07d07), a caste drag sets
+    // T:07E8 = 0 and recomputes the targets with f_085f8 (f_07ac1).
+    const int BehaviorWin = 18, CasteWin = 19, TriangleItem = 13;
+    int triangleDrag = -1;
 
-    static void Line(uint[] img, int w, int x0, int y0, int x1, int y1, uint c)
-    {
-        int n = Math.Max(Math.Abs(x1 - x0), Math.Abs(y1 - y0));
-        for (int k = 0; k <= n; k++)
-            img[(y0 + (n == 0 ? 0 : (y1 - y0) * k / n)) * w + x0 + (n == 0 ? 0 : (x1 - x0) * k / n)] = c;
-    }
+    static (int values, int tri, int point) ControlGlobals(int win) => win == BehaviorWin ? (0x49e, 0x3816, 0x358) : (0x482, 0x3822, 0x22e);
 
-    void DrawTriangle(uint[] dst, int w, (int left, int top, int right, int bottom) r, int values, int tri, int point)
+    bool ControlAuto(int win) => win == BehaviorWin ? session.St.U16(Seg.G, 0x378) == 1 : session.St.U16(Seg.T, 0x7e8) != 0;
+
+    void DrawControlWindow(UiArt.Canvas c, int win)
     {
         var st = session.St;
-        for (int y = r.top - 16; y < r.bottom + 20; y++)
-            for (int x = r.left - 16; x < r.right + 16; x++)
-                dst[y * w + x] = 0xffe8e8d8u;
-        int apex = r.left + (r.right - r.left) / 2;
-        Line(dst, w, apex, r.top, r.left, r.bottom, 0xff000000u);
-        Line(dst, w, r.left, r.bottom, r.right, r.bottom, 0xff000000u);
-        Line(dst, w, r.right, r.bottom, apex, r.top, 0xff000000u);
-        Panels.Triangle(st, r, tri);
+        var (dx, dy) = Off(win);
+        int overlay = win == BehaviorWin ? 4601 : 4621;
+        ui.DrawWindow(c, win, dx, dy, null, new[] { overlay });
+        var wr = WindowRect(win);
+        var clip = c.Clip(wr.l, wr.t, wr.r, wr.b);
+        var auto = ItemRect(win, ControlAuto(win) ? 4 : 5);
+        clip.Invert(auto.l, auto.t, auto.r, auto.b);
+        var (values, tri, point) = ControlGlobals(win);
+        Panels.Triangle(st, ItemRect(win, TriangleItem), tri);
         Panels.ToPoint(st, values, tri, point);                      // f_087c7: where the marker sits
         int mx = st.U16(Seg.G, point), my = st.U16(Seg.G, point + 2);
-        for (int y = my - 2; y <= my + 2; y++)
-            for (int x = mx - 2; x <= mx + 2; x++)
-                if (x > 0 && y > 0 && x < w && y < ScreenH) dst[y * w + x] = 0xffd02020u;
-    }
-
-    void DrawPanels(uint[] dst, int w)
-    {
-        DrawTriangle(dst, w, BehaviorRect, 0x49e, 0x3816, 0x358);
-        DrawTriangle(dst, w, CasteRect, 0x482, 0x3822, 0x22e);
-        if (panelLabels == null)
+        clip.Fill(mx - 3, my - 3, mx + 4, my + 4, UiArt.Black);
+        clip.Fill(mx - 1, my - 1, mx + 2, my + 2, UiArt.White);
+        var bars = ItemRect(win, 12);
+        int bw = (bars.r - bars.l - 4) / 3;
+        for (int i = 0; i < 3; i++)
         {
-            var spots = new (string text, int x, int y)[]
-            {
-                ("Forage", 76, 20), ("Dig", 12, 166), ("Nurse", 140, 166),
-                ("Breed", 78, 216), ("Work", 10, 362), ("Fight", 140, 362),
-            };
-            panelLabels = spots.Select(s => new Label { Text = s.text, Position = new Vector2(s.x, s.y) }).ToArray();
-            foreach (var l in panelLabels)
-            {
-                l.AddThemeFontSizeOverride("font_size", 10);
-                l.AddThemeColorOverride("font_color", new Color(0, 0, 0));
-                status.GetParent().AddChild(l);
-            }
+            int h = (int)((long)st.U16(Seg.G, values + 2 * i) * (bars.b - bars.t - 4) / 0xffff);
+            int l = bars.l + 2 + i * bw;
+            clip.Fill(l + 1, bars.b - 2 - h, l + bw - 1, bars.b - 2, UiArt.Black);
         }
-        foreach (var l in panelLabels) l.Visible = true;
+        if (help)
+        {
+            var it = ui.Layouts[win].Items.First(x => x.Bitmap == overlay);
+            ui.DrawBitmap(clip, overlay, it.Rect.left + dx, it.Rect.top + dy);
+        }
     }
 
-    bool PanelClick(Vector2 p)
+    void ControlWindowClick(int win, int index, Vector2 p)
     {
-        if (!panels) return false;
         var st = session.St;
-        foreach (var (r, values, tri, point, behaviour) in new[] { (BehaviorRect, 0x49e, 0x3816, 0x358, true), (CasteRect, 0x482, 0x3822, 0x22e, false) })
+        switch (index)
         {
-            if (p.X < r.left - 8 || p.X > r.right + 8 || p.Y < r.top - 8 || p.Y > r.bottom + 8) continue;
-            Panels.Triangle(st, r, tri);
-            st.Set16(Seg.G, point, (int)p.X);
-            st.Set16(Seg.G, point + 2, (int)p.Y);
-            Panels.ToValues(st, values, tri, point);                 // f_086a1: the weights the click sets
-            if (behaviour) st.Set16(Seg.G, 0x378, 0);                // f_07d07: a drag makes the jobs manual
-            else
-            {
-                st.Set16(Seg.T, 0x7e8, 0);                           // f_07ac1: the caste mix becomes manual too
-                NewGame.CasteTargets(st);                            // f_085f8: the caste targets T:07DA..
-            }
-            return true;
+            case TriangleItem:
+                triangleDrag = win;
+                TriangleAt(win, p);
+                break;
+            case 3: help = !help; break;
+            case 4:
+            case 5:
+                if (win == BehaviorWin) st.Set16(Seg.G, 0x378, index == 4 ? 1 : 0);
+                else
+                {
+                    st.Set16(Seg.T, 0x7e8, index == 4 ? 1 : 0);
+                    if (index == 5) NewGame.CasteTargets(st);                    // manual: targets from the weights
+                }
+                break;
+            case 6: case 7: case 8: lastMessage = "The preset ratios (Set 1..3) are not decoded yet."; break;
         }
-        return p.Y < 380;                                            // the panel covers the windows: swallow the click
+    }
+
+    /// <summary>f_086a1: the weights at a point in the triangle (clamped to its rectangle).</summary>
+    void TriangleAt(int win, Vector2 p)
+    {
+        var st = session.St;
+        var r = ItemRect(win, TriangleItem);
+        var (values, tri, point) = ControlGlobals(win);
+        Panels.Triangle(st, r, tri);
+        st.Set16(Seg.G, point, Math.Clamp((int)p.X, r.l, r.r));
+        st.Set16(Seg.G, point + 2, Math.Clamp((int)p.Y, r.t, r.b));
+        Panels.ToValues(st, values, tri, point);
+        if (win == BehaviorWin) st.Set16(Seg.G, 0x378, 0);           // f_07d07: a drag makes the jobs manual
+        else
+        {
+            st.Set16(Seg.T, 0x7e8, 0);                               // f_07ac1: the caste mix becomes manual too
+            NewGame.CasteTargets(st);                                // f_085f8: the caste targets T:07DA..
+        }
+    }
+
+    void ToggleWindow(int win)
+    {
+        if (zOrder.Contains(win) && zOrder[^1] == win) zOrder.Remove(win);
+        else Front(win);
     }
 
     // ------------------------------------------------------------------------------- the Ant Info window
@@ -859,6 +876,17 @@ public partial class Main : Node2D
         SetView(session.Yellow.view);
     }
 
+    /// <summary>The shell's status lines (a stand-in for the original's message window) in the game's font 2.</summary>
+    void DrawStatus(UiArt.Canvas canvas)
+    {
+        if (font == null) return;
+        int y0 = 384;
+        canvas.Fill(0, y0, ScreenW, y0 + 2 * font.Height + 6, 0xffc0c0c0u);
+        font.Draw(argb, ScreenW, ScreenH, 4, y0 + 2, status.Text, 0xff000000u);
+        font.Draw(argb, ScreenW, ScreenH, 4, y0 + 3 + font.Height, message.Text.Replace("\n", " "), 0xff000080u);
+        status.Visible = message.Visible = false;
+    }
+
     void Redraw()
     {
         var st = session.St;
@@ -868,36 +896,32 @@ public partial class Main : Node2D
         st.Set16(Seg.G, 0x10e0, Cols);
         st.Set16(Seg.G, 0x10de, Rows);
         var canvas = new UiArt.Canvas(argb, ScreenW, ScreenH);
-        if (yardMap) DrawYard(argb, ScreenW);
-        else
-        {
-            // the desktop: a 50% grey pattern
-            for (int y = 0; y < ScreenH; y++)
-                for (int x = 0; x < ScreenW; x++)
-                    argb[y * ScreenW + x] = ((x ^ y) & 1) == 0 ? 0xff9a9a9au : 0xff7a7a7au;
-            foreach (int win in zOrder)
-                if (win == EditWin) DrawEditWindow(canvas);
-                else DrawMapWindow(canvas);
-            if (modal == EfficiencyWin) DrawEfficiency(canvas);
-            if (popup >= 0) DrawPopup(canvas);
-        }
-        if (history && !yardMap) DrawHistory(argb, ScreenW);
-        else if (historyLabel != null) historyLabel.Visible = false;
-        if (panels && !yardMap) DrawPanels(argb, ScreenW);
-        else if (panelLabels != null) foreach (var l in panelLabels) l.Visible = false;
         string mode = st.U16(Seg.G, 0xeac) == 2 ? "Full Game" : "Quick Game";
         status.Text = $"{mode}  {ViewNames[view]}  tick {session.Ticks}  black {st.U16(Seg.G, 0x330)}  red {st.U16(Seg.G, 0x350)}"
                       + $"  health {st.S16(Seg.G, 0xf78)}  colony {st.S16(Seg.G, 0x10be)}  speed {SpeedNames[session.Speed]}  jobs {(st.U16(Seg.G, 0x378) == 1 ? "auto" : "manual")}"
                       + (session.Paused ? "  PAUSED" : "") + (session.Over ? (st.U16(Seg.G, 0x366) != 0 ? "  YOU WON" : "  GAME OVER") : "");
         message.Text = lastMessage;
-        if (font != null)                                               // the status lines in the game's font 2
+        if (yardMap)
         {
-            int y0 = 384;
-            canvas.Fill(0, y0, ScreenW, y0 + 2 * font.Height + 6, 0xffc0c0c0u);
-            font.Draw(argb, ScreenW, ScreenH, 4, y0 + 2, status.Text, 0xff000000u);
-            font.Draw(argb, ScreenW, ScreenH, 4, y0 + 3 + font.Height, message.Text.Replace("\n", " "), 0xff000080u);
-            status.Visible = message.Visible = false;
+            DrawYard(argb, ScreenW);
+            DrawStatus(canvas);
         }
+        else
+        {
+            // the desktop: a 50% grey pattern, the status lines on it, then the windows back to front
+            for (int y = 0; y < ScreenH; y++)
+                for (int x = 0; x < ScreenW; x++)
+                    argb[y * ScreenW + x] = ((x ^ y) & 1) == 0 ? 0xff9a9a9au : 0xff7a7a7au;
+            DrawStatus(canvas);
+            foreach (int win in zOrder)
+                if (win == EditWin) DrawEditWindow(canvas);
+                else if (win == MapWin) DrawMapWindow(canvas);
+                else DrawControlWindow(canvas, win);
+            if (modal == EfficiencyWin) DrawEfficiency(canvas);
+            if (popup >= 0) DrawPopup(canvas);
+        }
+        if (history && !yardMap) DrawHistory(argb, ScreenW);
+        else if (historyLabel != null) historyLabel.Visible = false;
         for (int i = 0; i < argb.Length; i++)
         {
             uint c = argb[i];
@@ -928,9 +952,14 @@ public partial class Main : Node2D
             offsets[dragWin] = (dx, dy);
             return;
         }
+        if (ev is InputEventMouseMotion tm && triangleDrag >= 0)
+        {
+            TriangleAt(triangleDrag, tm.Position);                              // dragging the marker
+            return;
+        }
         if (ev is InputEventMouseButton up && !up.Pressed && up.ButtonIndex == MouseButton.Left)
         {
-            dragWin = -1;
+            dragWin = triangleDrag = -1;
             return;
         }
         if (ev is InputEventMouseButton mb && mb.Pressed)
@@ -945,7 +974,6 @@ public partial class Main : Node2D
                 YardClick(mb.Position);
                 return;
             }
-            if (mb.Position.X < 190 && PanelClick(mb.Position)) return;
             int win = WindowAt(mb.Position);
             if (win < 0) return;
             Front(win);
@@ -959,7 +987,9 @@ public partial class Main : Node2D
             var (dx, dy) = Off(win);
             int index = ui.HitTest(win, dx, dy, (int)mb.Position.X, (int)mb.Position.Y);
             if (win == EditWin) EditWindowClick(index, mb);
-            else if (mb.ButtonIndex == MouseButton.Left) MapWindowClick(index, mb);
+            else if (mb.ButtonIndex != MouseButton.Left) return;
+            else if (win == MapWin) MapWindowClick(index, mb);
+            else ControlWindowClick(win, index, mb.Position);
         }
         else if (ev is InputEventKey k && k.Pressed && !k.Echo)
         {
@@ -994,7 +1024,7 @@ public partial class Main : Node2D
                     break;
                 case Key.S: muted = !muted; break;                                         // sound effects on / off
                 case Key.G: history = !history; break;                                     // the History graph
-                case Key.P: panels = !panels; break;                                       // the colony controls
+                case Key.P: ToggleWindow(BehaviorWin); ToggleWindow(CasteWin); break;                                       // the colony controls
                 case Key.F1: help = !help; break;                                          // the help overlays
                 case Key.F5:                                                               // save (the original's .ANT format)
                 {

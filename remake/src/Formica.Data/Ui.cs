@@ -152,7 +152,7 @@ public sealed class UiArt
                 case "caption":
                     clip.Fill(l, t, r, b, White);
                     clip.Fill(l, b - 1, r, b, Black);
-                    DrawText(clip, 0, 0, l, t, r, b, title ?? "");
+                    DrawText(clip, 0, 0, l, t, r, b, it.Text != null && !it.Text.Contains('%') ? it.Text : title ?? "");
                     break;
                 case "box":
                     clip.Fill(l, t, r, b, White);
