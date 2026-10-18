@@ -520,6 +520,15 @@ public partial class Main : Node2D
                 case Key.S: muted = !muted; break;                                         // sound effects on / off
                 case Key.G: history = !history; break;                                     // the History graph
                 case Key.P: panels = !panels; break;                                       // the colony controls
+                case Key.V:                                                                // the scent views (T:07BE)
+                {
+                    int m = session.St.U16(Seg.T, 0x7be);
+                    session.St.Set16(Seg.T, 0x7be, m == 0xffff ? 0 : m >= 4 ? 0xffff : m + 1);
+                    string[] scents = { "alarm", "black nest marker", "black trail", "red nest marker", "red trail" };
+                    int now = session.St.U16(Seg.T, 0x7be);
+                    lastMessage = now < 5 ? "Scent view: " + scents[now] : "Scent view off";
+                    break;
+                }
                 case Key.O: session.St.Set16(Seg.G, 0x378, session.St.U16(Seg.G, 0x378) == 1 ? 0 : 1); break;   // auto / manual jobs
                 case Key.N: Restart(1); break;
                 case Key.M: Restart(2); break;
