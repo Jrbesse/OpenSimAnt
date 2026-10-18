@@ -47,7 +47,7 @@ release half / all, X exchange (then click an ant or the spider), A alarm trail,
 C chase (as the spider, then click), U / Shift+U hunt / lash out. Y the yard map (Full Game; click a patch to
 move there, Esc to close; it also opens when the yellow ant dies and another colony must be picked). Tab toggles the
 overview (the original's Map window colours; click it to scroll). S mutes the sound effects. G shows the History graph (populations and food). P shows the colony controls (the Behavior and Caste
-triangles: click to set the weights), O switches the jobs between automatic and manual (G:0378).
+triangles: click to set the weights), O switches the jobs between automatic and manual (G:0378). Ctrl+click an ant for its caste, job and load.
 
 ## Porting notes
 

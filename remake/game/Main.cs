@@ -273,6 +273,28 @@ public partial class Main : Node2D
         return true;                                                 // the panel covers the map: swallow the click
     }
 
+    // ------------------------------------------------------------------------------- the Ant Info window
+    /// <summary>f_67c1c(a, b, view) (window 29, map tool 0): for occupant o, caste = (o &amp; 0x78) >> 3: STR# 1100
+    /// [o &amp; 7] for brood (caste 0) else STR# 1101 [caste]; STR# 1102 [the ant's state]; STR# 1103 [caste].</summary>
+    string AntInfo(int a, int b)
+    {
+        var st = session.St;
+        int o = Player.GetOcc(st, view, a, b);
+        if (o < 0) return null;
+        if (Movement.IsYellow(o)) return "The yellow ant (you)";
+        int caste = (o & 0x78) >> 3;
+        int i = view <= 1 ? Movement.SurfaceAntAt(st, a, b) : Nest.NestAntAt(st, view == 2 ? Nest.BLACK : Nest.RED, a, b, o);
+        int state = i < 0 ? 0 : st.U8(Seg.SIM, Player.Ants(view).State + i);
+        string Pick(int id, int k)
+        {
+            var l = session.Files.Strings(id);
+            return l != null && k < l.Length ? l[k] : $"{id}[{k}]";
+        }
+        string kind = caste == 0 ? Pick(1100, o & 7) : Pick(1101, caste);
+        string colour = (o & 0x80) != 0 ? "Red" : "Black";
+        return $"{colour} {kind}: {Pick(1102, state)}, carrying {Pick(1103, caste)}";
+    }
+
     // ------------------------------------------------------------------------------- sound effects
     readonly Dictionary<int, AudioStreamWav> sfxCache = new();
     readonly List<AudioStreamPlayer> players = new();
@@ -449,6 +471,11 @@ public partial class Main : Node2D
             if (mb.Position.X < 190 && PanelClick(mb.Position)) return;
             if (mb.Position.Y >= Rows * Cell || a >= MapRenderer.Width(view)) return;
             var st = session.St;
+            if (mb.CtrlPressed)                                                 // the Ant Info tool
+            {
+                lastMessage = AntInfo(a, b) ?? "";
+                return;
+            }
             int target = st.U16(Seg.G, 0x105e);
             if (target == 0xa) Commands.ExchangeClick(st, view, a, b);          // Exchange: pick the ant to become
             else if (st.U16(Seg.G, 0xa06) == 1 || target == 0xb)
