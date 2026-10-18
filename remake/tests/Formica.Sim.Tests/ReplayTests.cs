@@ -5,14 +5,17 @@ namespace Formica.Sim.Tests;
 
 /// <summary>Replays every trace recorded from the Python reference (tools/ref/record_all.sh) on the C# port.
 /// The traces are derived from the original game's memory, so they live in remake/build/traces (git-ignored);
-/// without them the tests have nothing to check and pass vacuously.</summary>
+/// without them (as on CI) the one row is NoTraces, which passes: xUnit fails a theory that has no data.</summary>
 public class ReplayTests
 {
+    const string NoTraces = "(no traces)";
+
     public static IEnumerable<object[]> Traces()
     {
         var dir = TracePaths.DefaultDir();
-        if (!Directory.Exists(dir)) yield break;
-        foreach (var f in Directory.GetFiles(dir, "*.trace").OrderBy(x => x))
+        var files = Directory.Exists(dir) ? Directory.GetFiles(dir, "*.trace").OrderBy(x => x).ToArray() : Array.Empty<string>();
+        if (files.Length == 0) yield return new object[] { NoTraces };
+        foreach (var f in files)
             yield return new object[] { Path.GetFileName(f) };
     }
 
@@ -20,6 +23,7 @@ public class ReplayTests
     [MemberData(nameof(Traces))]
     public void TraceMatches(string name)
     {
+        if (name == NoTraces) return;
         var flat = TracePaths.FlatImage();
         if (File.Exists(flat)) GameData.Flat = File.ReadAllBytes(flat);
         var rep = new Replayer();

@@ -1,0 +1,54 @@
+# Builds the remake on every push and pull request. The original SimAnt files are never in the repository,
+# so CI can only compile: the trace replay tests pass vacuously without remake/build/traces (made locally
+# from the user's own copy, docs/HANDOFF.md), and nothing here runs the game.
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('remake/**/*.csproj', 'remake/Directory.Build.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # The solution includes the Godot project (Godot.NET.Sdk comes from NuGet; no Godot install needed).
+      - name: Restore
+        run: dotnet restore remake/Formica.sln
+
+      - name: Build
+        run: dotnet build remake/Formica.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test remake/Formica.sln --configuration Release --no-build --verbosity normal
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python tools compile
+        run: python -m compileall -q tools

@@ -29,6 +29,8 @@ Constraints:
 | `tools/ref/render_view.py` | Renders a State's surface / nests to PNG with the game's art (from the user's extracted files). |
 | `tools/ref/test_*.py`, `verify.py`, `linecov.py` | Differential tests against the emulator, and a line-coverage helper. |
 | `tools/ref/record_traces.py`, `record_all.sh` | Record the reference's calls during its tests as traces for the C# port. |
+| `docs/PLAYTEST.md` | The play-test checklist for the owner (sections, known gaps, how to report). |
+| `.github/workflows/build.yml` | CI on pushes / PRs to main or master: restore, build (Release), test the remake solution, compile the Python tools. No original files on CI, so the trace tests pass vacuously (one "(no traces)" row). |
 | `remake/` | **The Godot remake (C#)**: `src/Formica.Sim` (the sim), `src/Formica.Data` (files, art, session), `game/` (Godot project), `tests/` (trace replay, xUnit). See `remake/README.md`. |
 
 ## How verification works
@@ -149,8 +151,8 @@ already at 52% and ended around 75% (weekly 3%). Each screen piece (trace + C# +
 cost about 5-12% of the 5-hour window.
 
 Suggested next session (in order):
-1. Ask the owner whether they played the shell; fix what they report first. (Still not played by a
-   human: keys and clicks are checked only by screenshot flags and builds.)
+1. Ask the owner for their play-test results (`docs/PLAYTEST.md` is the checklist); fix what they report
+   first. (Still not played by a human: keys and clicks are checked only by screenshot flags and builds.)
 2. (done: the file dialog, window 22, for Ctrl+L / S / A and Select a Game's Load; it lists Godot's user://
    folder: the original's folders, path line and drive buttons are not modelled.)
 3. The pull-down menus (0xFE00..04, `f_6d7e3`, 7d62:0384): labels are not in the data; decide with the

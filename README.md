@@ -1,5 +1,7 @@
 # An ant-colony simulator, reverse engineered and remade
 
+[![Build](https://github.com/Jrbesse/SimAnt-Evolved/actions/workflows/build.yml/badge.svg)](https://github.com/Jrbesse/SimAnt-Evolved/actions/workflows/build.yml)
+
 A fan project around a 1991 DOS ant-colony simulation game: its rules are reverse engineered from the
 original executable, ported to a readable reference implementation, verified byte for byte against the
 original running in an emulator, and rebuilt as a modern game in Godot.
