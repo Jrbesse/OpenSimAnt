@@ -81,7 +81,7 @@ Keys:
 
 Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`, `--efficiency`, `--popup`,
 `--map-front`, `--help-overlay`, `--yard`, `--strat`, `--scent-menu`, `--ant-info`, `--select`, `--report`,
-`--exp-menu`, `--trails`, `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y) to open those
+`--exp-menu`, `--trails`, `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y), `--game-over` to open those
 windows first; `--full` / `--experimental` start that kind of game.
 
 ## Porting notes

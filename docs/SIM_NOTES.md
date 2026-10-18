@@ -1051,7 +1051,9 @@ G:0AF6 / G:0B04 += 1, population counters.
   weight), Quick: x 29 / 10 and x (ticks / 100) / 41 under 4100 ticks; Full: x (ticks / 100) / 81
   under 8100 ticks, x 5; plus the ticks played. Rank `f_71d95`: thresholds 0x344CC, 0x68998, 0x9CE64,
   0xD1330 (Full Game: score / 5), + 5 when lost.
-- Game over `f_71d95`: the rating window, one Rand2 for the fanfare once the ending's sound is done,
+- Game over `f_71d95`: the rating window (window 4, bitmap 16100; font 4, or 2 when DS:3DB2 == 320; item 0x402
+  the mode's name G:0324[G:0EAC], 0x403 the score "%ld" (DS:2B50, the raw score even in a Full Game), 0x404 the
+  rank's title G:0328[rank]; any event or `f_01277(100)`'s timeout closes it), one Rand2 for the fanfare once the ending's sound is done,
   then the new-game dialog `f_725b6`: buttons 0x202 Quick (1), 0x203 Full (2), 0x204 experimental (3),
   0x206 tutorial (0), 0x205 quit, 0x207 load; then G:0EAC = mode, G:0354 = 1, G:07C8 = 0, `f_6b36b`;
   tutorial: T:07A4 = 1, T:07A6 = 0.

@@ -103,6 +103,11 @@ public partial class Main : Node2D
                 if (a.Length > 0) ShowCard(a[0]);
                 if (a.Length > 2) AntipediaPress(a[1], a[2]);
             }
+        if (OS.GetCmdlineUserArgs().Contains("--game-over"))
+        {
+            var (score, _) = Formica.Sim.Game.Rating(session.St);
+            OpenGameOver(Formica.Sim.Game.Rank(session.St, score), score);
+        }
         if (OS.GetCmdlineUserArgs().Contains("--save-prompt")) { selectMidGame = true; Replace(1); }
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--message=") && session.Files.Strings(int.Parse(arg["--message=".Length..])) is { } box)
@@ -189,6 +194,7 @@ public partial class Main : Node2D
                 string title = titles != null && rank < titles.Length ? titles[rank] : $"rank {rank}";
                 lastMessage = $"Game over: {title}  (score {e.Args[1]})  N: new Quick Game, M: new Full Game";
                 GD.Print(lastMessage);
+                OpenGameOver(rank, Convert.ToInt64(e.Args[1]));
             }
         }
     }
@@ -859,6 +865,32 @@ public partial class Main : Node2D
         foreach (var e in elements)
             if (e.Pict >= 0) ui.DrawBitmap(c, e.Pict, e.X, e.Y);
             else ui.Font(e.Font)?.Draw(c, e.X, e.Y, e.Text, UiArt.Black);
+    }
+
+    // ------------------------------------------------------------------------------- the game-over window (layout 4)
+    // f_71d95: window 0x400 (bitmap 16100: GAME OVER, FINAL SCORE, YOUR RATING) in font 4 (2 at 320 px wide):
+    // 0x402 the mode's name (G:0324 = STR# 1001 [G:0EAC]), 0x403 the score ("%ld", DS:2B50; not divided by 5 in
+    // a Full Game, only the rank is), 0x404 the rank's title (G:0328 = STR# 1900 [rank]). A click or key closes
+    // it (or f_01277(100)'s timeout, ~100 s, not modelled); then the new-game dialog (f_2f848 → Select a Game).
+    const int GameOverWin = 4;
+    string[] gameOverText;
+
+    void OpenGameOver(int rank, long score)
+    {
+        string Entry(int id, int k) => session.Files.Strings(id) is { } l && k >= 0 && k < l.Length ? l[k] : "";
+        gameOverText = new[] { Entry(1001, session.St.U16(Seg.G, 0xeac)), score.ToString(), Entry(1900, rank) };
+        modal = GameOverWin;
+    }
+
+    void DrawGameOver(UiArt.Canvas c)
+    {
+        ui.DrawWindow(c, GameOverWin, 0, 0, null);
+        var items = ui.Layouts[GameOverWin].Items;
+        for (int k = 0; k < 3; k++)
+        {
+            var (l, t, r, b) = items[2 + k].Rect;
+            ui.DrawText(c, 4, 0, l, t, r, b, gameOverText[k]);
+        }
     }
 
     // ------------------------------------------------------------------------------- Select a Game (layout 2)
@@ -1658,6 +1690,7 @@ public partial class Main : Node2D
             if (modal is 27 or 30) DrawMessageBox(canvas);
             if (modal == SavePrompt) DrawSavePrompt(canvas);
             if (modal == TextWin) DrawTextViewer(canvas);
+            if (modal == GameOverWin) DrawGameOver(canvas);
             if (modal == TitleWin) canvas.Fill(0, 0, ScreenW, ScreenH, UiArt.Black);
             if (modal is TitleWin or AboutWin) ui.DrawWindow(canvas, modal, 0, 0, null);
             if (modal == 11) ui.DrawWindow(canvas, 11, 245, 200, null);       // "not available in the full game"
@@ -1723,9 +1756,10 @@ public partial class Main : Node2D
                 if (mb.ButtonIndex == MouseButton.Left) SelectClick(ui.HitTest(SelectWin, 0, 0, (int)mb.Position.X, (int)mb.Position.Y));
                 return;
             }
-            if (modal == TitleWin)
+            if (modal is TitleWin or GameOverWin)                               // then Select a Game (f_2f848)
             {
                 modal = SelectWin;
+                selectMidGame = false;
                 return;
             }
             if (modal == TextWin)
@@ -1759,6 +1793,12 @@ public partial class Main : Node2D
         }
         else if (ev is InputEventKey k && k.Pressed && !k.Echo)
         {
+            if (modal == GameOverWin)                                           // f_71d95: any event closes it
+            {
+                modal = SelectWin;
+                selectMidGame = false;
+                return;
+            }
             switch (k.Keycode)
             {
                 case Key.Key1: SetView(1); break;
