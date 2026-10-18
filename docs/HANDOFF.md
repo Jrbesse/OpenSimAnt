@@ -1,7 +1,7 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-18 (night: the C# port of the whole reference, a first Godot shell).
+old transcript. Last updated 2026-10-18 (afternoon: the shell now uses the original's windows).
 
 ## Goals (from the owner)
 
@@ -119,12 +119,27 @@ startup in 1.2 s), so the original's "fast" speed is bounded only by drawing (`G
 **Usage note for the next session:** this session used most of the weekly allowance (about 90% at the
 end, resetting 2026-10-18 22:00 UTC), so a morning session has little room before that reset.
 
+**The screens (2026-10-18 afternoon):** the shell is now built from the original's window layouts.
+`Formica.Data/Ui.cs` (`UiArt`) draws any layout (pictures, frames, captions, text in the game's fonts,
+gauges, hit tests by item index; frame styles are approximations). `Main.cs` keeps a window stack (drag by
+the caption, click to front) with: the Edit window (layout 0: tool strip, 22 x 21 cell map = G:10E0 /
+G:10DE, health bars), the Map window (layout 1: the map at 4 px per cell, scent layers via T:07C8, toolbar,
+population report), Behavior / Caste Control (18 / 19 on the ported Panels), History (21: the series table
+T:082A / T:0852 and the original's scaling), Efficiency Score (24), the yellow ant's pop-up menu (7 / 8 / 32,
+opened by pressing on the yellow ant as f_74fe0 does) and the yard window (25, `YardRenderer.cs`, a port of
+render_view's yard code; patch clicks move in a Full Game). Help overlays: F1 or the ? buttons. Screenshot
+flags for each: remake/README.md. Notes: layout 0 is the Edit window and 1 the Map window (FILE_FORMATS had
+them the other way round in places); T:07C8 matters to the sim (yard sounds draw from the RNG only while it
+is 0), so the shell sets it only where the original's Map window does.
+
 Suggested next session (in order):
 1. Play the shell and note what feels wrong (speed, controls, missing feedback).
-2. The real screens from the decoded layouts (step 13): `Formica.Data/Layouts.cs` (done: a port of
-   `tools/layouts.py`, 34 windows / 285 items, checked against it in `--smoke`), then the main game window (frame, toolbar, status line positions), the pop-up command menu, the Behavior / Caste
-   windows with their bar charts, the History window's own scaling.
-3. The isometric yard map (f_7650c) in place of the shell's grid.
+2. Remaining screens: the Ant Info window (29) as a window, the scent overlay menu (6), the tool palette
+   (9) with the map tools in Experimental mode, the message window (5) in place of the status lines, the
+   menus (Game / Speed / ...: SIM_NOTES has the four in-game menus), the title and game-select screens
+   (3 / 2), the save prompt (33), the population report's hold-to-view, Show Trails (0x10E), the preset
+   ratios (Set 1..3) in the control windows, the mating-flight controls of the yard window.
+3. The isometric yard map (f_7650c), if it differs from the yard window's colony views.
 4. Music: the MIDI songs (SOUND types 18 / 20, effect ids 10000+) through a C# SoundFont synth (e.g. the
    MeltySynth library) or pre-rendered OGG; the player supplies or picks a SoundFont.
 5. Event markers and balloon bitmaps (f_0696a), the yard window actors, the tutorial (f_0e425).
@@ -384,6 +399,16 @@ Suggested next session (in order):
   there rather than guess.
 
 ## Commit log since the last summary
+
+2026-10-18 afternoon (the screens):
+```
+96f88c0 Remake shell: the yard window (layout 25, f_702f7) in place of the plain grid
+d9d2388 Remake shell: the History window (layout 21)
+c39c43c Remake shell: Behavior / Caste Control as the original's windows (layouts 18 / 19)
+4ffeee8 Remake shell: the yellow ant's pop-up menu (layouts 7 / 8 / 32, f_67e93)
+f66140d Remake shell: the Efficiency Score window (layout 24, f_71576); notes: STR# 1800
+5eec643 Remake shell: the original's Edit and Map windows from their layouts (UiArt draws layouts 0 / 1)
+```
 
 2026-10-18 (the remake):
 ```

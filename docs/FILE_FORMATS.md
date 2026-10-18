@@ -146,8 +146,8 @@ The windows:
 
 | Window | What | Pictures |
 |---|---|---|
-| 0 | the Map window (`f_6efd6`) | 15000, 15001 (help overlay) |
-| 1 | the main window: map area, map views, scent layers, buttons | 14000, 14001 (help overlay) |
+| 0 | the Edit window: the close-up map (item 0x0000 at 64, 41 = G:110C / G:110E, 22 x 21 cells = G:10E0 / G:10DE), the tool strip 15000 (map, help, views, go-to buttons, pause, scent menu, health bars) | 15000, 15001 (help overlay) |
+| 1 | the Map window (`f_6efd6` draws its map item 0x102 at 4 px per cell): map views, scent layers, buttons, population report | 14000, 14001 (help overlay) |
 | 2 | "Select a Game" | 2500 |
 | 3 | title | 2000, 2001 |
 | 4 | | 16100 |
