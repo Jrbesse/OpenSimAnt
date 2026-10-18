@@ -46,7 +46,8 @@ the yellow ant, Space pauses (G:047E), + / - speed (slow / medium / fast, as the
 release half / all, X exchange (then click an ant or the spider), A alarm trail, H dig a hole, B start brood,
 C chase (as the spider, then click), U / Shift+U hunt / lash out. Y the yard map (Full Game; click a patch to
 move there, Esc to close; it also opens when the yellow ant dies and another colony must be picked). Tab toggles the
-overview (the original's Map window colours; click it to scroll). S mutes the sound effects. G shows the History graph (populations and food).
+overview (the original's Map window colours; click it to scroll). S mutes the sound effects. G shows the History graph (populations and food). P shows the colony controls (the Behavior and Caste
+triangles: click to set the weights), O switches the jobs between automatic and manual (G:0378).
 
 ## Porting notes
 

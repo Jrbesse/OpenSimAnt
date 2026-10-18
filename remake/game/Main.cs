@@ -58,6 +58,7 @@ public partial class Main : Node2D
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--screenshot=")) screenshot = arg["--screenshot=".Length..];
             else if (arg == "--history") history = true;
+            else if (arg == "--panels") panels = true;
         session = new GameSession(dir);
         session.NewGame(1);
         foreach (var arg in OS.GetCmdlineUserArgs())
@@ -194,6 +195,79 @@ public partial class Main : Node2D
     {
         0xff202020u => "black", 0xffd03030u => "red", 0xff6060ffu => "blue", _ => "orange",
     };
+
+    // ------------------------------------------------------------------------------- colony controls (simple)
+    // The Behavior / Caste Control triangles (windows 18 / 19, Panels): weights G:049E.. (forage apex, dig
+    // bottom left, nurse bottom right) and G:0482.. (breeders, workers, soldiers), each summing to 0xFFFF.
+    // The geometry is the shell's own (the original takes it from the layout items 0x120D / 0x130D).
+    static readonly (int left, int top, int right, int bottom) BehaviorRect = (24, 40, 168, 164), CasteRect = (24, 236, 168, 360);
+    bool panels;
+    Label[] panelLabels;
+
+    static void Line(uint[] img, int w, int x0, int y0, int x1, int y1, uint c)
+    {
+        int n = Math.Max(Math.Abs(x1 - x0), Math.Abs(y1 - y0));
+        for (int k = 0; k <= n; k++)
+            img[(y0 + (n == 0 ? 0 : (y1 - y0) * k / n)) * w + x0 + (n == 0 ? 0 : (x1 - x0) * k / n)] = c;
+    }
+
+    void DrawTriangle(uint[] dst, int w, (int left, int top, int right, int bottom) r, int values, int tri, int point)
+    {
+        var st = session.St;
+        for (int y = r.top - 16; y < r.bottom + 20; y++)
+            for (int x = r.left - 16; x < r.right + 16; x++)
+                dst[y * w + x] = 0xffe8e8d8u;
+        int apex = r.left + (r.right - r.left) / 2;
+        Line(dst, w, apex, r.top, r.left, r.bottom, 0xff000000u);
+        Line(dst, w, r.left, r.bottom, r.right, r.bottom, 0xff000000u);
+        Line(dst, w, r.right, r.bottom, apex, r.top, 0xff000000u);
+        Panels.Triangle(st, r, tri);
+        Panels.ToPoint(st, values, tri, point);                      // f_087c7: where the marker sits
+        int mx = st.U16(Seg.G, point), my = st.U16(Seg.G, point + 2);
+        for (int y = my - 2; y <= my + 2; y++)
+            for (int x = mx - 2; x <= mx + 2; x++)
+                if (x > 0 && y > 0 && x < w && y < Rows * Cell) dst[y * w + x] = 0xffd02020u;
+    }
+
+    void DrawPanels(uint[] dst, int w)
+    {
+        DrawTriangle(dst, w, BehaviorRect, 0x49e, 0x3816, 0x358);
+        DrawTriangle(dst, w, CasteRect, 0x482, 0x3822, 0x22e);
+        if (panelLabels == null)
+        {
+            var spots = new (string text, int x, int y)[]
+            {
+                ("Forage", 76, 20), ("Dig", 12, 166), ("Nurse", 140, 166),
+                ("Breed", 78, 216), ("Work", 10, 362), ("Fight", 140, 362),
+            };
+            panelLabels = spots.Select(s => new Label { Text = s.text, Position = new Vector2(s.x, s.y) }).ToArray();
+            foreach (var l in panelLabels)
+            {
+                l.AddThemeFontSizeOverride("font_size", 10);
+                l.AddThemeColorOverride("font_color", new Color(0, 0, 0));
+                status.GetParent().AddChild(l);
+            }
+        }
+        foreach (var l in panelLabels) l.Visible = true;
+    }
+
+    bool PanelClick(Vector2 p)
+    {
+        if (!panels) return false;
+        var st = session.St;
+        foreach (var (r, values, tri, point, behaviour) in new[] { (BehaviorRect, 0x49e, 0x3816, 0x358, true), (CasteRect, 0x482, 0x3822, 0x22e, false) })
+        {
+            if (p.X < r.left - 8 || p.X > r.right + 8 || p.Y < r.top - 8 || p.Y > r.bottom + 8) continue;
+            Panels.Triangle(st, r, tri);
+            st.Set16(Seg.G, point, (int)p.X);
+            st.Set16(Seg.G, point + 2, (int)p.Y);
+            Panels.ToValues(st, values, tri, point);                 // f_086a1: the weights the click sets
+            if (behaviour) st.Set16(Seg.G, 0x378, 0);                // assumption: steering the jobs means manual
+            else NewGame.CasteTargets(st);                           // f_085f8: the caste targets T:07DA..
+            return true;
+        }
+        return true;                                                 // the panel covers the map: swallow the click
+    }
 
     // ------------------------------------------------------------------------------- sound effects
     readonly Dictionary<int, AudioStreamWav> sfxCache = new();
@@ -336,6 +410,8 @@ public partial class Main : Node2D
         if (overview && !yardMap) DrawOverview(argb, w);
         if (history && !yardMap) DrawHistory(argb, w);
         else if (historyLabel != null) historyLabel.Visible = false;
+        if (panels && !yardMap) DrawPanels(argb, w);
+        else if (panelLabels != null) foreach (var l in panelLabels) l.Visible = false;
         for (int i = 0; i < argb.Length; i++)
         {
             uint c = argb[i];
@@ -349,7 +425,7 @@ public partial class Main : Node2D
         string[] names = { "", "Surface", "Black nest", "Red nest" };
         string mode = st.U16(Seg.G, 0xeac) == 2 ? "Full Game" : "Quick Game";
         status.Text = $"{mode}  {names[view]}  tick {session.Ticks}  black {st.U16(Seg.G, 0x330)}  red {st.U16(Seg.G, 0x350)}"
-                      + $"  health {st.S16(Seg.G, 0xf78)}  colony {st.S16(Seg.G, 0x10be)}  speed {SpeedNames[session.Speed]}"
+                      + $"  health {st.S16(Seg.G, 0xf78)}  colony {st.S16(Seg.G, 0x10be)}  speed {SpeedNames[session.Speed]}  jobs {(st.U16(Seg.G, 0x378) == 1 ? "auto" : "manual")}"
                       + (session.Paused ? "  PAUSED" : "") + (session.Over ? (st.U16(Seg.G, 0x366) != 0 ? "  YOU WON" : "  GAME OVER") : "");
         message.Text = lastMessage;
     }
@@ -366,6 +442,7 @@ public partial class Main : Node2D
                 return;
             }
             if (OverviewClick(mb.Position)) return;
+            if (mb.Position.X < 190 && PanelClick(mb.Position)) return;
             if (mb.Position.Y >= Rows * Cell || a >= MapRenderer.Width(view)) return;
             var st = session.St;
             int target = st.U16(Seg.G, 0x105e);
@@ -411,6 +488,8 @@ public partial class Main : Node2D
                 case Key.Tab: overview = !overview; break;                                 // the Map window
                 case Key.S: muted = !muted; break;                                         // sound effects on / off
                 case Key.G: history = !history; break;                                     // the History graph
+                case Key.P: panels = !panels; break;                                       // the colony controls
+                case Key.O: session.St.Set16(Seg.G, 0x378, session.St.U16(Seg.G, 0x378) == 1 ? 0 : 1); break;   // auto / manual jobs
                 case Key.N: Restart(1); break;
                 case Key.M: Restart(2); break;
             }
