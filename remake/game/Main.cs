@@ -928,7 +928,7 @@ public partial class Main : Node2D
     // ------------------------------------------------------------------------------- Behavior / Caste Control
     // Layouts 18 / 19 (bitmaps 4600 / 4620, help overlays 4601 / 4621), the triangles ported in Panels: weights
     // G:049E.. (forage apex, dig bottom left, nurse bottom right) and G:0482.. (breeders, workers, soldiers), each
-    // summing to 0xFFFF. Items (indices): 3 help, 4 Auto, 5 Manual, 6..8 Set 1..3 (preset ratios, not decoded),
+    // summing to 0xFFFF. Items (indices): 3 help, 4 Auto, 5 Manual, 6..8 Set 1..3 (preset ratios),
     // 12 the relative-setting bars (f_0839a / f_08255, drawn here as three plain bars), 13 the triangle
     // (f_07980 takes its rectangle), 9..11 / 15..17 the corner labels ("click to toggle display", not decoded).
     // As the original's handlers do, a behaviour drag sets manual jobs G:0378 = 0 (f_07d07), a caste drag sets
@@ -986,11 +986,29 @@ public partial class Main : Node2D
                 if (win == BehaviorWin) st.Set16(Seg.G, 0x378, index == 4 ? 1 : 0);
                 else
                 {
-                    st.Set16(Seg.T, 0x7e8, index == 4 ? 1 : 0);
-                    if (index == 5) NewGame.CasteTargets(st);                    // manual: targets from the weights
+                    st.Set16(Seg.T, 0x7e8, index == 4 ? 1 : 0);                 // f_07cde: Manual only clears T:07E8
                 }
                 break;
-            case 6: case 7: case 8: lastMessage = "The preset ratios (Set 1..3) are not decoded yet."; break;
+            case 6: case 7: case 8:
+            {
+                // Set 1..3 (f_07d07 at 0x7d8a, the caste handler at 0x7b44): save the weights (6 bytes) into the
+                // current preset's slot, T:0810 / T:07F2 + 6 x DS:1B50 / DS:1B4E, make the clicked one current and
+                // load its slot; then the panel is manual (G:0378 = 0 / T:07E8 = 0)
+                bool behaviour = win == BehaviorWin;
+                int slots = behaviour ? 0x810 : 0x7f2, cur = behaviour ? 0x1b50 : 0x1b4e;
+                var (values, _, _) = ControlGlobals(win);
+                int old = st.U16(Seg.DS, cur);
+                for (int k = 0; k < 6; k++) st.Set8(Seg.T, slots + 6 * old + k, st.U8(Seg.G, values + k));
+                st.Set16(Seg.DS, cur, index - 6);
+                for (int k = 0; k < 6; k++) st.Set8(Seg.G, values + k, st.U8(Seg.T, slots + 6 * (index - 6) + k));
+                if (behaviour) st.Set16(Seg.G, 0x378, 0);
+                else
+                {
+                    st.Set16(Seg.T, 0x7e8, 0);
+                    NewGame.CasteTargets(st);                                    // the targets follow the weights (as after a drag)
+                }
+                break;
+            }
         }
     }
 

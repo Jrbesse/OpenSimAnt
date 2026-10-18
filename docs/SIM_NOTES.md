@@ -1563,6 +1563,19 @@ The redraws `f_07a57` / `f_07a19` (marker) run from InitColonySettings and from 
 the percentages T:07DA.. (`f_085f8`, `newgame.caste_targets`). The bar charts on the right (item 0x0C:
 F D N / B W S) are drawn by `f_0839a` / `f_08255` (not traced).
 
+The windows' handlers switch on the item id through jump tables (cs base 0x7980): the Behavior window's
+`f_07d07` (table at 0x7d3b, item - 0x1203), the Caste window's routine at 0x7ae2 (table at 0x7af5, item -
+0x1303):
+- help 0x1203 / 0x1303: `f_2f74e(0x120e / 0x130e)`, the help overlay;
+- Auto 0x1204: if G:0378 == 0, G:0378 = 1 (Caste: T:07E8); Manual 0x1205: if G:0378 != 0, G:0378 = 0
+  (Caste 0x1305 at 0x7cde: T:07E8 = 0 only);
+- Set 1..3 0x1206..0x1208: copy the 6 weight bytes G:049E into the slot of the current preset,
+  T:0810 + 6 x DS:1B50, set DS:1B50 = item - 0x1206 and copy that slot back into G:049E; redraw, then the
+  Manual path (G:0378 = 0). Caste: G:0482 ↔ T:07F2 + 6 x DS:1B4E, then the Manual path. The start-up
+  slots are T:0810 = (0x9999, 0x3333, 0x3333), (0xFFFF, 0, 0), (0, 0xFFFF, 0) and T:07F2 = (0, 0x9999,
+  0x6666), (0x7FFF, 0x3FFF, 0x3FFF), (0, 0xFFFF, 0), with DS:1B50 = DS:1B4E = 0;
+- the triangle 0x120D / 0x130D: the drag; 0x120F..0x1211 (the corner labels): 0x7f06, not traced.
+
 ### Speech balloons (`f_06a4d`; ported: `simant_ref/balloons.py`, verified by `test_balloons.py`)
 
 The window draw `f_038a6` → `f_07128` → `f_06a4d` shows the ants' remarks at the spots the event
