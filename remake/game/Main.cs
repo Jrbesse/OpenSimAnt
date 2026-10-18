@@ -520,6 +520,22 @@ public partial class Main : Node2D
                 case Key.S: muted = !muted; break;                                         // sound effects on / off
                 case Key.G: history = !history; break;                                     // the History graph
                 case Key.P: panels = !panels; break;                                       // the colony controls
+                case Key.F5:                                                               // save (the original's .ANT format)
+                {
+                    var path = ProjectSettings.GlobalizePath("user://quicksave.ANT");
+                    System.IO.File.WriteAllBytes(path, SaveFile.Save(session.St));
+                    lastMessage = "Saved to " + path;
+                    break;
+                }
+                case Key.F9:                                                               // load
+                {
+                    var path = ProjectSettings.GlobalizePath("user://quicksave.ANT");
+                    if (!System.IO.File.Exists(path)) { lastMessage = "No saved game"; break; }
+                    bool ok = SaveFile.Load(session.St, System.IO.File.ReadAllBytes(path));
+                    lastMessage = ok ? "Loaded " + path : "Read error, game not loaded";
+                    SetView(session.Yellow.view);
+                    break;
+                }
                 case Key.V:                                                                // the scent views (T:07BE)
                 {
                     int m = session.St.U16(Seg.T, 0x7be);
