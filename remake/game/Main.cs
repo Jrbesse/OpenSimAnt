@@ -17,7 +17,8 @@ namespace Formica.Game;
 /// </summary>
 public partial class Main : Node2D
 {
-    const int Cols = 40, Rows = 28, Cell = 16;
+    const int Cols = 40, Rows = 28, Cell = 16, ScreenH = 480;
+    BitmapFont font;
     static readonly string[] SpeedNames = { "slow", "medium", "fast" };
 
     GameSession session;
@@ -64,9 +65,11 @@ public partial class Main : Node2D
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--ticks="))                                 // run the game ahead (for checking a build)
                 for (int t = int.Parse(arg["--ticks=".Length..]); t > 0 && !session.Over; t--) session.Step();
-        argb = new uint[Cols * Cell * Rows * Cell];
+        argb = new uint[Cols * Cell * ScreenH];
+        var f2 = session.Files.Shared.FirstOrDefault(r => r.Type == 11 && r.Id == 2);
+        if (f2 != null) font = new BitmapFont(f2.Data);
         rgba = new byte[argb.Length * 4];
-        image = Image.CreateEmpty(Cols * Cell, Rows * Cell, false, Image.Format.Rgba8);
+        image = Image.CreateEmpty(Cols * Cell, ScreenH, false, Image.Format.Rgba8);
         texture = ImageTexture.CreateFromImage(image);
         map = new Sprite2D { Texture = texture, Centered = false };
         AddChild(map);
@@ -487,6 +490,19 @@ public partial class Main : Node2D
         else if (historyLabel != null) historyLabel.Visible = false;
         if (panels && !yardMap) DrawPanels(argb, w);
         else if (panelLabels != null) foreach (var l in panelLabels) l.Visible = false;
+        string[] names = { "", "Surface", "Black nest", "Red nest" };
+        string mode = st.U16(Seg.G, 0xeac) == 2 ? "Full Game" : "Quick Game";
+        status.Text = $"{mode}  {names[view]}  tick {session.Ticks}  black {st.U16(Seg.G, 0x330)}  red {st.U16(Seg.G, 0x350)}"
+                      + $"  health {st.S16(Seg.G, 0xf78)}  colony {st.S16(Seg.G, 0x10be)}  speed {SpeedNames[session.Speed]}  jobs {(st.U16(Seg.G, 0x378) == 1 ? "auto" : "manual")}"
+                      + (session.Paused ? "  PAUSED" : "") + (session.Over ? (st.U16(Seg.G, 0x366) != 0 ? "  YOU WON" : "  GAME OVER") : "");
+        message.Text = lastMessage;
+        if (font != null)                                               // the status lines in the game's font 2
+        {
+            for (int i = Rows * Cell * w; i < argb.Length; i++) argb[i] = 0xffc0c0c0u;
+            font.Draw(argb, w, ScreenH, 4, Rows * Cell + 3, status.Text, 0xff000000u);
+            font.Draw(argb, w, ScreenH, 4, Rows * Cell + 4 + font.Height, message.Text.Replace("\n", " "), 0xff000080u);
+            status.Visible = message.Visible = false;
+        }
         for (int i = 0; i < argb.Length; i++)
         {
             uint c = argb[i];
@@ -495,14 +511,8 @@ public partial class Main : Node2D
             rgba[4 * i + 2] = (byte)c;
             rgba[4 * i + 3] = 255;
         }
-        image.SetData(w, Rows * Cell, false, Image.Format.Rgba8, rgba);
+        image.SetData(w, ScreenH, false, Image.Format.Rgba8, rgba);
         texture.Update(image);
-        string[] names = { "", "Surface", "Black nest", "Red nest" };
-        string mode = st.U16(Seg.G, 0xeac) == 2 ? "Full Game" : "Quick Game";
-        status.Text = $"{mode}  {names[view]}  tick {session.Ticks}  black {st.U16(Seg.G, 0x330)}  red {st.U16(Seg.G, 0x350)}"
-                      + $"  health {st.S16(Seg.G, 0xf78)}  colony {st.S16(Seg.G, 0x10be)}  speed {SpeedNames[session.Speed]}  jobs {(st.U16(Seg.G, 0x378) == 1 ? "auto" : "manual")}"
-                      + (session.Paused ? "  PAUSED" : "") + (session.Over ? (st.U16(Seg.G, 0x366) != 0 ? "  YOU WON" : "  GAME OVER") : "");
-        message.Text = lastMessage;
     }
 
     public override void _UnhandledInput(InputEvent ev)

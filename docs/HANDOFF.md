@@ -326,7 +326,8 @@ Suggested next session: see "Next steps" 11.. below. The most valuable next piec
     effects, the Map window overview (Tab), speech balloons as text (STR# 1220..1260 by list handle; the
     shell writes the map window's origin and size G:0508 / G:050A / G:10E0 / G:10DE so the event markers
     record spots in view; the strings hold literal backslash-n line breaks), Ant Info (Ctrl+click), scent
-    views (V), quick save / load (F5 / F9). The rating line's title: f_71d95 shows entry `rank` of the
+    views (V), quick save / load (F5 / F9), the status lines drawn in the game's font 2 (`Formica.Data/BitmapFont.cs`,
+    a port of `tools/fonts.py`: both the game's own and the Mac FONT formats). The rating line's title: f_71d95 shows entry `rank` of the
     G:0328 list (STR# 1900) below the mode's name from G:0324 (decoded). `Formica.Replay --fuzz [dir] [games] [ticks]` plays random games
     (clicks, commands, tools, cheats): 150 x 5000 ticks run clean. The one crash path it found (f_75d01 with
     no ant left in mode 3 reads an unset local) is a marked DIVERGENCE in `PlayerActions.cs` (grep
