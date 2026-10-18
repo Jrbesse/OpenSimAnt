@@ -127,15 +127,18 @@ G:10DE, health bars), the Map window (layout 1: the map at 4 px per cell, scent 
 population report), Behavior / Caste Control (18 / 19 on the ported Panels), History (21: the series table
 T:082A / T:0852 and the original's scaling), Efficiency Score (24), the yellow ant's pop-up menu (7 / 8 / 32,
 opened by pressing on the yellow ant as f_74fe0 does) and the yard window (25, `YardRenderer.cs`, a port of
-render_view's yard code; patch clicks move in a Full Game). Help overlays: F1 or the ? buttons. Screenshot
+render_view's yard code; patch clicks move in a Full Game), the scent overlay menu (6), Ant Info (29),
+Select a Game (2, at start-up and F2), and in the Experimental game the tool palette (9) with the map tools'
+drag loop and the option palettes (12..17, by bitmap: 12 Walls / Rocks, 15 Dig / Fill, 16 Black / Red, 17
+1 / 20 pieces, 13 the scent maps, 14 Spray / Stream; 10 is the Experimental menu, 11 its "not in the full
+game" box; switching a running Quick Game to Experimental by setting G:0EAC = 3 is a guess). Help overlays: F1 or the ? buttons. Screenshot
 flags for each: remake/README.md. Notes: layout 0 is the Edit window and 1 the Map window (FILE_FORMATS had
 them the other way round in places); T:07C8 matters to the sim (yard sounds draw from the RNG only while it
 is 0), so the shell sets it only where the original's Map window does.
 
 Suggested next session (in order):
 1. Play the shell and note what feels wrong (speed, controls, missing feedback).
-2. Remaining screens: the Ant Info window (29) as a window, the scent overlay menu (6), the tool palette
-   (9) with the map tools in Experimental mode, the message window (5) in place of the status lines, the
+2. Remaining screens: the message window (5) in place of the status lines, the
    menus (Game / Speed / ...: SIM_NOTES has the four in-game menus), the title and game-select screens
    (3 / 2), the save prompt (33), the population report's hold-to-view, Show Trails (0x10E), the preset
    ratios (Set 1..3) in the control windows, the mating-flight controls of the yard window.
@@ -402,6 +405,10 @@ Suggested next session (in order):
 
 2026-10-18 afternoon (the screens):
 ```
+378eae5 Remake shell: Select a Game (layout 2) at start-up and on F2
+4f8ad0b Remake shell: the map tools' option palettes (layouts 12..17) and the Experimental menu (10 / 11)
+0feb3c1 Remake shell: the tool palette (layout 9) and the map tools' drag loop (f_76f4a) in the Experimental game
+086ce9d Remake shell: the scent overlay menu (layout 6), the Ant Info window (layout 29)
 96f88c0 Remake shell: the yard window (layout 25, f_702f7) in place of the plain grid
 d9d2388 Remake shell: the History window (layout 21)
 c39c43c Remake shell: Behavior / Caste Control as the original's windows (layouts 18 / 19)
