@@ -92,23 +92,40 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPlayer` raises
 `NotImplementedError` for the ones that change state, so a test fails loudly if it reaches unported code.
 
-## Where things stand (2026-10-18, night session)
+## Where things stand (2026-10-18, end of the night session)
 
-**The Godot remake has started (step 10), in C#** (the owner works in C# / Godot 4.6 .NET; see their
-other project's CLAUDE.md). Everything is under `remake/`; read `remake/README.md` first.
-- `remake/src/Formica.Sim`: **the whole of `simant_ref` is ported to C#** (every module, ~6,500 lines) and
-  checked against the Python reference: every recorded call of every reference test (25 trace files,
-  ~225,000 calls, 67,200 SimStep ticks) replays byte for byte (`dotnet test remake/tests/Formica.Sim.Tests`).
-- `remake/src/Formica.Data`: archives + LZSS, the starting State built from SIMANT.EXE (identical to
-  flat.bin over 0x3d570..0x62000), map art (palette, tiles, sprites, recolouring), the map renderer,
-  `GameSession` (new game with time-of-day seeds, ticks, clock, effect queue, `WalkTo`).
-- `remake/game`: a Godot 4.6 C# shell (`Main.cs`): finds the player's files, starts a Quick Game, runs
-  SimStep and draws the 40 x 28-cell map window with the original's art; clicks walk / act / dig, 1/2/3
-  switch views. Checked by a screenshot run (`-- --screenshot=out.png`); not yet played by a human.
-- "Formica" is a placeholder code name (the public name is still open, ART_PLAN).
+**The Godot remake is under way, in C#** (the owner works in C# / Godot 4.6 .NET; see their other
+project's CLAUDE.md). Everything is under `remake/`; read `remake/README.md` first.
+- `remake/src/Formica.Sim`: **the whole of `simant_ref` is ported to C#** and checked against the Python
+  reference: every recorded call of every reference test (25 trace files, ~225,000 calls, 67,200 SimStep
+  ticks) replays byte for byte (`dotnet test remake/tests/Formica.Sim.Tests`). One marked DIVERGENCE (grep
+  it) where the original reads an unset local.
+- `remake/src/Formica.Data`: archives + LZSS, the starting State from SIMANT.EXE plus the start-up values
+  the sim reads (step 11, verified against the emulator's booted memory), map art and renderer, the
+  spider (bitmaps, legs), the Map window colours, STR# strings, sound effects, the bitmap fonts,
+  `GameSession` (new game, the original's main-loop timing, pause, speed, effects queue, `WalkTo`).
+- `remake/game`: a Godot 4.6 C# shell (`Main.cs`) that is playable: map window with the original's art,
+  yellow ant control, the menu commands on keys, colony triangles, yard map, History graph, overview,
+  scent views, Ant Info, speech balloons, sound effects, quick save / load, game-over rating; status
+  lines in the game's font. Controls: `remake/README.md`. Checked with screenshot runs
+  (`-- --ticks=N --screenshot=out.png`) and `Formica.Replay --fuzz` (150 games x 5000 ticks clean); not
+  yet played by a human: please try it.
+- "Formica" is a placeholder code name (the public name is still open, ART_PLAN). The repository has a
+  top-level README for GitHub.
 
-Suggested next session: see "Next steps" 11.. below. The most valuable next pieces: the boot state
-(what the game's init changes before a new game, step 11), then the UI screens one by one.
+**Usage note for the next session:** this session used most of the weekly allowance (about 90% at the
+end, resetting 2026-10-18 22:00 UTC), so a morning session has little room before that reset.
+
+Suggested next session (in order):
+1. Play the shell and note what feels wrong (speed, controls, missing feedback).
+2. The real screens from the decoded layouts (step 13): port `tools/layouts.py` to `Formica.Data`, then the
+   main game window (frame, toolbar, status line positions), the pop-up command menu, the Behavior / Caste
+   windows with their bar charts, the History window's own scaling.
+3. The isometric yard map (f_7650c) in place of the shell's grid.
+4. Music: the MIDI songs (SOUND types 18 / 20, effect ids 10000+) through a C# SoundFont synth (e.g. the
+   MeltySynth library) or pre-rendered OGG; the player supplies or picks a SoundFont.
+5. Event markers and balloon bitmaps (f_0696a), the yard window actors, the tutorial (f_0e425).
+6. The clean-room art pack (ART_PLAN) once the screens exist.
 
 ## Notes for the Godot remake (what the reference teaches)
 
@@ -335,7 +352,8 @@ Suggested next session: see "Next steps" 11.. below. The most valuable next piec
 
 ## Gotchas learned the hard way
 
-- **Shell heredocs mangle backslashes and backticks** in this environment. Write code with the Write/Edit
+- **Shell heredocs mangle backslashes and backticks** in this environment (it happened again on
+  2026-10-18 with `'\n'` inside a Python heredoc: the file got a real newline in a C# string). Write code with the Write/Edit
   tools, or put a script in a file and run it. Never generate source through `cat <<EOF`.
 - Ghidra pseudo-C is often wrong about **segments** (G vs T vs DS) and garbles jump tables. Always confirm
   with `adis.py`, which annotates `es=` segments. Segments: DGROUP/DS 0x55b3, SIM 0x3e1d, G 0x50f6,
@@ -366,6 +384,29 @@ Suggested next session: see "Next steps" 11.. below. The most valuable next piec
 
 2026-10-18 (the remake):
 ```
+0b2ce94 Remake: the game's bitmap fonts in C# (BitmapFont, port of fonts.py); the shell's status lines use font 2
+4d45215 Remake shell: speech balloons as text at the ants (STR# 1220..1260); keep the map window globals in step
+9507d8a Remake README: the shell's controls as a table
+f37d684 Remake shell: quick save / load (F5 / F9) in the original's .ANT format
+6252f88 Remake shell: scent views (V cycles T:07BE)
+6c88d83 Remake shell: the Ant Info tool (Ctrl+click), with the game's STR# 1100..1103 names
+ab07e2d Remake shell: triangle clicks set the manual flags as the original's handlers f_07d07 / f_07ac1 do
+cae930c Handoff: tidy the shell features note
+c8d0c19 Remake shell: the Behavior / Caste triangles (P) on the ported Panels, auto / manual jobs (O)
+d5e5e4a Remake shell: --ticks / --history for build checks; the History label follows its scale
+7ee1b61 Remake shell: a simple History graph (G) from the sim's history rings, labelled with STR# 1050
+037b97a Remake: sound effects from the player's SOUND archive (effect 'sound' n = resource n)
+a10396a README for the repository: what the project is, the bring-your-own-files rule, layout and status
+9e84ba1 Remake: the Map window's cell colours (f_6efd6) as an overview in the shell, click to scroll
+600e559 Notes: f_71d95 indexes the rank titles (G:0328, STR# 1900) directly by rank
+c0453db Remake shell: the game-over rating line; handoff notes on the shell and fuzzing
+8606290 Remake shell: a simple yard map (Full Game) to move between patches, also when the yellow ant dies
+7bc9a3a Remake: fuzz mode (random clicks, commands, tools, cheats over many games); define the one crash path
+e983225 Remake shell: the yellow ant's commands on keys; map clicks follow the Exchange / Chase cursor modes and the spider
+b965ce1 Remake: draw the spider (body bitmaps, legs and fangs from the ported f_04c44 / f_04666 programs)
+a4eec41 Remake: the original's main-loop timing (speed T:07CC, delays T:07CE, pause G:047E)
+74c0c0d Remake: read the game's STR# messages (SHARED / HCEGANT type 4) and show them in the shell
+9e20448 Remake: the start-up state the simulation reads (G:0480, G:0FBA, G:0FFE, DS:1A2E, ...)
 f6df340 Remake: data layer (archives, state image from SIMANT.EXE, map art and renderer) and a first Godot 4.6 C# shell
 331eacc Remake: port cheats, debug commands, map tools, markers, speech balloons, panels and menu commands
 b81f195 Remake: port the yellow ant, SimStep, new game, terrain, game flow and saved games
