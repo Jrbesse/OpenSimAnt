@@ -88,6 +88,15 @@ public static class MapRenderer
 
     public static int Width(int view) => view <= 1 ? 128 : 64;
 
+    /// <summary>The scent map value under surface cell (a, b) for scent mode `mode` (T:07BE numbering: 0 alarm,
+    /// 1 black nest marker, 2 black trail, 3 red nest marker, 4 red trail); each map cell covers 2 x 2 cells.</summary>
+    public static int Scent(State st, int mode, int a, int b) =>
+        mode == 4 ? st.U8(0x4da7, (a >> 1) * 32 + (b >> 1)) : st.Pher(PHER[mode], a >> 1, b >> 1);
+
+    /// <summary>The Map window's content T:07C8 (4..8: black nest marker, black trail, red nest marker, red
+    /// trail, alarm) as a T:07BE scent mode.</summary>
+    public static int ScentMode(int content) => content == 8 ? 0 : content - 3;
+
     public const int Height = 64;
 
     /// <summary>f_02c21: the recolour mode, the low byte of the word at DS:1A58 + ((fg &amp; 0xFFBF) >> 6).</summary>

@@ -5,42 +5,59 @@ using Formica.Sim;
 namespace Formica.Game;
 
 /// <summary>
-/// The first playable shell: finds the player's own copy of the original game, starts a game and shows the
-/// map window (40 x 28 cells of 16 px, as in the original's 640 x 480 screen) with a status line.
+/// The playable shell, laid out like the original's 640 x 480 screen from its window layouts (UiArt, Layouts):
+/// the Edit window (layout 0: the tool strip, bitmap 15000, a 22 x 21 cell map of 16 px, the health bars) and
+/// the Map window (layout 1: the whole map at 4 px per cell, the toolbar, bitmap 14000, the population report).
+/// Windows move by their caption and come to the front on a click. Status lines sit below them.
 ///
-/// Controls: left click walks the yellow ant there (with Shift: acts on the cell, picking up / dropping;
-/// right click: digs its way), 1 / 2 / 3 the surface / black nest / red nest, arrow keys scroll, F follows
+/// Edit window: left click walks the yellow ant there (with Shift: acts on the cell, picking up / dropping;
+/// right click: digs its way). Keys: 1 / 2 / 3 the surface / black nest / red nest, arrow keys scroll, F follows
 /// the yellow ant, Space pauses, + / - change the speed, N a new Quick Game, M a new Full Game.
 /// Commands: R / Shift+R recruit 5 / 10, E / Shift+E release half / all, X exchange (then click an ant, or
 /// the spider), A alarm trail, H dig a hole, B start brood, C chase (as the spider, then click), U / Shift+U
-/// hunt / lash out.
+/// hunt / lash out. remake/README.md lists every control.
 /// </summary>
 public partial class Main : Node2D
 {
-    const int Cols = 40, Rows = 28, Cell = 16, ScreenH = 480;
-    BitmapFont font;
+    const int ScreenW = 640, ScreenH = 480, Cell = 16;
+    const int EditWin = 0, MapWin = 1;
+    // the Edit window's map: G:10E0 x G:10DE = 22 x 21 cells (the start-up values), item 4 of layout 0
+    const int Cols = 22, Rows = 21;
+    // layout item indices (the ids repeat in layout 0, so the shell matches on the index)
+    const int EditMapItem = 4, MapMapItem = 2;
     static readonly string[] SpeedNames = { "slow", "medium", "fast" };
+    static readonly string[] ViewNames = { "Yard", "Surface", "Black Nest", "Red Nest" };
+    static readonly string[] Scents = { "alarm", "black nest marker", "black trail", "red nest marker", "red trail" };
 
     GameSession session;
-    Sprite2D map;
+    UiArt ui;
+    BitmapFont font;
+    Sprite2D screen;
     Image image;
     ImageTexture texture;
-    uint[] argb;
+    uint[] argb, mapBuf;
     byte[] rgba;
     Label status, message;
     int view = 1, originA, originB;
-    bool follow = true;
+    bool follow = true, help, antInfoArmed;
     string lastMessage = "";
     string screenshot;
     int frames;
+
+    // the window stack (last = front) and each window's offset from its layout position
+    readonly List<int> zOrder = new() { MapWin, EditWin };
+    readonly Dictionary<int, (int dx, int dy)> offsets = new() { [EditWin] = (0, 0), [MapWin] = (0, 0) };
+    int dragWin = -1;
+    Vector2 dragFrom;
+    (int dx, int dy) dragOrig;
 
     public override void _Ready()
     {
         var dir = FindGameDir();
         var layer = new CanvasLayer();
         AddChild(layer);
-        status = new Label { Position = new Vector2(4, Rows * Cell + 2), Size = new Vector2(632, 16) };
-        message = new Label { Position = new Vector2(4, Rows * Cell + 16), Size = new Vector2(632, 16) };
+        status = new Label { Position = new Vector2(4, 384), Size = new Vector2(632, 16) };
+        message = new Label { Position = new Vector2(4, 400), Size = new Vector2(632, 16) };
         foreach (var l in new[] { status, message })
         {
             l.AddThemeFontSizeOverride("font_size", 11);
@@ -60,20 +77,23 @@ public partial class Main : Node2D
             if (arg.StartsWith("--screenshot=")) screenshot = arg["--screenshot=".Length..];
             else if (arg == "--history") history = true;
             else if (arg == "--panels") panels = true;
+            else if (arg == "--help-overlay") help = true;
+            else if (arg == "--map-front") Front(MapWin);
         session = new GameSession(dir);
         session.NewGame(1);
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--ticks="))                                 // run the game ahead (for checking a build)
                 for (int t = int.Parse(arg["--ticks=".Length..]); t > 0 && !session.Over; t--) session.Step();
-        argb = new uint[Cols * Cell * ScreenH];
-        var f2 = session.Files.Shared.FirstOrDefault(r => r.Type == 11 && r.Id == 2);
-        if (f2 != null) font = new BitmapFont(f2.Data);
+        ui = new UiArt(session.Files, session.Art);
+        font = ui.Font(2);
+        argb = new uint[ScreenW * ScreenH];
+        mapBuf = new uint[Cols * Cell * Rows * Cell];
         rgba = new byte[argb.Length * 4];
-        image = Image.CreateEmpty(Cols * Cell, ScreenH, false, Image.Format.Rgba8);
+        image = Image.CreateEmpty(ScreenW, ScreenH, false, Image.Format.Rgba8);
         texture = ImageTexture.CreateFromImage(image);
-        map = new Sprite2D { Texture = texture, Centered = false };
-        AddChild(map);
-        MoveChild(map, 0);
+        screen = new Sprite2D { Texture = texture, Centered = false };
+        AddChild(screen);
+        MoveChild(screen, 0);
         SetView(session.Yellow.view);
         Redraw();
     }
@@ -141,6 +161,283 @@ public partial class Main : Node2D
                 lastMessage = $"Game over: {title}  (score {e.Args[1]})  N: new Quick Game, M: new Full Game";
                 GD.Print(lastMessage);
             }
+        }
+    }
+
+    // ------------------------------------------------------------------------------- windows
+    (int dx, int dy) Off(int win) => offsets[win];
+
+    /// <summary>Item `index` of window `win`'s layout, on screen (moved with the window).</summary>
+    (int l, int t, int r, int b) ItemRect(int win, int index)
+    {
+        var (l, t, r, b) = ui.Layouts[win].Items[index].Rect;
+        var (dx, dy) = Off(win);
+        return (l + dx, t + dy, r + dx, b + dy);
+    }
+
+    (int l, int t, int r, int b) WindowRect(int win)
+    {
+        var (l, t, r, b) = ui.Layouts[win].Rect;
+        var (dx, dy) = Off(win);
+        return (l + dx, t + dy, r + dx, b + dy);
+    }
+
+    static bool Inside((int l, int t, int r, int b) rc, Vector2 p) => p.X >= rc.l && p.X < rc.r && p.Y >= rc.t && p.Y < rc.b;
+
+    void Front(int win)
+    {
+        zOrder.Remove(win);
+        zOrder.Add(win);
+    }
+
+    int WindowAt(Vector2 p)
+    {
+        for (int i = zOrder.Count - 1; i >= 0; i--)
+            if (Inside(WindowRect(zOrder[i]), p)) return zOrder[i];
+        return -1;
+    }
+
+    /// <summary>The window's caption item (kind "caption"), on screen.</summary>
+    (int l, int t, int r, int b) CaptionRect(int win)
+    {
+        var items = ui.Layouts[win].Items;
+        int i = items.FindIndex(it => it.Kind == "caption");
+        return i < 0 ? (0, 0, 0, 0) : ItemRect(win, i);
+    }
+
+    // ------------------------------------------------------------------------------- the Edit window (layout 0)
+    // Tool strip items (layout 0 indices; names from its help overlay 15001): 5 MAP (open the Map window), 6 help,
+    // 7 the Experimental menu, 8 / 9 / 10 surface / black nest / red nest, 11..14 go to the yellow ant / the
+    // spider / the black queen / the red queen, 15 pause, 16 the scent overlay menu, 17..19 the health bars
+    // (yellow ant, black colony, red colony).
+    void DrawEditWindow(UiArt.Canvas c)
+    {
+        var st = session.St;
+        var (dx, dy) = Off(EditWin);
+        string title = ViewNames[view] + (st.U16(Seg.T, 0x7be) < 5 ? " (" + Scents[st.U16(Seg.T, 0x7be)] + ")" : "");
+        ui.DrawWindow(c, EditWin, dx, dy, title, new[] { 15001 });
+        var win = c.Clip(WindowRect(EditWin).l, WindowRect(EditWin).t, WindowRect(EditWin).r, WindowRect(EditWin).b);
+        var m = ItemRect(EditWin, EditMapItem);
+        int w = Cols * Cell, h = Rows * Cell;
+        int cols = Math.Min(Cols, MapRenderer.Width(view));
+        Array.Fill(mapBuf, 0xff000000u);
+        MapRenderer.Render(st, session.Art, view, originA, originB, originA + cols, originB + Rows, mapBuf, w);
+        if (view == 1)
+            SpiderRenderer.Draw(st, session.Files, session.Art, mapBuf, w, h, originA * Cell, originB * Cell, SpiderRenderer.FangJitter(st));
+        win.Clip(m.l, m.t, m.r, m.b).Blit(mapBuf, w, h, m.l, m.t);
+        // the health bars: the yellow ant G:0F78, the black colony G:10BE, the red colony G:01FE (out of 100)
+        var colours = new[] { session.Art.Palette[1], session.Art.Palette[15], session.Art.Palette[3] };
+        var values = new[] { st.S16(Seg.G, 0xf78), st.S16(Seg.G, 0x10be), st.S16(Seg.G, 0x1fe) };
+        for (int i = 0; i < 3; i++)
+            UiArt.VGauge(win, ItemRect(EditWin, 17 + i), values[i] / 100.0, colours[i]);
+        if (help)
+        {
+            var it = ui.Layouts[EditWin].Items.First(x => x.Bitmap == 15001);
+            ui.DrawBitmap(win, 15001, it.Rect.left + dx, it.Rect.top + dy);
+        }
+    }
+
+    void EditWindowClick(int index, InputEventMouseButton mb)
+    {
+        var st = session.St;
+        switch (index)
+        {
+            case EditMapItem: EditMapClick(mb); break;
+            case 5:                                                                  // MAP: open / close the Map window
+                if (zOrder.Contains(MapWin)) zOrder.Remove(MapWin);
+                else Front(MapWin);
+                break;
+            case 6: help = !help; break;
+            case 7: lastMessage = "The Experimental menu is not built yet."; break;
+            case 8: SetView(1); break;
+            case 9: SetView(2); break;
+            case 10: SetView(3); break;
+            case 11: SetView(session.Yellow.view); follow = true; break;
+            case 12:                                                                 // the spider G:0F12 / G:0F34 (1/16 cell)
+                if (st.U16(Seg.G, 0xf0c) == 0) { lastMessage = "There is no spider."; break; }
+                SetView(1);
+                CenterOn(st.S16(Seg.G, 0xf12) >> 4, st.S16(Seg.G, 0xf34) >> 4);
+                break;
+            case 13: GotoQueen(2); break;
+            case 14: GotoQueen(3); break;
+            case 15: session.Paused = !session.Paused; break;
+            case 16: CycleScent(); break;
+        }
+    }
+
+    void EditMapClick(InputEventMouseButton mb)
+    {
+        var m = ItemRect(EditWin, EditMapItem);
+        int a = (int)(mb.Position.X - m.l) / Cell + originA, b = (int)(mb.Position.Y - m.t) / Cell + originB;
+        if (a >= MapRenderer.Width(view) || b >= MapRenderer.Height) return;
+        var st = session.St;
+        if (mb.CtrlPressed || antInfoArmed)                                        // the Ant Info tool
+        {
+            antInfoArmed = false;
+            lastMessage = AntInfo(a, b) ?? "";
+            return;
+        }
+        int target = st.U16(Seg.G, 0x105e);
+        if (target == 0xa) Commands.ExchangeClick(st, view, a, b);                  // Exchange: pick the ant to become
+        else if (st.U16(Seg.G, 0xa06) == 1 || target == 0xb)
+        {
+            if (view == 1) Commands.SpiderClick(st, a, b, mb.ButtonIndex == MouseButton.Right ? 1 : 0);
+        }
+        else if (mb.ButtonIndex == MouseButton.Left)
+        {
+            if (mb.ShiftPressed) ActOn(a, b);
+            else session.WalkTo(view, a, b);
+        }
+        else if (mb.ButtonIndex == MouseButton.Right)
+            session.WalkTo(view, a, b, dig: true);
+    }
+
+    /// <summary>Go to the colony's queen in its nest: the first cell whose occupant has caste 12 (o &amp; 0x78 ==
+    /// 0x60) in that nest's colour.</summary>
+    void GotoQueen(int nest)
+    {
+        var st = session.St;
+        var n = nest == 2 ? NestGrid.BLACK : NestGrid.RED;
+        for (int a = 0; a < 64; a++)
+            for (int b = 0; b < 64; b++)
+            {
+                int o = st.Grid(n.Cells, a, b);
+                if (o != 0 && o < 0xfe && (o & 0x78) == 0x60 && ((o & 0x80) != 0) == (nest == 3))
+                {
+                    SetView(nest);
+                    CenterOn(a, b);
+                    return;
+                }
+            }
+        lastMessage = nest == 2 ? "The black colony has no queen." : "The red colony has no queen.";
+    }
+
+    void CycleScent()
+    {
+        int m = session.St.U16(Seg.T, 0x7be);
+        session.St.Set16(Seg.T, 0x7be, m == 0xffff ? 0 : m >= 4 ? 0xffff : m + 1);
+        int now = session.St.U16(Seg.T, 0x7be);
+        lastMessage = now < 5 ? "Scent view: " + Scents[now] : "Scent view off";
+    }
+
+    // ------------------------------------------------------------------------------- the Map window (layout 1)
+    // Toolbar items (layout 1 indices = item id - 0x100; names from its help overlay 14001): 5..8 map views (Yard,
+    // Surface, Black Nest, Red Nest), 9..13 scent layers, 14 Show Trails, 15 Behavior Control, 16 Center on
+    // Yellow, 17 Caste Control, 18 the Mystery Button, 19 History Display, 20 Efficiency Score, 21 Ant Info,
+    // 22 / 23 the Experimental menu, 24..30 the population report. Its content is T:07C8: 1..3 a view, 4..8 a
+    // scent map (black nest marker, black trail, red nest marker, red trail, alarm); 0 (the yard) is not drawn
+    // here (f_6efd6 calls the fatal-error routine for it).
+    static readonly int[] ScentButtons = { 4, 5, 8, 6, 7 };              // items 9..13 → T:07C8
+
+    int MapContent => session.St.U16(Seg.T, 0x7c8);
+
+    int MapView => MapContent is >= 1 and <= 3 ? MapContent : 1;
+
+    /// <summary>The map's pixel scale and its left edge inside the map item: 4 x 4 px per cell (G:3856 x G:3858 at
+    /// 640 x 480); a nest is 64 cells wide and is centred in the 128-cell area (how the original places it is
+    /// not traced).</summary>
+    (int x0, int y0) MapOrigin()
+    {
+        var m = ItemRect(MapWin, MapMapItem);
+        return (m.l + (128 - MapRenderer.Width(MapView)) * 2, m.t);
+    }
+
+    void DrawMapWindow(UiArt.Canvas c)
+    {
+        var st = session.St;
+        var (dx, dy) = Off(MapWin);
+        int content = MapContent;
+        string title = content >= 4 && content <= 8 ? "Map: " + Scents[MapRenderer.ScentMode(content)] : "Map: " + ViewNames[MapView];
+        ui.DrawWindow(c, MapWin, dx, dy, title, new[] { 14001 });
+        var wr = WindowRect(MapWin);
+        var win = c.Clip(wr.l, wr.t, wr.r, wr.b);
+        var m = ItemRect(MapWin, MapMapItem);
+        var area = win.Clip(m.l, m.t, m.r, m.b);
+        area.Fill(m.l, m.t, m.r, m.b, session.Art.Palette[13]);
+        int mv = MapView, mw = MapRenderer.Width(mv);
+        var (x0, y0) = MapOrigin();
+        for (int b = 0; b < MapRenderer.Height; b++)
+            for (int a = 0; a < mw; a++)
+            {
+                uint col;
+                if (content >= 4 && content <= 8)
+                {
+                    // f_6eb66: v ? 0x10 + (v >> 5) : 0x0B; the 0x10.. colours are the driver's dithers (not decoded):
+                    // drawn as a ramp from light to dark
+                    int v = MapRenderer.Scent(st, MapRenderer.ScentMode(content), a, b);
+                    col = v == 0 ? session.Art.Palette[11] : Ramp(v);
+                }
+                else col = session.Art.Palette[MapRenderer.MapColour(st, mv, a, b)];
+                area.Fill(x0 + a * 4, y0 + b * 4, x0 + a * 4 + 4, y0 + b * 4 + 4, col);
+            }
+        if (mv == view)                                                                     // the Edit window's view
+        {
+            int l = x0 + originA * 4, t = y0 + originB * 4;
+            area.Frame(l, t, l + Cols * 4, t + Rows * 4, 0xffffff40u);
+        }
+        // the population report f_6eea5: counts 0x119 / 0x11A, gauges 0x11B black health (G:10BE / 100), 0x11C red
+        // health (G:01FE / 100, 0 without red ants), 0x11D / 0x11E each population / max(1, black, red)
+        int black = st.U16(Seg.G, 0x330), red = st.U16(Seg.G, 0x350), most = Math.Max(1, Math.Max(black, red));
+        var r1 = ItemRect(MapWin, 25);
+        var r2 = ItemRect(MapWin, 26);
+        win.Fill(r1.l, r1.t, r1.r, r1.b, UiArt.White);
+        win.Fill(r2.l, r2.t, r2.r, r2.b, UiArt.White);
+        ui.DrawText(win, 0, 0, r1.l, r1.t - 1, r1.r, r1.b + 1, black.ToString());
+        ui.DrawText(win, 0, 0, r2.l, r2.t - 1, r2.r, r2.b + 1, red.ToString());
+        UiArt.Gauge(win, ItemRect(MapWin, 27), st.S16(Seg.G, 0x10be) / 100.0);
+        UiArt.Gauge(win, ItemRect(MapWin, 28), red == 0 ? 0 : st.S16(Seg.G, 0x1fe) / 100.0, session.Art.Palette[3]);
+        UiArt.Gauge(win, ItemRect(MapWin, 29), black / (double)most);
+        UiArt.Gauge(win, ItemRect(MapWin, 30), red / (double)most, session.Art.Palette[3]);
+        if (help)
+        {
+            var it = ui.Layouts[MapWin].Items.First(x => x.Bitmap == 14001);
+            ui.DrawBitmap(win, 14001, it.Rect.left + dx, it.Rect.top + dy);
+        }
+    }
+
+    static uint Ramp(int v)
+    {
+        int k = Math.Clamp(v >> 5, 0, 7);
+        int g = 230 - k * 28;
+        return 0xff000000u | ((uint)g << 16) | ((uint)(g * 3 / 4) << 8) | (uint)(g / 3);
+    }
+
+    void MapWindowClick(int index, InputEventMouseButton mb)
+    {
+        var st = session.St;
+        switch (index)
+        {
+            case MapMapItem:                                                            // centre the Edit window there
+            {
+                var (x0, y0) = MapOrigin();
+                int a = (int)(mb.Position.X - x0) / 4, b = (int)(mb.Position.Y - y0) / 4;
+                if (a < 0 || a >= MapRenderer.Width(MapView) || b >= MapRenderer.Height) break;
+                SetView(MapView);
+                CenterOn(a, b);
+                break;
+            }
+            case 5:                                                                      // Yard: the yard map (Full Game)
+                if (st.U16(Seg.G, 0xeac) == 2) yardMap = true;
+                else lastMessage = "The yard map is for the Full Game.";
+                break;
+            case 6: case 7: case 8:
+                st.Set16(Seg.T, 0x7c8, index - 5);
+                SetView(index - 5);
+                break;
+            case >= 9 and <= 13:
+            {
+                int content = ScentButtons[index - 9];
+                st.Set16(Seg.T, 0x7c8, MapContent == content ? view : content);
+                break;
+            }
+            case 14: lastMessage = "Show Trails is not decoded yet."; break;
+            case 15: case 17: panels = !panels; break;
+            case 16: SetView(session.Yellow.view); follow = true; break;
+            case 18: DebugCommands.RandomAction(st); break;                              // the Mystery Button (f_022bc)
+            case 19: history = !history; break;
+            case 20: lastMessage = $"Efficiency Score: not built yet (score {Formica.Sim.Game.Rating(st).score})"; break;
+            case 22: case 23: lastMessage = "The Experimental menu is not built yet."; break;
+            case 21: antInfoArmed = true; lastMessage = "Ant Info: click an ant in the Edit window."; break;
         }
     }
 
@@ -232,7 +529,7 @@ public partial class Main : Node2D
         int mx = st.U16(Seg.G, point), my = st.U16(Seg.G, point + 2);
         for (int y = my - 2; y <= my + 2; y++)
             for (int x = mx - 2; x <= mx + 2; x++)
-                if (x > 0 && y > 0 && x < w && y < Rows * Cell) dst[y * w + x] = 0xffd02020u;
+                if (x > 0 && y > 0 && x < w && y < ScreenH) dst[y * w + x] = 0xffd02020u;
     }
 
     void DrawPanels(uint[] dst, int w)
@@ -276,7 +573,7 @@ public partial class Main : Node2D
             }
             return true;
         }
-        return true;                                                 // the panel covers the map: swallow the click
+        return p.Y < 380;                                            // the panel covers the windows: swallow the click
     }
 
     // ------------------------------------------------------------------------------- the Ant Info window
@@ -320,11 +617,13 @@ public partial class Main : Node2D
     void ShowBalloons()
     {
         int k = 0;
+        var m = ItemRect(EditWin, EditMapItem);
+        bool editOnTop = zOrder[^1] == EditWin;
         foreach (var (a, b, v, text) in balloonsNow.Values)
         {
-            if (text == null || v != view || yardMap) continue;
-            int x = (a - originA) * Cell, y = (b - originB) * Cell - 18;
-            if (x < 0 || y < 0 || x >= Cols * Cell || y >= Rows * Cell) continue;
+            if (text == null || v != view || yardMap || !editOnTop) continue;
+            int x = (a - originA) * Cell + m.l, y = (b - originB) * Cell - 18 + m.t;
+            if (x < m.l || y < m.t || x >= m.r || y >= m.b) continue;
             if (k == balloonLabels.Count)
             {
                 var l = new Label();
@@ -335,7 +634,7 @@ public partial class Main : Node2D
                 balloonLabels.Add(l);
             }
             balloonLabels[k].Text = text;
-            balloonLabels[k].Position = new Vector2(Math.Min(x, Cols * Cell - 160), y);
+            balloonLabels[k].Position = new Vector2(Math.Min(x, m.r - 160), y);
             balloonLabels[k].Visible = true;
             k++;
         }
@@ -375,12 +674,18 @@ public partial class Main : Node2D
         p.Play();
     }
 
-    static string Describe(object[] args) => string.Join(" ", args.Select(a => a is int i ? $"0x{i:x}" : a?.ToString() ?? "-"));
-
     void CenterOnYellow()
     {
         var (v, a, b) = session.Yellow;
         if (v != view) return;
+        originA = a - Cols / 2;
+        originB = b - Rows / 2;
+        Clamp();
+    }
+
+    void CenterOn(int a, int b)
+    {
+        follow = false;
         originA = a - Cols / 2;
         originB = b - Rows / 2;
         Clamp();
@@ -423,41 +728,6 @@ public partial class Main : Node2D
             }
     }
 
-    // ------------------------------------------------------------------------------- the Map window (overview)
-    const int OvScale = 2;
-    bool overview = true;
-
-    int OvX => Cols * Cell - MapRenderer.Width(view) * OvScale - 4;
-
-    void DrawOverview(uint[] dst, int w)
-    {
-        var st = session.St;
-        int mw = MapRenderer.Width(view), x0 = OvX, y0 = 4;
-        for (int b = 0; b < MapRenderer.Height; b++)
-            for (int a = 0; a < mw; a++)
-            {
-                uint c = session.Art.Palette[MapRenderer.MapColour(st, view, a, b)];
-                bool frame = (a == originA || a == originA + Cols - 1) && b >= originB && b < originB + Rows
-                             || (b == originB || b == originB + Rows - 1) && a >= originA && a < originA + Cols;
-                if (frame) c = 0xffffff40u;
-                for (int dy = 0; dy < OvScale; dy++)
-                    for (int dx = 0; dx < OvScale; dx++)
-                        dst[(y0 + b * OvScale + dy) * w + x0 + a * OvScale + dx] = c;
-            }
-    }
-
-    bool OverviewClick(Vector2 p)
-    {
-        if (!overview) return false;
-        int a = (int)(p.X - OvX) / OvScale, b = (int)(p.Y - 4) / OvScale;
-        if (p.X < OvX || p.Y < 4 || a >= MapRenderer.Width(view) || b >= MapRenderer.Height) return false;
-        follow = false;
-        originA = a - Cols / 2;
-        originB = b - Rows / 2;
-        Clamp();
-        return true;
-    }
-
     void YardClick(Vector2 p)
     {
         int r = (int)((p.X - YardX) / YardW), c = (int)((p.Y - YardY) / YardH);
@@ -473,34 +743,38 @@ public partial class Main : Node2D
     void Redraw()
     {
         var st = session.St;
-        // the map window the original keeps in G (the event markers record only spots inside it, f_06725)
+        // the Edit window the original keeps in G (the event markers record only spots inside it, f_06725)
         st.Set16(Seg.G, 0x508, originA);
         st.Set16(Seg.G, 0x50a, originB);
         st.Set16(Seg.G, 0x10e0, Cols);
         st.Set16(Seg.G, 0x10de, Rows);
-        int w = Cols * Cell;
-        int cols = Math.Min(Cols, MapRenderer.Width(view));
-        Array.Fill(argb, 0xff000000u);
-        if (yardMap) DrawYard(argb, w);
-        else MapRenderer.Render(st, session.Art, view, originA, originB, originA + cols, originB + Rows, argb, w);
-        if (view == 1 && !yardMap)
-            SpiderRenderer.Draw(st, session.Files, session.Art, argb, w, Rows * Cell, originA * Cell, originB * Cell, SpiderRenderer.FangJitter(st));
-        if (overview && !yardMap) DrawOverview(argb, w);
-        if (history && !yardMap) DrawHistory(argb, w);
+        var canvas = new UiArt.Canvas(argb, ScreenW, ScreenH);
+        if (yardMap) DrawYard(argb, ScreenW);
+        else
+        {
+            // the desktop: a 50% grey pattern
+            for (int y = 0; y < ScreenH; y++)
+                for (int x = 0; x < ScreenW; x++)
+                    argb[y * ScreenW + x] = ((x ^ y) & 1) == 0 ? 0xff9a9a9au : 0xff7a7a7au;
+            foreach (int win in zOrder)
+                if (win == EditWin) DrawEditWindow(canvas);
+                else DrawMapWindow(canvas);
+        }
+        if (history && !yardMap) DrawHistory(argb, ScreenW);
         else if (historyLabel != null) historyLabel.Visible = false;
-        if (panels && !yardMap) DrawPanels(argb, w);
+        if (panels && !yardMap) DrawPanels(argb, ScreenW);
         else if (panelLabels != null) foreach (var l in panelLabels) l.Visible = false;
-        string[] names = { "", "Surface", "Black nest", "Red nest" };
         string mode = st.U16(Seg.G, 0xeac) == 2 ? "Full Game" : "Quick Game";
-        status.Text = $"{mode}  {names[view]}  tick {session.Ticks}  black {st.U16(Seg.G, 0x330)}  red {st.U16(Seg.G, 0x350)}"
+        status.Text = $"{mode}  {ViewNames[view]}  tick {session.Ticks}  black {st.U16(Seg.G, 0x330)}  red {st.U16(Seg.G, 0x350)}"
                       + $"  health {st.S16(Seg.G, 0xf78)}  colony {st.S16(Seg.G, 0x10be)}  speed {SpeedNames[session.Speed]}  jobs {(st.U16(Seg.G, 0x378) == 1 ? "auto" : "manual")}"
                       + (session.Paused ? "  PAUSED" : "") + (session.Over ? (st.U16(Seg.G, 0x366) != 0 ? "  YOU WON" : "  GAME OVER") : "");
         message.Text = lastMessage;
         if (font != null)                                               // the status lines in the game's font 2
         {
-            for (int i = Rows * Cell * w; i < argb.Length; i++) argb[i] = 0xffc0c0c0u;
-            font.Draw(argb, w, ScreenH, 4, Rows * Cell + 3, status.Text, 0xff000000u);
-            font.Draw(argb, w, ScreenH, 4, Rows * Cell + 4 + font.Height, message.Text.Replace("\n", " "), 0xff000080u);
+            int y0 = 384;
+            canvas.Fill(0, y0, ScreenW, y0 + 2 * font.Height + 6, 0xffc0c0c0u);
+            font.Draw(argb, ScreenW, ScreenH, 4, y0 + 2, status.Text, 0xff000000u);
+            font.Draw(argb, ScreenW, ScreenH, 4, y0 + 3 + font.Height, message.Text.Replace("\n", " "), 0xff000080u);
             status.Visible = message.Visible = false;
         }
         for (int i = 0; i < argb.Length; i++)
@@ -511,43 +785,50 @@ public partial class Main : Node2D
             rgba[4 * i + 2] = (byte)c;
             rgba[4 * i + 3] = 255;
         }
-        image.SetData(w, ScreenH, false, Image.Format.Rgba8, rgba);
+        image.SetData(ScreenW, ScreenH, false, Image.Format.Rgba8, rgba);
         texture.Update(image);
     }
 
     public override void _UnhandledInput(InputEvent ev)
     {
         if (session == null) return;
+        if (ev is InputEventMouseMotion mm && dragWin >= 0)
+        {
+            var d = mm.Position - dragFrom;
+            var r = ui.Layouts[dragWin].Rect;
+            // keep the caption reachable on screen
+            int dx = Math.Clamp(dragOrig.dx + (int)d.X, -r.right + 40, ScreenW - 40 - r.left);
+            int dy = Math.Clamp(dragOrig.dy + (int)d.Y, -r.top, ScreenH - 20 - r.top);
+            offsets[dragWin] = (dx, dy);
+            return;
+        }
+        if (ev is InputEventMouseButton up && !up.Pressed && up.ButtonIndex == MouseButton.Left)
+        {
+            dragWin = -1;
+            return;
+        }
         if (ev is InputEventMouseButton mb && mb.Pressed)
         {
-            int a = (int)(mb.Position.X / Cell) + originA, b = (int)(mb.Position.Y / Cell) + originB;
             if (yardMap)
             {
                 YardClick(mb.Position);
                 return;
             }
-            if (OverviewClick(mb.Position)) return;
             if (mb.Position.X < 190 && PanelClick(mb.Position)) return;
-            if (mb.Position.Y >= Rows * Cell || a >= MapRenderer.Width(view)) return;
-            var st = session.St;
-            if (mb.CtrlPressed)                                                 // the Ant Info tool
+            int win = WindowAt(mb.Position);
+            if (win < 0) return;
+            Front(win);
+            if (Inside(CaptionRect(win), mb.Position) && mb.ButtonIndex == MouseButton.Left)
             {
-                lastMessage = AntInfo(a, b) ?? "";
+                dragWin = win;                                                  // drag the window by its caption
+                dragFrom = mb.Position;
+                dragOrig = offsets[win];
                 return;
             }
-            int target = st.U16(Seg.G, 0x105e);
-            if (target == 0xa) Commands.ExchangeClick(st, view, a, b);          // Exchange: pick the ant to become
-            else if (st.U16(Seg.G, 0xa06) == 1 || target == 0xb)
-            {
-                if (view == 1) Commands.SpiderClick(st, a, b, mb.ButtonIndex == MouseButton.Right ? 1 : 0);
-            }
-            else if (mb.ButtonIndex == MouseButton.Left)
-            {
-                if (mb.ShiftPressed) ActOn(a, b);
-                else session.WalkTo(view, a, b);
-            }
-            else if (mb.ButtonIndex == MouseButton.Right)
-                session.WalkTo(view, a, b, dig: true);
+            var (dx, dy) = Off(win);
+            int index = ui.HitTest(win, dx, dy, (int)mb.Position.X, (int)mb.Position.Y);
+            if (win == EditWin) EditWindowClick(index, mb);
+            else if (mb.ButtonIndex == MouseButton.Left) MapWindowClick(index, mb);
         }
         else if (ev is InputEventKey k && k.Pressed && !k.Echo)
         {
@@ -575,10 +856,15 @@ public partial class Main : Node2D
                 case Key.U: Commands.Command(session.St, k.ShiftPressed ? 0xc : 0xb); break;  // the spider: hunt / lash out
                 case Key.Y: yardMap = !yardMap && session.St.U16(Seg.G, 0xeac) == 2; break;  // the yard map (Full Game)
                 case Key.Escape: yardMap = false; break;
-                case Key.Tab: overview = !overview; break;                                 // the Map window
+                case Key.Tab:                                                              // the Map window: front / close
+                    if (zOrder.Contains(MapWin) && zOrder[^1] != MapWin) Front(MapWin);
+                    else if (zOrder.Contains(MapWin)) zOrder.Remove(MapWin);
+                    else Front(MapWin);
+                    break;
                 case Key.S: muted = !muted; break;                                         // sound effects on / off
                 case Key.G: history = !history; break;                                     // the History graph
                 case Key.P: panels = !panels; break;                                       // the colony controls
+                case Key.F1: help = !help; break;                                          // the help overlays
                 case Key.F5:                                                               // save (the original's .ANT format)
                 {
                     var path = ProjectSettings.GlobalizePath("user://quicksave.ANT");
@@ -595,15 +881,7 @@ public partial class Main : Node2D
                     SetView(session.Yellow.view);
                     break;
                 }
-                case Key.V:                                                                // the scent views (T:07BE)
-                {
-                    int m = session.St.U16(Seg.T, 0x7be);
-                    session.St.Set16(Seg.T, 0x7be, m == 0xffff ? 0 : m >= 4 ? 0xffff : m + 1);
-                    string[] scents = { "alarm", "black nest marker", "black trail", "red nest marker", "red trail" };
-                    int now = session.St.U16(Seg.T, 0x7be);
-                    lastMessage = now < 5 ? "Scent view: " + scents[now] : "Scent view off";
-                    break;
-                }
+                case Key.V: CycleScent(); break;                                           // the scent views (T:07BE)
                 case Key.O: session.St.Set16(Seg.G, 0x378, session.St.U16(Seg.G, 0x378) == 1 ? 0 : 1); break;   // auto / manual jobs
                 case Key.N: Restart(1); break;
                 case Key.M: Restart(2); break;
