@@ -117,6 +117,9 @@ public partial class Main : Node2D
                 lastMessage = lines != null ? string.Join(" ", lines) : $"message 0x{id:x}";
                 GD.Print("message: " + lastMessage);
             }
+            else if (e.Name == "sound" && e.Args.Length > 0 && e.Args[0] is int sfx && sfx < 57
+                     && session.St.U16(Seg.T, 0x7ac) != 0)
+                PlaySound(sfx);
             else if (e.Name == "game_over" && e.Args.Length >= 2)
             {
                 // f_71d95's rating window: the rank's title (STR# 1900 = G:0328) and the score (Game.Rating). f_71d95
@@ -128,6 +131,39 @@ public partial class Main : Node2D
                 GD.Print(lastMessage);
             }
         }
+    }
+
+    // ------------------------------------------------------------------------------- sound effects
+    readonly Dictionary<int, AudioStreamWav> sfxCache = new();
+    readonly List<AudioStreamPlayer> players = new();
+    bool muted;
+
+    void PlaySound(int n)
+    {
+        if (muted) return;
+        if (!sfxCache.TryGetValue(n, out var stream))
+        {
+            var pcm = session.Files.SoundEffect(n);
+            stream = pcm == null || pcm.Length == 0 ? null : new AudioStreamWav
+            {
+                Format = AudioStreamWav.FormatEnum.Format8Bits,
+                MixRate = Sounds.SampleRate,
+                Stereo = false,
+                Data = (byte[])(Array)pcm,
+            };
+            sfxCache[n] = stream;
+        }
+        if (stream == null) return;
+        var p = players.FirstOrDefault(x => !x.Playing);
+        if (p == null)
+        {
+            if (players.Count >= 6) return;
+            p = new AudioStreamPlayer { VolumeDb = -6 };
+            AddChild(p);
+            players.Add(p);
+        }
+        p.Stream = stream;
+        p.Play();
     }
 
     static string Describe(object[] args) => string.Join(" ", args.Select(a => a is int i ? $"0x{i:x}" : a?.ToString() ?? "-"));
@@ -309,6 +345,7 @@ public partial class Main : Node2D
                 case Key.Y: yardMap = !yardMap && session.St.U16(Seg.G, 0xeac) == 2; break;  // the yard map (Full Game)
                 case Key.Escape: yardMap = false; break;
                 case Key.Tab: overview = !overview; break;                                 // the Map window
+                case Key.S: muted = !muted; break;                                         // sound effects on / off
                 case Key.N: Restart(1); break;
                 case Key.M: Restart(2); break;
             }

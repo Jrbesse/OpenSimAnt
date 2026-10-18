@@ -135,6 +135,16 @@ public sealed class OriginalFiles
         Flat = ExeImage.BuildFlat(File.ReadAllBytes(Path.Combine(dir, "SIMANT.EXE")));
         Hcegant = ResourceArchive.Read(Path.Combine(dir, "HCEGANT"));
         Shared = File.Exists(Path.Combine(dir, "SHARED.DAT")) ? ResourceArchive.Read(Path.Combine(dir, "SHARED")) : new List<Resource>();
+        Sound = File.Exists(Path.Combine(dir, "SOUND.DAT")) ? ResourceArchive.Read(Path.Combine(dir, "SOUND")) : new List<Resource>();
+    }
+
+    public readonly List<Resource> Sound;
+
+    /// <summary>Sound effect n as signed 8-bit PCM (Sounds.SampleRate), null if there is none.</summary>
+    public sbyte[] SoundEffect(int n)
+    {
+        var r = Sound.FirstOrDefault(x => x.Type == 5 && x.Id == n);
+        return r == null ? null : Sounds.Decode(r.Data);
     }
 
     /// <summary>A Mac STR# list (type 4; SHARED first, then HCEGANT): u16 BE count, then Pascal strings.
