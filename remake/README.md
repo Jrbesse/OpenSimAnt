@@ -40,13 +40,27 @@ Godot with `--path remake/game`. The game looks for the original files in `--gam
 `--`), `FORMICA_GAME_DIR`, or the folders above the project. `-- --screenshot=out.png` saves the screen after
 240 frames and quits; `--ticks=N` runs the game N ticks ahead first, `--history` opens the History graph.
 
-Controls (first shell, a stand-in until the original's screens are built):
+The screen is built from the original's window layouts (`Formica.Data/Ui.cs` draws them with the player's own
+bitmaps and fonts): the **Edit window** (the close-up map with its tool strip and health bars) and the **Map
+window** (the whole map, the toolbar and the population report), plus the Behavior / Caste Control, History
+and Efficiency Score windows and the yellow ant's pop-up menu. Drag a window by its caption; a click brings it
+to the front. The status lines below the windows are the shell's own.
+
+Mouse:
+
+| Where | Action |
+|---|---|
+| Edit window map | left click: walk the yellow ant there (Shift: walk and act on the cell: pick up / drop); right click: walk there digging; Ctrl + click: Ant Info |
+| on the yellow ant | press and hold: its menu (recruit, release, exchange; a queen: dig hole, start brood; the spider: chase, hunt); release on an entry |
+| Edit tool strip | MAP (show / hide the Map window), ? (help overlays), Surface / Black / Red nest, go to the yellow ant / spider / queens, PAUSE, SCENT (cycle the scent views) |
+| Map window | click the map to look there; toolbar: Yard (Full Game), the views, scent layers, Behavior / Caste Control, Center on Yellow, the Mystery Button, History, Efficiency Score, Ant Info |
+| Behavior / Caste Control | click or drag in the triangle; Auto / Manual |
+| History window | the series buttons (up to four at once) |
+
+Keys:
 
 | Input | Action |
 |---|---|
-| Left click | walk the yellow ant there (Shift: walk and act on the cell: pick up / drop) |
-| Right click | walk there digging through the nest |
-| Ctrl + click | Ant Info: caste, job and load of the ant there |
 | 1 / 2 / 3 | surface / black nest / red nest |
 | Arrows, F | scroll; follow the yellow ant |
 | Space, + / - | pause (G:047E); speed slow / medium / fast (T:07CC) |
@@ -55,12 +69,16 @@ Controls (first shell, a stand-in until the original's screens are built):
 | X | exchange: then click an ant (or the spider) to become it |
 | A, H, B | alarm trail; dig a hole (a queen founds a nest); start brood |
 | C, U, Shift+U | as the spider: chase (then click), hunt, lash out |
-| P, O | colony controls (Behavior / Caste triangles: click to set); automatic / manual jobs (G:0378) |
-| G, Tab, V | History graph; overview (Map window colours, click to scroll); scent views (T:07BE) |
+| P, O | Behavior and Caste Control windows; automatic / manual jobs (G:0378) |
+| G, Tab, V | History window; Map window (front / hide); scent views (T:07BE) |
+| F1 | the help overlays |
 | Y, Esc | yard map in a Full Game (click a patch to move; also opens when another colony must be picked) |
 | F5 / F9 | quick save / load (the original's .ANT format, in Godot's user:// folder) |
 | S | sound effects on / off |
 | N / M | new Quick Game / new Full Game |
+
+Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`, `--efficiency`, `--popup`,
+`--map-front`, `--help-overlay` to open those windows first.
 
 ## Porting notes
 
