@@ -20,6 +20,9 @@ public static class Smoke
                 if (refFlat[i] != s.Files.Flat[i]) diffs++;
             Console.WriteLine($"state image from SIMANT.EXE vs flat.bin: {diffs} bytes differ");
         }
+        var layouts = Layouts.All(s.Files);
+        Console.WriteLine($"window layouts: {layouts.Count}, items {layouts.Values.Sum(w => w.Items.Count)}; window 1: rect {layouts.GetValueOrDefault(1)?.Rect}, "
+                          + string.Join(", ", layouts.GetValueOrDefault(1)?.Items.Take(6).Select(i => $"{i.Id:x4} {i.Kind} {i.Text}") ?? Array.Empty<string>()));
         var bootPath = Path.Combine(TracePaths.DefaultDir(), "..", "boot_state.bin");
         if (File.Exists(bootPath))
         {

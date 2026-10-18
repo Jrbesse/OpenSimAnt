@@ -118,8 +118,8 @@ end, resetting 2026-10-18 22:00 UTC), so a morning session has little room befor
 
 Suggested next session (in order):
 1. Play the shell and note what feels wrong (speed, controls, missing feedback).
-2. The real screens from the decoded layouts (step 13): port `tools/layouts.py` to `Formica.Data`, then the
-   main game window (frame, toolbar, status line positions), the pop-up command menu, the Behavior / Caste
+2. The real screens from the decoded layouts (step 13): `Formica.Data/Layouts.cs` (done: a port of
+   `tools/layouts.py`, 34 windows / 285 items, checked against it in `--smoke`), then the main game window (frame, toolbar, status line positions), the pop-up command menu, the Behavior / Caste
    windows with their bar charts, the History window's own scaling.
 3. The isometric yard map (f_7650c) in place of the shell's grid.
 4. Music: the MIDI songs (SOUND types 18 / 20, effect ids 10000+) through a C# SoundFont synth (e.g. the
