@@ -89,7 +89,12 @@ public partial class Main : Node2D
     public override void _Process(double delta)
     {
         if (session == null) return;
-        if (!session.Over) session.Advance(delta);
+        if (session.Hooks.YardMapWanted)                                    // the yellow ant died: pick a colony
+        {
+            session.Hooks.YardMapWanted = false;
+            yardMap = true;
+        }
+        if (!session.Over && !yardMap) session.Advance(delta);
         DrainEffects();
         if (follow) CenterOnYellow();
         Redraw();
@@ -132,14 +137,58 @@ public partial class Main : Node2D
         originB = Math.Clamp(originB, 0, MapRenderer.Height - Rows);
     }
 
+    // ------------------------------------------------------------------------------- the yard map (simple)
+    // The yard is 12 x 16 patches (c = G:07BC / G:07CA 0..11, r = G:07BE / G:07CC 0..15); colony strengths
+    // T:00A4[c*16 + r] (black) and T:0164[...] (red), 0..0xFA; patches 0..37 are the house. The original draws
+    // it isometric (the yard map f_7650c); this is a plain grid until that screen is built.
+    const int YardX = 32, YardY = 24, YardW = 36, YardH = 34;
+    bool yardMap;
+
+    void DrawYard(uint[] dst, int w)
+    {
+        var st = session.St;
+        int pc = st.U16(Seg.G, 0x7ca), pr = st.U16(Seg.G, 0x7cc);
+        Array.Fill(dst, 0xff204020u);
+        for (int c = 0; c < 12; c++)
+            for (int r = 0; r < 16; r++)
+            {
+                int idx = c * 16 + r;
+                int black = st.U8(Seg.T, 0xa4 + idx), red = st.U8(Seg.T, 0x164 + idx);
+                uint ground = idx <= 0x25 ? 0xff707070u : 0xff3c7a2cu;
+                int x0 = YardX + r * YardW, y0 = YardY + c * YardH;
+                for (int y = 1; y < YardH - 1; y++)
+                    for (int x = 1; x < YardW - 1; x++)
+                    {
+                        uint col = ground;
+                        if (x < YardW / 2 && y >= YardH - 1 - black * (YardH - 2) / 250) col = 0xff101010u;
+                        if (x >= YardW / 2 && y >= YardH - 1 - red * (YardH - 2) / 250) col = 0xffc02020u;
+                        bool edge = c == pc && r == pr && (x < 3 || y < 3 || x >= YardW - 4 || y >= YardH - 4);
+                        dst[(y0 + y) * w + x0 + x] = edge ? 0xffffff40u : col;
+                    }
+            }
+    }
+
+    void YardClick(Vector2 p)
+    {
+        int r = (int)((p.X - YardX) / YardW), c = (int)((p.Y - YardY) / YardH);
+        if (p.X < YardX || p.Y < YardY || r > 15 || c > 11) return;
+        var st = session.St;
+        st.Set16(Seg.G, 0x7bc, c);
+        st.Set16(Seg.G, 0x7be, r);
+        NewGame.MoveToPatch(st);                                            // f_01d48 (it may refuse: a message)
+        yardMap = false;
+        SetView(session.Yellow.view);
+    }
+
     void Redraw()
     {
         var st = session.St;
         int w = Cols * Cell;
         int cols = Math.Min(Cols, MapRenderer.Width(view));
         Array.Fill(argb, 0xff000000u);
-        MapRenderer.Render(st, session.Art, view, originA, originB, originA + cols, originB + Rows, argb, w);
-        if (view == 1)
+        if (yardMap) DrawYard(argb, w);
+        else MapRenderer.Render(st, session.Art, view, originA, originB, originA + cols, originB + Rows, argb, w);
+        if (view == 1 && !yardMap)
             SpiderRenderer.Draw(st, session.Files, session.Art, argb, w, Rows * Cell, originA * Cell, originB * Cell, SpiderRenderer.FangJitter(st));
         for (int i = 0; i < argb.Length; i++)
         {
@@ -165,6 +214,11 @@ public partial class Main : Node2D
         if (ev is InputEventMouseButton mb && mb.Pressed)
         {
             int a = (int)(mb.Position.X / Cell) + originA, b = (int)(mb.Position.Y / Cell) + originB;
+            if (yardMap)
+            {
+                YardClick(mb.Position);
+                return;
+            }
             if (mb.Position.Y >= Rows * Cell || a >= MapRenderer.Width(view)) return;
             var st = session.St;
             int target = st.U16(Seg.G, 0x105e);
@@ -205,6 +259,8 @@ public partial class Main : Node2D
                 case Key.B: Commands.Command(session.St, 9); break;                           // start brood (a queen in the nest)
                 case Key.C: Commands.Command(session.St, 0xa); break;                         // the spider: chase (then click)
                 case Key.U: Commands.Command(session.St, k.ShiftPressed ? 0xc : 0xb); break;  // the spider: hunt / lash out
+                case Key.Y: yardMap = !yardMap && session.St.U16(Seg.G, 0xeac) == 2; break;  // the yard map (Full Game)
+                case Key.Escape: yardMap = false; break;
                 case Key.N: Restart(1); break;
                 case Key.M: Restart(2); break;
             }

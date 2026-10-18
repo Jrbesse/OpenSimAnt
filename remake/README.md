@@ -44,7 +44,8 @@ Controls (first shell): left click walks the yellow ant there (Shift: walk and a
 dropping), right click digs its way there, 1 / 2 / 3 surface / black nest / red nest, arrows scroll, F follows
 the yellow ant, Space pauses (G:047E), + / - speed (slow / medium / fast, as the original's T:07CC), N a new Quick Game, M a new Full Game. The yellow ant's commands: R / Shift+R recruit 5 / 10, E / Shift+E
 release half / all, X exchange (then click an ant or the spider), A alarm trail, H dig a hole, B start brood,
-C chase (as the spider, then click), U / Shift+U hunt / lash out.
+C chase (as the spider, then click), U / Shift+U hunt / lash out. Y the yard map (Full Game; click a patch to
+move there, Esc to close; it also opens when the yellow ant dies and another colony must be picked).
 
 ## Porting notes
 
