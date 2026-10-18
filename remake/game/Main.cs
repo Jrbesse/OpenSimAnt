@@ -99,10 +99,11 @@ public partial class Main : Node2D
             session.Hooks.YardMapWanted = false;
             yardMap = true;
         }
-        if (!session.Over && !yardMap) session.Advance(delta);
+        if (!session.Over && !yardMap && session.Advance(delta) > 0) balloonsNow.Clear();
         DrainEffects();
         if (follow) CenterOnYellow();
         Redraw();
+        ShowBalloons();
         if (screenshot != null && ++frames == 240)
         {
             // --screenshot=<png>: save the screen after 240 frames and quit (for checking a build)
@@ -125,6 +126,8 @@ public partial class Main : Node2D
             else if (e.Name == "sound" && e.Args.Length > 0 && e.Args[0] is int sfx && sfx < 57
                      && session.St.U16(Seg.T, 0x7ac) != 0)
                 PlaySound(sfx);
+            else if (e.Name == "balloon" && e.Args.Length >= 5 && e.Args[4] is ValueTuple<int, int> line)
+                balloonsNow[(int)e.Args[3]] = ((int)e.Args[0], (int)e.Args[1], (int)e.Args[2], BalloonText(line.Item1, line.Item2));
             else if (e.Name == "game_over" && e.Args.Length >= 2)
             {
                 // f_71d95's rating window: the rank's title (STR# 1900 = G:0328) and the score (Game.Rating). f_71d95
@@ -295,6 +298,47 @@ public partial class Main : Node2D
         return $"{colour} {kind}: {Pick(1102, state)}, carrying {Pick(1103, caste)}";
     }
 
+    // ------------------------------------------------------------------------------- speech balloons
+    // Balloons.Run (f_06a4d) emits ("balloon", a, b, view, style, (list handle, line)) each tick a balloon is
+    // shown; the list handles are the STR# lists loaded at start-up: G:020A 1220 (black fighters), G:0218 1230
+    // (red fighters), G:021C 1240 (brood), G:0234 1250 (queen), G:023A 1260 (resting). The original draws a
+    // balloon bitmap group (f_0696a); this shows the text.
+    static readonly Dictionary<int, int> BalloonLists = new() { [0x20a] = 1220, [0x218] = 1230, [0x21c] = 1240, [0x234] = 1250, [0x23a] = 1260 };
+    readonly Dictionary<int, (int a, int b, int view, string text)> balloonsNow = new();
+    readonly List<Label> balloonLabels = new();
+
+    string BalloonText(int handle, int index)
+    {
+        var lines = BalloonLists.TryGetValue(handle, out int id) ? session.Files.Strings(id) : null;
+        // the lines hold a literal backslash-n where the original's text drawing breaks the line
+        return lines != null && index < lines.Length ? lines[index].Replace("\\n", "\n") : null;
+    }
+
+    void ShowBalloons()
+    {
+        int k = 0;
+        foreach (var (a, b, v, text) in balloonsNow.Values)
+        {
+            if (text == null || v != view || yardMap) continue;
+            int x = (a - originA) * Cell, y = (b - originB) * Cell - 18;
+            if (x < 0 || y < 0 || x >= Cols * Cell || y >= Rows * Cell) continue;
+            if (k == balloonLabels.Count)
+            {
+                var l = new Label();
+                l.AddThemeFontSizeOverride("font_size", 10);
+                l.AddThemeColorOverride("font_color", new Color(0, 0, 0));
+                l.AddThemeStyleboxOverride("normal", new StyleBoxFlat { BgColor = new Color(1, 1, 1), ContentMarginLeft = 3, ContentMarginRight = 3 });
+                status.GetParent().AddChild(l);
+                balloonLabels.Add(l);
+            }
+            balloonLabels[k].Text = text;
+            balloonLabels[k].Position = new Vector2(Math.Min(x, Cols * Cell - 160), y);
+            balloonLabels[k].Visible = true;
+            k++;
+        }
+        for (; k < balloonLabels.Count; k++) balloonLabels[k].Visible = false;
+    }
+
     // ------------------------------------------------------------------------------- sound effects
     readonly Dictionary<int, AudioStreamWav> sfxCache = new();
     readonly List<AudioStreamPlayer> players = new();
@@ -426,6 +470,11 @@ public partial class Main : Node2D
     void Redraw()
     {
         var st = session.St;
+        // the map window the original keeps in G (the event markers record only spots inside it, f_06725)
+        st.Set16(Seg.G, 0x508, originA);
+        st.Set16(Seg.G, 0x50a, originB);
+        st.Set16(Seg.G, 0x10e0, Cols);
+        st.Set16(Seg.G, 0x10de, Rows);
         int w = Cols * Cell;
         int cols = Math.Min(Cols, MapRenderer.Width(view));
         Array.Fill(argb, 0xff000000u);
