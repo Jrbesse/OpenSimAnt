@@ -46,7 +46,7 @@ public partial class Main : Node2D
 
     // the window stack (last = front) and each window's offset from its layout position
     readonly List<int> zOrder = new() { MapWin, EditWin };
-    readonly Dictionary<int, (int dx, int dy)> offsets = new() { [EditWin] = (0, 0), [MapWin] = (0, 0), [BehaviorWin] = (0, 0), [CasteWin] = (0, 0) };
+    readonly Dictionary<int, (int dx, int dy)> offsets = new() { [EditWin] = (0, 0), [MapWin] = (0, 0), [BehaviorWin] = (0, 0), [CasteWin] = (0, 0), [HistoryWin] = (0, 0) };
     int dragWin = -1;
     Vector2 dragFrom;
     (int dx, int dy) dragOrig;
@@ -75,7 +75,7 @@ public partial class Main : Node2D
         GD.Print("Formica: game files in " + dir);
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--screenshot=")) screenshot = arg["--screenshot=".Length..];
-            else if (arg == "--history") history = true;
+            else if (arg == "--history") Front(HistoryWin);
             else if (arg == "--panels") { Front(BehaviorWin); Front(CasteWin); }
             else if (arg == "--help-overlay") help = true;
             else if (arg == "--map-front") Front(MapWin);
@@ -445,7 +445,7 @@ public partial class Main : Node2D
             case 17: ToggleWindow(CasteWin); break;
             case 16: SetView(session.Yellow.view); follow = true; break;
             case 18: DebugCommands.RandomAction(st); break;                              // the Mystery Button (f_022bc)
-            case 19: history = !history; break;
+            case 19: ToggleWindow(HistoryWin); break;
             case 20: OpenEfficiency(); break;
             case 22: case 23: lastMessage = "The Experimental menu is not built yet."; break;
             case 21: antInfoArmed = true; lastMessage = "Ant Info: click an ant in the Edit window."; break;
@@ -561,63 +561,85 @@ public partial class Main : Node2D
         Text(12, S(1010, 14));
     }
 
-    // ------------------------------------------------------------------------------- the History window (simple)
-    // World.History samples ten values every 64 ticks into 64-entry rings (G:04F4 the next slot, T:0828 how
-    // many are valid). The original's window scales and draws them (SIM_NOTES "History Window"); this plots
-    // the populations and food stores with auto-scaling until that screen is built.
-    static readonly (int ring, int str, uint colour)[] HistorySeries =
-    {
-        (0x516, 0, 0xff202020u), (0x5a0, 5, 0xffd03030u), (0x626, 1, 0xff6060ffu), (0x6ae, 6, 0xffff9020u),
-    };
-    bool history;
-    Label historyLabel;
+    // ------------------------------------------------------------------------------- the History window (layout 21)
+    // f_792d2 / f_795ec (SIM_NOTES "The History Window"): buttons 0x1503..0x150C (items 3..12, series s = item - 3)
+    // toggle up to 4 series (DS:2EF0[4]); series s plots the rings of T:082A[(s & 1) * 5 + (s >> 1)] in black and
+    // T:0852[...] in red (far pointers into G, the start-up values below; World.History fills the rings: 64
+    // entries, G:04F4 the next slot, T:0828 how many are valid). The graph is item 0x150E (index 14): height H =
+    // its height - 16 (8 px margins), width its width - 0x40. Scale: M = the largest value shown; if M * 2 < H,
+    // y = bottom - v * mult with the largest mult keeping M * mult < H, else y = bottom - v / div with the
+    // smallest div bringing M / div <= H. The line drawing and the x placement are not traced: points are spread
+    // evenly with 32 px on each side. Item 13 shows the help overlay 16001.
+    const int HistoryWin = 21, HistoryGraph = 14;
+    static readonly int[] HistoryBlack = { 0x516, 0x626, 0x73c, 0x856, 0x8f0, 0x5a0, 0x6ae, 0x7ce, 0x970, 0xa0a };
+    static readonly int[] HistoryRed = { 0x5a0, 0x6ae, 0x7ce, 0x856, 0xa0a, 0x516, 0x626, 0x73c, 0xa0a, 0x970 };
+    readonly List<int> historySeries = new() { 0 };
 
-    void DrawHistory(uint[] dst, int w)
+    void DrawHistoryWindow(UiArt.Canvas c)
     {
         var st = session.St;
-        const int X0 = 8, Y0 = 250, GW = 384, GH = 180;
-        for (int y = 0; y < GH; y++)
-            for (int x = 0; x < GW; x++)
-                dst[(Y0 + y) * w + X0 + x] = (x == 0 || y == GH - 1) ? 0xff000000u : 0xffe8e8d8u;
+        var (dx, dy) = Off(HistoryWin);
+        ui.DrawWindow(c, HistoryWin, dx, dy, null, new[] { 16001 });
+        var wr = WindowRect(HistoryWin);
+        var clip = c.Clip(wr.l, wr.t, wr.r, wr.b);
+        foreach (int s in historySeries)
+        {
+            var b = ItemRect(HistoryWin, 3 + s);
+            clip.Invert(b.l, b.t, b.r, b.b);
+        }
+        var g = ItemRect(HistoryWin, HistoryGraph);
         int n = Math.Clamp(st.S16(Seg.T, 0x828), 0, 64);
         int start = (st.U8(Seg.G, 0x4f4) - n) & 0x3f;
-        int max = 10;
-        foreach (var (ring, _, _) in HistorySeries)
-            for (int i = 0; i < n; i++) max = Math.Max(max, st.S16(Seg.G, ring + 2 * ((start + i) & 0x3f)));
-        foreach (var (ring, _, colour) in HistorySeries)
+        int h = g.b - g.t - 16, w = g.r - g.l - 0x40, bottom = g.b - 8;
+        int V(int ring, int i) => Math.Max(0, st.S16(Seg.G, ring + 2 * ((start + i) & 0x3f)));
+        int max = 0;
+        foreach (int s in historySeries)
         {
-            int px = -1, py = 0;
-            for (int i = 0; i < n; i++)
+            int k = (s & 1) * 5 + (s >> 1);
+            for (int i = 0; i < n; i++) max = Math.Max(max, Math.Max(V(HistoryBlack[k], i), V(HistoryRed[k], i)));
+        }
+        int mult = 1, div = 1;
+        if (max * 2 < h) while (max * (mult + 1) < h) mult++;
+        else while (max / div > h) div++;
+        var area = clip.Clip(g.l, g.t, g.r, g.b);
+        foreach (int s in historySeries)
+        {
+            int k = (s & 1) * 5 + (s >> 1);
+            foreach (var (ring, colour) in new[] { (HistoryRed[k], session.Art.Palette[3]), (HistoryBlack[k], UiArt.Black) })
             {
-                int v = Math.Max(0, st.S16(Seg.G, ring + 2 * ((start + i) & 0x3f)));
-                int x = 1 + i * (GW - 2) / 63, y = GH - 2 - v * (GH - 4) / max;
-                if (px >= 0)
-                    for (int k = 0; k <= 16; k++)
-                    {
-                        int lx = px + (x - px) * k / 16, ly = py + (y - py) * k / 16;
-                        dst[(Y0 + ly) * w + X0 + lx] = colour;
-                        dst[(Y0 + ly + 1) * w + X0 + lx] = colour;
-                    }
-                px = x;
-                py = y;
+                int px = 0, py = 0;
+                for (int i = 0; i < n; i++)
+                {
+                    int x = g.l + 32 + (n > 1 ? i * w / 63 : 0), y = bottom - (max * 2 < h ? V(ring, i) * mult : V(ring, i) / div);
+                    if (i > 0) Line(area, px, py, x, y, colour);
+                    px = x;
+                    py = y;
+                }
             }
         }
-        if (historyLabel == null)
+        if (help)
         {
-            historyLabel = new Label { Position = new Vector2(X0 + 4, Y0 - 16) };
-            historyLabel.AddThemeFontSizeOverride("font_size", 10);
-            status.GetParent().AddChild(historyLabel);
+            var it = ui.Layouts[HistoryWin].Items.First(x => x.Bitmap == 16001);
+            ui.DrawBitmap(clip, 16001, it.Rect.left + dx, it.Rect.top + dy);
         }
-        var names = session.Files.Strings(1050) ?? new string[10];
-        historyLabel.Text = string.Join("   ", HistorySeries.Select(s => (s.str < names.Length ? names[s.str] : "?") + " (" + ColourName(s.colour) + ")"))
-                            + $"   top {max}";
-        historyLabel.Visible = true;
     }
 
-    static string ColourName(uint c) => c switch
+    static void Line(UiArt.Canvas c, int x0, int y0, int x1, int y1, uint colour)
     {
-        0xff202020u => "black", 0xffd03030u => "red", 0xff6060ffu => "blue", _ => "orange",
-    };
+        int n = Math.Max(Math.Abs(x1 - x0), Math.Abs(y1 - y0));
+        for (int k = 0; k <= n; k++)
+            c.Plot(x0 + (n == 0 ? 0 : (x1 - x0) * k / n), y0 + (n == 0 ? 0 : (y1 - y0) * k / n), colour);
+    }
+
+    void HistoryWindowClick(int index)
+    {
+        if (index == 13) help = !help;
+        else if (index >= 3 && index <= 12)
+        {
+            int s = index - 3;
+            if (!historySeries.Remove(s) && historySeries.Count < 4) historySeries.Add(s);
+        }
+    }
 
     // ------------------------------------------------------------------------------- Behavior / Caste Control
     // Layouts 18 / 19 (bitmaps 4600 / 4620, help overlays 4601 / 4621), the triangles ported in Panels: weights
@@ -916,12 +938,11 @@ public partial class Main : Node2D
             foreach (int win in zOrder)
                 if (win == EditWin) DrawEditWindow(canvas);
                 else if (win == MapWin) DrawMapWindow(canvas);
+                else if (win == HistoryWin) DrawHistoryWindow(canvas);
                 else DrawControlWindow(canvas, win);
             if (modal == EfficiencyWin) DrawEfficiency(canvas);
             if (popup >= 0) DrawPopup(canvas);
         }
-        if (history && !yardMap) DrawHistory(argb, ScreenW);
-        else if (historyLabel != null) historyLabel.Visible = false;
         for (int i = 0; i < argb.Length; i++)
         {
             uint c = argb[i];
@@ -989,6 +1010,7 @@ public partial class Main : Node2D
             if (win == EditWin) EditWindowClick(index, mb);
             else if (mb.ButtonIndex != MouseButton.Left) return;
             else if (win == MapWin) MapWindowClick(index, mb);
+            else if (win == HistoryWin) HistoryWindowClick(index);
             else ControlWindowClick(win, index, mb.Position);
         }
         else if (ev is InputEventKey k && k.Pressed && !k.Echo)
@@ -1023,7 +1045,7 @@ public partial class Main : Node2D
                     else Front(MapWin);
                     break;
                 case Key.S: muted = !muted; break;                                         // sound effects on / off
-                case Key.G: history = !history; break;                                     // the History graph
+                case Key.G: ToggleWindow(HistoryWin); break;                                     // the History graph
                 case Key.P: ToggleWindow(BehaviorWin); ToggleWindow(CasteWin); break;                                       // the colony controls
                 case Key.F1: help = !help; break;                                          // the help overlays
                 case Key.F5:                                                               // save (the original's .ANT format)
