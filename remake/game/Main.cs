@@ -136,6 +136,8 @@ public partial class Main : Node2D
         int cols = Math.Min(Cols, MapRenderer.Width(view));
         Array.Fill(argb, 0xff000000u);
         MapRenderer.Render(st, session.Art, view, originA, originB, originA + cols, originB + Rows, argb, w);
+        if (view == 1)
+            SpiderRenderer.Draw(st, session.Files, session.Art, argb, w, Rows * Cell, originA * Cell, originB * Cell, SpiderRenderer.FangJitter(st));
         for (int i = 0; i < argb.Length; i++)
         {
             uint c = argb[i];

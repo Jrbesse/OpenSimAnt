@@ -66,14 +66,24 @@ public static class Smoke
             }
             var (v, a, b) = s.Yellow;
             Console.WriteLine($"  after {t} ticks: yellow at view {v} ({a}, {b}), black {s.St.U16(Seg.G, 0x330)} red {s.St.U16(Seg.G, 0x350)}, "
-                              + $"surface ants {s.St.U16(Seg.G, 0xd6a)}, over {s.Over}, effects {s.Hooks.Effects.Count}");
+                              + $"surface ants {s.St.U16(Seg.G, 0xd6a)}, spider {s.St.U16(Seg.G, 0xf0c)} at ({s.St.S16(Seg.G, 0xf12) >> 4}, {s.St.S16(Seg.G, 0xf34) >> 4}), over {s.Over}, effects {s.Hooks.Effects.Count}");
             Directory.CreateDirectory(outDir);
             for (int view = 1; view <= 3; view++)
             {
                 int w = MapRenderer.Width(view) * 16, h = MapRenderer.Height * 16;
                 var px = new uint[w * h];
                 MapRenderer.Render(s.St, s.Art, view, 0, 0, MapRenderer.Width(view), MapRenderer.Height, px, w);
+                if (view == 1) SpiderRenderer.Draw(s.St, s.Files, s.Art, px, w, h, 0, 0, SpiderRenderer.FangJitter(s.St));
                 WritePng(Path.Combine(outDir, $"mode{mode}_view{view}.png"), w, h, px);
+                if (view == 1 && s.St.U16(Seg.G, 0xf0c) != 0)
+                {
+                    // a 256 x 192 crop around the spider, to check its drawing
+                    int cx = Math.Clamp(s.St.S16(Seg.G, 0xf12) - 128, 0, w - 256), cy = Math.Clamp(s.St.S16(Seg.G, 0xf34) - 96, 0, h - 192);
+                    var crop = new uint[256 * 192];
+                    for (int y = 0; y < 192; y++)
+                        Array.Copy(px, (cy + y) * w + cx, crop, y * 256, 256);
+                    WritePng(Path.Combine(outDir, $"mode{mode}_spider.png"), 256, 192, crop);
+                }
             }
         }
         Console.WriteLine("wrote " + outDir);
