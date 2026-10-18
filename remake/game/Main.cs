@@ -1378,6 +1378,8 @@ public partial class Main : Node2D
             clip.Fill(r.l, r.t, r.r, r.b, UiArt.White);
             ui.DrawText(clip, 3, 0, r.l, r.t, r.r, r.b, n.ToString());
         }
+        var am = ItemRect(YardWin, st.U16(Seg.T, 0x2c0) == 1 ? 13 : 14);    // AUTOMATIC / MANUAL (T:02C0)
+        clip.Invert(am.l, am.t, am.r, am.b);
         var q = ItemRect(YardWin, 12);                                     // the swarm's black queens G:07C8
         clip.Fill(q.l, q.t, q.r, q.b, UiArt.White);
         ui.DrawText(clip, 3, 0, q.l, q.t, q.r, q.b, Math.Max(0, (int)st.S16(Seg.G, 0x7c8)).ToString());
@@ -1386,6 +1388,31 @@ public partial class Main : Node2D
             var it = ui.Layouts[YardWin].Items.First(x => x.Bitmap == 7011);
             ui.DrawBitmap(clip, 7011, it.Rect.left + dx, it.Rect.top + dy);
         }
+    }
+
+    /// <summary>MATE (0x190B in f_6f7f0): only in a Full Game; needs males or new queens, G:0AF2 + G:0AF4, not
+    /// counting the yellow ant if it is one (type 0x40 / 0x20); then the black flight timer G:08DC = 0xC8.
+    /// Otherwise sound 1 and a 180-tick message (STR# 1010 [15] / [5]); on success [6].</summary>
+    void Mate()
+    {
+        var st = session.St;
+        string S(int k) => session.Files.Strings(1010)?[k] ?? "";
+        if (st.U16(Seg.G, 0xeac) != 2)
+        {
+            st.Hooks.Effect(st, "sound", 1, 0x7e);
+            lastMessage = S(15);
+            return;
+        }
+        int n = st.S16(Seg.G, 0xaf2) + st.S16(Seg.G, 0xaf4), t = st.U16(Seg.G, 0x4c2);
+        if (t == 0x40 || t == 0x20) n--;
+        if (n <= 0)
+        {
+            st.Hooks.Effect(st, "sound", 1, 0x7e);
+            lastMessage = S(5);
+            return;
+        }
+        st.Set16(Seg.G, 0x8dc, 0xc8);
+        lastMessage = S(6);
     }
 
     void YardWindowClick(int index, Vector2 p)
@@ -1398,9 +1425,10 @@ public partial class Main : Node2D
             case 9: st.Set16(Seg.G, 0x35c, 2); return;
             case 10: st.Set16(Seg.G, 0x35c, 3); return;
             case 17: help = !help; return;
-            case 11: case 13: case 14: case 16:
-                lastMessage = "The mating flight controls are not built yet.";
-                return;
+            case 11: Mate(); return;
+            case 13: st.Set16(Seg.T, 0x2c0, 1); return;                     // AUTOMATIC: the sim settles the swarm's queens
+            case 14: st.Set16(Seg.T, 0x2c0, 0); return;                     // MANUAL
+            case 16: lastMessage = "PLACE (placing a founding queen, f_01efa) is not ported yet."; return;
         }
         var pic = ItemRect(YardWin, 2);
         if (!Inside(pic, p)) return;

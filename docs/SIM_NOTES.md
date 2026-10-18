@@ -1358,6 +1358,20 @@ proper is the crossing (G:10A0, 1250).
     (0x0F) at x + 168, red (0x23) at x + 180 (`f_1d28d`).
   - Colour codes go through `f_1b4ed(c) = (c & 0xF0) | DS:41C0[c & 0xF]`: the low nibble is the
     palette colour, the high nibble a pattern.
+
+The window's items go to `f_6f7f0(event)`, a jump table at 0x6f815 (cs base 0x6f7f0, item - 0x1902):
+- 0x1902, the yard picture: `f_70edf(event)` (the patch click);
+- 0x1907 Patch: `f_013ff`; 0x1908 House: `f_01823(G:035C < 2 ? G:035C ^ 1 : 0)`; 0x1909 Strat:
+  `f_01823(2)`; 0x190A Graphic: `f_01823(3)`;
+- 0x190B MATE: outside the Full Game sound 1 (0x7E) and the timed message `f_15e2c(STR# 1010 [15],
+  0xB4, 1)`. Otherwise n = G:0AF2 + G:0AF4 (males and new queens, the census's castes 3 / 4), minus 1
+  when the yellow ant is one (G:04C2 0x40 or 0x20); n <= 0: sound 1 and STR# 1010 [5]; else the black
+  mating flight starts, G:08DC = 0xC8, with STR# 1010 [6];
+- 0x190D AUTOMATIC: T:02C0 = 1 (the sim settles the swarm's queens, `yard.py`); 0x190E MANUAL: T:02C0 = 0;
+- 0x1910 PLACE: the buttons' states, `f_01efa()` (with no queens G:07C8 < 1: sound 1 and STR# 1010 [7]
+  or [16]; otherwise T:02C0 = 0 and a mouse loop around the patch G:07CA + 3 ...; not traced further),
+  then a redraw `f_6fc62`;
+- 0x1911: the help overlay 0x1906.
 ### Event markers (recorders ported: `simant_ref/markers.py`, verified by `test_markers.py`)
 
 While the patch is visible (T:07B2), the simulation reports four kinds of events; the port sends them to
