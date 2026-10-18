@@ -320,8 +320,9 @@ Suggested next session: see "Next steps" 11.. below. The most valuable next piec
 15. Tutorial mode (G:0EAC = 0) is not ported (`World.Advisor` throws, f_0e425).
 16. Shell features added 2026-10-18 (all in `remake/game/Main.cs`, a stand-in until the real screens
     exist): STR# messages, a plain-grid yard map (Y; opens when the yellow ant dies in a Full Game), the
-    game-over rating line, a History graph (G), the colony triangles (P; a behaviour click also sets manual
-    jobs, G:0378 = 0: an assumption to check against the original's window 18 handler f_07d07), sound
+    game-over rating line, a History graph (G), the colony triangles (P; as the original's handlers do, a
+    behaviour drag sets manual jobs G:0378 = 0 (f_07d07), a caste drag sets T:07E8 = 0 and recomputes the
+    targets with f_085f8 (f_07ac1)), sound
     effects, the Map window overview (Tab). The rating line's title: f_71d95 shows entry `rank` of the
     G:0328 list (STR# 1900) below the mode's name from G:0324 (decoded). `Formica.Replay --fuzz [dir] [games] [ticks]` plays random games
     (clicks, commands, tools, cheats): 150 x 5000 ticks run clean. The one crash path it found (f_75d01 with

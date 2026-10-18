@@ -262,8 +262,12 @@ public partial class Main : Node2D
             st.Set16(Seg.G, point, (int)p.X);
             st.Set16(Seg.G, point + 2, (int)p.Y);
             Panels.ToValues(st, values, tri, point);                 // f_086a1: the weights the click sets
-            if (behaviour) st.Set16(Seg.G, 0x378, 0);                // assumption: steering the jobs means manual
-            else NewGame.CasteTargets(st);                           // f_085f8: the caste targets T:07DA..
+            if (behaviour) st.Set16(Seg.G, 0x378, 0);                // f_07d07: a drag makes the jobs manual
+            else
+            {
+                st.Set16(Seg.T, 0x7e8, 0);                           // f_07ac1: the caste mix becomes manual too
+                NewGame.CasteTargets(st);                            // f_085f8: the caste targets T:07DA..
+            }
             return true;
         }
         return true;                                                 // the panel covers the map: swallow the click
