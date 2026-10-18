@@ -46,7 +46,7 @@ public partial class Main : Node2D
 
     // the window stack (last = front) and each window's offset from its layout position
     readonly List<int> zOrder = new() { MapWin, EditWin };
-    readonly Dictionary<int, (int dx, int dy)> offsets = new() { [EditWin] = (0, 0), [MapWin] = (0, 0), [BehaviorWin] = (0, 0), [CasteWin] = (0, 0), [HistoryWin] = (0, 0) };
+    readonly Dictionary<int, (int dx, int dy)> offsets = new() { [EditWin] = (0, 0), [MapWin] = (0, 0), [BehaviorWin] = (0, 0), [CasteWin] = (0, 0), [HistoryWin] = (0, 0), [YardWin] = (0, 0) };
     int dragWin = -1;
     Vector2 dragFrom;
     (int dx, int dy) dragOrig;
@@ -80,13 +80,15 @@ public partial class Main : Node2D
             else if (arg == "--help-overlay") help = true;
             else if (arg == "--map-front") Front(MapWin);
         session = new GameSession(dir);
-        session.NewGame(1);
+        session.NewGame(OS.GetCmdlineUserArgs().Contains("--full") ? 2 : 1);
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--ticks="))                                 // run the game ahead (for checking a build)
                 for (int t = int.Parse(arg["--ticks=".Length..]); t > 0 && !session.Over; t--) session.Step();
         ui = new UiArt(session.Files, session.Art);
         if (OS.GetCmdlineUserArgs().Contains("--efficiency")) OpenEfficiency();
         if (OS.GetCmdlineUserArgs().Contains("--popup")) OpenPopup(200, 150);
+        if (OS.GetCmdlineUserArgs().Contains("--yard")) OpenYard(false);
+        if (OS.GetCmdlineUserArgs().Contains("--strat")) session.St.Set16(Seg.G, 0x35c, 2);
         font = ui.Font(2);
         argb = new uint[ScreenW * ScreenH];
         mapBuf = new uint[Cols * Cell * Rows * Cell];
@@ -122,9 +124,9 @@ public partial class Main : Node2D
         if (session.Hooks.YardMapWanted)                                    // the yellow ant died: pick a colony
         {
             session.Hooks.YardMapWanted = false;
-            yardMap = true;
+            OpenYard(true);
         }
-        if (!session.Over && !yardMap && modal < 0 && session.Advance(delta) > 0) balloonsNow.Clear();
+        if (!session.Over && !yardChoose && modal < 0 && session.Advance(delta) > 0) balloonsNow.Clear();
         DrainEffects();
         if (follow) CenterOnYellow();
         Redraw();
@@ -427,8 +429,7 @@ public partial class Main : Node2D
                 break;
             }
             case 5:                                                                      // Yard: the yard map (Full Game)
-                if (st.U16(Seg.G, 0xeac) == 2) yardMap = true;
-                else lastMessage = "The yard map is for the Full Game.";
+                OpenYard(false);
                 break;
             case 6: case 7: case 8:
                 st.Set16(Seg.T, 0x7c8, index - 5);
@@ -779,7 +780,7 @@ public partial class Main : Node2D
         bool editOnTop = zOrder[^1] == EditWin;
         foreach (var (a, b, v, text) in balloonsNow.Values)
         {
-            if (text == null || v != view || yardMap || !editOnTop) continue;
+            if (text == null || v != view || !editOnTop) continue;
             int x = (a - originA) * Cell + m.l, y = (b - originB) * Cell - 18 + m.t;
             if (x < m.l || y < m.t || x >= m.r || y >= m.b) continue;
             if (k == balloonLabels.Count)
@@ -855,47 +856,138 @@ public partial class Main : Node2D
         originB = Math.Clamp(originB, 0, MapRenderer.Height - Rows);
     }
 
-    // ------------------------------------------------------------------------------- the yard map (simple)
-    // The yard is 12 x 16 patches (c = G:07BC / G:07CA 0..11, r = G:07BE / G:07CC 0..15); colony strengths
-    // T:00A4[c*16 + r] (black) and T:0164[...] (red), 0..0xFA; patches 0..37 are the house. The original draws
-    // it isometric (the yard map f_7650c); this is a plain grid until that screen is built.
-    const int YardX = 32, YardY = 24, YardW = 36, YardH = 34;
-    bool yardMap;
+    // ------------------------------------------------------------------------------- the yard window (layout 25)
+    // f_702f7 (YardRenderer, SIM_NOTES "The yard window"): the Map window's Yard button sets T:07C8 = 0 and shows
+    // it. The yard is 12 x 16 patches (col = G:07BC / G:07CA 0..11, row = G:07BE / G:07CC 0..15); colony strengths
+    // T:00A4[col * 16 + row] (black) and T:0164[...] (red). G:035C picks the view: 0 / 1 the yard (the house 7000,
+    // the lawn 7003 and the actors), 2 Strat, 3 Graphic (the colony views over the grid strips 7020..7022).
+    // Toolbar items (indices): 7 Patch (back to the patch), 8 House (G:035C 0 / 1), 9 Strat, 10 Graphic, 11 MATE,
+    // 13 / 14 automatic / manual queen placement, 16 PLACE, 17 help (overlay 7011), 18 / 19 the black / red colony
+    // counts. A click on a patch moves there in a Full Game (f_01d48); when the yellow ant dies in a Full Game the
+    // window opens and the game waits for a black colony to be picked (STR# 1010 [20]).
+    const int YardWin = 25;
+    bool yardChoose;
+    readonly Random rainRng = new();
 
-    void DrawYard(uint[] dst, int w)
+    (int x, int y) YardOrigin()
     {
-        var st = session.St;
-        int pc = st.U16(Seg.G, 0x7ca), pr = st.U16(Seg.G, 0x7cc);
-        Array.Fill(dst, 0xff204020u);
-        for (int c = 0; c < 12; c++)
-            for (int r = 0; r < 16; r++)
-            {
-                int idx = c * 16 + r;
-                int black = st.U8(Seg.T, 0xa4 + idx), red = st.U8(Seg.T, 0x164 + idx);
-                uint ground = idx <= 0x25 ? 0xff707070u : 0xff3c7a2cu;
-                int x0 = YardX + r * YardW, y0 = YardY + c * YardH;
-                for (int y = 1; y < YardH - 1; y++)
-                    for (int x = 1; x < YardW - 1; x++)
-                    {
-                        uint col = ground;
-                        if (x < YardW / 2 && y >= YardH - 1 - black * (YardH - 2) / 250) col = 0xff101010u;
-                        if (x >= YardW / 2 && y >= YardH - 1 - red * (YardH - 2) / 250) col = 0xffc02020u;
-                        bool edge = c == pc && r == pr && (x < 3 || y < 3 || x >= YardW - 4 || y >= YardH - 4);
-                        dst[(y0 + y) * w + x0 + x] = edge ? 0xffffff40u : col;
-                    }
-            }
+        var r = ItemRect(YardWin, 2);                                     // item 0x1902's corner + (1, 0)
+        return (r.l + 1, r.t);
     }
 
-    void YardClick(Vector2 p)
+    void OpenYard(bool choose)
     {
-        int r = (int)((p.X - YardX) / YardW), c = (int)((p.Y - YardY) / YardH);
-        if (p.X < YardX || p.Y < YardY || r > 15 || c > 11) return;
+        session.St.Set16(Seg.T, 0x7c8, 0);
+        if (choose)
+        {
+            yardChoose = true;
+            session.St.Set16(Seg.G, 0x35c, 2);
+            lastMessage = session.Files.Strings(1010)?[20] ?? "Click on a black colony to continue.";
+        }
+        Front(YardWin);
+    }
+
+    void CloseYard()
+    {
+        if (yardChoose) return;
+        zOrder.Remove(YardWin);
+        session.St.Set16(Seg.T, 0x7c8, view);
+    }
+
+    void DrawYardWindow(UiArt.Canvas c)
+    {
         var st = session.St;
-        st.Set16(Seg.G, 0x7bc, c);
-        st.Set16(Seg.G, 0x7be, r);
+        var (dx, dy) = Off(YardWin);
+        int mode = st.S16(Seg.G, 0x35c);
+        string[] titles = { "The Yard", "The Yard", "Colony Coverage", "Colony Sizes" };
+        var hidden = new List<int> { 7011 };
+        if (mode >= 2) { hidden.Add(7000); hidden.Add(7003); }
+        ui.DrawWindow(c, YardWin, dx, dy, titles[Math.Clamp(mode, 0, 3)], hidden);
+        var wr = WindowRect(YardWin);
+        var clip = c.Clip(wr.l, wr.t, wr.r, wr.b);
+        var (ox, oy) = YardOrigin();
+        var pic = ItemRect(YardWin, 2);
+        var area = clip.Clip(pic.l, pic.t, pic.r, pic.b);
+        if (mode < 2)
+            foreach (var (rid, x, y) in YardRenderer.Sprites(st, rainRng))
+                ui.DrawBitmap(area, rid, x + ox, y + oy);
+        else
+        {
+            area.Fill(pic.l, pic.t, pic.r, pic.b, session.Art.Palette[12]);
+            int y = ItemRect(YardWin, 20).b;
+            foreach (int rid in new[] { 7020, 7021, 7022 })
+            {
+                ui.DrawBitmap(area, rid, pic.l, y);
+                y += ui.Bitmap(rid).h;
+            }
+            YardRenderer.DrawColonies(area, st, session.Art.Palette, ox, oy, mode == 2);
+        }
+        // the player's patch
+        int pc = st.U16(Seg.G, 0x7ca), pr = st.U16(Seg.G, 0x7cc);
+        if (st.U16(Seg.G, 0xeac) == 2 && pc < 12 && pr < 16)
+        {
+            int x = ox + 28 * pc - 10 * pr + 169, y = oy + 10 * pr + 67;
+            for (int k = 0; k < 8; k++)
+            {
+                area.Plot(x - k - 1, y + k, 0xffffff40u);
+                area.Plot(x + 25 - k, y + k, 0xffffff40u);
+            }
+        }
+        int black = 0, red = 0;
+        for (int i = 0; i < 192; i++)
+        {
+            if (st.U8(Seg.T, 0xa4 + i) != 0) black++;
+            if (st.U8(Seg.T, 0x164 + i) != 0) red++;
+        }
+        foreach (var (index, n) in new[] { (18, black), (19, red) })
+        {
+            var r = ItemRect(YardWin, index);
+            clip.Fill(r.l, r.t, r.r, r.b, UiArt.White);
+            ui.DrawText(clip, 3, 0, r.l, r.t, r.r, r.b, n.ToString());
+        }
+        var q = ItemRect(YardWin, 12);                                     // the swarm's black queens G:07C8
+        clip.Fill(q.l, q.t, q.r, q.b, UiArt.White);
+        ui.DrawText(clip, 3, 0, q.l, q.t, q.r, q.b, Math.Max(0, (int)st.S16(Seg.G, 0x7c8)).ToString());
+        if (help)
+        {
+            var it = ui.Layouts[YardWin].Items.First(x => x.Bitmap == 7011);
+            ui.DrawBitmap(clip, 7011, it.Rect.left + dx, it.Rect.top + dy);
+        }
+    }
+
+    void YardWindowClick(int index, Vector2 p)
+    {
+        var st = session.St;
+        switch (index)
+        {
+            case 7: CloseYard(); return;
+            case 8: st.Set16(Seg.G, 0x35c, st.S16(Seg.G, 0x35c) == 0 ? 1 : 0); return;
+            case 9: st.Set16(Seg.G, 0x35c, 2); return;
+            case 10: st.Set16(Seg.G, 0x35c, 3); return;
+            case 17: help = !help; return;
+            case 11: case 13: case 14: case 16:
+                lastMessage = "The mating flight controls are not built yet.";
+                return;
+        }
+        var pic = ItemRect(YardWin, 2);
+        if (!Inside(pic, p)) return;
+        var (ox, oy) = YardOrigin();
+        int patch = YardRenderer.PatchAt((int)p.X - ox, (int)p.Y - oy);
+        if (patch < 0) return;
+        if (st.U16(Seg.G, 0xeac) != 2)
+        {
+            lastMessage = "Moving between patches is for the Full Game.";
+            return;
+        }
+        st.Set16(Seg.G, 0x7bc, patch >> 4);
+        st.Set16(Seg.G, 0x7be, patch & 15);
         NewGame.MoveToPatch(st);                                            // f_01d48 (it may refuse: a message)
-        yardMap = false;
-        SetView(session.Yellow.view);
+        if (st.U16(Seg.G, 0x7ca) == patch >> 4 && st.U16(Seg.G, 0x7cc) == (patch & 15))
+        {
+            yardChoose = false;
+            CloseYard();
+            SetView(session.Yellow.view);
+        }
     }
 
     /// <summary>The shell's status lines (a stand-in for the original's message window) in the game's font 2.</summary>
@@ -923,12 +1015,6 @@ public partial class Main : Node2D
                       + $"  health {st.S16(Seg.G, 0xf78)}  colony {st.S16(Seg.G, 0x10be)}  speed {SpeedNames[session.Speed]}  jobs {(st.U16(Seg.G, 0x378) == 1 ? "auto" : "manual")}"
                       + (session.Paused ? "  PAUSED" : "") + (session.Over ? (st.U16(Seg.G, 0x366) != 0 ? "  YOU WON" : "  GAME OVER") : "");
         message.Text = lastMessage;
-        if (yardMap)
-        {
-            DrawYard(argb, ScreenW);
-            DrawStatus(canvas);
-        }
-        else
         {
             // the desktop: a 50% grey pattern, the status lines on it, then the windows back to front
             for (int y = 0; y < ScreenH; y++)
@@ -939,6 +1025,7 @@ public partial class Main : Node2D
                 if (win == EditWin) DrawEditWindow(canvas);
                 else if (win == MapWin) DrawMapWindow(canvas);
                 else if (win == HistoryWin) DrawHistoryWindow(canvas);
+                else if (win == YardWin) DrawYardWindow(canvas);
                 else DrawControlWindow(canvas, win);
             if (modal == EfficiencyWin) DrawEfficiency(canvas);
             if (popup >= 0) DrawPopup(canvas);
@@ -990,11 +1077,6 @@ public partial class Main : Node2D
                 modal = -1;
                 return;
             }
-            if (yardMap)
-            {
-                YardClick(mb.Position);
-                return;
-            }
             int win = WindowAt(mb.Position);
             if (win < 0) return;
             Front(win);
@@ -1011,6 +1093,7 @@ public partial class Main : Node2D
             else if (mb.ButtonIndex != MouseButton.Left) return;
             else if (win == MapWin) MapWindowClick(index, mb);
             else if (win == HistoryWin) HistoryWindowClick(index);
+            else if (win == YardWin) YardWindowClick(index, mb.Position);
             else ControlWindowClick(win, index, mb.Position);
         }
         else if (ev is InputEventKey k && k.Pressed && !k.Echo)
@@ -1037,8 +1120,8 @@ public partial class Main : Node2D
                 case Key.B: Commands.Command(session.St, 9); break;                           // start brood (a queen in the nest)
                 case Key.C: Commands.Command(session.St, 0xa); break;                         // the spider: chase (then click)
                 case Key.U: Commands.Command(session.St, k.ShiftPressed ? 0xc : 0xb); break;  // the spider: hunt / lash out
-                case Key.Y: yardMap = !yardMap && session.St.U16(Seg.G, 0xeac) == 2; break;  // the yard map (Full Game)
-                case Key.Escape: yardMap = false; break;
+                case Key.Y: if (zOrder.Contains(YardWin)) CloseYard(); else OpenYard(false); break;  // the yard window
+                case Key.Escape: if (zOrder.Contains(YardWin)) CloseYard(); break;
                 case Key.Tab:                                                              // the Map window: front / close
                     if (zOrder.Contains(MapWin) && zOrder[^1] != MapWin) Front(MapWin);
                     else if (zOrder.Contains(MapWin)) zOrder.Remove(MapWin);
