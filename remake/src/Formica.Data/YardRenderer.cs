@@ -70,18 +70,14 @@ public static class YardRenderer
         return o;
     }
 
-    /// <summary>The patch (col * 16 + row, the index of T:00A4 / T:0164) whose parallelogram holds (x, y), or -1.</summary>
+    /// <summary>f_70edf: the patch (col * 16 + row, the index of T:00A4 / T:0164) under (x, y) relative to the yard
+    /// origin, or -1: row = (y - DS:2A44) / 10, col = (row * 10 - DS:2A42 + x) / 28 with C's truncating division
+    /// (so the cells have no gaps, and a few pixels left of / above the grid still count as col / row 0).</summary>
     public static int PatchAt(int x, int y)
     {
-        int dy = y - 67;
-        if (dy < 0) return -1;
-        int row = dy / 10, py = dy % 10;
-        if (row > 15 || py >= 7) return -1;
-        int dx = x + 10 * row - (169 - py);                                // the left edge runs from 169 (top) to 162
-        if (dx < 0) return -1;
-        int col = dx / 28;
-        if (col > 11 || dx % 28 >= 24) return -1;
-        return col * 16 + row;
+        int row = (y - 67) / 10;
+        int col = (row * 10 - 169 + x) / 28;
+        return col >= 0 && col < 12 && row >= 0 && row < 16 ? col * 16 + row : -1;
     }
 
     /// <summary>The colony views (G:035C >= 2): 'strat' (f_70b82) fills each patch's parallelogram with DS:2AD2[k]

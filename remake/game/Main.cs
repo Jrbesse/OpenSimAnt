@@ -1435,13 +1435,15 @@ public partial class Main : Node2D
         var (ox, oy) = YardOrigin();
         int patch = YardRenderer.PatchAt((int)p.X - ox, (int)p.Y - oy);
         if (patch < 0) return;
+        st.Set16(Seg.G, 0x7bc, patch >> 4);                                 // f_70edf: the clicked patch
+        st.Set16(Seg.G, 0x7be, patch & 15);
+        // f_70edf moves (f_01d48) only when bits 0x60 of the event's byte +7 are set (not decoded: a double
+        // click or a button?); the shell moves on any click, and only in a Full Game
         if (st.U16(Seg.G, 0xeac) != 2)
         {
             lastMessage = "Moving between patches is for the Full Game.";
             return;
         }
-        st.Set16(Seg.G, 0x7bc, patch >> 4);
-        st.Set16(Seg.G, 0x7be, patch & 15);
         NewGame.MoveToPatch(st);                                            // f_01d48 (it may refuse: a message)
         if (st.U16(Seg.G, 0x7ca) == patch >> 4 && st.U16(Seg.G, 0x7cc) == (patch & 15))
         {
