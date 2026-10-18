@@ -71,14 +71,15 @@ Keys:
 | C, U, Shift+U | as the spider: chase (then click), hunt, lash out |
 | P, O | Behavior and Caste Control windows; automatic / manual jobs (G:0378) |
 | G, Tab, V | History window; Map window (front / hide); scent views (T:07BE) |
-| F1 | the help overlays |
+| F1, F2 | the help overlays; Select a Game (also shown at start-up) |
 | Y, Esc | yard map in a Full Game (click a patch to move; also opens when another colony must be picked) |
 | F5 / F9 | quick save / load (the original's .ANT format, in Godot's user:// folder) |
 | S | sound effects on / off |
-| N / M | new Quick Game / new Full Game |
+| N / M / K | new Quick Game / Full Game / Experimental game (tool palette: hold a tool for its options) |
 
 Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`, `--efficiency`, `--popup`,
-`--map-front`, `--help-overlay` to open those windows first.
+`--map-front`, `--help-overlay`, `--yard`, `--strat`, `--scent-menu`, `--ant-info`, `--select` to open those
+windows first; `--full` / `--experimental` start that kind of game.
 
 ## Porting notes
 

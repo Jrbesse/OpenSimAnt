@@ -83,6 +83,7 @@ public partial class Main : Node2D
         var args = OS.GetCmdlineUserArgs();
         session.NewGame(args.Contains("--full") ? 2 : args.Contains("--experimental") ? 3 : 1);
         if (args.Contains("--experimental")) Front(ToolWin);
+        if (screenshot == null || args.Contains("--select")) modal = SelectWin;   // start with Select a Game
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--ticks="))                                 // run the game ahead (for checking a build)
                 for (int t = int.Parse(arg["--ticks=".Length..]); t > 0 && !session.Over; t--) session.Step();
@@ -667,6 +668,25 @@ public partial class Main : Node2D
         }
     }
 
+    // ------------------------------------------------------------------------------- Select a Game (layout 2)
+    // The new-game dialog f_725b6 (SIM_NOTES "Player events and the game flow"): bitmap 2500, buttons 0x202 Quick
+    // Game (1), 0x203 Full Game (2), 0x204 Experimental (3), 0x205 Cancel, 0x206 the Tutorial (G:0EAC = 0, not
+    // ported: World.Advisor's tutorial f_0e425), 0x207 Load Game. Shown at start-up and on F2.
+    const int SelectWin = 2;
+
+    void SelectClick(int index)
+    {
+        switch (index)
+        {
+            case 2: modal = -1; Restart(1); break;
+            case 3: modal = -1; Restart(2); break;
+            case 4: modal = -1; Restart(3); break;
+            case 5: modal = -1; break;
+            case 6: lastMessage = "The Tutorial is not ported yet (f_0e425)."; break;
+            case 7: modal = -1; QuickLoad(); break;
+        }
+    }
+
     // ------------------------------------------------------------------------------- the Efficiency Score (layout 24)
     // f_71576 (SIM_NOTES "The Efficiency Score window"): the rating f_70fb0 (score to G:0ADA), the colony fields
     // 0x1802..0x1805 = p[0..3] "%d%%", the universe fields 0x1806..0x1809 = p[4..7] in a Full Game, else STR#
@@ -1218,6 +1238,7 @@ public partial class Main : Node2D
                 else DrawControlWindow(canvas, win);
             if (modal == EfficiencyWin) DrawEfficiency(canvas);
             if (modal == AntInfoWin) DrawAntInfo(canvas);
+            if (modal == SelectWin) ui.DrawWindow(canvas, SelectWin, 0, 0, null);
             if (modal == 11) ui.DrawWindow(canvas, 11, 245, 200, null);       // "not available in the full game"
             if (popup >= 0) DrawPopup(canvas);
         }
@@ -1269,6 +1290,11 @@ public partial class Main : Node2D
         }
         if (ev is InputEventMouseButton mb && mb.Pressed)
         {
+            if (modal == SelectWin)
+            {
+                if (mb.ButtonIndex == MouseButton.Left) SelectClick(ui.HitTest(SelectWin, 0, 0, (int)mb.Position.X, (int)mb.Position.Y));
+                return;
+            }
             if (modal >= 0)                                                     // a click closes the modal window
             {
                 modal = -1;
@@ -1336,15 +1362,8 @@ public partial class Main : Node2D
                     lastMessage = "Saved to " + path;
                     break;
                 }
-                case Key.F9:                                                               // load
-                {
-                    var path = ProjectSettings.GlobalizePath("user://quicksave.ANT");
-                    if (!System.IO.File.Exists(path)) { lastMessage = "No saved game"; break; }
-                    bool ok = SaveFile.Load(session.St, System.IO.File.ReadAllBytes(path));
-                    lastMessage = ok ? "Loaded " + path : "Read error, game not loaded";
-                    SetView(session.Yellow.view);
-                    break;
-                }
+                case Key.F9: QuickLoad(); break;                                           // load
+                case Key.F2: modal = SelectWin; break;                                     // Select a Game
                 case Key.V: CycleScent(); break;                                           // the scent views (T:07BE)
                 case Key.O: session.St.Set16(Seg.G, 0x378, session.St.U16(Seg.G, 0x378) == 1 ? 0 : 1); break;   // auto / manual jobs
                 case Key.N: Restart(1); break;
@@ -1364,6 +1383,15 @@ public partial class Main : Node2D
 
     /// <summary>The Experimental menu (layout 10) at the mouse; in an Experimental game the button shows / hides the
     /// tool palette.</summary>
+    void QuickLoad()
+    {
+        var path = ProjectSettings.GlobalizePath("user://quicksave.ANT");
+        if (!System.IO.File.Exists(path)) { lastMessage = "No saved game"; return; }
+        bool ok = SaveFile.Load(session.St, System.IO.File.ReadAllBytes(path));
+        lastMessage = ok ? "Loaded " + path : "Read error, game not loaded";
+        SetView(session.Yellow.view);
+    }
+
     void ExperimentalMenu(Vector2 at)
     {
         if (session.St.U16(Seg.G, 0xeac) == 3) { ToggleWindow(ToolWin); return; }
