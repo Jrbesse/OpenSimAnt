@@ -244,6 +244,11 @@ public partial class Main : Node2D
         if (view == 1)
             SpiderRenderer.Draw(st, session.Files, session.Art, mapBuf, w, h, originA * Cell, originB * Cell, SpiderRenderer.FangJitter(st));
         win.Clip(m.l, m.t, m.r, m.b).Blit(mapBuf, w, h, m.l, m.t);
+        if (session.Paused)                                                       // the PAUSE button while paused (G:047E)
+        {
+            var pr = ItemRect(EditWin, 15);
+            win.Invert(pr.l, pr.t, pr.r, pr.b);
+        }
         // the health bars: the yellow ant G:0F78, the black colony G:10BE, the red colony G:01FE (out of 100)
         var colours = new[] { session.Art.Palette[1], session.Art.Palette[15], session.Art.Palette[3] };
         var values = new[] { st.S16(Seg.G, 0xf78), st.S16(Seg.G, 0x10be), st.S16(Seg.G, 0x1fe) };
@@ -437,6 +442,11 @@ public partial class Main : Node2D
         {
             int l = x0 + originA * 4, t = y0 + originB * 4;
             area.Frame(l, t, l + Cols * 4, t + Rows * 4, 0xffffff40u);
+        }
+        if (st.U16(Seg.G, 0xeac) == 3)                                                     // f_67010: the tool's icon
+        {
+            var ti = ItemRect(MapWin, 23);
+            ui.DrawBitmap(win, 5100 + Math.Clamp(st.U16(Seg.G, 0x104c), 0, 7), ti.l, ti.t);
         }
         // the population report f_6eea5: counts 0x119 / 0x11A, gauges 0x11B black health (G:10BE / 100), 0x11C red
         // health (G:01FE / 100, 0 without red ants), 0x11D / 0x11E each population / max(1, black, red)
