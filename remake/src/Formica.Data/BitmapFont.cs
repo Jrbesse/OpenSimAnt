@@ -80,7 +80,13 @@ public sealed class BitmapFont
     };
 
     /// <summary>Draw text with its top-left at (x, y) into an ARGB buffer; returns the end x.</summary>
-    public int Draw(uint[] dst, int stride, int height, int x, int y, string text, uint colour)
+    public int Draw(uint[] dst, int stride, int height, int x, int y, string text, uint colour) =>
+        Draw(x, y, text, (px, py) => Plot(dst, stride, height, px, py, colour));
+
+    /// <summary>Draw text with its top-left at (x, y), clipped to the canvas; returns the end x.</summary>
+    public int Draw(UiArt.Canvas c, int x, int y, string text, uint colour) => Draw(x, y, text, (px, py) => c.Plot(px, py, colour));
+
+    int Draw(int x, int y, string text, Action<int, int> plot)
     {
         foreach (char ch in text)
         {
@@ -93,7 +99,7 @@ public sealed class BitmapFont
                     for (int row = 0; row < Height; row++)
                         for (int px = x0; px < x1; px++)
                             if (((d[26 + row * rowBytes + (px >> 3)] >> (7 - (px & 7))) & 1) != 0)
-                                Plot(dst, stride, height, gx + px - x0, y + row, colour);
+                                plot(gx + px - x0, y + row);
                 }
             }
             else if (k >= 0 && k < 255)
@@ -103,7 +109,7 @@ public sealed class BitmapFont
                     for (int px = 0; px < bpr * 8; px++)
                     {
                         int byteAt = o + row * bpr + (px >> 3);
-                        if (byteAt < d.Length && ((d[byteAt] >> (7 - (px & 7))) & 1) != 0) Plot(dst, stride, height, x + px, y + row, colour);
+                        if (byteAt < d.Length && ((d[byteAt] >> (7 - (px & 7))) & 1) != 0) plot(x + px, y + row);
                     }
             }
             x += Advance(c);

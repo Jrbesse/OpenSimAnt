@@ -24,7 +24,8 @@ public sealed class UiArt
     public (int w, int h, short[] px) Bitmap(int id)
     {
         if (bitmaps.TryGetValue(id, out var b)) return b;
-        var r = Files.Hcegant.FirstOrDefault(x => x.Type == 2 && x.Id == id);
+        // HCEGANT's colour bitmaps first, then SHARED's 1-bit ones (the SimAntipedia's pictures)
+        var r = Files.Hcegant.FirstOrDefault(x => x.Type == 2 && x.Id == id) ?? Files.Shared.FirstOrDefault(x => x.Type == 2 && x.Id == id);
         b = r == null ? (0, 0, Array.Empty<short>()) : Bitmaps.Decode(r.Data);
         bitmaps[id] = b;
         return b;
@@ -33,8 +34,13 @@ public sealed class UiArt
     public BitmapFont Font(int id)
     {
         if (fonts.TryGetValue(id, out var f)) return f;
+        // f_24d5d: fonts 2..5 are the slots DS:4A1A.. that start-up (f_34ab_047d) fills from the files FONT1..FONT4
+        // (Mac FONTs; 1 and 2 have the glyph widths of SHARED 2 and 3, 3 is 15 px tall, 4 is the bold the
+        // SimAntipedia's links use). Without them, and for 0 / 1, the SHARED type-11 fonts.
+        string file = Path.Combine(Files.Dir, $"FONT{id - 1}");
         var r = Files.Shared.FirstOrDefault(x => x.Type == 11 && x.Id == id);
-        f = r == null ? null : new BitmapFont(r.Data);
+        f = id is >= 2 and <= 5 && File.Exists(file) ? new BitmapFont(File.ReadAllBytes(file))
+            : r == null ? null : new BitmapFont(r.Data);
         fonts[id] = f;
         return f;
     }

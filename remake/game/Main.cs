@@ -95,7 +95,14 @@ public partial class Main : Node2D
         if (OS.GetCmdlineUserArgs().Contains("--trails")) session.St.Set16(Seg.DS, 0x2994, 1);
         if (OS.GetCmdlineUserArgs().Contains("--report")) popReport = true;
         if (OS.GetCmdlineUserArgs().Contains("--exp-menu")) ExperimentalMenu();
-        if (OS.GetCmdlineUserArgs().Contains("--antipedia")) OpenTextViewer(200);
+        foreach (var arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--antipedia"))                              // --antipedia[=card][,x,y: hold the button there]
+            {
+                OpenAntipedia();
+                var a = arg.Contains('=') ? arg[(arg.IndexOf('=') + 1)..].Split(',').Select(int.Parse).ToArray() : Array.Empty<int>();
+                if (a.Length > 0) ShowCard(a[0]);
+                if (a.Length > 2) AntipediaPress(a[1], a[2]);
+            }
         if (OS.GetCmdlineUserArgs().Contains("--save-prompt")) { selectMidGame = true; Replace(1); }
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--message=") && session.Files.Strings(int.Parse(arg["--message=".Length..])) is { } box)
@@ -525,7 +532,7 @@ public partial class Main : Node2D
             case 19: ToggleWindow(HistoryWin); break;
             case 20: OpenEfficiency(); break;
             case 22: case 23: ExperimentalMenu(); break;
-            case 21: OpenTextViewer(200); break;                                        // 0x115 → thunk 0x2f9b0 → f_78db9
+            case 21: OpenAntipedia(); break;                                            // 0x115 → thunk 0x2f9b0 → f_78db9
         }
     }
 
@@ -789,53 +796,69 @@ public partial class Main : Node2D
         }
     }
 
-    // ------------------------------------------------------------------------------- the text viewer (layout 5)
-    // The Map toolbar's "Ant Info Window" (0x115 → thunk 0x2f9b0 → f_78db9) opens window 5, where f_78808 draws a
-    // text resource (SHARED type 10: the help and the SimAntipedia, Mac Roman; type 21 holds their style runs)
-    // into item 0x502, with the caption through 0x501. How the original picks and pages the topics is not traced
-    // yet: this shows text 200 (the first encyclopedia entry), word-wrapped in font 2; a click closes it.
+    // ------------------------------------------------------------------------------- the SimAntipedia (layout 5)
+    // The Map toolbar's "Ant Info Window" (0x115 → thunk 0x2f9b0 → f_78db9) opens window 5 on card 128 (Top Card).
+    // f_78808 draws the card (Formica.Data.Antipedia) into item 0x502 and its name into the caption 0x501;
+    // f_790f0 follows the pictures' links (BACK / PREVIOUS / TOP, topics) and pops up a glossary definition while
+    // the button is held on a bold word or a picture's ≤ 0 hotspot (f_78e1c). The window has no close box: here
+    // Escape or a click outside it closes it.
     const int TextWin = 5;
-    string[] viewerLines;
+    Antipedia antipedia;
+    Antipedia.Card card;
+    (int l, int t, int r, int b, List<Antipedia.Element> text)? cardPopup;
 
-    void OpenTextViewer(int id)
+    void OpenAntipedia()
     {
-        var r = session.Files.Shared.FirstOrDefault(x => x.Type == 10 && x.Id == id);
-        if (r == null) return;
-        int end = Array.IndexOf(r.Data, (byte)0);
-        string text = OriginalFiles.MacText(r.Data.AsSpan(0, end < 0 ? r.Data.Length : end));
-        var f = ui.Font(2);
-        var (l, _, rr, _) = ui.Layouts[TextWin].Items[2].Rect;
-        int width = rr - l - 8;
-        var lines = new List<string>();
-        foreach (var para in text.Split('\n'))                                // MacText turns the CR line ends into '\n'
-        {
-            string line = "";
-            foreach (var word in para.Split(' '))
-            {
-                string next = line.Length == 0 ? word : line + " " + word;
-                if (f.Width(next) > width && line.Length > 0) { lines.Add(line); line = word; }
-                else line = next;
-            }
-            lines.Add(line);
-        }
-        viewerLines = lines.ToArray();
+        antipedia ??= new Antipedia(session.Files, ui.Font);
+        antipedia.Open();
+        ShowCard(Antipedia.TopCard);
         modal = TextWin;
+    }
+
+    void ShowCard(int id)
+    {
+        var (l, t, _, _) = ui.Layouts[TextWin].Items[2].Rect;
+        card = antipedia.Build(id, l, t);                                    // null: "Card Resource not found", an empty card
+    }
+
+    void AntipediaPress(int x, int y)
+    {
+        var w = ui.Layouts[TextWin];
+        if (!Inside(w.Rect, new Vector2(x, y)))
+        {
+            modal = -1;
+            return;
+        }
+        int before = antipedia.Current;
+        int pop = antipedia.Click(card, x, y);
+        if (antipedia.Current != before) ShowCard(antipedia.Current);
+        if (pop > 0 && Antipedia.HitLink(card, x, y) is { } h)
+        {
+            var (il, it, ir, ib) = w.Items[2].Rect;
+            cardPopup = antipedia.Popup(pop, (h.L + h.R) / 2, h.T, h.B, il, it, ir, ib);
+        }
     }
 
     void DrawTextViewer(UiArt.Canvas c)
     {
-        ui.DrawWindow(c, TextWin, 0, 0, "Ant Info");
+        ui.DrawWindow(c, TextWin, 0, 0, card?.Name ?? "");
         var (l, t, r, b) = ui.Layouts[TextWin].Items[2].Rect;
-        var f = ui.Font(2);
-        var area = c.Clip(l + 1, t + 1, r - 1, b - 1);
-        area.Fill(l + 1, t + 1, r - 1, b - 1, UiArt.White);
-        int y = t + 4;
-        foreach (var line in viewerLines)
+        var area = c.Clip(l, t, r, b);
+        area.Fill(l, t, r, b, UiArt.White);
+        if (card != null) DrawElements(area, card.Draw);
+        if (cardPopup is { } p)
         {
-            if (y + f.Height > b) break;
-            f.Draw(area.Px, area.Stride, b - 1, l + 4, y, line, UiArt.Black);
-            y += f.Height;
+            area.Fill(p.l, p.t, p.r, p.b, UiArt.White);                         // f_1ce33: the box, a 1-px frame
+            area.Frame(p.l, p.t, p.r, p.b, UiArt.Black);
+            DrawElements(area.Clip(p.l + 1, p.t + 1, p.r - 1, p.b - 1), p.text);
         }
+    }
+
+    void DrawElements(UiArt.Canvas c, List<Antipedia.Element> elements)
+    {
+        foreach (var e in elements)
+            if (e.Pict >= 0) ui.DrawBitmap(c, e.Pict, e.X, e.Y);
+            else ui.Font(e.Font)?.Draw(c, e.X, e.Y, e.Text, UiArt.Black);
     }
 
     // ------------------------------------------------------------------------------- Select a Game (layout 2)
@@ -1684,6 +1707,7 @@ public partial class Main : Node2D
         {
             dragWin = triangleDrag = -1;
             popReport = false;
+            cardPopup = null;                                                   // f_78e1c waits for the release
             toolDrag = false;
             return;
         }
@@ -1702,6 +1726,11 @@ public partial class Main : Node2D
             if (modal == TitleWin)
             {
                 modal = SelectWin;
+                return;
+            }
+            if (modal == TextWin)
+            {
+                if (mb.ButtonIndex == MouseButton.Left) AntipediaPress((int)mb.Position.X, (int)mb.Position.Y);
                 return;
             }
             if (modal >= 0)                                                     // a click closes the modal window
@@ -1753,7 +1782,10 @@ public partial class Main : Node2D
                 case Key.C: Commands.Command(session.St, 0xa); break;                         // the spider: chase (then click)
                 case Key.U: Commands.Command(session.St, k.ShiftPressed ? 0xc : 0xb); break;  // the spider: hunt / lash out
                 case Key.Y: if (zOrder.Contains(YardWin)) CloseYard(); else OpenYard(false); break;  // the yard window
-                case Key.Escape: if (zOrder.Contains(YardWin)) CloseYard(); break;
+                case Key.Escape:
+                    if (modal == TextWin) modal = -1;
+                    else if (zOrder.Contains(YardWin)) CloseYard();
+                    break;
                 case Key.Tab:                                                              // the Map window: front / close
                     if (zOrder.Contains(MapWin) && zOrder[^1] != MapWin) Front(MapWin);
                     else if (zOrder.Contains(MapWin)) zOrder.Remove(MapWin);

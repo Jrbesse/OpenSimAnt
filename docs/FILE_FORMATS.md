@@ -22,7 +22,7 @@ big-endian. The code calls things like `GetResource` and `PictStrnDialog`.
 | `SHARED.NDX/.DAT` | Platform-independent resources: string tables, help/encyclopedia text, fonts, encyclopedia card layouts, 1-bit bitmaps |
 | `HCEGANT.NDX/.DAT` | "Hercules/CGA/EGA" graphics: 16-color bitmaps, palette, window layouts, cursors |
 | `SOUND.NDX/.DAT` | 57 sound effects (4-bit delta PCM) and 30 MIDI songs, plus per-song metadata |
-| `FONT1`–`FONT4` | Raw Mac `FONT` resources (big-endian), copies of the fonts in SHARED |
+| `FONT1`–`FONT4` | Raw Mac `FONT` resources (big-endian): the game's font ids 2..5 (FONT1 / FONT2 match SHARED 2 / 3; FONT3 15 rows, FONT4 bold) |
 | `SIMANT.CFG` | Plain text: `Display Mode: V` / `Sound Mode: 6` |
 | `RALLOC.DMP` | A real crash log from 30 Mar 1993, written by the game's `Ralloc` memory manager ("Window 2340 locked when it should not be!") |
 | `INSTALL.EXE`, `INFO.EXE`, `READ.ME` | Installer, README viewer, release notes |
@@ -64,9 +64,9 @@ needed for decoding.
 | 4 | 113 | `STR#` string lists: u16 **BE** count, then Pascal strings. Speech-balloon strings use a literal `\n` (backslash-n) for line breaks. |
 | 10 | 94 | Plain text (Mac Roman, CR line endings, NUL-terminated). Help and SimAntipedia text. |
 | 11 | 4 | Fonts (`tools/fonts.py`): 0 / 1 the game's own PC-style format (LE; 0 bold, 15 rows; 1 8 x 10), 2 / 3 Apple `FONT` (BE; 2 Geneva-like, 3 Times-like, 10 rows). Layout: see `fonts.py` |
-| 17 | 53 | Encyclopedia card layouts: references to `PICT` ids and rectangles (HyperCard-like) |
+| 17 | 53 | SimAntipedia cards 127..179 (BE): u16 height, u16 width (200 x 320), then records `PICT` (u16 bitmap id, Rect t/l/b/r, u16 n, n x (Rect, s16 link)) and `TEXT` (Rect, u16 n, n x u16 text id). Link 1 = PREVIOUS, > 1 a card, <= 0 a pop-up of text -link. SIM_NOTES "The SimAntipedia". |
 | 19 | 53 | Card names (`Top_Card`, `Ant_Anatomy`, `Castes`, `Scent_Trails`, …) |
-| 21 | 88 | Text style runs for the type 10 texts (like Mac `styl`) |
+| 21 | 88 | Text style runs for the type 10 texts: Mac `styl` (u16 count, 20-byte ScrpSTElements: u32 start, height, ascent, font, face, size, colour). Face 0x0100 (bold) = a link word. |
 | 6, 7, 9 | 1–2 each | Cursor table, cursor, misc tables (not yet decoded) |
 
 ### HCEGANT
@@ -130,7 +130,9 @@ item record
 | 0x13..0x16 | 0x29 | more frame styles, +28 |
 
 Text items (types 0x05, 0x09, 0x0C, 0x10..0x12) are drawn by `f_21fa2`:
-- Font: the byte at +28 (`f_24d5d`; ids are SHARED type 11). Captions and the status numbers use font
+- Font: the byte at +28 (`f_24d5d`). Ids 2..5 are the slots DS:4A1A.. that start-up (`f_34ab_047d`) loads from
+  the files FONT1..FONT4 (FONT1 / FONT2 have the glyph widths of SHARED 2 / 3; FONT3 is 15 rows, FONT4 an
+  11-row bold); 0 / 1 are the PC fonts (SHARED 0 / 1). Captions and the status numbers use font
   0, "Click here to continue" font 2, the yard counters font 3.
 - Alignment: (word +24 & 0x180) >> 7.
   - 0 / 3: centred, x = (left + right - width) / 2 (3 also underlines).

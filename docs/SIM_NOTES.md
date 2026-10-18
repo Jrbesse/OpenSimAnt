@@ -1435,7 +1435,7 @@ DS:
 Window 6 (6000) is the scent-layer menu (Off, Alarm, B-Nest, B-Trail, R-Nest, R-Trail: T:07BE, `f_679c0`).
 
 `f_2f906` → `f_76cb9(command)` (only while G:0A06 <= 1), through a jump table at 0x76CE3 (cs base 0x74FE0):
-- 0: help (`f_76eb5`, UI).
+- 0: help (`f_76eb5`, UI: window 26, an empty stub in the DOS version; see "The SimAntipedia").
 - 1 / 2 / 3: voice `f_00ea1` + `f_13f32(5 / 10 / 1000)`, recruiting n.
   `f_13f32` walks the surface ants from the last down, then the black-nest ants. Each live black ant
   of caste 2 or 6 that is not in state 6 gets state 6 and e = 0, until n are recruited.
@@ -1648,6 +1648,65 @@ STR# 1000 holds window titles: entries 0..8 name the Map window's contents T:07C
 "Surface View", "Black Nest View", "Red Nest View", the five pheromone maps), 9..12 the yard window's
 modes G:035C ("Yard View", "House View", "Strategic View", "Graphic View"). Which routine fills the
 captions with them is not traced (matched by their order).
+
+### The SimAntipedia (window 5, `f_78db9` / `f_78808` / `f_790f0`, overlay 881a; remake: `Formica.Data/Antipedia.cs`)
+
+The Map toolbar's 0x115 "Ant Info Window" → thunk 0x2f9b0 → `f_78db9`: if window 0x500 is not open
+(`f_235a0`), the card DS:2E26 = 128 (Top Card), the history DS:2E04[0] = 128, its index DS:2E24 = 0; then
+`f_21336(0x500)` opens it. With DS:3DB2 == 320 it runs its own event loop (`f_21cc1`) while the window is
+open, passing each event to `f_790f0`. The window's draw callback `f_78215(flags)` redraws the card
+(`f_78808(DS:2E26)`) when flags & 2. Window 5 has no close box.
+
+`f_78808(card)`: SHARED type 17 (card layout) id = card; "Card Resource not found" if there is none.
+Type 19 (card name, '_' → ' ') goes into the caption 0x501 (`f_2318a`). The item 0x502's rect (`f_252d8`)
+is the origin (279, 245); the card is 320 x 200. Records (big-endian; `f_781c4` swaps every word,
+`f_781a0` the halves of a dword):
+- 'PICT' + 12 bytes: bitmap id, Rect (top, left, bottom, right), n; `f_259de(id, left + ox, top + oy)`
+  draws it (HCEGANT's colour bitmaps, SHARED's 1-bit ones; 151 exists in neither and is skipped). Then n
+  hotspots of 10 bytes (Rect, value) appended to 4EE5:0280 (count DS:8C22, reset per card), stored
+  left / top / right / bottom, item-relative.
+- 'TEXT' + 10 bytes: Rect, n; n text ids. For each: type 10 text, type 21 style runs (`styl`). Each NUL in
+  the first size - 4 bytes is removed together with the bytes after it that are ≤ 0x1F as a signed char
+  (`_fmemchr` loop; texts 212, 310, 420, 802 have such `00 00 01` debris), and runs after it move back. The
+  rect gets the item origin added once per frame (a bug for n > 1; every card has n = 1). Then
+  `f_78232(text, styl, rect, 0, font 2, font 5, 1)`.
+- anything else: "Unknown Resource." and stop.
+
+`f_78232(text, styl, rect, first, f1, f2, record)` (also used by the pop-up, record = 0): lines of
+max(height f1, height f2) from (left + 1, top + 4), at most (bottom - top) / line height of them; text up to
+strlen. Run k is drawn in f2 when its face word is 0x0100 (bold), else f1. Per line: x = 0; for each
+character, first if run k + 1 starts here: draw the pending segment (from the segment's start to here) at
+the segment's x, and with `record`, if run k was bold: strip leading spaces, upper-case it, and look it up in
+the glossary 4EE5:0520 (0x22-byte entries: u16 text id, 32-byte name; 26 entries CHITIN 901 .. NOP 967,
+ended by id 0, `strcmp`); a match adds a hotspot (segment x, line top, left + x, line top + line height,
+id) to 4EE5:0000 (count DS:8C24, reset per call), no match logs "ERROR: Cannot file text rez". Then
+x += the character's width in the current font; if x < width: a line end (0, LF, CR) ends the line with a
+break before it; a break goes before space ( [ {, after ! ) , - . ? ] }. The line ends when x ≥ width. Its
+tail is drawn from the segment start to the last break (or through the overflowing character if there was
+none; if the break lies before the segment start, nothing), then spaces and one CR / LF are skipped.
+`f_78641` measures the same way (lines x line height) without drawing.
+
+`f_790f0(event)` (only for clicks in 0x502; point item-relative): the first PICT hotspot hit (`f_20205`:
+left ≤ x < right, top ≤ y < bottom):
+- 1 (PREVIOUS): prev = DS:2E04[(index - 1) & 15]; if nonzero, card = prev, index - 1, redraw (`f_22882`);
+- > 1: index + 1, DS:2E04[index & 15] = card = value, DS:2E04[(index + 1) & 15] = 0, redraw;
+- ≤ 0: `f_78e1c(centre x, top, bottom, -value)`.
+If none was hit, the first text hotspot hit → `f_78e1c(centre x, top, bottom, id)` (item-relative).
+The nav bar is bitmap 21004 (BACK = the parent card, PREVIOUS = 1, TOP = 128) or 21005 (PREVIOUS only).
+
+`f_78e1c(x, top, bottom, text)`: a pop-up half the item wide (a), left = x - a / 2 (absolute), kept 4 px
+inside the item; height h = `f_78641(text, styl, a, 2, 5)` + 5; below the link (top = item top + bottom +
+4) unless item height - 10 < h + bottom + 4, then above (top = item top - h + top - 4); the box is 4 px
+larger each way, clamped to the item. It saves the screen (`f_1d2e9`), draws the box (`f_1ce33(.., 1)`)
+and the text (`f_78232`, record 0), waits while the button is down (`f_20262`), and restores.
+
+Cards: 128 Top Card (topics: Social Insects 134, Ant Anatomy 130, Lifecycle 157, Castes 139, Social
+Behavior 146, Common Species 152, Ant Facts 167, SimAnt Strategy 171), 127 / 129 (an older top card and
+an "Index" with links [1, 2, 129, 128]: no card links to them), 130..179 the topics.
+
+The help (`f_76eb5`, menu command 0) is not this viewer: it opens window 26 (0x1a00, a 5 x 5 frame with
+picture 2100, which does not exist) and waits up to 30 s (`f_01277(0x1e)`) or for a key; in the DOS
+version it shows nothing useful.
 
 ## Verification harness (tools/re/emu.py)
 
