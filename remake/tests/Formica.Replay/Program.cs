@@ -2,6 +2,10 @@ using Formica.Replay;
 
 // Formica.Replay [trace files or directories...] [--func substring] [--notes n] [--quiet]
 // Replays the Python reference's recorded calls on the C# port (default: remake/build/traces).
+if (args.Length > 0 && args[0] == "--smoke")
+    return Formica.Replay.Smoke.Run(args.Length > 1 ? args[1] : Path.Combine(TracePaths.DefaultDir(), "..", "..", ".."),
+                                    args.Length > 2 ? int.Parse(args[2]) : 2000,
+                                    args.Length > 3 ? args[3] : Path.Combine(TracePaths.DefaultDir(), "..", "smoke"));
 var paths = new List<string>();
 string filter = null;
 int notes = 4;

@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Formica.Sim\Formica.Sim.csproj" />
+    <ProjectReference Include="..\..\src\Formica.Data\Formica.Data.csproj" />
   </ItemGroup>
 </Project>
