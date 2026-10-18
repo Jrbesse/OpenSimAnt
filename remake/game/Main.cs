@@ -57,8 +57,12 @@ public partial class Main : Node2D
         GD.Print("Formica: game files in " + dir);
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--screenshot=")) screenshot = arg["--screenshot=".Length..];
+            else if (arg == "--history") history = true;
         session = new GameSession(dir);
         session.NewGame(1);
+        foreach (var arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--ticks="))                                 // run the game ahead (for checking a build)
+                for (int t = int.Parse(arg["--ticks=".Length..]); t > 0 && !session.Over; t--) session.Step();
         argb = new uint[Cols * Cell * Rows * Cell];
         rgba = new byte[argb.Length * 4];
         image = Image.CreateEmpty(Cols * Cell, Rows * Cell, false, Image.Format.Rgba8);
@@ -176,13 +180,13 @@ public partial class Main : Node2D
         }
         if (historyLabel == null)
         {
-            var names = session.Files.Strings(1050) ?? new string[10];
             historyLabel = new Label { Position = new Vector2(X0 + 4, Y0 - 16) };
             historyLabel.AddThemeFontSizeOverride("font_size", 10);
-            historyLabel.Text = string.Join("   ", HistorySeries.Select(s => (s.str < names.Length ? names[s.str] : "?") + " (" + ColourName(s.colour) + ")"))
-                                + $"   max {max}";
             status.GetParent().AddChild(historyLabel);
         }
+        var names = session.Files.Strings(1050) ?? new string[10];
+        historyLabel.Text = string.Join("   ", HistorySeries.Select(s => (s.str < names.Length ? names[s.str] : "?") + " (" + ColourName(s.colour) + ")"))
+                            + $"   top {max}";
         historyLabel.Visible = true;
     }
 

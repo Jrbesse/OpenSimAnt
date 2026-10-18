@@ -38,7 +38,7 @@ At this commit all 25 trace files (about 225,000 calls, including 67,200 SimStep
 Open `remake/game` in Godot 4.6 (.NET), or build with `dotnet build remake/game/Formica.csproj` and run
 Godot with `--path remake/game`. The game looks for the original files in `--game-dir=<path>` (a user arg after
 `--`), `FORMICA_GAME_DIR`, or the folders above the project. `-- --screenshot=out.png` saves the screen after
-240 frames and quits.
+240 frames and quits; `--ticks=N` runs the game N ticks ahead first, `--history` opens the History graph.
 
 Controls (first shell): left click walks the yellow ant there (Shift: walk and act on the cell, picking up /
 dropping), right click digs its way there, 1 / 2 / 3 surface / black nest / red nest, arrows scroll, F follows
