@@ -40,16 +40,27 @@ Godot with `--path remake/game`. The game looks for the original files in `--gam
 `--`), `FORMICA_GAME_DIR`, or the folders above the project. `-- --screenshot=out.png` saves the screen after
 240 frames and quits; `--ticks=N` runs the game N ticks ahead first, `--history` opens the History graph.
 
-Controls (first shell): left click walks the yellow ant there (Shift: walk and act on the cell, picking up /
-dropping), right click digs its way there, 1 / 2 / 3 surface / black nest / red nest, arrows scroll, F follows
-the yellow ant, Space pauses (G:047E), + / - speed (slow / medium / fast, as the original's T:07CC), N a new Quick Game, M a new Full Game. The yellow ant's commands: R / Shift+R recruit 5 / 10, E / Shift+E
-release half / all, X exchange (then click an ant or the spider), A alarm trail, H dig a hole, B start brood,
-C chase (as the spider, then click), U / Shift+U hunt / lash out. Y the yard map (Full Game; click a patch to
-move there, Esc to close; it also opens when the yellow ant dies and another colony must be picked). Tab toggles the
-overview (the original's Map window colours; click it to scroll). S mutes the sound effects. G shows the History graph (populations and food). P shows the colony controls (the Behavior and Caste
-triangles: click to set the weights), O switches the jobs between automatic and manual (G:0378). Ctrl+click an ant for its caste, job and load. V cycles the scent views (T:07BE: alarm, black nest
-marker, black trail, red nest marker, red trail, off). F5 / F9 save / load a quick save (the original's
-.ANT format, in Godot's user:// folder).
+Controls (first shell, a stand-in until the original's screens are built):
+
+| Input | Action |
+|---|---|
+| Left click | walk the yellow ant there (Shift: walk and act on the cell: pick up / drop) |
+| Right click | walk there digging through the nest |
+| Ctrl + click | Ant Info: caste, job and load of the ant there |
+| 1 / 2 / 3 | surface / black nest / red nest |
+| Arrows, F | scroll; follow the yellow ant |
+| Space, + / - | pause (G:047E); speed slow / medium / fast (T:07CC) |
+| R, Shift+R | recruit 5 / 10 |
+| E, Shift+E | release half / all |
+| X | exchange: then click an ant (or the spider) to become it |
+| A, H, B | alarm trail; dig a hole (a queen founds a nest); start brood |
+| C, U, Shift+U | as the spider: chase (then click), hunt, lash out |
+| P, O | colony controls (Behavior / Caste triangles: click to set); automatic / manual jobs (G:0378) |
+| G, Tab, V | History graph; overview (Map window colours, click to scroll); scent views (T:07BE) |
+| Y, Esc | yard map in a Full Game (click a patch to move; also opens when another colony must be picked) |
+| F5 / F9 | quick save / load (the original's .ANT format, in Godot's user:// folder) |
+| S | sound effects on / off |
+| N / M | new Quick Game / new Full Game |
 
 ## Porting notes
 
