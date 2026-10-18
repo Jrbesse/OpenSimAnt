@@ -1110,6 +1110,19 @@ event[0x0C] 0x102..0x118 through a jump table at 0x6e5e8 (cs base 0x6e460). The 
 items (FILE_FORMATS "Window layouts"): 0x110 is the "Center on Yellow" button and 0x112 the "Mystery
 Button".
 
+The whole table (the Map window's toolbar, layout 1):
+- 0x102 (the map) → `f_2f898(event)`; 0x103 / 0x104 nothing;
+- 0x105 Yard → `f_01447`; 0x106 / 0x107 / 0x108 → `f_011d2()` then `f_01aec(1 / 2 / 3)` (0x108 also
+  `f_215a5(0x100)`);
+- the scent layers → `f_01781(n)`: 0x109 → 4, 0x10A → 5, 0x10B → 8, 0x10C → 6, 0x10D → 7 (T:07C8);
+- 0x10E Show Trails: DS:2994 = (DS:2994 == 0), the "redraw only the ants over the kept image" flag of
+  `f_6efd6`;
+- 0x10F → `f_07aab` (Behavior Control), 0x111 → `f_07a95` (Caste Control), 0x110 → `f_6f733`,
+  0x112 → `f_022bc`, 0x113 → `f_2f9ba` (History), 0x114 → `f_2f9a6` (Efficiency Score), 0x115 →
+  `f_2f9b0` (Ant Info);
+- 0x116: G:1074 = 1, `f_2f74e(0x103)`; 0x117 → `f_2f88e` (the Experimental menu); 0x118 → `f_2f9ce`
+  (the population report).
+
 - Command 0x110 ("Center on Yellow") → `f_6f733(event)`: the BIOS shift flags 0000:0417 pick a hidden
   action.
   - No Ctrl: `f_01c52` (the normal action: follow the yellow ant).

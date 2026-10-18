@@ -92,6 +92,7 @@ public partial class Main : Node2D
         if (OS.GetCmdlineUserArgs().Contains("--popup")) OpenPopup(200, 150);
         if (OS.GetCmdlineUserArgs().Contains("--yard")) OpenYard(false);
         if (OS.GetCmdlineUserArgs().Contains("--scent-menu")) OpenScentMenu();
+        if (OS.GetCmdlineUserArgs().Contains("--trails")) session.St.Set16(Seg.DS, 0x2994, 1);
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--message=") && session.Files.Strings(int.Parse(arg["--message=".Length..])) is { } box)
                 OpenMessageBox(box);                                        // --message=<STR# id>: show a message box
@@ -361,6 +362,11 @@ public partial class Main : Node2D
 
     int MapContent => session.St.U16(Seg.T, 0x7c8);
 
+    // Show Trails (0x10E, DS:2994): f_6efd6 then redraws only the ants over the image it keeps (G:10E2), so their
+    // paths stay on the map until it is drawn afresh (here: when the option or the view changes).
+    readonly uint[] trailImage = new uint[128 * 64];
+    int trailView = -1;
+
     int MapView => MapContent is >= 1 and <= 3 ? MapContent : 1;
 
     /// <summary>The map's pixel scale and its left edge inside the map item: 4 x 4 px per cell (G:3856 x G:3858 at
@@ -386,6 +392,14 @@ public partial class Main : Node2D
         area.Fill(m.l, m.t, m.r, m.b, session.Art.Palette[13]);
         int mv = MapView, mw = MapRenderer.Width(mv);
         var (x0, y0) = MapOrigin();
+        bool trails = st.U16(Seg.DS, 0x2994) != 0 && content is >= 1 and <= 3;
+        if (trails && trailView != mv)                                                       // start from the current map
+        {
+            trailView = mv;
+            for (int b = 0; b < MapRenderer.Height; b++)
+                for (int a = 0; a < mw; a++) trailImage[b * 128 + a] = session.Art.Palette[MapRenderer.MapColour(st, mv, a, b)];
+        }
+        if (!trails) trailView = -1;
         for (int b = 0; b < MapRenderer.Height; b++)
             for (int a = 0; a < mw; a++)
             {
@@ -396,6 +410,12 @@ public partial class Main : Node2D
                     // drawn as a ramp from light to dark
                     int v = MapRenderer.Scent(st, MapRenderer.ScentMode(content), a, b);
                     col = v == 0 ? session.Art.Palette[11] : Ramp(v);
+                }
+                else if (trails)
+                {
+                    // Show Trails: only cells with an ant are painted, over the image kept from before
+                    if (Player.GetOcc(st, mv, a, b) > 0) trailImage[b * 128 + a] = session.Art.Palette[MapRenderer.MapColour(st, mv, a, b)];
+                    col = trailImage[b * 128 + a];
                 }
                 else col = session.Art.Palette[MapRenderer.MapColour(st, mv, a, b)];
                 area.Fill(x0 + a * 4, y0 + b * 4, x0 + a * 4 + 4, y0 + b * 4 + 4, col);
@@ -459,7 +479,9 @@ public partial class Main : Node2D
                 st.Set16(Seg.T, 0x7c8, MapContent == content ? view : content);
                 break;
             }
-            case 14: lastMessage = "Show Trails is not decoded yet."; break;
+            case 14:                                                                     // Show Trails: DS:2994 ^= 1 (f_6e5c0)
+                st.Set16(Seg.DS, 0x2994, st.U16(Seg.DS, 0x2994) == 0 ? 1 : 0);
+                break;
             case 15: ToggleWindow(BehaviorWin); break;
             case 17: ToggleWindow(CasteWin); break;
             case 16: SetView(session.Yellow.view); follow = true; break;
