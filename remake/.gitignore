@@ -1,0 +1,7 @@
+# Traces and caches derived from the original game's memory: never commit
+/build/
+bin/
+obj/
+.godot/
+*.user
+.vs/
