@@ -88,6 +88,8 @@ public partial class Main : Node2D
         if (OS.GetCmdlineUserArgs().Contains("--efficiency")) OpenEfficiency();
         if (OS.GetCmdlineUserArgs().Contains("--popup")) OpenPopup(200, 150);
         if (OS.GetCmdlineUserArgs().Contains("--yard")) OpenYard(false);
+        if (OS.GetCmdlineUserArgs().Contains("--scent-menu")) OpenScentMenu();
+        if (OS.GetCmdlineUserArgs().Contains("--ant-info")) { var (_, ya, yb) = session.Yellow; SetView(session.Yellow.view); CenterOnYellow(); OpenAntInfo(ya, yb); }
         if (OS.GetCmdlineUserArgs().Contains("--strat")) session.St.Set16(Seg.G, 0x35c, 2);
         font = ui.Font(2);
         argb = new uint[ScreenW * ScreenH];
@@ -265,7 +267,7 @@ public partial class Main : Node2D
             case 13: GotoQueen(2); break;
             case 14: GotoQueen(3); break;
             case 15: session.Paused = !session.Paused; break;
-            case 16: CycleScent(); break;
+            case 16: OpenScentMenu(); break;
         }
     }
 
@@ -278,7 +280,7 @@ public partial class Main : Node2D
         if (mb.CtrlPressed || antInfoArmed)                                        // the Ant Info tool
         {
             antInfoArmed = false;
-            lastMessage = AntInfo(a, b) ?? "";
+            OpenAntInfo(a, b);
             return;
         }
         int target = st.U16(Seg.G, 0x105e);
@@ -460,6 +462,8 @@ public partial class Main : Node2D
     static readonly Dictionary<int, int[]> PopupCommands = new()
     {
         [7] = new[] { 1, 2, 4, 5, 6, 0 }, [8] = new[] { 8, 9, 0 }, [32] = new[] { 0xa, 0xb, 6, 0 },
+        // layout 6 (6000), the scent overlay menu (f_679c0): Off, Alarm, B-Nest, B-Trail, R-Nest, R-Trail → T:07BE
+        [6] = new[] { 0xffff, 0, 1, 2, 3, 4 },
     };
     int popup = -1, popupHover = -1;
     (int dx, int dy) popupOff;
@@ -470,6 +474,15 @@ public partial class Main : Node2D
         popup = st.U16(Seg.G, 0xa06) == 1 ? 32 : st.U16(Seg.G, 0x4c2) == 0x40 && st.U16(Seg.T, 0xc24) == 0 ? 8 : 7;
         var (l, t, r, b) = ui.Layouts[popup].Rect;
         popupOff = (Math.Clamp(x, 0, ScreenW - (r - l)) - l, Math.Clamp(y, 0, ScreenH - (b - t)) - t);
+        popupHover = -1;
+    }
+
+    /// <summary>The scent overlay menu (layout 6) opens at its layout place next to its parent, the Edit window's
+    /// SCENT button (item 0x0010), so it moves with that window.</summary>
+    void OpenScentMenu()
+    {
+        popup = 6;
+        popupOff = Off(EditWin);
         popupHover = -1;
     }
 
@@ -503,6 +516,12 @@ public partial class Main : Node2D
             else if (!mb.Pressed && entry >= 0)
             {
                 int cmd = PopupCommands[popup][entry - 2];
+                if (popup == 6)
+                {
+                    popup = -1;
+                    session.St.Set16(Seg.T, 0x7be, cmd);
+                    return;
+                }
                 if (cmd == 2 && mb.ShiftPressed) cmd = 3;
                 if (cmd == 0xb && mb.AltPressed) cmd = 0xc;
                 popup = -1;
@@ -737,24 +756,55 @@ public partial class Main : Node2D
 
     // ------------------------------------------------------------------------------- the Ant Info window
     /// <summary>f_67c1c(a, b, view) (window 29, map tool 0): for occupant o, caste = (o &amp; 0x78) >> 3: STR# 1100
-    /// [o &amp; 7] for brood (caste 0) else STR# 1101 [caste]; STR# 1102 [the ant's state]; STR# 1103 [caste].</summary>
-    string AntInfo(int a, int b)
+    /// [o &amp; 7] for brood (caste 0) else STR# 1101 [caste]; STR# 1102 [the ant's state]; STR# 1103 [caste].
+    /// The yellow ant's own cell holds a marker (0xFE / 0xFF), so its type G:04C2 stands in for it (not traced).
+    /// The window (layout 29, bitmap 4510) opens at ((a - G:0508 + 1) * 16 + G:110C, (b - G:050A - 1) * 16 + G:110E),
+    /// a cell + its width further left if it would pass the screen's right edge, and up to fit; it waits for a
+    /// click.</summary>
+    string[] AntInfo(int a, int b)
     {
         var st = session.St;
         int o = Player.GetOcc(st, view, a, b);
-        if (o < 0) return null;
-        if (Movement.IsYellow(o)) return "The yellow ant (you)";
+        if (o <= 0) return null;
+        bool yellow = Movement.IsYellow(o);
+        if (yellow) o = st.U16(Seg.G, 0x4c2) | (st.U16(Seg.G, 0x4e2) & 0x80);
         int caste = (o & 0x78) >> 3;
-        int i = view <= 1 ? Movement.SurfaceAntAt(st, a, b) : Nest.NestAntAt(st, view == 2 ? Nest.BLACK : Nest.RED, a, b, o);
+        int i = yellow ? -1 : view <= 1 ? Movement.SurfaceAntAt(st, a, b) : Nest.NestAntAt(st, view == 2 ? Nest.BLACK : Nest.RED, a, b, o);
         int state = i < 0 ? 0 : st.U8(Seg.SIM, Player.Ants(view).State + i);
         string Pick(int id, int k)
         {
             var l = session.Files.Strings(id);
-            return l != null && k < l.Length ? l[k] : $"{id}[{k}]";
+            return l != null && k < l.Length ? l[k] : "";
         }
-        string kind = caste == 0 ? Pick(1100, o & 7) : Pick(1101, caste);
-        string colour = (o & 0x80) != 0 ? "Red" : "Black";
-        return $"{colour} {kind}: {Pick(1102, state)}, carrying {Pick(1103, caste)}";
+        return new[] { caste == 0 ? Pick(1100, o & 7) : Pick(1101, caste), Pick(1102, state), Pick(1103, caste) };
+    }
+
+    const int AntInfoWin = 29;
+    string[] antInfoLines;
+    (int dx, int dy) antInfoOff;
+
+    void OpenAntInfo(int a, int b)
+    {
+        antInfoLines = AntInfo(a, b);
+        if (antInfoLines == null) return;
+        var m = ItemRect(EditWin, EditMapItem);
+        var (l, t, r, bb) = ui.Layouts[AntInfoWin].Rect;
+        int w = r - l, h = bb - t;
+        int x = (a - originA + 1) * Cell + m.l, y = (b - originB - 1) * Cell + m.t;
+        if (x + w > ScreenW) x -= Cell + w;
+        y = Math.Clamp(y, 0, ScreenH - h);
+        antInfoOff = (x - l, y - t);
+        modal = AntInfoWin;
+    }
+
+    void DrawAntInfo(UiArt.Canvas c)
+    {
+        ui.DrawWindow(c, AntInfoWin, antInfoOff.dx, antInfoOff.dy, null);
+        for (int i = 0; i < 3; i++)
+        {
+            var (l, t, r, b) = ui.Layouts[AntInfoWin].Items[2 + i].Rect;
+            ui.DrawText(c, 2, 0, l + antInfoOff.dx, t + antInfoOff.dy, r + antInfoOff.dx, b + antInfoOff.dy, antInfoLines[i]);
+        }
     }
 
     // ------------------------------------------------------------------------------- speech balloons
@@ -1028,6 +1078,7 @@ public partial class Main : Node2D
                 else if (win == YardWin) DrawYardWindow(canvas);
                 else DrawControlWindow(canvas, win);
             if (modal == EfficiencyWin) DrawEfficiency(canvas);
+            if (modal == AntInfoWin) DrawAntInfo(canvas);
             if (popup >= 0) DrawPopup(canvas);
         }
         for (int i = 0; i < argb.Length; i++)
