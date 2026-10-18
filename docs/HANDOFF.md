@@ -131,7 +131,10 @@ render_view's yard code; patch clicks move in a Full Game), the scent overlay me
 Select a Game (2, at start-up and F2), and in the Experimental game the tool palette (9) with the map tools'
 drag loop and the option palettes (12..17, by bitmap: 12 Walls / Rocks, 15 Dig / Fill, 16 Black / Red, 17
 1 / 20 pieces, 13 the scent maps, 14 Spray / Stream; 10 is the Experimental menu, 11 its "not in the full
-game" box; switching a running Quick Game to Experimental by setting G:0EAC = 3 is a guess). Help overlays: F1 or the ? buttons. Screenshot
+game" box; switching a running Quick Game to Experimental by setting G:0EAC = 3 is a guess), message
+boxes (27 / 30) for the sim's message_box effects, the detailed population report (23, `f_7179d`, while
+the report is held), Show Trails (DS:2994), the Map window's small spider / human / mower overlays and the
+control windows' preset ratios (decoded: SIM_NOTES "Behavior / Caste Control triangles"). Help overlays: F1 or the ? buttons. Screenshot
 flags for each: remake/README.md. Notes: layout 0 is the Edit window and 1 the Map window (FILE_FORMATS had
 them the other way round in places); T:07C8 matters to the sim (yard sounds draw from the RNG only while it
 is 0), so the shell sets it only where the original's Map window does.
@@ -139,9 +142,10 @@ is 0), so the shell sets it only where the original's Map window does.
 Suggested next session (in order):
 1. Play the shell and note what feels wrong (speed, controls, missing feedback).
 2. Remaining screens: the message window (5) in place of the status lines, the
-   menus (Game / Speed / ...: SIM_NOTES has the four in-game menus), the title and game-select screens
-   (3 / 2), the save prompt (33), the population report's hold-to-view, Show Trails (0x10E), the preset
-   ratios (Set 1..3) in the control windows, the mating-flight controls of the yard window.
+   menus (no menu bar is decoded; the original's Game / Speed menus are still to find), the title screen
+   (3), the save prompt (33), the mating-flight controls of the yard window (MATE / PLACE / AUTOMATIC /
+   MANUAL), the control windows' corner labels (0x120F..: 0x7f06), the Edit window's bottom strip (item 21),
+   the Experimental menu's real effect (thunk 0x2f88e → f_67010).
 3. The isometric yard map (f_7650c), if it differs from the yard window's colony views.
 4. Music: the MIDI songs (SOUND types 18 / 20, effect ids 10000+) through a C# SoundFont synth (e.g. the
    MeltySynth library) or pre-rendered OGG; the player supplies or picks a SoundFont.
@@ -405,6 +409,11 @@ Suggested next session (in order):
 
 2026-10-18 afternoon (the screens):
 ```
+0485c84 Remake shell: the Behavior / Caste preset ratios (Set 1..3); notes: the control windows' handlers
+003e527 Remake shell: the detailed population report (window 23, f_7179d)
+8100765 Remake shell: the Map window's overlays (f_6f505 the small spider, f_6f5e1 the human and the mower)
+ffffd01 Remake shell: Show Trails (0x10E toggles DS:2994); notes: the Map toolbar's command table
+00e55cd Remake shell: message boxes (layouts 27 / 30) for the sim's message_box effects
 378eae5 Remake shell: Select a Game (layout 2) at start-up and on F2
 4f8ad0b Remake shell: the map tools' option palettes (layouts 12..17) and the Experimental menu (10 / 11)
 0feb3c1 Remake shell: the tool palette (layout 9) and the map tools' drag loop (f_76f4a) in the Experimental game
