@@ -1632,6 +1632,10 @@ STR# list handles loaded at startup (`f_0765e`, part of the STR# loader 0x7691..
 string lists, not bitmaps): 1000 → G:046C, 1001 → G:0324, 1010 → G:034C, 1020 → G:0360,
 1050 → G:02BA, 1100..1103 → G:106E / 1078 / 1086 / 1096, 1200 → G:10A8, 1210 → G:10B4, 1220 → G:020A,
 1230 → G:0218, 1240 → G:021C, 1250 → G:0234, 1260 → G:023A, 1900 → G:0328, 1800 → G:0368.
+STR# 1000 holds window titles: entries 0..8 name the Map window's contents T:07C8 ("BackYard View",
+"Surface View", "Black Nest View", "Red Nest View", the five pheromone maps), 9..12 the yard window's
+modes G:035C ("Yard View", "House View", "Strategic View", "Graphic View"). Which routine fills the
+captions with them is not traced (matched by their order).
 
 ## Verification harness (tools/re/emu.py)
 

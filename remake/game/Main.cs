@@ -186,6 +186,15 @@ public partial class Main : Node2D
     }
 
     // ------------------------------------------------------------------------------- windows
+    /// <summary>The windows' titles, STR# 1000 (G:046C): 0..8 the Map window's content T:07C8 (BackYard, Surface,
+    /// Black Nest, Red Nest View, the five pheromone maps), 9..12 the yard window's modes G:035C (Yard, House,
+    /// Strategic, Graphic View).</summary>
+    string Title(int k)
+    {
+        var l = session.Files.Strings(1000);
+        return l != null && k >= 0 && k < l.Length ? l[k] : "";
+    }
+
     (int dx, int dy) Off(int win) => offsets[win];
 
     /// <summary>Item `index` of window `win`'s layout, on screen (moved with the window).</summary>
@@ -235,7 +244,7 @@ public partial class Main : Node2D
     {
         var st = session.St;
         var (dx, dy) = Off(EditWin);
-        string title = ViewNames[view] + (st.U16(Seg.T, 0x7be) < 5 ? " (" + Scents[st.U16(Seg.T, 0x7be)] + ")" : "");
+        string title = Title(view) + (st.U16(Seg.T, 0x7be) < 5 ? " (" + Scents[st.U16(Seg.T, 0x7be)] + ")" : "");   // by analogy with the Map window
         ui.DrawWindow(c, EditWin, dx, dy, title, new[] { 15001 });
         var win = c.Clip(WindowRect(EditWin).l, WindowRect(EditWin).t, WindowRect(EditWin).r, WindowRect(EditWin).b);
         var m = ItemRect(EditWin, EditMapItem);
@@ -391,7 +400,7 @@ public partial class Main : Node2D
         var st = session.St;
         var (dx, dy) = Off(MapWin);
         int content = MapContent;
-        string title = content >= 4 && content <= 8 ? "Map: " + Scents[MapRenderer.ScentMode(content)] : "Map: " + ViewNames[MapView];
+        string title = Title(content <= 8 ? content : MapView);
         ui.DrawWindow(c, MapWin, dx, dy, title, new[] { 14001 });
         var wr = WindowRect(MapWin);
         var win = c.Clip(wr.l, wr.t, wr.r, wr.b);
@@ -1332,10 +1341,9 @@ public partial class Main : Node2D
         var st = session.St;
         var (dx, dy) = Off(YardWin);
         int mode = st.S16(Seg.G, 0x35c);
-        string[] titles = { "The Yard", "The Yard", "Colony Coverage", "Colony Sizes" };
         var hidden = new List<int> { 7011 };
         if (mode >= 2) { hidden.Add(7000); hidden.Add(7003); }
-        ui.DrawWindow(c, YardWin, dx, dy, titles[Math.Clamp(mode, 0, 3)], hidden);
+        ui.DrawWindow(c, YardWin, dx, dy, Title(9 + Math.Clamp(mode, 0, 3)), hidden);
         var wr = WindowRect(YardWin);
         var clip = c.Clip(wr.l, wr.t, wr.r, wr.b);
         var (ox, oy) = YardOrigin();
