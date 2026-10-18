@@ -288,14 +288,16 @@ Suggested next session: see "Next steps" 11.. below. The most valuable next piec
     `remake/build/traces/*.trace`; `record_traces.py <test> [args]` one test. Each trace record is one
     outermost `simant_ref` call: args (State refs by name, bytes as hex), player hook class, clock, kbd,
     zlib'd State before / after.)
-11. **The boot state.** `GameSession` starts from the static image of SIMANT.EXE, but the original runs
-    its init (C runtime, resources, settings, the init near 0x075B0, far heap) before the first new game.
-    Record the emulator's memory right after boot (`Verifier.__init__` boots, then calls f_6b36b: dump
-    before that call), diff it with flat.bin over LO..HI, and classify each changed range: settings the
-    sim reads (T:07AA sound, T:07AE messages, T:07B0, T:07B2, T:07C8, DS:1926, DS:5702, ...), far heap
-    pointers (the balloon string lists G:020A..), UI-only. Then make `GameSession.NewGame` set what
-    matters (from the player's files or the decoded init), and add a test: new game from the boot state
-    in the emulator vs. C# from SIMANT.EXE + init, then N ticks.
+11. (done 2026-10-18: **the boot state.** `tools/ref/boot_diff.py [out]` boots the original in the
+    emulator and diffs State memory with flat.bin (write the booted bytes to `remake/build/boot_state.bin`
+    for the smoke test). Besides relocated segment words (the emulator loads at segment 0x100: high byte
+    +1) and UI / far-heap data, start-up sets what the sim reads: G:0480 = 0x50 (highest passable tile;
+    with 0, surface ants are blocked everywhere), G:0FBA = G:0FFE = 0x1E (the yellow ant's health warning,
+    the advisor's hunger level), DS:1A2E = 0 (tile-set cache), G:10DE / G:10E0 = 0x15 / 0x16 (map window
+    size, used by the event markers). `GameSession.ApplyBootDefaults` sets them; `Formica.Replay --smoke`
+    checks that games from SIMANT.EXE + defaults and from the booted memory stay identical (2000 ticks,
+    Quick and Full Game, the yellow ant walking): they do. Still open: where the init code takes the 0x1E
+    values from (SIMANT.CFG? a resource?), and the far-heap string lists (balloon lines, G:020A..).)
 12. **Game speed.** The original's main loop decides how many SimSteps run per real second (speed menu);
     `Main.cs` uses 2..72 ticks/s with 10 by default. Decode the loop's timing (it reads the clock).
 13. **UI screens**, each from the decoded layouts (`tools/layouts.py --json`, FILE_FORMATS "Window

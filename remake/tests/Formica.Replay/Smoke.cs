@@ -20,6 +20,39 @@ public static class Smoke
                 if (refFlat[i] != s.Files.Flat[i]) diffs++;
             Console.WriteLine($"state image from SIMANT.EXE vs flat.bin: {diffs} bytes differ");
         }
+        var bootPath = Path.Combine(TracePaths.DefaultDir(), "..", "boot_state.bin");
+        if (File.Exists(bootPath))
+        {
+            // a game from the static image + boot defaults must evolve like one from the real booted memory
+            var boot = File.ReadAllBytes(bootPath);
+            foreach (int mode in new[] { 1, 2 })
+            {
+                var x = new GameSession(gameDir);
+                x.NewGame(mode, 0x4321, boot);
+                s.NewGame(mode, 0x4321);
+                var x0 = (byte[])x.St.Mem.Clone();
+                var s0 = (byte[])s.St.Mem.Clone();
+                int bad = -1;
+                for (int t = 0; t < ticks && bad < 0; t++)
+                {
+                    if (t == 100) { x.WalkTo(1, 70, 25); s.WalkTo(1, 70, 25); }
+                    x.Step();
+                    s.Step();
+                    // the simulation's own memory: T, SIM up to the end of the red trail map, G below the UI data
+                    for (int i = 0; i < State.Size && bad < 0; i++)
+                    {
+                        int lin = State.Lo + i;
+                        bool sim = lin < 0x4da70 + 0x800 || (lin >= Seg.G * 16 && lin < Seg.G * 16 + 0x1200);
+                        // bytes that already differed at the start and neither side changed: relocated segment
+                        // words (the emulator loads at segment 0x100) and other start-up differences left alone
+                        bool still = x0[i] != s0[i] && x.St.Mem[i] == x0[i] && s.St.Mem[i] == s0[i];
+                        if (sim && x.St.Mem[i] != s.St.Mem[i] && !still) bad = i;
+                    }
+                    if (bad >= 0) Console.WriteLine($"mode {mode}: boot vs image differ at tick {t}: {Replayer.Describe(bad)} boot {x.St.Mem[bad]:x2} image {s.St.Mem[bad]:x2}");
+                }
+                if (bad < 0) Console.WriteLine($"mode {mode}: {ticks} ticks from the boot state and from SIMANT.EXE + boot defaults match");
+            }
+        }
         foreach (int mode in new[] { 1, 2 })
         {
             s.NewGame(mode, 0x1234);

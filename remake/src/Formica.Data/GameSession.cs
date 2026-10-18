@@ -53,9 +53,10 @@ public sealed class GameSession
 
     /// <summary>Start a game: 0 tutorial (not ported), 1 Quick Game, 2 Full Game, 3 experimental. A real game
     /// seeds both generators from the time of day; pass a seed for a repeatable game.</summary>
-    public void NewGame(int mode, int? seed = null)
+    public void NewGame(int mode, int? seed = null, byte[] bootState = null)
     {
-        St = ExeImage.NewState(Files.Flat);
+        St = bootState != null ? new State((byte[])bootState.Clone()) : ExeImage.NewState(Files.Flat);
+        if (bootState == null) ApplyBootDefaults(St);
         Hooks = new SessionHooks();
         St.Hooks = Hooks;
         int s = seed ?? (int)(DateTime.Now.TimeOfDay.TotalSeconds * ClockHz);
@@ -65,6 +66,20 @@ public sealed class GameSession
         Game.StartGame(St, mode);
         St.Set16(T, 0x7b2, 1);                                  // the patch is shown
         Ticks = 0;
+    }
+
+    /// <summary>What the original's start-up sets before the first new game that the simulation reads
+    /// (found by diffing the emulator's memory after boot with the static image, tools/ref/boot_diff.py; the
+    /// init code that sets them is not decoded yet). Everything else that boot changes is UI, far heap
+    /// pointers, or relocated segment words.</summary>
+    public static void ApplyBootDefaults(State st)
+    {
+        st.Set16(G, 0x480, 0x50);         // the highest passable surface tile (the yard tile set)
+        st.Set16(G, 0xfba, 0x1e);         // the yellow ant's health warning level
+        st.Set16(G, 0xffe, 0x1e);         // the advisor's colony hunger level
+        st.Set16(DS, 0x1a2e, 0);          // the loaded tile set (0 the yard)
+        st.Set16(G, 0x10de, 0x15);        // the map window's size in cells (event markers)
+        st.Set16(G, 0x10e0, 0x16);
     }
 
     /// <summary>One SimStep; `seconds` of real time pass on the game's clock.</summary>
