@@ -56,6 +56,8 @@ Mouse:
 | Map window | click the map to look there; toolbar: Yard (Full Game), the views, scent layers, Behavior / Caste Control, Center on Yellow, the Mystery Button, History, Efficiency Score, Ant Info |
 | Behavior / Caste Control | click or drag in the triangle; Auto / Manual |
 | History window | the series buttons (up to four at once) |
+| Experimental button (Map toolbar, Edit strip) | Quick Game: switch to Experimental; Experimental: the tool palette (hold a tool for its options; Start Game returns to a Quick Game), then press / drag on the Edit map |
+| Population report (Map window) | hold: the detailed report per caste |
 
 Keys:
 
@@ -75,10 +77,11 @@ Keys:
 | Y, Esc | yard map in a Full Game (click a patch to move; also opens when another colony must be picked) |
 | F5 / F9 | quick save / load (the original's .ANT format, in Godot's user:// folder) |
 | S | sound effects on / off |
-| N / M / K | new Quick Game / Full Game / Experimental game (tool palette: hold a tool for its options) |
+| N / M / K | new Quick Game / Full Game / Experimental game |
 
 Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`, `--efficiency`, `--popup`,
-`--map-front`, `--help-overlay`, `--yard`, `--strat`, `--scent-menu`, `--ant-info`, `--select` to open those
+`--map-front`, `--help-overlay`, `--yard`, `--strat`, `--scent-menu`, `--ant-info`, `--select`, `--report`,
+`--exp-menu`, `--trails`, `--message=<STR# id>` to open those
 windows first; `--full` / `--experimental` start that kind of game.
 
 ## Porting notes
