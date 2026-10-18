@@ -420,6 +420,18 @@ public partial class Main : Node2D
                 else col = session.Art.Palette[MapRenderer.MapColour(st, mv, a, b)];
                 area.Fill(x0 + a * 4, y0 + b * 4, x0 + a * 4 + 4, y0 + b * 4 + 4, col);
             }
+        if (mv == 1 && content == 1 && !trails)
+        {
+            // f_6f505: the small spider, bitmap 1100 + G:1004 at its cell x 4 - 3, while G:0F0C != 0; f_6f5e1: while
+            // T:0C3E the human's sneaker 1200 + T:0C30 at (G:03E0, G:046A) x 4, and while mowing (T:0C28 3 or 4) the
+            // mower 1210 + (T:0C30 & 1) at (G:0470, G:047A) x 4
+            if (st.U16(Seg.G, 0xf0c) != 0)
+                ui.DrawBitmap(area, 1100 + st.U16(Seg.G, 0x1004), x0 + (st.S16(Seg.G, 0xf12) >> 4) * 4 - 3, y0 + (st.S16(Seg.G, 0xf34) >> 4) * 4 - 3);
+            if (st.U16(Seg.T, 0xc3e) != 0)
+                ui.DrawBitmap(area, 1200 + st.U16(Seg.T, 0xc30), x0 + st.S16(Seg.G, 0x3e0) * 4, y0 + st.S16(Seg.G, 0x46a) * 4);
+            if (st.U16(Seg.T, 0xc28) is 3 or 4)
+                ui.DrawBitmap(area, 1210 + (st.U16(Seg.T, 0xc30) & 1), x0 + st.S16(Seg.G, 0x470) * 4, y0 + st.S16(Seg.G, 0x47a) * 4);
+        }
         if (mv == view)                                                                     // the Edit window's view
         {
             int l = x0 + originA * 4, t = y0 + originB * 4;
