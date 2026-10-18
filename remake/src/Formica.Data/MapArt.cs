@@ -132,6 +132,24 @@ public static class MapRenderer
         return (bg, fg & 0xffff);
     }
 
+    /// <summary>The Map window's colour for cell (a, b) of `view` (f_6efd6, the 16-colour path; render_view.map_cells):
+    /// surface (f_6e892): occupant ? T:046E[occupant >> 3] : T:030E[tile] (house T:039E); nests (f_6ec6e): the
+    /// yellow ant 1, red ants 3, black ants 15, else T:04A6[dirt >> 2].</summary>
+    public static int MapColour(State st, int view, int a, int b)
+    {
+        if (view <= 1)
+        {
+            int o = st.Grid(OCC, a, b);
+            if (o != 0) return st.U8(T, 0x46e + (o >> 3)) & 15;
+            int ground = st.U16(G, 0xf24) == 1 ? 0x39e : 0x30e;
+            return st.U8(T, ground + st.Grid(SURFACE, a, b)) & 15;
+        }
+        var n = view == 2 ? NestGrid.BLACK : NestGrid.RED;
+        int c = st.Grid(n.Cells, a, b);
+        if (c == 0) return st.U8(T, 0x4a6 + (st.Grid(n.Dirt, a, b) >> 2)) & 15;
+        return c >= 0xfe ? 1 : (c & 0x80) != 0 ? 3 : 15;
+    }
+
     /// <summary>Draw cells [a0, a1) x [b0, b1) of `view` into an ARGB buffer (16 px per cell, x = a, y = b).</summary>
     public static void Render(State st, MapArt art, int view, int a0, int b0, int a1, int b1, uint[] dst, int stride)
     {

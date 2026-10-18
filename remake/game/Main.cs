@@ -178,6 +178,41 @@ public partial class Main : Node2D
             }
     }
 
+    // ------------------------------------------------------------------------------- the Map window (overview)
+    const int OvScale = 2;
+    bool overview = true;
+
+    int OvX => Cols * Cell - MapRenderer.Width(view) * OvScale - 4;
+
+    void DrawOverview(uint[] dst, int w)
+    {
+        var st = session.St;
+        int mw = MapRenderer.Width(view), x0 = OvX, y0 = 4;
+        for (int b = 0; b < MapRenderer.Height; b++)
+            for (int a = 0; a < mw; a++)
+            {
+                uint c = session.Art.Palette[MapRenderer.MapColour(st, view, a, b)];
+                bool frame = (a == originA || a == originA + Cols - 1) && b >= originB && b < originB + Rows
+                             || (b == originB || b == originB + Rows - 1) && a >= originA && a < originA + Cols;
+                if (frame) c = 0xffffff40u;
+                for (int dy = 0; dy < OvScale; dy++)
+                    for (int dx = 0; dx < OvScale; dx++)
+                        dst[(y0 + b * OvScale + dy) * w + x0 + a * OvScale + dx] = c;
+            }
+    }
+
+    bool OverviewClick(Vector2 p)
+    {
+        if (!overview) return false;
+        int a = (int)(p.X - OvX) / OvScale, b = (int)(p.Y - 4) / OvScale;
+        if (p.X < OvX || p.Y < 4 || a >= MapRenderer.Width(view) || b >= MapRenderer.Height) return false;
+        follow = false;
+        originA = a - Cols / 2;
+        originB = b - Rows / 2;
+        Clamp();
+        return true;
+    }
+
     void YardClick(Vector2 p)
     {
         int r = (int)((p.X - YardX) / YardW), c = (int)((p.Y - YardY) / YardH);
@@ -200,6 +235,7 @@ public partial class Main : Node2D
         else MapRenderer.Render(st, session.Art, view, originA, originB, originA + cols, originB + Rows, argb, w);
         if (view == 1 && !yardMap)
             SpiderRenderer.Draw(st, session.Files, session.Art, argb, w, Rows * Cell, originA * Cell, originB * Cell, SpiderRenderer.FangJitter(st));
+        if (overview && !yardMap) DrawOverview(argb, w);
         for (int i = 0; i < argb.Length; i++)
         {
             uint c = argb[i];
@@ -229,6 +265,7 @@ public partial class Main : Node2D
                 YardClick(mb.Position);
                 return;
             }
+            if (OverviewClick(mb.Position)) return;
             if (mb.Position.Y >= Rows * Cell || a >= MapRenderer.Width(view)) return;
             var st = session.St;
             int target = st.U16(Seg.G, 0x105e);
@@ -271,6 +308,7 @@ public partial class Main : Node2D
                 case Key.U: Commands.Command(session.St, k.ShiftPressed ? 0xc : 0xb); break;  // the spider: hunt / lash out
                 case Key.Y: yardMap = !yardMap && session.St.U16(Seg.G, 0xeac) == 2; break;  // the yard map (Full Game)
                 case Key.Escape: yardMap = false; break;
+                case Key.Tab: overview = !overview; break;                                 // the Map window
                 case Key.N: Restart(1); break;
                 case Key.M: Restart(2); break;
             }
