@@ -115,8 +115,12 @@ public partial class Main : Node2D
         while (session.Hooks.Effects.Count > 0)
         {
             var e = session.Hooks.Effects.Dequeue();
-            if (e.Name is "message" or "message_box" or "status" && e.Args.Length > 0 && e.Args[0] != null)
-                lastMessage = $"{e.Name} {Describe(e.Args)}";
+            if (e.Name is "message" or "message_box" && e.Args.Length > 0 && e.Args[0] is int id)
+            {
+                var lines = session.Files.Strings(id);
+                lastMessage = lines != null ? string.Join(" ", lines) : $"message 0x{id:x}";
+                GD.Print("message: " + lastMessage);
+            }
         }
     }
 

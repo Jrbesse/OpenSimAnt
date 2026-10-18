@@ -127,12 +127,52 @@ public sealed class OriginalFiles
     public readonly string Dir;
     public readonly byte[] Flat;
     public readonly List<Resource> Hcegant;
+    public readonly List<Resource> Shared;
 
     public OriginalFiles(string dir)
     {
         Dir = dir;
         Flat = ExeImage.BuildFlat(File.ReadAllBytes(Path.Combine(dir, "SIMANT.EXE")));
         Hcegant = ResourceArchive.Read(Path.Combine(dir, "HCEGANT"));
+        Shared = File.Exists(Path.Combine(dir, "SHARED.DAT")) ? ResourceArchive.Read(Path.Combine(dir, "SHARED")) : new List<Resource>();
+    }
+
+    /// <summary>A Mac STR# list (type 4; SHARED first, then HCEGANT): u16 BE count, then Pascal strings.
+    /// The game's messages (f_71b1a(0, id, ..)) are the lines of STR# id. Null if there is none.</summary>
+    public string[] Strings(int id)
+    {
+        var r = Shared.FirstOrDefault(x => x.Type == 4 && x.Id == id) ?? Hcegant.FirstOrDefault(x => x.Type == 4 && x.Id == id);
+        if (r == null) return null;
+        var d = r.Data;
+        int n = (d[0] << 8) | d[1], p = 2;
+        var res = new string[n];
+        for (int i = 0; i < n && p < d.Length; i++)
+        {
+            int len = d[p];
+            res[i] = MacText(d.AsSpan(p + 1, Math.Min(len, d.Length - p - 1)));
+            p += 1 + len;
+        }
+        return res;
+    }
+
+    /// <summary>Mac Roman text (the characters the game uses; others as '?').</summary>
+    public static string MacText(ReadOnlySpan<byte> b)
+    {
+        var sb = new System.Text.StringBuilder(b.Length);
+        foreach (byte c in b)
+            sb.Append(c switch
+            {
+                < 0x80 => c == 13 ? '\n' : (char)c,
+                0xd2 or 0xd3 => '"',
+                0xd4 or 0xd5 => '\'',
+                0xc9 => '…',
+                0xd0 => '–',
+                0xd1 => '—',
+                0xa5 => '•',
+                0xa9 => '©',
+                _ => '?',
+            });
+        return sb.ToString();
     }
 
     /// <summary>Is there a copy of the game in this folder?</summary>
