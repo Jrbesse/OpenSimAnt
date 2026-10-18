@@ -1675,7 +1675,14 @@ the command (`f_1ba3f`): Alt+F / W / V / O / S and F2..F6 → 0xFE00..04; ')' 0x
 `f_6e26d(event)` switches on the command's low byte (jump table at 0x6E296, CS base 0x6E0E0):
 - 0x01 → `f_2f99c`; 0x03 → music 0x2711 and `f_2f848(0)` (the new-game dialog);
 - 0x04 / 0x05 / 0x06 / 0x08 → DS:2CBC = n, done by the main loop (8414:0000): 4 load (`f_2f970`, and the
-  new-game dialog when no game runs, G:0EAC == -1), 5 save (`f_2f97a(1)`), 6 save as (`f_2f97a(0)`), 8 quit;
+  new-game dialog when no game runs, G:0EAC == -1), 5 save (`f_2f97a(1)`), 6 save as (`f_2f97a(0)`), 8 quit.
+  The thunks reach `f_6c1a0` (load: the save prompt `f_2f974` when G:02C2 != 0, then `f_6c566`) and `f_6c328`
+  (save). `f_6c566(name, caption, button, save)` is the file dialog, window 22: caption 0x1601, the path
+  field 0x1606 ("Path:"), the list 0x1609 (sub-folders first, then `*.ant`, 16-byte records sorted with
+  `strncmp`, a folder's marker byte 1 shown as '<'; "No Files"), drives 0x160B..0x1612 (DS:2966 = item -
+  0x15CA, 'A'..'H'), the button 0x1613 ("LOAD" / "SAVE"), CANCEL 0x1614; in save mode (save == 1) the name
+  field 0x1604 (`f_6d1c2`, 9 characters; a typed letter starts it); Enter = the button, Esc = cancel; a
+  double click on a folder changes into it ("CHDIR");
 - 0x11 → `f_03370` (the Edit window), 0x12 → `f_0148a` (the Map window), 0x13 → `f_07aab` (Behavior),
   0x14 → `f_07a95` (Caste), 0x15 → `f_2f9ba` (History), 0x16 → `f_2f9b0` (the SimAntipedia), 0x17 →
   `f_2f9a6` (Efficiency Score);

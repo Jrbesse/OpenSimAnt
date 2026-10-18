@@ -123,7 +123,8 @@ screenshot flags).
     from STR# 1000, quick save / load (F5 / F9), sound effects, speech balloons as text.
   - **The original's keys** (f_74386's table DS:2CBE, f_76aeb, the menu commands f_6e26d): 1 / 2 / 3 / 4,
     X, 0, Backspace, Shift+0..3, Ctrl+N / L / S / A / Q / E / M / B / C / T / Y / G / J / K. The shell's
-    own extras stay on other keys (views moved to Ctrl+1..3); README has the table.
+    own extras stay on other keys (views moved to Ctrl+1..3); README has the table. **The file
+    dialog** (22, `f_6c566`) for load / save.
   - Fonts 2..5 now come from the FONT1..FONT4 files, as the original loads them (f_34ab_047d).
   - The status lines under the windows are the shell's own (no message line is decoded).
   - Checked with screenshot runs (`-- --ticks=N --screenshot=out.png` plus the flags in the README) and
@@ -150,9 +151,8 @@ cost about 5-12% of the 5-hour window.
 Suggested next session (in order):
 1. Ask the owner whether they played the shell; fix what they report first. (Still not played by a
    human: keys and clicks are checked only by screenshot flags and builds.)
-2. The file dialog (window 22: Path, a scrolling list, drives A:..H:, CANCEL; "File list", "*.ant",
-   "%-12s" strings near 0x756b9) for Ctrl+L / Ctrl+S / Ctrl+A in place of the quick save / load; find its
-   routine from `f_2f970` / `f_2f97a` (the DS:2CBC handlers in 8414:0000).
+2. (done: the file dialog, window 22, for Ctrl+L / S / A and Select a Game's Load; it lists Godot's user://
+   folder: the original's folders, path line and drive buttons are not modelled.)
 3. The pull-down menus (0xFE00..04, `f_6d7e3`, 7d62:0384): labels are not in the data; decide with the
    owner whether to show a menu bar with our own labels (the commands are all known) or keep the keys.
 4. Other open screen details: the Edit window's bottom strip (item 21); G:1074 (a redraw flag?); the real
@@ -429,6 +429,7 @@ heredocs in bash turn `'\n'` into real line breaks (it happened twice more this 
 
 2026-10-18 evening:
 ```
+(next)  Remake shell: the file dialog (layout 22, f_6c566) for load / save / save as
 2061ca5 Remake shell: the original's keys (f_74386's table DS:2CBE, f_76aeb, the menu commands f_6e26d)
 f1b63e7 Remake shell: the game-over window (layout 4) as f_71d95 fills it
 963dbb5 Remake shell: the SimAntipedia (window 5): cards, links, history, glossary pop-ups; fonts 2..5 from FONT1..4

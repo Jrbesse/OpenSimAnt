@@ -103,6 +103,8 @@ public partial class Main : Node2D
                 if (a.Length > 0) ShowCard(a[0]);
                 if (a.Length > 2) AntipediaPress(a[1], a[2]);
             }
+        if (OS.GetCmdlineUserArgs().Contains("--load-dialog")) OpenFileDialog(false);
+        if (OS.GetCmdlineUserArgs().Contains("--save-dialog")) { OpenFileDialog(true); fileName = "MYCOLONY"; }
         if (OS.GetCmdlineUserArgs().Contains("--game-over"))
         {
             var (score, _) = Formica.Sim.Game.Rating(session.St);
@@ -931,7 +933,7 @@ public partial class Main : Node2D
     {
         modal = -1;
         selectMidGame = false;
-        if (what == 4) QuickLoad();
+        if (what == 4) OpenFileDialog(false);                               // f_6c1a0's file dialog
         else if (what == 5) GetTree().Quit();                               // 0xFD08 (DS:2CBC = 8)
         else Restart(what);
     }
@@ -964,11 +966,108 @@ public partial class Main : Node2D
         }
     }
 
-    void QuickSave()
+    void QuickSave() => SaveGame(ProjectSettings.GlobalizePath("user://quicksave.ANT"));
+
+    void SaveGame(string path)
     {
-        var path = ProjectSettings.GlobalizePath("user://quicksave.ANT");
         System.IO.File.WriteAllBytes(path, SaveFile.Save(session.St));
         lastMessage = "Saved to " + path;
+    }
+
+    // ------------------------------------------------------------------------------- the file dialog (layout 22)
+    // f_6c566(name, caption, button, save) for Load (f_6c1a0) and Save / Save As (f_6c328): caption 0x1601 "Load
+    // Game" / "Save Game", button 0x1613 "LOAD" / "SAVE", CANCEL 0x1614; the list 0x1609 holds the folder's
+    // sub-folders (first) and *.ant files sorted, "No Files" when empty; in save mode a typed name (0x1604, 8
+    // characters), Enter = the button, Esc = CANCEL. The original's path line, folders and drive buttons A:..H:
+    // (DS:2966) are not modelled: the shell lists Godot's user:// folder.
+    const int FileWin = 22;
+    bool fileSave;
+    string fileName = "";
+    string[] fileList = Array.Empty<string>();
+    int fileSel = -1;
+
+    void OpenFileDialog(bool save)
+    {
+        fileSave = save;
+        fileSel = -1;
+        fileName = "";
+        var dir = ProjectSettings.GlobalizePath("user://");
+        fileList = System.IO.Directory.GetFiles(dir)
+            .Where(p => p.EndsWith(".ant", StringComparison.OrdinalIgnoreCase))
+            .Select(p => System.IO.Path.GetFileName(p).ToUpperInvariant()).OrderBy(n => n, StringComparer.Ordinal).ToArray();
+        modal = FileWin;
+    }
+
+    void FileDialogDone(bool ok)
+    {
+        modal = -1;
+        if (!ok) return;
+        string name = fileSave ? fileName : fileSel >= 0 && fileSel < fileList.Length ? fileList[fileSel] : "";
+        if (name.Length == 0) { modal = FileWin; return; }                   // the original waits for a choice
+        if (!name.EndsWith(".ANT", StringComparison.OrdinalIgnoreCase)) name += ".ANT";
+        var path = System.IO.Path.Combine(ProjectSettings.GlobalizePath("user://"), name);
+        if (fileSave) SaveGame(path);
+        else LoadGame(path);
+    }
+
+    void FileDialogClick(int index, bool doubleClick, Vector2 at)
+    {
+        var items = ui.Layouts[FileWin].Items;
+        if (index == 19) FileDialogDone(true);                               // 0x1613 LOAD / SAVE
+        else if (index == 20) FileDialogDone(false);                         // 0x1614 CANCEL
+        else if (Inside(items[9].Rect, at))                                  // the list 0x1609
+        {
+            int row = ((int)at.Y - items[9].Rect.top - 2) / ui.Font(2).Height;
+            if (row < fileList.Length)
+            {
+                fileSel = row;
+                if (fileSave) fileName = System.IO.Path.GetFileNameWithoutExtension(fileList[row]);
+                if (doubleClick) FileDialogDone(true);
+            }
+        }
+    }
+
+    void FileDialogKey(InputEventKey k)
+    {
+        if (k.Keycode == Key.Escape) FileDialogDone(false);
+        else if (k.Keycode is Key.Enter or Key.KpEnter) FileDialogDone(true);
+        else if (fileSave && k.Keycode == Key.Backspace && fileName.Length > 0) fileName = fileName[..^1];
+        else if (fileSave && fileName.Length < 8 && k.Unicode is >= '0' and <= '9' or >= 'A' and <= 'Z' or >= 'a' and <= 'z' or '_' or '-')
+            fileName += char.ToUpperInvariant((char)k.Unicode);
+    }
+
+    void DrawFileDialog(UiArt.Canvas c)
+    {
+        ui.DrawWindow(c, FileWin, 0, 0, fileSave ? "Save Game" : "Load Game");
+        var items = ui.Layouts[FileWin].Items;
+        var f = ui.Font(2);
+        if (!fileSave)                                                           // load: no name field (f_22e5a / f_2313e)
+        {
+            var (bl, bt, br, bb) = items[3].Rect;
+            c.Fill(bl, bt, br, bb, UiArt.Grey);
+        }
+        else
+        {
+            var (nl, nt, nr, nb) = items[4].Rect;
+            ui.DrawText(c, 2, 1, nl, nt, nr, nb, fileName + "_");
+        }
+        var (pl, pt, pr, pb) = items[6].Rect;
+        ui.DrawText(c, 2, 1, pl, pt, pr, pb, "Path: user://");
+        var (ll, lt, lr, lb) = items[9].Rect;
+        var list = c.Clip(ll, lt, lr, lb);
+        list.Fill(ll, lt, lr, lb, UiArt.White);
+        if (fileList.Length == 0) f.Draw(list, ll + 4, lt + 2, "No Files", UiArt.Black);
+        for (int i = 0; i < fileList.Length; i++)
+        {
+            int y = lt + 2 + i * f.Height;
+            f.Draw(list, ll + 4, y, fileList[i], UiArt.Black);
+            if (i == fileSel) list.Invert(ll + 1, y, lr - 1, y + f.Height);
+        }
+        var (bl2, bt2, br2, bb2) = items[19].Rect;
+        c.Frame(bl2, bt2, br2, bb2, UiArt.Black);
+        ui.DrawText(c, 0, 0, bl2, bt2, br2, bb2, fileSave ? "SAVE" : "LOAD");
+        var (cl, ct, cr, cb) = items[20].Rect;
+        c.Frame(cl, ct, cr, cb, UiArt.Black);
     }
 
     // ------------------------------------------------------------------------------- the Efficiency Score (layout 24)
@@ -1693,6 +1792,7 @@ public partial class Main : Node2D
             if (modal == SavePrompt) DrawSavePrompt(canvas);
             if (modal == TextWin) DrawTextViewer(canvas);
             if (modal == GameOverWin) DrawGameOver(canvas);
+            if (modal == FileWin) DrawFileDialog(canvas);
             if (modal == TitleWin) canvas.Fill(0, 0, ScreenW, ScreenH, UiArt.Black);
             if (modal is TitleWin or AboutWin) ui.DrawWindow(canvas, modal, 0, 0, null);
             if (modal == 11) ui.DrawWindow(canvas, 11, 245, 200, null);       // "not available in the full game"
@@ -1764,6 +1864,12 @@ public partial class Main : Node2D
                 selectMidGame = false;
                 return;
             }
+            if (modal == FileWin)
+            {
+                if (mb.ButtonIndex == MouseButton.Left)
+                    FileDialogClick(ui.HitTest(FileWin, 0, 0, (int)mb.Position.X, (int)mb.Position.Y), mb.DoubleClick, mb.Position);
+                return;
+            }
             if (modal == TextWin)
             {
                 if (mb.ButtonIndex == MouseButton.Left) AntipediaPress((int)mb.Position.X, (int)mb.Position.Y);
@@ -1795,6 +1901,11 @@ public partial class Main : Node2D
         }
         else if (ev is InputEventKey k && k.Pressed && !k.Echo)
         {
+            if (modal == FileWin)
+            {
+                FileDialogKey(k);
+                return;
+            }
             if (modal == GameOverWin)                                           // f_71d95: any event closes it
             {
                 modal = SelectWin;
@@ -1861,8 +1972,8 @@ public partial class Main : Node2D
             switch (k.Keycode)
             {
                 case Key.N: modal = SelectWin; selectMidGame = true; return true;          // 0xFD03 new game (f_2f848)
-                case Key.L: QuickLoad(); return true;                                        // 0xFD04 load (DS:2CBC = 4)
-                case Key.S or Key.A: QuickSave(); return true;                               // 0xFD05 save, 0xFD06 save as
+                case Key.L: OpenFileDialog(false); return true;                              // 0xFD04 load (DS:2CBC = 4)
+                case Key.S or Key.A: OpenFileDialog(true); return true;                      // 0xFD05 save, 0xFD06 save as
                 case Key.Q or Key.X: pendingGame = 5; modal = SavePrompt; return true;       // 0xFD08 quit (save first?)
                 case Key.E: Front(EditWin); return true;                                     // 0xFD11 f_03370
                 case Key.M: Front(MapWin); return true;                                      // 0xFD12 f_0148a
@@ -1921,9 +2032,10 @@ public partial class Main : Node2D
 
     /// <summary>The Experimental menu (layout 10) at the mouse; in an Experimental game the button shows / hides the
     /// tool palette.</summary>
-    void QuickLoad()
+    void QuickLoad() => LoadGame(ProjectSettings.GlobalizePath("user://quicksave.ANT"));
+
+    void LoadGame(string path)
     {
-        var path = ProjectSettings.GlobalizePath("user://quicksave.ANT");
         if (!System.IO.File.Exists(path)) { lastMessage = "No saved game"; return; }
         bool ok = SaveFile.Load(session.St, System.IO.File.ReadAllBytes(path));
         lastMessage = ok ? "Loaded " + path : "Read error, game not loaded";

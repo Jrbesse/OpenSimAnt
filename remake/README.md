@@ -68,7 +68,7 @@ Keys:
 | 3 / 4, X, 0 | release half / all; exchange (then click an ant or the spider); alarm trail |
 | Backspace, Shift+Backspace | stop the yellow ant's walk (else recentre on it); follow it |
 | Shift+0, Shift+1 / 2 / 3 | pause (G:047E); speed slow / medium / fast (T:07CC) |
-| Ctrl+N, Ctrl+L, Ctrl+S / A, Ctrl+Q / X | Select a Game; load; save; quit (asks to save first) |
+| Ctrl+N, Ctrl+L, Ctrl+S / A, Ctrl+Q / X | Select a Game; load, save (the file dialog: Godot's user:// folder, type a name to save, click / double-click a file to load); quit (asks to save first) |
 | Ctrl+E, Ctrl+M, Ctrl+B, Ctrl+C, Ctrl+T, Ctrl+Y | Edit window; Map window; Behavior / Caste Control; Efficiency Score; the yard window |
 | Ctrl+G / J / K | toggle T:07A8 / T:07AA / T:07AC (K: sound effects) |
 | Tab | Map window (front / hide) |
@@ -88,7 +88,7 @@ Keys:
 
 Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`, `--efficiency`, `--popup`,
 `--map-front`, `--help-overlay`, `--yard`, `--strat`, `--scent-menu`, `--ant-info`, `--select`, `--report`,
-`--exp-menu`, `--trails`, `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y), `--game-over` to open those
+`--exp-menu`, `--trails`, `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y), `--game-over`, `--load-dialog`, `--save-dialog` to open those
 windows first; `--full` / `--experimental` start that kind of game.
 
 ## Porting notes
