@@ -113,6 +113,9 @@ project's CLAUDE.md). Everything is under `remake/`; read `remake/README.md` fir
 - "Formica" is a placeholder code name (the public name is still open, ART_PLAN). The repository has a
   top-level README for GitHub.
 
+**Performance:** the C# SimStep runs well over 10,000 ticks per second (six 5,000-tick fuzz games with
+startup in 1.2 s), so the original's "fast" speed is bounded only by drawing (`GameSession.FastDelay`).
+
 **Usage note for the next session:** this session used most of the weekly allowance (about 90% at the
 end, resetting 2026-10-18 22:00 UTC), so a morning session has little room before that reset.
 
