@@ -180,6 +180,7 @@ public sealed class OriginalFiles
                 0xd1 => '—',
                 0xa5 => '•',
                 0xa9 => '©',
+                0xaa => '™',
                 _ => '?',
             });
         return sb.ToString();

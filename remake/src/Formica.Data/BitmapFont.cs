@@ -69,14 +69,22 @@ public sealed class BitmapFont
         return k >= 0 && k < 255 ? adv[k] : 0;
     }
 
-    public int Width(string text) => text.Sum(ch => Advance(ch));
+    public int Width(string text) => text.Sum(ch => Advance(MacCode(ch)));
+
+    /// <summary>The font's character code for a character of OriginalFiles.MacText (Mac Roman for the few
+    /// non-ASCII characters the game's strings use).</summary>
+    public static int MacCode(char ch) => ch switch
+    {
+        '…' => 0xc9, '–' => 0xd0, '—' => 0xd1, '•' => 0xa5, '©' => 0xa9, '™' => 0xaa,
+        _ => ch,
+    };
 
     /// <summary>Draw text with its top-left at (x, y) into an ARGB buffer; returns the end x.</summary>
     public int Draw(uint[] dst, int stride, int height, int x, int y, string text, uint colour)
     {
         foreach (char ch in text)
         {
-            int c = ch, k = c - first;
+            int c = MacCode(ch), k = c - first;
             if (mac)
             {
                 if (k >= 0 && k <= last - first && ow[k] != 0xffff)
