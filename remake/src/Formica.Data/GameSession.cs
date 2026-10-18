@@ -43,6 +43,12 @@ public sealed class GameSession
     public SessionHooks Hooks { get; private set; }
     public long Ticks { get; private set; }
     double clockFrac;
+    long nextTick;
+    int speed = 1;
+
+    /// <summary>The original runs "fast" (T:07CE[2] = 0) as fast as the machine allows; this is the minimum
+    /// tick period used for it here, in clock x3 units (~55 per second).</summary>
+    public int FastDelay = 2;
 
     public GameSession(string gameDir)
     {
@@ -64,6 +70,8 @@ public sealed class GameSession
         St.Set32(DS, 0x7bbe, s);
         St.Clock = s;
         Game.StartGame(St, mode);
+        St.Set16(T, 0x7cc, speed);
+        nextTick = St.Clock3();
         St.Set16(T, 0x7b2, 1);                                  // the patch is shown
         Ticks = 0;
     }
@@ -92,6 +100,54 @@ public sealed class GameSession
         global::Formica.Sim.Sim.SimStep(St);
         Balloons.Run(St);
         Ticks++;
+    }
+
+    /// <summary>The speed T:07CC: 0 slow, 1 medium (the start-up value), 2 fast.</summary>
+    public int Speed
+    {
+        get => speed;
+        set
+        {
+            speed = Math.Clamp(value, 0, 2);
+            St?.Set16(T, 0x7cc, speed);
+        }
+    }
+
+    /// <summary>The pause flag G:047E (a pending yellow-ant action still runs, as in the original).</summary>
+    public bool Paused
+    {
+        get => St.U16(G, 0x47e) != 0;
+        set => St.Set16(G, 0x47e, value ? 1 : 0);
+    }
+
+    /// <summary>The main loop f_15f84: `seconds` of real time pass on the clock; each pass sets the next
+    /// deadline to clock3() + T:07CE[speed] (21, 7, 0: about 2.6, 7.8 ticks per second and "as fast as
+    /// possible"), runs SimStep unless paused (G:047E; while the yellow ant has an action pending, G:0AA0, and
+    /// no pick-a-target mode is on, G:105E &lt; 10, it runs anyway), then waits for the deadline. Returns the
+    /// number of SimSteps run.</summary>
+    public int Advance(double seconds, int maxSteps = 8)
+    {
+        clockFrac += seconds * ClockHz;
+        long whole = (long)clockFrac;
+        clockFrac -= whole;
+        St.Clock = (St.Clock + whole) & 0xffffffffL;
+        int steps = 0;
+        for (int pass = 0; pass < maxSteps; pass++)
+        {
+            long now = St.Clock3();
+            if (now < nextTick) break;
+            int delay = St.S16(T, 0x7ce + 2 * St.U16(T, 0x7cc));
+            nextTick = now + Math.Max(delay, FastDelay);
+            if (St.U16(G, 0x47e) == 0 || (St.U16(G, 0xaa0) != 0 && St.S16(G, 0x105e) < 10))
+            {
+                global::Formica.Sim.Sim.SimStep(St);
+                Balloons.Run(St);
+                Ticks++;
+                steps++;
+            }
+        }
+        if (St.Clock3() >= nextTick) nextTick = St.Clock3();      // fell behind: don't try to catch up
+        return steps;
     }
 
     public bool Over => St != null && St.U16(G, 0x376) != 0;

@@ -42,7 +42,7 @@ Godot with `--path remake/game`. The game looks for the original files in `--gam
 
 Controls (first shell): left click walks the yellow ant there (Shift: walk and act on the cell, picking up /
 dropping), right click digs its way there, 1 / 2 / 3 surface / black nest / red nest, arrows scroll, F follows
-the yellow ant, Space pauses, + / - speed, N a new Quick Game, M a new Full Game.
+the yellow ant, Space pauses (G:047E), + / - speed (slow / medium / fast, as the original's T:07CC), N a new Quick Game, M a new Full Game.
 
 ## Porting notes
 

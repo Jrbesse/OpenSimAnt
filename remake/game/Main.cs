@@ -15,7 +15,7 @@ namespace Formica.Game;
 public partial class Main : Node2D
 {
     const int Cols = 40, Rows = 28, Cell = 16;
-    static readonly double[] Speeds = { 2, 5, 10, 18.2, 36, 72 };
+    static readonly string[] SpeedNames = { "slow", "medium", "fast" };
 
     GameSession session;
     Sprite2D map;
@@ -24,9 +24,8 @@ public partial class Main : Node2D
     uint[] argb;
     byte[] rgba;
     Label status, message;
-    int view = 1, originA, originB, speedIndex = 2;
-    bool paused, follow = true;
-    double pending;
+    int view = 1, originA, originB;
+    bool follow = true;
     string lastMessage = "";
     string screenshot;
     int frames;
@@ -87,18 +86,7 @@ public partial class Main : Node2D
     public override void _Process(double delta)
     {
         if (session == null) return;
-        if (!paused && !session.Over)
-        {
-            pending += delta * Speeds[speedIndex];
-            int n = 0;
-            while (pending >= 1 && n < 20)
-            {
-                session.Step(1.0 / Speeds[speedIndex]);
-                pending -= 1;
-                n++;
-            }
-            if (n == 20) pending = 0;
-        }
+        if (!session.Over) session.Advance(delta);
         DrainEffects();
         if (follow) CenterOnYellow();
         Redraw();
@@ -161,8 +149,8 @@ public partial class Main : Node2D
         string[] names = { "", "Surface", "Black nest", "Red nest" };
         string mode = st.U16(Seg.G, 0xeac) == 2 ? "Full Game" : "Quick Game";
         status.Text = $"{mode}  {names[view]}  tick {session.Ticks}  black {st.U16(Seg.G, 0x330)}  red {st.U16(Seg.G, 0x350)}"
-                      + $"  health {st.S16(Seg.G, 0xf78)}  colony {st.S16(Seg.G, 0x10be)}  speed {Speeds[speedIndex]}/s"
-                      + (paused ? "  PAUSED" : "") + (session.Over ? (st.U16(Seg.G, 0x366) != 0 ? "  YOU WON" : "  GAME OVER") : "");
+                      + $"  health {st.S16(Seg.G, 0xf78)}  colony {st.S16(Seg.G, 0x10be)}  speed {SpeedNames[session.Speed]}"
+                      + (session.Paused ? "  PAUSED" : "") + (session.Over ? (st.U16(Seg.G, 0x366) != 0 ? "  YOU WON" : "  GAME OVER") : "");
         message.Text = lastMessage;
     }
 
@@ -193,9 +181,9 @@ public partial class Main : Node2D
                 case Key.Up: Scroll(0, -4); break;
                 case Key.Down: Scroll(0, 4); break;
                 case Key.F: follow = true; break;
-                case Key.Space: paused = !paused; break;
-                case Key.Equal or Key.KpAdd: speedIndex = Math.Min(speedIndex + 1, Speeds.Length - 1); break;
-                case Key.Minus or Key.KpSubtract: speedIndex = Math.Max(speedIndex - 1, 0); break;
+                case Key.Space: session.Paused = !session.Paused; break;
+                case Key.Equal or Key.KpAdd: session.Speed++; break;
+                case Key.Minus or Key.KpSubtract: session.Speed--; break;
                 case Key.N: Restart(1); break;
                 case Key.M: Restart(2); break;
             }

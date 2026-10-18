@@ -298,8 +298,9 @@ Suggested next session: see "Next steps" 11.. below. The most valuable next piec
     checks that games from SIMANT.EXE + defaults and from the booted memory stay identical (2000 ticks,
     Quick and Full Game, the yellow ant walking): they do. Still open: where the init code takes the 0x1E
     values from (SIMANT.CFG? a resource?), and the far-heap string lists (balloon lines, G:020A..).)
-12. **Game speed.** The original's main loop decides how many SimSteps run per real second (speed menu);
-    `Main.cs` uses 2..72 ticks/s with 10 by default. Decode the loop's timing (it reads the clock).
+12. (done 2026-10-18: **game speed**, SIM_NOTES "The main loop and game speed": T:07CC speed, delays
+    T:07CE = 21 / 7 / 0 clock3 units, pause G:047E with the pending-action exception;
+    `GameSession.Advance(seconds)`, `Speed`, `Paused`; the shell uses them.)
 13. **UI screens**, each from the decoded layouts (`tools/layouts.py --json`, FILE_FORMATS "Window
     layouts") and fonts (`tools/fonts.py`): status line and messages (STR# text from the archives),
     the yellow ant's pop-up menu (`Commands.Command`), Behavior / Caste panels (`Panels`), the map window

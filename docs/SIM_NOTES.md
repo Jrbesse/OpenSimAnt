@@ -1738,3 +1738,14 @@ image at linear 0, set `DS = SS = 0x55b3`, seed a sim state, call e.g. `SimStep`
 the `0x3e1d` segment. The port then gets compared tick by tick against the original (differential
 testing). Patch out display/sound side effects by keeping `patch_visible` (`T:07b2`) = 0, and stub any DOS
 interrupts.
+
+## The main loop and game speed (f_15f84)
+
+After start-up (install check, resources, sound, the new-game dialog f_2f848) the main loop runs forever:
+input (f_23ae4, f_0046f), a 32-bit loop counter, f_16293, then `next = clock3()` (f_0123e, the clock x3).
+If the game is not paused (G:047E == 0), or the yellow ant has an action pending (G:0AA0 != 0) and no
+pick-a-target cursor mode is on (G:105E < 10), `next += T:07CE[T:07CC]` and SimStep (f_0894e) runs. Then
+the windows are redrawn, and the loop waits until `clock3() >= next`. T:07CC is the speed (set to 1 when
+the loop starts): T:07CE = 21, 7, 0 clock3 units (about 0.38 s, 0.13 s, and no wait) for slow, medium and
+fast; fast runs as fast as the machine draws. The remake's `GameSession.Advance` follows this, with a
+minimum period for fast.
