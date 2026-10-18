@@ -48,6 +48,7 @@ public sealed class Replayer
     static readonly Dictionary<string, string> Alias = new()
     {
         ["newgame.new_game"] = "NewGameStart",
+        ["balloons.balloons"] = "Run",
     };
 
     public readonly Dictionary<string, FuncStats> Stats = new();
