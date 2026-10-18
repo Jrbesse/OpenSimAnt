@@ -1368,9 +1368,15 @@ The window's items go to `f_6f7f0(event)`, a jump table at 0x6f815 (cs base 0x6f
   when the yellow ant is one (G:04C2 0x40 or 0x20); n <= 0: sound 1 and STR# 1010 [5]; else the black
   mating flight starts, G:08DC = 0xC8, with STR# 1010 [6];
 - 0x190D AUTOMATIC: T:02C0 = 1 (the sim settles the swarm's queens, `yard.py`); 0x190E MANUAL: T:02C0 = 0;
-- 0x1910 PLACE: the buttons' states, `f_01efa()` (with no queens G:07C8 < 1: sound 1 and STR# 1010 [7]
-  or [16]; otherwise T:02C0 = 0 and a mouse loop around the patch G:07CA + 3 ...; not traced further),
-  then a redraw `f_6fc62`;
+- 0x1910 PLACE: the buttons' states, `f_01efa()`, then a redraw `f_6fc62`. `f_01efa`: with no queens
+  (G:07C8 < 1) sound 1 and the timed message STR# 1010 [7] (Full Game) or [16]. Otherwise T:02C0 = 0 if
+  it was 1, the range is columns G:07CA +- 3 and rows G:07CC +- 3 clamped to 0..11 / 0..15, and a loop
+  shows [8] until a click, tracking the patch under the mouse with `f_70edf`'s arithmetic (G:07BC /
+  G:07BE follow it inside the range, and `f_2f708` highlights it unless it is the player's own patch;
+  leaving the yard area, `f_23612() == 0`, ends it). A click out of range: [10] for 0x78 ticks and sound
+  1. In range: voice 0x2AFB, G:07C8 - 1, T:00A4[col * 16 + row] + 1, G:0A90 + 1, G:0C20 = 1,
+  `f_01325(1)`, `f_2f6e0(0x10F8)`, [9]; done when no queens are left. The loop repeats while Shift is
+  held (0000:0417 & 3); an out-of-range click with Shift also calls `f_011e5(0x1E, 0)`.
 - 0x1911: the help overlay 0x1906.
 ### Event markers (recorders ported: `simant_ref/markers.py`, verified by `test_markers.py`)
 

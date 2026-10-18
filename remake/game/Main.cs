@@ -1332,6 +1332,7 @@ public partial class Main : Node2D
     void CloseYard()
     {
         if (yardChoose) return;
+        placing = false;
         zOrder.Remove(YardWin);
         session.St.Set16(Seg.T, 0x7c8, view);
     }
@@ -1423,9 +1424,69 @@ public partial class Main : Node2D
         lastMessage = S(6);
     }
 
+    // PLACE (0x1910 → f_01efa): with no new queens (G:07C8 < 1) sound 1 and STR# 1010 [7] (Full Game) or [16];
+    // otherwise T:02C0 = 0 (manual placement) and "Click in the yard to place this new queen" ([8]) until a click.
+    // The patches within 3 columns and rows of the player's patch G:07CA / G:07CC (clamped to the yard) are in
+    // range. A click in range: voice 0x2AFB, G:07C8 - 1, T:00A4[patch] + 1, G:0A90 + 1, G:0C20 = 1, f_01325(1)
+    // (not ported), a redraw and [9] "You have started a new colony"; out of range: [10] and sound 1. With Shift
+    // held (and queens left) it goes on placing. A click outside the yard ends it.
+    bool placing;
+
+    void StartPlacing()
+    {
+        var st = session.St;
+        string S(int k) => session.Files.Strings(1010)?[k] ?? "";
+        if (st.S16(Seg.G, 0x7c8) < 1)
+        {
+            st.Hooks.Effect(st, "sound", 1, 0x7e);
+            lastMessage = S(st.U16(Seg.G, 0xeac) == 2 ? 7 : 16);
+            return;
+        }
+        if (st.U16(Seg.T, 0x2c0) == 1) st.Set16(Seg.T, 0x2c0, 0);
+        placing = true;
+        lastMessage = S(8);
+    }
+
+    bool InPlaceRange(int col, int row)
+    {
+        var st = session.St;
+        int c = st.S16(Seg.G, 0x7ca), r = st.S16(Seg.G, 0x7cc);
+        return col >= Math.Clamp(c - 3, 0, 11) && col <= Math.Clamp(c + 3, 0, 11) && row >= Math.Clamp(r - 3, 0, 15) && row <= Math.Clamp(r + 3, 0, 15);
+    }
+
+    void PlaceClick(Vector2 p, bool shift)
+    {
+        var st = session.St;
+        string S(int k) => session.Files.Strings(1010)?[k] ?? "";
+        var (ox, oy) = YardOrigin();
+        int row = ((int)p.Y - oy - 67) / 10, col = (row * 10 - 169 + (int)p.X - ox) / 28;   // as f_70edf
+        if (!InPlaceRange(col, row))
+        {
+            lastMessage = S(10);
+            st.Hooks.Effect(st, "sound", 1, 0x7e);
+            placing = shift;
+            return;
+        }
+        st.Set16(Seg.G, 0x7bc, col);
+        st.Set16(Seg.G, 0x7be, row);
+        st.Hooks.Effect(st, "voice", 0x2afb);
+        st.Set16(Seg.G, 0x7c8, st.S16(Seg.G, 0x7c8) - 1);
+        st.Set8(Seg.T, 0xa4 + col * 16 + row, st.U8(Seg.T, 0xa4 + col * 16 + row) + 1);
+        st.Set16(Seg.G, 0xa90, st.U16(Seg.G, 0xa90) + 1);
+        st.Set16(Seg.G, 0xc20, 1);
+        lastMessage = S(9);
+        placing = shift && st.S16(Seg.G, 0x7c8) >= 1;
+    }
+
     void YardWindowClick(int index, Vector2 p)
     {
         var st = session.St;
+        if (placing)
+        {
+            if (Inside(ItemRect(YardWin, 2), p)) PlaceClick(p, Input.IsKeyPressed(Key.Shift));
+            else { placing = false; lastMessage = ""; }
+            return;
+        }
         switch (index)
         {
             case 7: CloseYard(); return;
@@ -1436,7 +1497,7 @@ public partial class Main : Node2D
             case 11: Mate(); return;
             case 13: st.Set16(Seg.T, 0x2c0, 1); return;                     // AUTOMATIC: the sim settles the swarm's queens
             case 14: st.Set16(Seg.T, 0x2c0, 0); return;                     // MANUAL
-            case 16: lastMessage = "PLACE (placing a founding queen, f_01efa) is not ported yet."; return;
+            case 16: StartPlacing(); return;
         }
         var pic = ItemRect(YardWin, 2);
         if (!Inside(pic, p)) return;
