@@ -46,7 +46,7 @@ public partial class Main : Node2D
 
     // the window stack (last = front) and each window's offset from its layout position
     readonly List<int> zOrder = new() { MapWin, EditWin };
-    readonly Dictionary<int, (int dx, int dy)> offsets = new() { [EditWin] = (0, 0), [MapWin] = (0, 0), [BehaviorWin] = (0, 0), [CasteWin] = (0, 0), [HistoryWin] = (0, 0), [YardWin] = (0, 0) };
+    readonly Dictionary<int, (int dx, int dy)> offsets = new() { [EditWin] = (0, 0), [MapWin] = (0, 0), [BehaviorWin] = (0, 0), [CasteWin] = (0, 0), [HistoryWin] = (0, 0), [YardWin] = (0, 0), [ToolWin] = (0, 0) };
     int dragWin = -1;
     Vector2 dragFrom;
     (int dx, int dy) dragOrig;
@@ -80,7 +80,9 @@ public partial class Main : Node2D
             else if (arg == "--help-overlay") help = true;
             else if (arg == "--map-front") Front(MapWin);
         session = new GameSession(dir);
-        session.NewGame(OS.GetCmdlineUserArgs().Contains("--full") ? 2 : 1);
+        var args = OS.GetCmdlineUserArgs();
+        session.NewGame(args.Contains("--full") ? 2 : args.Contains("--experimental") ? 3 : 1);
+        if (args.Contains("--experimental")) Front(ToolWin);
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--ticks="))                                 // run the game ahead (for checking a build)
                 for (int t = int.Parse(arg["--ticks=".Length..]); t > 0 && !session.Over; t--) session.Step();
@@ -129,6 +131,7 @@ public partial class Main : Node2D
             OpenYard(true);
         }
         if (!session.Over && !yardChoose && modal < 0 && session.Advance(delta) > 0) balloonsNow.Clear();
+        ToolPoll();
         DrainEffects();
         if (follow) CenterOnYellow();
         Redraw();
@@ -155,6 +158,8 @@ public partial class Main : Node2D
             else if (e.Name == "sound" && e.Args.Length > 0 && e.Args[0] is int sfx && sfx < 57
                      && session.St.U16(Seg.T, 0x7ac) != 0)
                 PlaySound(sfx);
+            else if (e.Name == "info" && e.Args.Length >= 2)                // the Ant Info tool (f_2f8fc)
+                OpenAntInfo((int)e.Args[0], (int)e.Args[1]);
             else if (e.Name == "balloon" && e.Args.Length >= 5 && e.Args[4] is ValueTuple<int, int> line)
                 balloonsNow[(int)e.Args[3]] = ((int)e.Args[0], (int)e.Args[1], (int)e.Args[2], BalloonText(line.Item1, line.Item2));
             else if (e.Name == "game_over" && e.Args.Length >= 2)
@@ -254,7 +259,7 @@ public partial class Main : Node2D
                 else Front(MapWin);
                 break;
             case 6: help = !help; break;
-            case 7: lastMessage = "The Experimental menu is not built yet."; break;
+            case 7: ExperimentalMenu(); break;
             case 8: SetView(1); break;
             case 9: SetView(2); break;
             case 10: SetView(3); break;
@@ -281,6 +286,11 @@ public partial class Main : Node2D
         {
             antInfoArmed = false;
             OpenAntInfo(a, b);
+            return;
+        }
+        if (st.U16(Seg.G, 0xeac) == 3)                                             // Experimental: the map tools
+        {
+            if (mb.ButtonIndex == MouseButton.Left) ToolPress(a, b, mb);
             return;
         }
         int target = st.U16(Seg.G, 0x105e);
@@ -450,7 +460,7 @@ public partial class Main : Node2D
             case 18: DebugCommands.RandomAction(st); break;                              // the Mystery Button (f_022bc)
             case 19: ToggleWindow(HistoryWin); break;
             case 20: OpenEfficiency(); break;
-            case 22: case 23: lastMessage = "The Experimental menu is not built yet."; break;
+            case 22: case 23: ExperimentalMenu(); break;
             case 21: antInfoArmed = true; lastMessage = "Ant Info: click an ant in the Edit window."; break;
         }
     }
@@ -528,6 +538,78 @@ public partial class Main : Node2D
                 if (cmd == 0) lastMessage = "Help: the original's help screens (f_76eb5) are not built yet.";
                 else Commands.Command(session.St, cmd);
             }
+        }
+    }
+
+    // ------------------------------------------------------------------------------- the tool palette (layout 9)
+    // f_680a4 (SIM_NOTES "The tool palette", "Map tools"): bitmap 5000, items 0x902..0x908 (indices 2..8) pick the
+    // map tool G:104C = item - 0x902 (Ant Info, Barriers, Dig / Fill, Add Ants, Add Food, Drop Trails,
+    // Insecticide); 0x909 is Start Game. In the Experimental game (G:0EAC == 3) a press on the Edit window's map
+    // runs the drag loop f_76f4a: the previous point G:09FC / G:09FE starts at the cell and the tool is applied
+    // there (MapTools.ApplyTool = f_770f6); when the cell under the held button changes, the previous point
+    // becomes the old cell and the tool is applied at the new one; tools >= 5 are also applied on every poll
+    // (here every frame), with G:106C ^= 1, and G:0A9C counts the polls. Holding a tool's entry opens its
+    // options palette (layouts 10..17, the option bytes T:07B7..): not built yet.
+    const int ToolWin = 9;
+    bool toolDrag;
+    (int a, int b) toolCell;
+
+    void DrawToolWindow(UiArt.Canvas c)
+    {
+        var (dx, dy) = Off(ToolWin);
+        ui.DrawWindow(c, ToolWin, dx, dy, null);
+        var r = ItemRect(ToolWin, 2 + Math.Clamp(session.St.U16(Seg.G, 0x104c), 0, 6));
+        c.Invert(r.l, r.t, r.r, r.b);
+    }
+
+    void ToolWindowClick(int index)
+    {
+        if (index >= 2 && index <= 8) session.St.Set16(Seg.G, 0x104c, index - 2);
+        else if (index == 9) session.Paused = false;                          // Start Game
+    }
+
+    static int Kbd(InputEventWithModifiers m) => (m.ShiftPressed ? 2 : 0) | (m.CtrlPressed ? 4 : 0) | (m.AltPressed ? 8 : 0);
+
+    (int a, int b)? EditCell(Vector2 p)
+    {
+        var m = ItemRect(EditWin, EditMapItem);
+        if (!Inside(m, p)) return null;
+        int a = (int)(p.X - m.l) / Cell + originA, b = (int)(p.Y - m.t) / Cell + originB;
+        return a < MapRenderer.Width(view) && b < MapRenderer.Height ? (a, b) : null;
+    }
+
+    void ToolPress(int a, int b, InputEventMouseButton mb)
+    {
+        var st = session.St;
+        st.BiosKbd = Kbd(mb);
+        st.Set16(Seg.G, 0x9fc, a);
+        st.Set16(Seg.G, 0x9fe, b);
+        MapTools.ApplyTool(st, a, b);
+        toolDrag = true;
+        toolCell = (a, b);
+    }
+
+    void ToolMove(Vector2 p, InputEventWithModifiers m)
+    {
+        if (EditCell(p) is not var (a, b) || (a, b) == toolCell) return;
+        var st = session.St;
+        st.BiosKbd = Kbd(m);
+        st.Set16(Seg.G, 0x9fc, toolCell.a);
+        st.Set16(Seg.G, 0x9fe, toolCell.b);
+        toolCell = (a, b);
+        MapTools.ApplyTool(st, a, b);
+    }
+
+    /// <summary>Each frame while the button is held: tools >= 5 apply again (pheromone, insecticide).</summary>
+    void ToolPoll()
+    {
+        if (!toolDrag) return;
+        var st = session.St;
+        st.Set16(Seg.G, 0xa9c, st.U16(Seg.G, 0xa9c) + 1);
+        if (st.U16(Seg.G, 0x104c) >= 5)
+        {
+            st.Set16(Seg.G, 0x106c, st.U16(Seg.G, 0x106c) ^ 1);
+            MapTools.ApplyTool(st, toolCell.a, toolCell.b);
         }
     }
 
@@ -1060,7 +1142,9 @@ public partial class Main : Node2D
         st.Set16(Seg.G, 0x10e0, Cols);
         st.Set16(Seg.G, 0x10de, Rows);
         var canvas = new UiArt.Canvas(argb, ScreenW, ScreenH);
-        string mode = st.U16(Seg.G, 0xeac) == 2 ? "Full Game" : "Quick Game";
+        var modes = session.Files.Strings(1001);                       // STR# 1001 (G:0324): the game modes' names
+        int gm = st.U16(Seg.G, 0xeac);
+        string mode = modes != null && gm < modes.Length ? modes[gm] : $"mode {gm}";
         status.Text = $"{mode}  {ViewNames[view]}  tick {session.Ticks}  black {st.U16(Seg.G, 0x330)}  red {st.U16(Seg.G, 0x350)}"
                       + $"  health {st.S16(Seg.G, 0xf78)}  colony {st.S16(Seg.G, 0x10be)}  speed {SpeedNames[session.Speed]}  jobs {(st.U16(Seg.G, 0x378) == 1 ? "auto" : "manual")}"
                       + (session.Paused ? "  PAUSED" : "") + (session.Over ? (st.U16(Seg.G, 0x366) != 0 ? "  YOU WON" : "  GAME OVER") : "");
@@ -1076,6 +1160,7 @@ public partial class Main : Node2D
                 else if (win == MapWin) DrawMapWindow(canvas);
                 else if (win == HistoryWin) DrawHistoryWindow(canvas);
                 else if (win == YardWin) DrawYardWindow(canvas);
+                else if (win == ToolWin) DrawToolWindow(canvas);
                 else DrawControlWindow(canvas, win);
             if (modal == EfficiencyWin) DrawEfficiency(canvas);
             if (modal == AntInfoWin) DrawAntInfo(canvas);
@@ -1111,6 +1196,11 @@ public partial class Main : Node2D
             offsets[dragWin] = (dx, dy);
             return;
         }
+        if (ev is InputEventMouseMotion dm && toolDrag)
+        {
+            ToolMove(dm.Position, dm);                                          // the tool drag loop f_76f4a
+            return;
+        }
         if (ev is InputEventMouseMotion tm && triangleDrag >= 0)
         {
             TriangleAt(triangleDrag, tm.Position);                              // dragging the marker
@@ -1119,6 +1209,7 @@ public partial class Main : Node2D
         if (ev is InputEventMouseButton up && !up.Pressed && up.ButtonIndex == MouseButton.Left)
         {
             dragWin = triangleDrag = -1;
+            toolDrag = false;
             return;
         }
         if (ev is InputEventMouseButton mb && mb.Pressed)
@@ -1145,6 +1236,7 @@ public partial class Main : Node2D
             else if (win == MapWin) MapWindowClick(index, mb);
             else if (win == HistoryWin) HistoryWindowClick(index);
             else if (win == YardWin) YardWindowClick(index, mb.Position);
+            else if (win == ToolWin) ToolWindowClick(index);
             else ControlWindowClick(win, index, mb.Position);
         }
         else if (ev is InputEventKey k && k.Pressed && !k.Echo)
@@ -1202,6 +1294,7 @@ public partial class Main : Node2D
                 case Key.O: session.St.Set16(Seg.G, 0x378, session.St.U16(Seg.G, 0x378) == 1 ? 0 : 1); break;   // auto / manual jobs
                 case Key.N: Restart(1); break;
                 case Key.M: Restart(2); break;
+                case Key.K: Restart(3); break;
             }
         }
     }
@@ -1214,9 +1307,17 @@ public partial class Main : Node2D
         session.St.Set16(Seg.G, 0xa8e, 1);
     }
 
+    void ExperimentalMenu()
+    {
+        if (session.St.U16(Seg.G, 0xeac) == 3) ToggleWindow(ToolWin);
+        else lastMessage = "The tools are for the Experimental game (K starts one); the menu itself is not built yet.";
+    }
+
     void Restart(int mode)
     {
         session.NewGame(mode);
+        if (mode == 3) Front(ToolWin);
+        else zOrder.Remove(ToolWin);
         lastMessage = "";
         SetView(session.Yellow.view);
     }
