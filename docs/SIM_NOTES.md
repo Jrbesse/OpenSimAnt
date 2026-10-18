@@ -1606,7 +1606,13 @@ The windows' handlers switch on the item id through jump tables (cs base 0x7980)
   Manual path (G:0378 = 0). Caste: G:0482 ↔ T:07F2 + 6 x DS:1B4E, then the Manual path. The start-up
   slots are T:0810 = (0x9999, 0x3333, 0x3333), (0xFFFF, 0, 0), (0, 0xFFFF, 0) and T:07F2 = (0, 0x9999,
   0x6666), (0x7FFF, 0x3FFF, 0x3FFF), (0, 0xFFFF, 0), with DS:1B50 = DS:1B4E = 0;
-- the triangle 0x120D / 0x130D: the drag; 0x120F..0x1211 (the corner labels): 0x7f06, not traced.
+- the triangle 0x120D / 0x130D: the drag;
+- the corner boxes 0x1209..0x120B / 0x120F..0x1211 (0x7f06; Caste 0x7cce): DS:1B62 ^= 1 (Caste DS:1B64),
+  then the chart redraw. `f_083d9(window, 0, flag)` (from `f_080d1` / `f_08255`) writes into items
+  0x1209 + i the weight i as "%-ld%%" = (100 w + 0x3FFF) / 0xFFFF when the flag is set, else "%-ld" =
+  (w x total + 0x3FFF) / 0xFFFF with total = G:0B12 + G:0B14 + G:0B16 (foragers, diggers, nurses) or, in
+  the Caste window, G:0AEC; the bars in item 0x0C are a fifth of its width each, at x = left + 2 i fifths
+  (their height is not traced).
 
 ### Speech balloons (`f_06a4d`; ported: `simant_ref/balloons.py`, verified by `test_balloons.py`)
 

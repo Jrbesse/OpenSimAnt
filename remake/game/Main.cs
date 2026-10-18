@@ -1066,13 +1066,24 @@ public partial class Main : Node2D
         int mx = st.U16(Seg.G, point), my = st.U16(Seg.G, point + 2);
         clip.Fill(mx - 3, my - 3, mx + 4, my + 4, UiArt.Black);
         clip.Fill(mx - 1, my - 1, mx + 2, my + 2, UiArt.White);
+        // f_083d9 (from f_080d1 / f_08255): bar i is a fifth of item 0x0C's width at 2 i fifths (its height is not
+        // traced: here the weight's share of the item's height); the corner values (items 9..11) show the weight
+        // as a percentage ("%-ld%%", (100 w + 0x3FFF) / 0xFFFF) when DS:1B62 / DS:1B64 is set, else as ants
+        // ("%-ld", (w x total + 0x3FFF) / 0xFFFF; total G:0B12 + G:0B14 + G:0B16, the Caste window G:0AEC)
         var bars = ItemRect(win, 12);
-        int bw = (bars.r - bars.l - 4) / 3;
+        int w5 = (bars.r - bars.l) / 5;
+        bool percent = (st.U8(Seg.DS, win == BehaviorWin ? 0x1b62 : 0x1b64) & 1) != 0;
+        long total = win == BehaviorWin ? st.S16(Seg.G, 0xb12) + st.S16(Seg.G, 0xb14) + st.S16(Seg.G, 0xb16) : st.S16(Seg.G, 0xaec);
         for (int i = 0; i < 3; i++)
         {
-            int h = (int)((long)st.U16(Seg.G, values + 2 * i) * (bars.b - bars.t - 4) / 0xffff);
-            int l = bars.l + 2 + i * bw;
-            clip.Fill(l + 1, bars.b - 2 - h, l + bw - 1, bars.b - 2, UiArt.Black);
+            long w = st.U16(Seg.G, values + 2 * i);
+            int h = (int)(w * (bars.b - bars.t - 2) / 0xffff);
+            int l = bars.l + 2 * i * w5;
+            clip.Fill(l, bars.b - 1 - h, l + w5, bars.b - 1, UiArt.Black);
+            var lr = ItemRect(win, 9 + i);
+            clip.Fill(lr.l, lr.t, lr.r, lr.b, UiArt.White);
+            string text = percent ? $"{(100 * w + 0x3fff) / 0xffff}%" : $"{(w * total + 0x3fff) / 0xffff}";
+            ui.DrawText(clip, 2, 0, lr.l, lr.t - 1, lr.r, lr.b + 1, text);
         }
         if (help)
         {
@@ -1099,6 +1110,12 @@ public partial class Main : Node2D
                     st.Set16(Seg.T, 0x7e8, index == 4 ? 1 : 0);                 // f_07cde: Manual only clears T:07E8
                 }
                 break;
+            case 9: case 10: case 11: case 15: case 16: case 17:            // the corner boxes (0x7f06 / 0x7cce)
+            {
+                int flag = win == BehaviorWin ? 0x1b62 : 0x1b64;
+                st.Set8(Seg.DS, flag, st.U8(Seg.DS, flag) ^ 1);
+                break;
+            }
             case 6: case 7: case 8:
             {
                 // Set 1..3 (f_07d07 at 0x7d8a, the caste handler at 0x7b44): save the weights (6 bytes) into the
