@@ -801,7 +801,7 @@ public static class Surface
         return res >= 0 ? res : fallback;
     }
 
-    static bool IsOpenGround(State st, int a, int b)
+    internal static bool IsOpenGround(State st, int a, int b)
     {
         if (!(0 <= a && a < 128 && 0 <= b && b < 64)) return false;
         int o = st.Grid(OCC, a, b);

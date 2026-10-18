@@ -8,6 +8,9 @@ public sealed class NestKind
 {
     public string Name;
     public int Dirt, Exitf, Cells, X, Y, State, Type, E, Count, Cap, SumCol, SumDepth, CenCol, CenDepth;
+    // colony constants for the helpers shared by both nests (nest.BLACK / nest.RED in the reference)
+    public int View, Red, Health, Food, Acc, Pop, Soldiers, Entr, EntrXy, EntrCol;
+    public Func<int, int, int> HoleRow;
     public override string ToString() => Name;
 }
 
@@ -21,6 +24,8 @@ public static class NestGrid
         Name = "BLACK", Dirt = 0x2180, Exitf = 0x4180, Cells = 0x8180, X = 0xb50d, Y = 0xb702, State = 0xb8f7,
         Type = 0xbaec, E = 0xbce1, Count = 0xda8, Cap = 0x224, SumCol = 0x1068, SumDepth = 0x1082, CenCol = 0x10b2,
         CenDepth = 0x10c0,
+        View = 2, Red = 0, Health = 0x10be, Food = 0x1050, Acc = 0x212, Pop = 0x330, Soldiers = 0xaf0, Entr = 0x224,
+        EntrXy = 0x2ac, EntrCol = 0x2a4, HoleRow = (k, i) => (k + i) % 0x20 + 2,
     };
 
     public static readonly NestKind RED = new()
@@ -28,6 +33,8 @@ public static class NestGrid
         Name = "RED", Dirt = 0x3180, Exitf = 0x5180, Cells = 0x9180, X = 0xbed6, Y = 0xc0cb, State = 0xc2c0,
         Type = 0xc4b5, E = 0xc6aa, Count = 0xeaa, Cap = 0x232, SumCol = 0x108e, SumDepth = 0x10a2, CenCol = 0x200,
         CenDepth = 0x20e,
+        View = 3, Red = 0x80, Health = 0x1fe, Food = 0x1060, Acc = 0x226, Pop = 0x350, Soldiers = 0xafe, Entr = 0x264,
+        EntrXy = 0x2b0, EntrCol = 0x2a8, HoleRow = (k, i) => 0x7e - (k + i) % 0x20,
     };
 
     /// <summary>f_0ca6e.</summary>
@@ -95,7 +102,7 @@ public static class NestGrid
         return (int)((a >= 0) == (b >= 0) ? q : -q);
     }
 
-    static void DigBookkeeping(State st, NestKind n, int col, int depth)
+    internal static void DigBookkeeping(State st, NestKind n, int col, int depth)
     {
         st.Set32(G, n.SumCol, (st.U32(G, n.SumCol) + col) & 0xffffffffL);
         st.Set32(G, n.SumDepth, (st.U32(G, n.SumDepth) + depth) & 0xffffffffL);
