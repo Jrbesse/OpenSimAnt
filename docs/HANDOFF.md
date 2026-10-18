@@ -316,8 +316,8 @@ Suggested next session: see "Next steps" 11.. below. The most valuable next piec
 15. Tutorial mode (G:0EAC = 0) is not ported (`World.Advisor` throws, f_0e425).
 16. Shell features added 2026-10-18 (all in `remake/game/Main.cs`, a stand-in until the real screens
     exist): STR# messages, a plain-grid yard map (Y; opens when the yellow ant dies in a Full Game), the
-    game-over rating line. Open: how f_71d95 picks the rank title from STR# 1900 (G:0328); the shell uses
-    entry `rank`, which may be reversed. `Formica.Replay --fuzz [dir] [games] [ticks]` plays random games
+    game-over rating line (f_71d95 shows entry `rank` of the G:0328 list, STR# 1900, below the mode's name
+    from G:0324: decoded). `Formica.Replay --fuzz [dir] [games] [ticks]` plays random games
     (clicks, commands, tools, cheats): 150 x 5000 ticks run clean. The one crash path it found (f_75d01 with
     no ant left in mode 3 reads an unset local) is a marked DIVERGENCE in `PlayerActions.cs` (grep
     DIVERGENCE for all deliberate departures from the original).

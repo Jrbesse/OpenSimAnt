@@ -119,8 +119,8 @@ public partial class Main : Node2D
             }
             else if (e.Name == "game_over" && e.Args.Length >= 2)
             {
-                // f_71d95's rating window: the rank's title (STR# 1900 = G:0328) and the score (Game.Rating). TODO: how
-                // f_71d95 indexes the list is not decoded; rank 0 is the lowest score but entry 0 reads like the best title.
+                // f_71d95's rating window: the rank's title (STR# 1900 = G:0328) and the score (Game.Rating). f_71d95
+                // shows entry `rank` of the list at G:0328 (loaded from STR# 1900), with the mode's name (G:0324) above it.
                 int rank = (int)e.Args[0];
                 var titles = session.Files.Strings(1900);
                 string title = titles != null && rank < titles.Length ? titles[rank] : $"rank {rank}";
