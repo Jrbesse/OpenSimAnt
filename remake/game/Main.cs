@@ -132,6 +132,7 @@ public partial class Main : Node2D
         }
         if (!session.Over && !yardChoose && modal < 0 && session.Advance(delta) > 0) balloonsNow.Clear();
         ToolPoll();
+        ToolHold(delta);
         DrainEffects();
         if (follow) CenterOnYellow();
         Redraw();
@@ -259,7 +260,7 @@ public partial class Main : Node2D
                 else Front(MapWin);
                 break;
             case 6: help = !help; break;
-            case 7: ExperimentalMenu(); break;
+            case 7: ExperimentalMenu(mb.Position); break;
             case 8: SetView(1); break;
             case 9: SetView(2); break;
             case 10: SetView(3); break;
@@ -460,7 +461,7 @@ public partial class Main : Node2D
             case 18: DebugCommands.RandomAction(st); break;                              // the Mystery Button (f_022bc)
             case 19: ToggleWindow(HistoryWin); break;
             case 20: OpenEfficiency(); break;
-            case 22: case 23: ExperimentalMenu(); break;
+            case 22: case 23: ExperimentalMenu(mb.Position); break;
             case 21: antInfoArmed = true; lastMessage = "Ant Info: click an ant in the Edit window."; break;
         }
     }
@@ -474,6 +475,9 @@ public partial class Main : Node2D
         [7] = new[] { 1, 2, 4, 5, 6, 0 }, [8] = new[] { 8, 9, 0 }, [32] = new[] { 0xa, 0xb, 6, 0 },
         // layout 6 (6000), the scent overlay menu (f_679c0): Off, Alarm, B-Nest, B-Trail, R-Nest, R-Trail → T:07BE
         [6] = new[] { 0xffff, 0, 1, 2, 3, 4 },
+        // the tools' option palettes (layouts 12..17): entry e stores e in T:07B6 + tool; 10 the Experimental menu
+        [12] = new[] { 0, 1 }, [15] = new[] { 0, 1 }, [16] = new[] { 0, 1 }, [17] = new[] { 0, 1 },
+        [13] = new[] { 0, 1, 2, 3, 4 }, [14] = new[] { 0, 1 }, [10] = new[] { 0 },
     };
     int popup = -1, popupHover = -1;
     (int dx, int dy) popupOff;
@@ -532,6 +536,18 @@ public partial class Main : Node2D
                     session.St.Set16(Seg.T, 0x7be, cmd);
                     return;
                 }
+                if (popup == 10)
+                {
+                    popup = -1;
+                    EnterExperimental();
+                    return;
+                }
+                if (popup >= 12 && popup <= 17)
+                {
+                    popup = -1;
+                    session.St.Set8(Seg.T, 0x7b6 + optionTool, cmd);
+                    return;
+                }
                 if (cmd == 2 && mb.ShiftPressed) cmd = 3;
                 if (cmd == 0xb && mb.AltPressed) cmd = 0xc;
                 popup = -1;
@@ -562,10 +578,48 @@ public partial class Main : Node2D
         c.Invert(r.l, r.t, r.r, r.b);
     }
 
+    // the option palette of tools 1..6 (layouts 12..17 by their bitmaps 5001..5006: Walls / Rocks, Dig / Fill,
+    // Black / Red, 1 / 20 pieces, the five scent maps, Spray / Stream); it opens after holding the tool's entry
+    static readonly int[] OptionWindows = { -1, 12, 15, 16, 17, 13, 14 };
+    int optionTool = -1;
+    double toolHold = -1;
+
     void ToolWindowClick(int index)
     {
-        if (index >= 2 && index <= 8) session.St.Set16(Seg.G, 0x104c, index - 2);
+        if (index >= 2 && index <= 8)
+        {
+            session.St.Set16(Seg.G, 0x104c, index - 2);
+            optionTool = index - 2;
+            toolHold = optionTool > 0 ? 0 : -1;
+        }
         else if (index == 9) session.Paused = false;                          // Start Game
+    }
+
+    /// <summary>Each frame: a tool entry held for a third of a second opens that tool's option palette beside it,
+    /// with the current option (T:07B6 + tool) highlighted.</summary>
+    void ToolHold(double delta)
+    {
+        if (toolHold < 0) return;
+        if (!Input.IsMouseButtonPressed(MouseButton.Left)) { toolHold = -1; return; }
+        toolHold += delta;
+        if (toolHold < 0.33) return;
+        toolHold = -1;
+        popup = OptionWindows[optionTool];
+        var entry = ItemRect(ToolWin, 2 + optionTool);
+        var (l, t, r, b) = ui.Layouts[popup].Rect;
+        popupOff = (Math.Min(entry.r, ScreenW - (r - l)) - l, Math.Min(entry.t, ScreenH - (b - t)) - t);
+        popupHover = 2 + Math.Min(session.St.U8(Seg.T, 0x7b6 + optionTool), PopupCommands[popup].Length - 1);
+    }
+
+    /// <summary>The Experimental menu's entry (layout 10). In a Full Game the original shows layout 11 ("not
+    /// available in the full game"). Otherwise the game becomes an Experimental one: G:0EAC = 3 and the tool
+    /// palette opens (how the original switches is not traced; the Efficiency Score's "not available in
+    /// Experimental Game" suggests the mode change sticks).</summary>
+    void EnterExperimental()
+    {
+        if (session.St.U16(Seg.G, 0xeac) == 2) { modal = 11; return; }
+        session.St.Set16(Seg.G, 0xeac, 3);
+        Front(ToolWin);
     }
 
     static int Kbd(InputEventWithModifiers m) => (m.ShiftPressed ? 2 : 0) | (m.CtrlPressed ? 4 : 0) | (m.AltPressed ? 8 : 0);
@@ -1164,6 +1218,7 @@ public partial class Main : Node2D
                 else DrawControlWindow(canvas, win);
             if (modal == EfficiencyWin) DrawEfficiency(canvas);
             if (modal == AntInfoWin) DrawAntInfo(canvas);
+            if (modal == 11) ui.DrawWindow(canvas, 11, 245, 200, null);       // "not available in the full game"
             if (popup >= 0) DrawPopup(canvas);
         }
         for (int i = 0; i < argb.Length; i++)
@@ -1307,10 +1362,15 @@ public partial class Main : Node2D
         session.St.Set16(Seg.G, 0xa8e, 1);
     }
 
-    void ExperimentalMenu()
+    /// <summary>The Experimental menu (layout 10) at the mouse; in an Experimental game the button shows / hides the
+    /// tool palette.</summary>
+    void ExperimentalMenu(Vector2 at)
     {
-        if (session.St.U16(Seg.G, 0xeac) == 3) ToggleWindow(ToolWin);
-        else lastMessage = "The tools are for the Experimental game (K starts one); the menu itself is not built yet.";
+        if (session.St.U16(Seg.G, 0xeac) == 3) { ToggleWindow(ToolWin); return; }
+        popup = 10;
+        var (l, t, r, b) = ui.Layouts[10].Rect;
+        popupOff = (Math.Min((int)at.X, ScreenW - (r - l)) - l, Math.Min((int)at.Y, ScreenH - (b - t)) - t);
+        popupHover = -1;
     }
 
     void Restart(int mode)
