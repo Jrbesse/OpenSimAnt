@@ -82,7 +82,8 @@ public partial class Main : Node2D
         session = new GameSession(dir);
         var args = OS.GetCmdlineUserArgs();
         session.NewGame(args.Contains("--full") ? 2 : args.Contains("--experimental") ? 3 : 1);
-        if (screenshot == null || args.Contains("--select")) modal = SelectWin;   // start with Select a Game
+        if (screenshot == null || args.Contains("--title")) modal = TitleWin;    // the title, then Select a Game
+        else if (args.Contains("--select")) modal = SelectWin;
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--ticks="))                                 // run the game ahead (for checking a build)
                 for (int t = int.Parse(arg["--ticks=".Length..]); t > 0 && !session.Over; t--) session.Step();
@@ -782,7 +783,7 @@ public partial class Main : Node2D
     // The new-game dialog f_725b6 (SIM_NOTES "Player events and the game flow"): bitmap 2500, buttons 0x202 Quick
     // Game (1), 0x203 Full Game (2), 0x204 Experimental (3), 0x205 Cancel, 0x206 the Tutorial (G:0EAC = 0, not
     // ported: World.Advisor's tutorial f_0e425), 0x207 Load Game. Shown at start-up and on F2.
-    const int SelectWin = 2;
+    const int SelectWin = 2, TitleWin = 3, AboutWin = 31;               // the title (2000 / 2001), the about box (3000 / 3001)
 
     bool selectMidGame;                                                      // F2: a game is running, so ask to save first
 
@@ -1467,6 +1468,8 @@ public partial class Main : Node2D
             if (modal == SelectWin) ui.DrawWindow(canvas, SelectWin, 0, 0, null);
             if (modal is 27 or 30) DrawMessageBox(canvas);
             if (modal == SavePrompt) DrawSavePrompt(canvas);
+            if (modal == TitleWin) canvas.Fill(0, 0, ScreenW, ScreenH, UiArt.Black);
+            if (modal is TitleWin or AboutWin) ui.DrawWindow(canvas, modal, 0, 0, null);
             if (modal == 11) ui.DrawWindow(canvas, 11, 245, 200, null);       // "not available in the full game"
             if (popup >= 0) DrawPopup(canvas);
         }
@@ -1527,6 +1530,11 @@ public partial class Main : Node2D
             if (modal == SelectWin)
             {
                 if (mb.ButtonIndex == MouseButton.Left) SelectClick(ui.HitTest(SelectWin, 0, 0, (int)mb.Position.X, (int)mb.Position.Y));
+                return;
+            }
+            if (modal == TitleWin)
+            {
+                modal = SelectWin;
                 return;
             }
             if (modal >= 0)                                                     // a click closes the modal window
@@ -1590,7 +1598,8 @@ public partial class Main : Node2D
                 case Key.F1: help = !help; break;                                          // the help overlays
                 case Key.F5: QuickSave(); break;                                           // save (the original's .ANT format)
                 case Key.F9: QuickLoad(); break;                                           // load
-                case Key.F2: modal = SelectWin; selectMidGame = true; break;                                     // Select a Game
+                case Key.F2: modal = SelectWin; selectMidGame = true; break;
+                case Key.F3: modal = AboutWin; break;                                      // the about box                                     // Select a Game
                 case Key.V: CycleScent(); break;                                           // the scent views (T:07BE)
                 case Key.O: session.St.Set16(Seg.G, 0x378, session.St.U16(Seg.G, 0x378) == 1 ? 0 : 1); break;   // auto / manual jobs
                 case Key.N: Restart(1); break;

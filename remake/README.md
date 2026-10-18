@@ -73,7 +73,7 @@ Keys:
 | C, U, Shift+U | as the spider: chase (then click), hunt, lash out |
 | P, O | Behavior and Caste Control windows; automatic / manual jobs (G:0378) |
 | G, Tab, V | History window; Map window (front / hide); scent views (T:07BE) |
-| F1, F2 | the help overlays; Select a Game (also shown at start-up) |
+| F1, F2, F3 | the help overlays; Select a Game (after the title at start-up; asks to save a running game); the about box |
 | Y, Esc | yard map in a Full Game (click a patch to move; also opens when another colony must be picked) |
 | F5 / F9 | quick save / load (the original's .ANT format, in Godot's user:// folder) |
 | S | sound effects on / off |
