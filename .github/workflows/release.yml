@@ -1,5 +1,6 @@
-# Exports the Godot remake for Windows and zips it with HOW_TO_PLAY.txt (remake/dist). A pushed tag (v0.1, ...)
-# attaches the zip to a GitHub Release (a pre-release: these are test builds); "Run workflow" by hand only
+# Exports the Godot remake for Windows and zips it with HOW_TO_PLAY.txt (remake/dist). A new tag (v0.1, ...),
+# pushed or made with a release on GitHub's web page, attaches the zip to that tag's Release (creating it as a
+# pre-release if there is none: these are test builds); "Run workflow" by hand only
 # keeps it as a workflow artifact (needs a GitHub login to download). The zip has no original game data:
 # the game asks the player for their own copy on first run.
 name: Release
@@ -76,7 +77,7 @@ jobs:
           (cd dist && zip -qr "$name.zip" Formica)
           echo "name=$name" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: ${{ steps.zip.outputs.name }}
           path: dist/${{ steps.zip.outputs.name }}.zip
@@ -98,5 +99,11 @@ jobs:
 
           HOW_TO_PLAY.txt in the zip has the details. No original game data is included.
           EOF
-          gh release create "$GITHUB_REF_NAME" "dist/${{ steps.zip.outputs.name }}.zip" \
-            --title "Formica $GITHUB_REF_NAME (test build)" --notes-file notes.md --prerelease
+          zip="dist/${{ steps.zip.outputs.name }}.zip"
+          # A release made on GitHub's web page creates the tag (and so starts this run) itself: add the zip to it.
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$zip" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$zip" \
+              --title "Formica $GITHUB_REF_NAME (test build)" --notes-file notes.md --prerelease
+          fi
