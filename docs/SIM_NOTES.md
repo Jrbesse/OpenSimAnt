@@ -1615,7 +1615,18 @@ added a pixel at a time; the last row sits 1 px higher. The remake draws it (`Ma
 - Scale: M = the largest value of both rings over the last T:0828 entries.
   - If M * 2 < H: y = bottom - v * mult, with mult the largest integer that keeps M * mult < H.
   - Otherwise: y = bottom - v / div, with div the smallest that brings M / div <= H.
-- The line drawing itself is not traced.
+- (decoded 2026-10-19, `Main.DrawHistoryWindow`) `f_795ec(series, no_label, slot)` plots one line per
+  series: ring T:082A[k], k = (s & 1) * 5 + (s >> 1) (the 10 buttons are 5 measures x 2 colonies), scaled
+  together with the other colony's ring T:0852[k]. All 64 entries from (G:04F4 - T:0828) & 63: point 0 at the
+  graph's left, point i at left + slot + i * w / 64 (truncated toward zero); y as above (mult when M < H:
+  the largest with M * mult < H; else the smallest div with M / div <= H; values not clamped). The lines go
+  through the driver's DS:916C (not traced). The colour is DS:2EE8[DS:8C26[s]] (0x43, 0x46, 0x49, 0x45). The
+  caller draws every slot's line (flag 1), then every label (flag 0): the last value ("%d", DS:2EFA) in font
+  3 at the last point, its top half the text height above it, framed 1 px out in the same colour
+  (`f_9128(colour, 0, colour)`).
+- The series (`f_79373`): four slots DS:2EF0 (0x8000 empty, all empty at start-up); a new series goes into
+  slot 0 and pushes the others down, a fifth evicts slot 3 (its button released); removing one closes the gap.
+  Its colour DS:8C26[s] is the lowest free bit of DS:2EF8 (0xF at start), given back when it goes.
 
 ### Behavior / Caste Control triangles (windows 18 / 19; ported: `simant_ref/panels.py`, `test_panels.py`)
 

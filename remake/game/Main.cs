@@ -150,6 +150,8 @@ public partial class Main : Node2D
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--map-content="))                           // --map-content=n: the Map window shows T:07C8 = n
                 session.St.Set16(Seg.T, 0x7c8, int.Parse(arg["--map-content=".Length..]));
+            else if (arg.StartsWith("--series="))                           // --series=a,b,..: History buttons pressed in turn
+                foreach (var s in arg["--series=".Length..].Split(',')) ToggleSeries(int.Parse(s));
         Redraw();
     }
 
@@ -1596,7 +1598,34 @@ public partial class Main : Node2D
     const int HistoryWin = 21, HistoryGraph = 14;
     static readonly int[] HistoryBlack = { 0x516, 0x626, 0x73c, 0x856, 0x8f0, 0x5a0, 0x6ae, 0x7ce, 0x970, 0xa0a };
     static readonly int[] HistoryRed = { 0x5a0, 0x6ae, 0x7ce, 0x856, 0xa0a, 0x516, 0x626, 0x73c, 0xa0a, 0x970 };
-    readonly List<int> historySeries = new() { 0 };
+    // The plotted series, as f_79373 keeps them: four slots DS:2EF0 (a new series goes into slot 0 and pushes the
+    // others down, a fifth one evicts slot 3; removing one closes the gap), each series' colour DS:8C26[s] the
+    // lowest free bit of DS:2EF8 (start 0xF), the colour codes DS:2EE8 = 0x43, 0x46, 0x49, 0x45.
+    readonly int[] historySlots = { -1, -1, -1, -1 };
+    readonly int[] historyColour = new int[10];
+    int historyFree = 0xf;
+
+    void ToggleSeries(int s)
+    {
+        int at = Array.IndexOf(historySlots, s);
+        if (at >= 0)
+        {
+            for (int i = at; i < 3; i++) historySlots[i] = historySlots[i + 1];
+            historySlots[3] = -1;
+            historyFree |= 1 << historyColour[s];
+            return;
+        }
+        if (historySlots[3] >= 0) historyFree |= 1 << historyColour[historySlots[3]];
+        for (int i = 3; i > 0; i--) historySlots[i] = historySlots[i - 1];
+        historySlots[0] = s;
+        for (int colour = 0; colour < 4; colour++)
+            if ((historyFree & 1 << colour) != 0)
+            {
+                historyFree &= ~(1 << colour);
+                historyColour[s] = colour;
+                break;
+            }
+    }
 
     void DrawHistoryWindow(UiArt.Canvas c)
     {
@@ -1605,40 +1634,55 @@ public partial class Main : Node2D
         ui.DrawWindow(c, HistoryWin, dx, dy, null, new[] { 16001 });
         var wr = WindowRect(HistoryWin);
         var clip = c.Clip(wr.l, wr.t, wr.r, wr.b);
-        foreach (int s in historySeries)
+        foreach (int s in historySlots.Where(x => x >= 0))
         {
             var b = ItemRect(HistoryWin, 3 + s);
             clip.Invert(b.l, b.t, b.r, b.b);
         }
+        // f_795ec(series, no label, slot): one line per series, T:082A[k] (k = (s & 1) * 5 + (s >> 1)), scaled with
+        // the other colony's ring T:0852[k]; all 64 entries from (G:04F4 - T:0828) & 63, point 0 at the graph's
+        // left, point i at left + slot + i * w / 64; the lines through the driver (DS:916C, a line routine taken as
+        // Bresenham), then the labels: the last value ("%d", font 3) at the last point, framed.
         var g = ItemRect(HistoryWin, HistoryGraph);
-        int n = Math.Clamp(st.S16(Seg.T, 0x828), 0, 64);
-        int start = (st.U8(Seg.G, 0x4f4) - n) & 0x3f;
+        int count = st.S16(Seg.T, 0x828), start = (st.U8(Seg.G, 0x4f4) - count) & 0x3f;
         int h = g.b - g.t - 16, w = g.r - g.l - 0x40, bottom = g.b - 8;
-        int V(int ring, int i) => Math.Max(0, st.S16(Seg.G, ring + 2 * ((start + i) & 0x3f)));
-        int max = 0;
-        foreach (int s in historySeries)
-        {
-            int k = (s & 1) * 5 + (s >> 1);
-            for (int i = 0; i < n; i++) max = Math.Max(max, Math.Max(V(HistoryBlack[k], i), V(HistoryRed[k], i)));
-        }
-        int mult = 1, div = 1;
-        if (max * 2 < h) while (max * (mult + 1) < h) mult++;
-        else while (max / div > h) div++;
+        int V(int ring, int i) => st.S16(Seg.G, ring + 2 * ((start + i) & 0x3f));
         var area = clip.Clip(g.l, g.t, g.r, g.b);
-        foreach (int s in historySeries)
+        var font = ui.Font(3) ?? ui.Font(2);
+        var labels = new List<(int x, int y, string text, uint colour)>();
+        for (int slot = 0; slot < 4; slot++)
         {
-            int k = (s & 1) * 5 + (s >> 1);
-            foreach (var (ring, colour) in new[] { (HistoryRed[k], session.Art.Palette[3]), (HistoryBlack[k], UiArt.Black) })
+            int s = historySlots[slot];
+            if (s < 0) continue;
+            int k = (s & 1) * 5 + (s >> 1), ring = HistoryBlack[k], other = HistoryRed[k];
+            int max = 0;
+            for (int i = 0; i < count; i++) max = Math.Max(max, Math.Max(V(ring, i), V(other, i)));
+            int mult = 1, div = 1;
+            if (max > 0)
             {
-                int px = 0, py = 0;
-                for (int i = 0; i < n; i++)
-                {
-                    int x = g.l + 32 + (n > 1 ? i * w / 63 : 0), y = bottom - (max * 2 < h ? V(ring, i) * mult : V(ring, i) / div);
-                    if (i > 0) Line(area, px, py, x, y, colour);
-                    px = x;
-                    py = y;
-                }
+                int b = 1;
+                while (max * b < h) b++;
+                if (b > 1) mult = b - 1;
+                else while (max / div > h) div++;
             }
+            uint colour = session.Art.Palette[st.U8(Seg.DS, 0x2ee8 + 2 * historyColour[s]) & 15];
+            int Y(int i) => bottom - (div == 1 ? V(ring, i) * mult : V(ring, i) / div);
+            int px = g.l, py = Y(0);
+            for (int i = 1; i < 64; i++)
+            {
+                int x = i * w / 64 + slot + g.l, y = Y(i);
+                Line(area, px, py, x, y, colour);
+                px = x;
+                py = y;
+            }
+            labels.Add((px, py, V(ring, 63).ToString(), colour));
+        }
+        foreach (var (x, y, text, colour) in labels)
+        {
+            int top = y - font.Height / 2, tw = font.Width(text);
+            area.Fill(x - 1, top - 1, x + tw + 1, top + font.Height + 1, session.Art.Palette[0]);
+            font.Draw(area, x, top, text, colour);
+            area.Frame(x - 1, top - 1, x + tw + 1, top + font.Height + 1, colour);
         }
         if (help)
         {
@@ -1647,11 +1691,18 @@ public partial class Main : Node2D
         }
     }
 
+    /// <summary>A Bresenham line, both ends included (the driver's line routine DS:916C is not traced).</summary>
     static void Line(UiArt.Canvas c, int x0, int y0, int x1, int y1, uint colour)
     {
-        int n = Math.Max(Math.Abs(x1 - x0), Math.Abs(y1 - y0));
-        for (int k = 0; k <= n; k++)
-            c.Plot(x0 + (n == 0 ? 0 : (x1 - x0) * k / n), y0 + (n == 0 ? 0 : (y1 - y0) * k / n), colour);
+        int dx = Math.Abs(x1 - x0), dy = -Math.Abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx + dy;
+        while (true)
+        {
+            c.Plot(x0, y0, colour);
+            if (x0 == x1 && y0 == y1) return;
+            int e2 = 2 * err;
+            if (e2 >= dy) { err += dy; x0 += sx; }
+            if (e2 <= dx) { err += dx; y0 += sy; }
+        }
     }
 
     void HistoryWindowClick(int index)
@@ -1659,8 +1710,7 @@ public partial class Main : Node2D
         if (index == 13) help = !help;
         else if (index >= 3 && index <= 12)
         {
-            int s = index - 3;
-            if (!historySeries.Remove(s) && historySeries.Count < 4) historySeries.Add(s);
+            ToggleSeries(index - 3);
         }
     }
 
