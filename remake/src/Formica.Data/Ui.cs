@@ -2,8 +2,7 @@ namespace Formica.Data;
 
 /// <summary>Drawing the original's windows from their layouts (Layouts, FILE_FORMATS "Window layouts") into an
 /// ARGB screen buffer: pictures (HCEGANT type-2 bitmaps), text items in the game's fonts (SHARED type 11),
-/// frames and captions. The frame styles are only named from their drawing routines (f_22170, f_22248, ...),
-/// not traced, so frames are drawn as plain 1-px outlines in the Mac style the pictures use.</summary>
+/// frames, fills and captions as the item drawer f_223b3 does them, in the item's colour scheme (Schemes).</summary>
 public sealed class UiArt
 {
     public readonly OriginalFiles Files;
@@ -14,12 +13,36 @@ public sealed class UiArt
 
     public const uint White = 0xffffffffu, Black = 0xff000000u, Grey = 0xffc0c0c0u, DarkGrey = 0xff808080u;
 
+    /// <summary>The colour schemes (HCEGANT type 0 id 129, copied to G:46E2 by f_210d0; 6 bytes each): byte 0 the
+    /// foreground, byte 2 the background (byte 3 in the video modes with DS:5A97 bit 0; not VGA), as palette indices.
+    /// f_220e4 picks an item's scheme (LayoutItem.ColourScheme). Frames are drawn in DS:3DE0 (15, black).</summary>
+    public readonly (uint fg, uint bg)[] Schemes;
+
     public UiArt(OriginalFiles files, MapArt art)
     {
         Files = files;
         Palette = art.Palette;
         Layouts = Data.Layouts.All(files);
+        var t = files.Hcegant.FirstOrDefault(r => r.Type == 0 && r.Id == 129)?.Data ?? Array.Empty<byte>();
+        Schemes = Enumerable.Range(0, t.Length / 6).Select(i => (Palette[t[6 * i] & 15], Palette[t[6 * i + 2] & 15])).ToArray();
     }
+
+    public (uint fg, uint bg) SchemeOf(LayoutItem it) =>
+        it.ColourScheme < Schemes.Length ? Schemes[it.ColourScheme] : (Black, Grey);
+
+    /// <summary>f_1d018: a frame `w` px thick inside the rectangle; f_1d802 with `sides` (1 left, 2 top, 4 right,
+    /// 8 bottom) draws only those.</summary>
+    public static void ThickFrame(Canvas c, int l, int t, int r, int b, int w, uint colour, int sides = 15)
+    {
+        if (w <= 0) return;
+        if ((sides & 2) != 0) c.Fill(l + w, t, r - w, t + w, colour);
+        if ((sides & 8) != 0) c.Fill(l + w, b - w, r - w, b, colour);
+        if ((sides & 1) != 0) c.Fill(l, t, l + w, b, colour);
+        if ((sides & 4) != 0) c.Fill(r - w, t, r, b, colour);
+    }
+
+    /// <summary>A text item's alignment, (word +24 &amp; 0x180) >> 7, as DrawText takes it.</summary>
+    static int Align(LayoutItem it) => ((it.Flags & 0x180) >> 7) switch { 1 => 1, 2 => 2, _ => 0 };
 
     public (int w, int h, short[] px) Bitmap(int id)
     {
@@ -147,38 +170,54 @@ public sealed class UiArt
         {
             var (l, t, r, b) = it.Rect;
             l += dx; t += dy; r += dx; b += dy;
-            switch (it.Kind)
+            var (fg, bg) = SchemeOf(it);
+            // f_223b3 by type: 0 box (fill, frame of thickness +28), 2 fill, 5 fill + text, 9 text, 0x0C fill, a line
+            // under it, text; 0x0F frame; 0x10 text; 0x11 fill + text; 0x12 caption (fill, line under, text); 0x13 /
+            // 0x14 left and right / top and bottom lines, 0x15 / 0x16 the same after a fill. Frames are black (DS:3DE0).
+            switch (it.Type)
             {
-                case "frame3d":
-                    clip.Frame(l, t, r, b, Black);
-                    clip.Frame(l + 1, t + 1, r - 1, b - 1, White);
-                    clip.Fill(r - 2, t + 1, r - 1, b - 1, DarkGrey);
-                    clip.Fill(l + 1, b - 2, r - 1, b - 1, DarkGrey);
+                case 0x00:
+                    clip.Fill(l, t, r, b, bg);
+                    ThickFrame(clip, l, t, r, b, it.Style, Black);
                     break;
-                case "caption":
-                    clip.Fill(l, t, r, b, White);
-                    clip.Fill(l, b - 1, r, b, Black);
-                    DrawText(clip, 0, 0, l, t, r, b, it.Text != null && !it.Text.Contains('%') ? it.Text : title ?? "");
+                case 0x02:
+                    clip.Fill(l, t, r, b, bg);
                     break;
-                case "box":
-                    clip.Fill(l, t, r, b, White);
-                    clip.Frame(l, t, r, b, Black);
+                case 0x0f:
+                    ThickFrame(clip, l, t, r, b, it.Style, Black);
                     break;
-                case "frame":
-                    clip.Frame(l, t, r, b, Black);
+                case 0x13 or 0x14 or 0x15 or 0x16:
+                    if (it.Type >= 0x15) clip.Fill(l, t, r, b, bg);
+                    ThickFrame(clip, l, t, r, b, it.Style, Black, it.Type is 0x13 or 0x15 ? 5 : 10);
                     break;
-                case "picture":
+                case 0x12:
+                    clip.Fill(l, t, r, b, bg);
+                    clip.Fill(l, b - 1, r, b, fg);
+                    DrawText(clip, it.Style, Align(it), l, t, r, b, it.Text != null && !it.Text.Contains('%') ? it.Text : title ?? "", fg);
+                    break;
+                case 0x06:
                     if (hidden == null || !hidden.Contains(it.Bitmap)) DrawBitmap(clip, it.Bitmap, l, t);
                     break;
-                case "toggle_picture":
+                case 0x0d:
                     DrawBitmap(clip, it.Bitmaps[0], l, t);
                     break;
-                case "text" or "text_button" or "filled_text":
-                    if (it.Kind == "text_button") clip.Frame(l, t, r, b, Black);
-                    if (it.Text != null && !it.Text.Contains('%')) DrawText(clip, it.Param & 0xff, 0, l, t, r, b, it.Text);
+                case 0x05 or 0x09 or 0x0c or 0x10 or 0x11:
+                    if (it.Type is 0x05 or 0x0c or 0x11) clip.Fill(l, t, r, b, bg);
+                    if (it.Type == 0x0c) clip.Fill(l, b - 1, r, b, fg);
+                    if (it.Text != null && !it.Text.Contains('%')) DrawText(clip, it.Style, Align(it), l, t, r, b, it.Text, fg);
                     break;
             }
         }
+    }
+
+    /// <summary>Run-time text in an item, as f_223b3 draws its text types: a fill first for types 5, 0x0C and 0x11,
+    /// then the text in the item's font (+28, or `font`), alignment and scheme colour.</summary>
+    public void ItemText(Canvas c, LayoutItem it, int dx, int dy, string text, int font = -1)
+    {
+        var (l, t, r, b) = it.Rect;
+        var (fg, bg) = SchemeOf(it);
+        if (it.Type is 0x05 or 0x0c or 0x11) c.Fill(l + dx, t + dy, r + dx, b + dy, bg);
+        DrawText(c, font >= 0 ? font : it.Style, Align(it), l + dx, t + dy, r + dx, b + dy, text, fg);
     }
 
     /// <summary>The item of window `id` with item id `item`, or null.</summary>

@@ -1301,11 +1301,9 @@ public partial class Main : Node2D
         }
         else
         {
-            var (nl, nt, nr, nb) = items[4].Rect;
-            ui.DrawText(c, 2, 1, nl, nt, nr, nb, fileName + "_");
+            ui.ItemText(c, items[4], 0, 0, fileName + "_");
         }
-        var (pl, pt, pr, pb) = items[6].Rect;
-        ui.DrawText(c, 2, 1, pl, pt, pr, pb, "Path: user://");
+        ui.ItemText(c, items[6], 0, 0, "Path: user://");
         var (ll, lt, lr, lb) = items[9].Rect;
         var list = c.Clip(ll, lt, lr, lb);
         list.Fill(ll, lt, lr, lb, UiArt.White);
@@ -1316,11 +1314,7 @@ public partial class Main : Node2D
             f.Draw(list, ll + 4, y, fileList[i], UiArt.Black);
             if (i == fileSel) list.Invert(ll + 1, y, lr - 1, y + f.Height);
         }
-        var (bl2, bt2, br2, bb2) = items[19].Rect;
-        c.Frame(bl2, bt2, br2, bb2, UiArt.Black);
-        ui.DrawText(c, 0, 0, bl2, bt2, br2, bb2, fileSave ? "SAVE" : "LOAD");
-        var (cl, ct, cr, cb) = items[20].Rect;
-        c.Frame(cl, ct, cr, cb, UiArt.Black);
+        ui.ItemText(c, items[19], 0, 0, fileSave ? "SAVE" : "LOAD");
     }
 
     // ------------------------------------------------------------------------------- the Efficiency Score (layout 24)
@@ -1353,8 +1347,7 @@ public partial class Main : Node2D
         }
         void Text(int index, string text, int font = -1)
         {
-            var (l, t, r, b) = items[index].Rect;
-            ui.DrawText(c, font >= 0 ? font : items[index].Param & 0xff, 0, l, t, r, b, text);
+            ui.ItemText(c, items[index], 0, 0, text, font);
         }
         var p = efficiency.parts;
         int mode = st.U16(Seg.G, 0xeac);

@@ -115,20 +115,29 @@ item record
 
 | Type | Length | What (drawing by `f_223b3`) |
 |---|---|---|
-| 0x00 | 0x29 | box, style +28 (`f_22226`) |
+| 0x00 | 0x29 | box: filled with the scheme's background, then a frame +28 px thick (`f_22226`) |
 | 0x01, 0x03, 0x0A, 0x0B, 0x0E | 0x28 | not drawn: hotspots (buttons over a picture) |
-| 0x02 | 0x29 | frame (`f_22170`) |
+| 0x02 | 0x29 | a filled rectangle, the scheme's background (`f_22170`; not a frame) |
 | 0x04 | 0x38 | scroll bar? (`f_241f2`) |
 | 0x05, 0x09 | strlen + 0x2D | text, string at +2A |
 | 0x06 | 0x2A | picture, bitmap id at +28 (`f_25c75`) |
 | 0x07, 0x08 | 0x2A | icon / check control (`f_244cc`) |
-| 0x0C | strlen + 0x2D | framed text button, string at +2A |
+| 0x0C | strlen + 0x2D | text button, string at +2A: fill, a 1-px line in the foreground along the bottom, text |
 | 0x0D | 0x2C | two-state picture: +24 bit 2 picks the bitmap word at +26 or +28 |
-| 0x0F | 0x29 | 3-D frame, style +28 (`f_22248`) |
+| 0x0F | 0x29 | a frame +28 px thick (`f_22248` → `f_1d018`), no fill; windows' borders are 2 |
 | 0x10 | strlen + 0x31 | formatted field: +2C, printf format at +2E ("%d", "%d%%") |
 | 0x11 | strlen + 0x31 | filled text, string at +2E |
-| 0x12 | strlen + 0x31 | caption, string at +2E ("%s": the window's title) |
-| 0x13..0x16 | 0x29 | more frame styles, +28 |
+| 0x12 | strlen + 0x31 | caption, string at +2E ("%s": the window's title): fill, a 1-px foreground line along the bottom, text |
+| 0x13 / 0x14 | 0x29 | left and right / top and bottom lines +28 px thick (`f_22289` / `f_2225d` → `f_1d802` sides 5 / 10) |
+| 0x15 / 0x16 | 0x29 | the same after a fill |
+
+Every item starts with `f_220e4`: its **colour scheme** is the byte at +26 (+27 when the word at +24 has bit 2),
+an index into the table at G:46E2, which start-up (`f_210d0`) copies from HCEGANT type 0 id 129 (16 schemes of 6
+bytes: foreground, foreground, background, background in the modes with DS:5A97 bit 0, two bytes not decoded).
+The colours are palette indices: e.g. scheme 1 (captions) cyan on dark grey, 3 black on white (fields, lists), 4
+yellow on light grey (dialogs), 6 red on black (CANCEL), 9 black on light grey. Frames and lines are drawn in
+DS:3DE0 (15, black) whatever the scheme. Texts of types 5 and 0x11 are filled with the background first, 9 and
+0x10 are not. Records of length 0x29 hold +28 as a single byte (the thickness or the font).
 
 Text items (types 0x05, 0x09, 0x0C, 0x10..0x12) are drawn by `f_21fa2`:
 - Font: the byte at +28 (`f_24d5d`). Ids 2..5 are the slots DS:4A1A.. that start-up (`f_34ab_047d`) loads from

@@ -2,9 +2,16 @@ using System.Buffers.Binary;
 
 namespace Formica.Data;
 
-/// <summary>An item of a window layout (tools/layouts.py): absolute rectangle, id, type, text / bitmap.</summary>
+/// <summary>An item of a window layout (tools/layouts.py): absolute rectangle, id, type, text / bitmap; Flags the word at
+/// +24 (text alignment (Flags &amp; 0x180) >> 7; bit 2 picks AltScheme), Scheme / AltScheme the colour schemes at +26 /
+/// +27 (UiArt.Schemes), Style the byte at +28 (a frame's thickness, a text's font).</summary>
 public sealed record LayoutItem(int Id, (int left, int top, int right, int bottom) Rect, (int x, int y) Pos, (int w, int h) Size,
-                                int Parent, int State, int Type, string Kind, int Param, string Text, int Bitmap, int[] Bitmaps);
+                                int Parent, int State, int Type, string Kind, int Param, string Text, int Bitmap, int[] Bitmaps,
+                                int Flags = 0, int Scheme = 0, int AltScheme = 0, int Style = 0)
+{
+    /// <summary>f_220e4: the colour scheme the item is drawn in.</summary>
+    public int ColourScheme => (Flags & 4) != 0 ? AltScheme : Scheme;
+}
 
 /// <summary>A window layout: its screen rectangle (640 x 480) and items.</summary>
 public sealed record WindowLayout(int Id, (int left, int top, int right, int bottom) Rect, List<LayoutItem> Items);
@@ -45,7 +52,9 @@ public static class Layouts
         else if (type >= 0x10 && type <= 0x12 && b.Length > 0x2e) text = CStr(b, 0x2e);
         return new LayoutItem(U(b, 0x14), (S(b, 0), S(b, 2), S(b, 4), S(b, 6)), (S(b, 8), S(b, 10)), (S(b, 12), S(b, 14)),
                               U(b, 0x10), b[0x20], type, Types.GetValueOrDefault(type, $"type{type:x2}"), param, text,
-                              type == 0x06 ? param : -1, type == 0x0d ? new[] { U(b, 0x26), U(b, 0x28) } : null);
+                              type == 0x06 ? param : -1, type == 0x0d ? new[] { U(b, 0x26), U(b, 0x28) } : null,
+                              b.Length > 0x25 ? U(b, 0x24) : 0, b.Length > 0x26 ? b[0x26] : 0, b.Length > 0x27 ? b[0x27] : 0,
+                              b.Length > 0x28 ? b[0x28] : 0);
     }
 
     public static WindowLayout Decode(int id, byte[] data)
