@@ -16,7 +16,7 @@ public static class Fuzz
         for (int g = 0; g < games; g++)
         {
             var rng = new Random(g);
-            int mode = 1 + g % 3;
+            int mode = g % 4;                                  // 0 the tutorial, 1 Quick, 2 Full, 3 Experimental
             s.NewGame(mode, 0x1000 + g * 77);
             for (int t = 0; t < ticks && !s.Over; t++)
             {

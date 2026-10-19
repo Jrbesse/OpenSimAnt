@@ -19,7 +19,17 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 
 - [ ] The title screen shows; a click brings up Select a Game.
 - [ ] Quick Game, Full Game and Experimental each start the right kind of game (the status line names it).
-- [ ] Cancel closes the dialog; Tutorial shows "not ported yet" (expected).
+- [ ] Cancel closes the dialog.
+
+## 1c. The Tutorial (Select a Game > Tutorial)
+
+- [ ] Its message boxes appear one by one (some with a small picture); each step waits until you do what it asks
+  (dig, go outside, walk, recentre with Backspace, scroll, open the Map window with Tab, eat, carry food home,
+  move a rock, recruit, alarm scent with Escape... *note: the shell's alarm key is 0 / A*, the yard, House,
+  Patch, the Behavior and Caste windows, enter a nest).
+- [ ] A step you don't do shows its message again after a while.
+- [ ] Note any step that cannot be completed in the shell (the checks are the original's; the shell's controls
+  must set what they read).
 - [ ] File > New / Ctrl+N mid-game asks to save first; DON'T SAVE, Save and Cancel each do what they say.
 - [ ] File > About shows the about box; a click closes it.
 

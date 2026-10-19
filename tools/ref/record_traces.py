@@ -30,7 +30,7 @@ from simant_ref.state import State, LO, HI              # noqa: E402
 
 MODULES = ['rng', 'state', 'tables', 'terrain', 'pheromones', 'colony', 'movement', 'surface', 'nestgrid', 'nest',
            'red_nest', 'world', 'yard', 'sim', 'newgame', 'game', 'savefile', 'cheats', 'debug', 'tools', 'markers',
-           'balloons', 'panels', 'commands', 'player']
+           'balloons', 'panels', 'commands', 'player', 'tutorial']
 SIZE = HI - LO
 MAX_PER_FUNC = int(os.environ.get('TRACE_MAX', '4000'))
 

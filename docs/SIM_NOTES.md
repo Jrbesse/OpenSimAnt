@@ -1059,6 +1059,39 @@ G:0AF6 / G:0B04 += 1, population counters.
   tutorial: T:07A4 = 1, T:07A6 = 0.
 - Win screen `f_2f91a` → `f_72750`: an animation only.
 
+## The tutorial (`f_0e425`, `f_0e4e4`, `f_0e93e`, segment 0e2e; ported: `simant_ref/tutorial.py`, verified by `test_tutorial.py`)
+
+Game mode G:0EAC = 0. Starting it (`game.start_game`) sets the step T:07A4 = 1 and T:07A6 = 0. The advisor
+`f_0e2ea` calls `f_0e425` every tick in this mode, then does its usual status line. `f_0e425`: T:07A2 + 1 (back to
+0 past 0x400); only when T:07A2 & 7 == 0: G:10B8 + 1; if the step has not been shown (T:07A6 == 0), show it
+(`f_0e4e4(step)`), T:07A6 = 1, G:10B8 = 0; else if its check passes (`f_0e93e(step)`) the step + 1 and T:07A6 = 0
+(shown next time); else, after 16 polls (G:10B8 > 15) and once the clock3 passes the 32-bit target G:0204, T:07A6 =
+0 (the message again). Both routines switch on step - 1 through jump tables right after the jump (CS base 0x0E2E0;
+Ghidra garbles them), 56 steps.
+
+`f_0e4e4`: a message box `f_2f6ea(picture, STR# 0x2AF8 + 2 (step - 1), 1)` (SHARED STR# 11000..11112; pictures
+HCEGANT 17000..17014 for steps 2, 5, 11, 13, 14, 17, 18, 21, 33, 36, 38..41, 43..48, 50; step 55 shows 0x2B64 or
+0x2B66 by G:1074, i.e. which nest step 54 found). Setups: steps 3 / 4 the target G:0204 = nest capacity G:0224 + 2 /
+10; 7 / 26 G:1074 = yellow a + b and the target = clock3 + 0x258; 8, 30, 43, 46, 50 G:1074 = 0; 9 G:1074 = the Edit
+window's origin G:0508 + G:050A, target clock3 + 0x258; 14 health 8 (`f_12d43`); 23 ten black surface ants
+(`f_2f6cc` → `f_6be50`); 27 G:1074 = a + b; 41 G:1074 = the behaviour weights G:049E + G:04A0; 49 eighty black
+ants, then the alarm map (SIM:D09F, 64 x 32) cleared.
+
+`f_0e93e` (1 = done): 3 / 4 capacity > target and no action pending (G:0AA0 == 0); 5, 20 on the surface (G:048C ==
+1); 7 / 26 moved (a + b != G:1074), G:0B1E == 0 and the clock past the target; 8, 43, 46, 50 G:1074 != 0 (the UI sets
+it when the view recentres or follows, f_01c03 / f_01c52); 9 the Edit window scrolled, or the clock past the target;
+10, 32, 42 the Map window active (`f_23612(0x100)`: DS:5702, the active window's id, == 0x100); 12, 49 the Edit
+window active (0); 39 / 47 Behavior / Caste Control (0x1200 / 0x1300); 13 on the surface on a tile > 0x47 (food);
+14 health > 90; 16 carrying food (G:04C2 == 0x18); 18 in the black nest; 19, 22 G:04C2 == 0x10; 21 carrying a rock
+(0x28); 24 / 52 recruits G:0B1C > 1 / > 40; 27 moved with alarm scent on (G:104E) and G:0B1E == 0; 30 turns the
+alarm scent off quietly (`f_2f80c(0, 1)`) and waits for G:1074; 33 the view is the yard (G:032E == 0), 38 the
+surface (1); 36 the yard window's House view (G:035C == 1); 41 the behaviour weights changed; 54 entered a nest
+(red: G:1074 = 0, black: 1). The other steps pass at once (the message box itself waits for its click). Step 57
+and later do nothing.
+
+`test_tutorial.py`: every step shown and checked (passing, failing early, failing late with the re-show) from every
+snapshot, 9 calls each so the state carries on: 213 cases, ALL OK.
+
 ## Cheat codes (`f_6a920`, overlay 10; ported: `simant_ref/cheats.py`, verified by `test_cheats.py`)
 
 Called once per typed key (`f_6a920(key)`, via thunk 0x2f924 from `f_74386`). Matching:

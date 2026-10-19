@@ -40,6 +40,7 @@ public sealed class Replayer
         ["newgame"] = "NewGame", ["game"] = "Game", ["savefile"] = "SaveFile", ["cheats"] = "Cheats",
         ["debug"] = "DebugCommands", ["tools"] = "MapTools", ["markers"] = "Markers", ["balloons"] = "Balloons",
         ["panels"] = "Panels", ["commands"] = "Commands", ["player"] = "Player",
+        ["tutorial"] = "Tutorial",
     };
 
     static readonly Assembly SimAsm = typeof(State).Assembly;

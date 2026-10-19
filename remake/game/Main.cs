@@ -42,6 +42,7 @@ public partial class Main : Node2D
     bool follow = true, help, antInfoArmed;
     string lastMessage = "";
     string screenshot;
+    bool tutorialShot;
     int frames;
 
     // the window stack (last = front) and each window's offset from its layout position
@@ -86,6 +87,12 @@ public partial class Main : Node2D
         else if (args.Contains("--select")) modal = SelectWin;
         if (modal == TitleWin) PlaySong(0x2711);                            // f_72bc2: the title plays the Game Theme
         if (args.Contains("--silly")) session.ToggleOption(5);             // Options > Silly: the speech balloons
+        foreach (var arg in args.Where(x => x.StartsWith("--tutorial")))   // --tutorial[=step]: the Tutorial at that step
+        {
+            session.NewGame(0);
+            if (arg.Contains('=')) session.St.Set16(Seg.T, 0x7a4, int.Parse(arg[(arg.IndexOf('=') + 1)..]));
+            tutorialShot = true;
+        }
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--ticks="))                                 // run the game ahead (for checking a build)
                 for (int t = int.Parse(arg["--ticks=".Length..]); t > 0 && !session.Over; t--) session.Step();
@@ -188,7 +195,8 @@ public partial class Main : Node2D
                 var lines = session.Files.Strings(id);
                 lastMessage = lines != null ? string.Join(" ", lines) : $"message 0x{id:x}";
                 GD.Print("message: " + lastMessage);
-                if (e.Name == "message_box" && lines != null && screenshot == null) OpenMessageBox(lines);
+                if (e.Name == "message_box" && lines != null && (screenshot == null || tutorialShot))
+                    OpenMessageBox(lines, e.Args.Length > 2 && e.Args[2] is int pic ? pic : 0);
             }
             else if (e.Name == "sound" && e.Args.Length > 0 && e.Args[0] is int sfx && sfx < 57
                      && session.St.U16(Seg.T, 0x7ac) != 0)
@@ -1008,25 +1016,45 @@ public partial class Main : Node2D
     // lines go in layout 27, more in layout 30, centred above the "Click here" line in font 2.
     string[] boxLines;
 
-    void OpenMessageBox(string[] lines)
+    int boxPicture;
+
+    void OpenMessageBox(string[] lines, int picture = 0)
     {
-        boxLines = lines.Select(l => l.Replace("\\n", " ")).ToArray();      // literal backslash-n breaks, as in the balloons
-        modal = lines.Length <= 4 ? 27 : 30;
+        boxLines = lines.Select(l => l.Replace("\n", " ")).ToArray();     // literal backslash-n breaks, as in the balloons
+        boxPicture = picture;
+        modal = 30;
     }
 
+    /// <summary>f_71bb6: font 4 (3 at 320 px); the box is max(50, widest line) + 8 wide and (picture height + 2) +
+    /// lines * font height + 8 tall, centred on the screen, opened as window 0x1E00 with that rectangle (f_21336);
+    /// inside a 4 px margin the picture (HCEGANT bitmap, the tutorial's 17000..) goes on top and the lines follow,
+    /// one font line each (centred here). Layout 30's "Click here to continue" line is added below the content (how
+    /// f_21336 re-lays the window's items out is not traced).</summary>
     void DrawMessageBox(UiArt.Canvas c)
     {
-        ui.DrawWindow(c, modal, 0, 0, null);
-        var w = ui.Layouts[modal];
-        var click = w.Items[^1].Rect;
-        var f = ui.Font(2);
-        int top = w.Rect.top + 6, bottom = click.top - 2, n = boxLines.Length;
-        int y = top + Math.Max(0, (bottom - top - n * f.Height) / 2);
+        var f = ui.Font(4) ?? ui.Font(2);
+        var (pw, ph, _) = boxPicture != 0 ? ui.Bitmap(boxPicture) : (0, 0, null);
+        int lineH = f.Height, n = boxLines.Length;
+        var clickItem = ui.Layouts[30].Items[^1].Rect;
+        int clickH = clickItem.bottom - clickItem.top;
+        int w = Math.Max(Math.Max(0x32, pw), boxLines.Select(f.Width).DefaultIfEmpty(0).Max()) + 8;
+        int h = (ph > 0 ? ph + 2 : 0) + n * lineH + 8 + clickH;
+        int l = (ScreenW - w) / 2, t = (ScreenH - h) / 2, r = l + w, b = t + h;
+        c.Fill(l, t, r, b, UiArt.White);
+        c.Frame(l, t, r, b, UiArt.Black);
+        c.Frame(l + 2, t + 2, r - 2, b - 2, UiArt.Black);
+        int y = t + 4;
+        if (ph > 0)
+        {
+            ui.DrawBitmap(c, boxPicture, (l + r - pw) / 2, y);
+            y += ph + 2;
+        }
         foreach (var line in boxLines)
         {
-            ui.DrawText(c, 2, 0, w.Rect.left + 4, y, w.Rect.right - 4, y + f.Height, line);
-            y += f.Height;
+            ui.DrawText(c, 4, 0, l + 4, y, r - 4, y + lineH, line);
+            y += lineH;
         }
+        ui.DrawText(c, 2, 0, l + 4, b - 4 - clickH, r - 4, b - 4, "Click here to continue");
     }
 
     // ------------------------------------------------------------------------------- the SimAntipedia (layout 5)
@@ -1136,7 +1164,7 @@ public partial class Main : Node2D
             case 3: Replace(2); break;
             case 4: Replace(3); break;
             case 5: modal = -1; break;
-            case 6: lastMessage = "The Tutorial is not ported yet (f_0e425)."; break;
+            case 6: Replace(0); break;                                      // the Tutorial (G:0EAC = 0, Formica.Sim.Tutorial)
             case 7: Replace(4); break;
         }
     }
@@ -1145,7 +1173,7 @@ public partial class Main : Node2D
     // "Do you want to save / your current game / before loading a new SimAnt game?" (STR# 1800 [8..10]) with
     // DON'T SAVE, Save and Cancel (items 0x2103..0x2105) before a running game is replaced.
     const int SavePrompt = 33;
-    int pendingGame = -1;                                                    // 1..3 a new game, 4 load
+    int pendingGame = -1;                                                    // 0..3 a new game, 4 load, 5 quit
 
     void Replace(int what)
     {
@@ -1845,6 +1873,11 @@ public partial class Main : Node2D
     void OpenYard(bool choose)
     {
         session.St.Set16(Seg.T, 0x7c8, 0);
+        if (session.St.U16(Seg.G, 0x32e) != 0)                           // f_01aec(0): the view becomes the yard
+        {
+            session.St.Set16(Seg.G, 0x332, session.St.U16(Seg.G, 0x32e));
+            session.St.Set16(Seg.G, 0x32e, 0);
+        }
         if (choose)
         {
             yardChoose = true;
@@ -1860,6 +1893,16 @@ public partial class Main : Node2D
         placing = false;
         zOrder.Remove(YardWin);
         session.St.Set16(Seg.T, 0x7c8, view);
+        session.St.Set16(Seg.G, 0x32e, view);
+    }
+
+    /// <summary>f_013ff (the yard window's Patch, Ctrl+4): back to the patch's surface, f_01aec(1).</summary>
+    void BackToPatch()
+    {
+        if (yardChoose) return;
+        CloseYard();
+        session.St.Set16(Seg.T, 0x7c8, 1);
+        SetView(1);
     }
 
     void DrawYardWindow(UiArt.Canvas c)
@@ -2014,7 +2057,7 @@ public partial class Main : Node2D
         }
         switch (index)
         {
-            case 7: CloseYard(); return;
+            case 7: BackToPatch(); return;
             case 8: st.Set16(Seg.G, 0x35c, st.S16(Seg.G, 0x35c) == 0 ? 1 : 0); return;
             case 9: st.Set16(Seg.G, 0x35c, 2); return;
             case 10: st.Set16(Seg.G, 0x35c, 3); return;
@@ -2066,6 +2109,7 @@ public partial class Main : Node2D
         st.Set16(Seg.G, 0x50a, originB);
         st.Set16(Seg.G, 0x10e0, Cols);
         st.Set16(Seg.G, 0x10de, Rows);
+        st.Set16(Seg.DS, 0x5702, (modal >= 0 ? modal : zOrder.Count > 0 ? zOrder[^1] : 0) << 8);   // the active window (f_23612)
         var canvas = new UiArt.Canvas(argb, ScreenW, ScreenH);
         var modes = session.Files.Strings(1001);                       // STR# 1001 (G:0324): the game modes' names
         int gm = st.U16(Seg.G, 0xeac);
@@ -2274,7 +2318,7 @@ public partial class Main : Node2D
         if (k.CtrlPressed)
         {
             // f_74386's table DS:2CBE, then the scan codes of 8414:0383 (Ctrl+4 the patch, f_013ff; Ctrl+5..0, H, I)
-            if (k.Keycode == Key.Key4) { CloseYard(); return true; }
+            if (k.Keycode == Key.Key4) { BackToPatch(); return true; }
             int cmd = k.Keycode switch
             {
                 Key.N => 0x03, Key.L => 0x04, Key.S => 0x05, Key.A => 0x06, Key.Q or Key.X => 0x08,

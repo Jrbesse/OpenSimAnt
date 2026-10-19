@@ -29,7 +29,8 @@ def history(st):
 def advisor(st):
     """f_0e2ea: pick the status-line advice (entries of the message table at G:0360) or clear it."""
     if st.u16(G, 0xeac) == 0:
-        raise NotImplementedError('f_0e425 (tutorial advisor)')
+        from . import tutorial
+        tutorial.run(st)                                               # f_0e425, then the status line as usual
     if st.u16(T, 0x7b0) == 0:
         return
     player_in = st.u16(G, 0xa06)

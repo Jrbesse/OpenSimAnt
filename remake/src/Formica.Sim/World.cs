@@ -36,7 +36,7 @@ public static class World
     /// <summary>f_0e2ea: pick the status-line advice (entries of the message table at G:0360) or clear it.</summary>
     public static void Advisor(State st)
     {
-        if (st.U16(G, 0xeac) == 0) throw new NotImplementedException("f_0e425 (tutorial advisor)");
+        if (st.U16(G, 0xeac) == 0) Tutorial.Run(st);                       // f_0e425, then the status line as usual
         if (st.U16(T, 0x7b0) == 0) return;
         int playerIn = st.U16(G, 0xa06);
         int yh = S16(st.U16(G, 0xf78));

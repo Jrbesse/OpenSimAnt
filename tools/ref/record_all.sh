@@ -36,5 +36,6 @@ TAG= run test_markers test_markers &
 TAG= run test_balloons test_balloons &
 TAG= run test_panels test_panels &
 TAG= run test_commands test_commands &
+TRACE_MAX=20000 TAG= run test_tutorial test_tutorial &
 wait
 echo ALL DONE
