@@ -485,6 +485,18 @@ downloads need a GitHub login until the owner decides about making it public. Go
 
 ## Commit log since the last summary
 
+2026-10-19, later (screen details, all decoded from the VGA driver):
+```
+90be88e Notes: the driver's line routine
+710ce9a Lines as the VGA driver draws them (DS:916C): left to right, error from 0 against half the span
+0c21a2b History window: the plot as f_795ec draws it, with the series slots and labels of f_79373
+8e3cc66 Yard window, Strat view: the colony parallelograms as f_1faa6 fills them
+35d0ba7 Behavior / Caste Control: the bar charts as f_083d9 draws them
+d8e8746 Map window: the scent maps' colours as the driver's dither patterns (DS:1F9E)
+```
+Next screen detail: the Edit window's bottom strip, item 21 (a hotspot, rect 64,362 .. 400,377, the same id 4
+as the map: probably part of the map's click area; what f_038a6 draws there is not traced).
+
 2026-10-19 (test builds; the sound driver, decoded, ported and verified; the OPL2):
 ```
 ff6d025 The sample mixer as the original's handler, verified on its DAC bytes; samples wrap, not clamp
