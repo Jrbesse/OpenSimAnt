@@ -1,7 +1,7 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-18 (evening: the SimAntipedia, the game-over window, the original's keys).
+old transcript. Last updated 2026-10-18 (night: menus, music, balloons, the tutorial, window colours, messages).
 
 ## Goals (from the owner)
 
@@ -58,7 +58,7 @@ cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
 python test_yard.py; python test_player.py; python test_sim.py 3000
-python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py; python test_debug.py; python test_markers.py; python test_balloons.py; python test_panels.py; python test_commands.py
+python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py; python test_debug.py; python test_markers.py; python test_balloons.py; python test_panels.py; python test_commands.py; python test_tutorial.py
 ```
 
 All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identical"); last full run
@@ -86,6 +86,7 @@ All of these printed ALL OK at this handoff (terrain prints "50/50 seeds identic
 | `debug.py` | hidden debug commands: add / kill ants, clear food, the random action `f_022bc` |
 | `tools.py` | the map tools `f_770f6`: rocks, dig, ants, food, pheromone, insecticide |
 | `markers.py` | the event-marker recorders behind the 'brood' / 'fight' / 'queen' / 'rest' effects |
+| `tutorial.py` | the tutorial `f_0e425` with its 56 steps `f_0e4e4` / `f_0e93e` (`test_tutorial.py`, 213 cases) |
 | `balloons.py` | the speech balloons `f_06a4d` (timers, RNG draws, line choice; drawing is a hook) |
 | `panels.py` | the Behavior / Caste Control triangles: weights ↔ marker point |
 | `commands.py` | the yellow ant's menu commands `f_76cb9`: recruit, release, modes, alarm, dig, brood, hunt; the Exchange swap `f_11b81` / `f_11c18`; the spider's map click `f_756a6` |
@@ -100,14 +101,17 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 project's CLAUDE.md). Everything is under `remake/`; read `remake/README.md` first (layout, controls,
 screenshot flags).
 - `remake/src/Formica.Sim`: **the whole of `simant_ref` is ported to C#** and checked against the Python
-  reference: every recorded call of every reference test (25 trace files, ~225,000 calls, 67,200 SimStep
-  ticks) replays byte for byte (`dotnet test remake/tests/Formica.Sim.Tests`). Marked DIVERGENCEs (grep
+  reference: every recorded call of every reference test (26 trace files, ~236,000 calls, 67,200 SimStep
+  ticks; the tutorial added 2026-10-18 night) replays byte for byte (`dotnet test remake/tests/Formica.Sim.Tests`). Marked DIVERGENCEs (grep
   them): an unset local in the original, and UI randomness (spider fangs, raindrops) on its own generator.
 - `remake/src/Formica.Data`: archives + LZSS, the starting State from SIMANT.EXE plus the start-up values
   the sim reads, map art and renderer, the spider, STR# strings (Mac Roman), sound effects, the bitmap
-  fonts, the window layouts (`Layouts.cs`), **`Ui.cs`** (`UiArt`: draws any layout: pictures, frames,
-  captions, text, gauges, hit tests by item index), **`YardRenderer.cs`** (the yard window), `GameSession`
-  (new game, the original's main-loop timing, pause, speed, effects queue, `WalkTo`).
+  fonts, the window layouts (`Layouts.cs`), **`Ui.cs`** (`UiArt`: draws any layout as f_223b3 does, in
+  the colour schemes of HCEGANT 0/129; hit tests by item index), **`YardRenderer.cs`** (the yard window),
+  `GameSession` (new game, the original's main-loop timing, pause, speed incl. Ultra, the Options flags,
+  effects queue, `WalkTo`), **`Menus.cs`** (the pull-down menus, SHARED type 6), **`Music.cs`** (the songs:
+  type 18 → type 20 MIDI, rendered by a small FM synth; not the original's AdLib patches), **`Balloon.cs`**
+  (speech balloons as f_1629c builds them).
 - `remake/game/Main.cs`: the playable shell, **now built from the original's windows** (a window stack: drag
   by the caption, click to front):
   - the Edit window (layout 0: tool strip, the 22 x 21 cell map = G:10E0 / G:10DE, health bars, PAUSE,
@@ -122,13 +126,26 @@ screenshot flags).
   - the title (3), Select a Game (2), the save prompt (33), the about box (31, F3), message boxes (27 /
     30), **the SimAntipedia** (5: all 53 cards, links, PREVIOUS history, glossary pop-ups;
     `Formica.Data/Antipedia.cs`), **the game-over window** (4), help overlays (F1 / ?), window titles
-    from STR# 1000, quick save / load (F5 / F9), sound effects, speech balloons as text.
+    from STR# 1000, quick save / load (F8 / F9), sound effects, speech balloons as the original's bitmaps
+    (Options > Silly, off at start-up as in SIMANT.EXE).
+  - **The menu bar** (2026-10-18 night): File / Window / View / Options / Speed from SHARED type 6 (the
+    labels were in the data after all), laid out as f_2fd2_0663, pulled down as f_6d9a4, marks as f_6e0e0,
+    every command through `MenuCommand` (f_6e26d); Alt+F/W/V/O/S and F2..F6 open them.
+  - **Music**: `voice` / `music` / `sound` >= 10000 effects, the title and File > New play songs (Options >
+    Music); `Formica.Replay --songs` writes every song as WAV to `remake/build/songs` (for listening).
+  - **The tutorial** (Select a Game > Tutorial): `Formica.Sim/Tutorial.cs` (verified, see SIM_NOTES "The
+    tutorial"), message boxes as f_71bb6 sizes them with the tutorial pictures; DS:5702 follows the active
+    window; the yard window sets G:032E like f_01aec.
+  - **The timed message** (f_15e2c) over the Edit map and in the yard window; message boxes follow Options >
+    Events.
+  - The scan-code keys of 8414:0383 (Ctrl+4..0, Ctrl+H / I, Alt+2).
   - **The original's keys** (f_74386's table DS:2CBE, f_76aeb, the menu commands f_6e26d): 1 / 2 / 3 / 4,
     X, 0, Backspace, Shift+0..3, Ctrl+N / L / S / A / Q / E / M / B / C / T / Y / G / J / K. The shell's
     own extras stay on other keys (views moved to Ctrl+1..3); README has the table. **The file
     dialog** (22, `f_6c566`) for load / save.
   - Fonts 2..5 now come from the FONT1..FONT4 files, as the original loads them (f_34ab_047d).
-  - The status lines under the windows are the shell's own (no message line is decoded).
+  - The status lines under the windows are the shell's own (tick, populations, speed): the game's own
+    messages are drawn where the original draws them.
   - Checked with screenshot runs (`-- --ticks=N --screenshot=out.png` plus the flags in the README) and
     `Formica.Replay --smoke`; **not yet played by a human**.
 - Decoded this evening (SIM_NOTES "Keys and menu commands", "The SimAntipedia", "Game flow"): the card
@@ -147,25 +164,26 @@ screenshot flags).
 bounded only by drawing (`GameSession.FastDelay`).
 
 **Usage note:** the 2026-10-18 evening session started after the weekly reset with the 5-hour window
-already at 52% and ended around 75% (weekly 3%). Each screen piece (trace + C# + screenshots + notes)
-cost about 5-12% of the 5-hour window.
+already at 52% and ended around 75% (weekly 3%). The night session (menus .. messages) used about 55% of a
+fresh window (weekly 5% → 12%): a screen piece costs 5-10%, the tutorial (RE + Python + emulator test +
+traces + C# + shell) about 15%.
 
 Suggested next session (in order):
-1. Ask the owner for their play-test results (`docs/PLAYTEST.md` is the checklist); fix what they report
-   first. (Still not played by a human: keys and clicks are checked only by screenshot flags and builds.)
-2. (done: the file dialog, window 22, for Ctrl+L / S / A and Select a Game's Load; it lists Godot's user://
-   folder: the original's folders, path line and drive buttons are not modelled.)
-3. The pull-down menus (0xFE00..04, `f_6d7e3`, 7d62:0384): labels are not in the data; decide with the
-   owner whether to show a menu bar with our own labels (the commands are all known) or keep the keys.
-4. Other open screen details: the Edit window's bottom strip (item 21); G:1074 (a redraw flag?); the real
-   frame styles (f_22170, f_22248, ...); `f_70edf`'s move condition (event byte +7 & 0x60); the yard PLACE
-   range highlight (`f_2f708`); T:07A8 / T:07B0 / T:07B2's meaning (menu toggles 0xFD31 / 35 / 36);
-   0xFD01 → `f_2f99c`; key codes -0x5DD / -0x5E9 (→ 0xFD15 / 0xFD16) in 8414:0383.
-5. The isometric yard map (f_7650c), if it differs from the yard window's colony views.
-6. Music: the MIDI songs (SOUND types 18 / 20, effect ids 10000+: 0x2711 new game, 0x2718 / 0x271A the
-   ending, 0x2713 + Rand2 the fanfare) through a C# SoundFont synth (e.g. MeltySynth) or pre-rendered OGG.
-7. Event markers and balloon bitmaps (f_0696a) in place of the text balloons; the tutorial (f_0e425).
-8. The clean-room art pack (ART_PLAN) once the screens exist.
+1. Ask the owner for their play-test results (`docs/PLAYTEST.md` is the checklist, now with the menus,
+   music and the tutorial); fix what they report first. Still not played by a human.
+2. Tutorial in the shell: walk through all 56 steps by hand (or script it) and make sure each check can be
+   met with the shell's controls (G:1074 is set when the view recentres / follows; the Escape-for-alarm text
+   is a Mac leftover, the DOS key is 0). The help screens (f_76eb5) are an empty stub in the DOS version.
+3. Open screen details: the Edit window's bottom strip (item 21, a hotspot); the scroll bar (type 4,
+   f_241f2) and icon / check items (7 / 8, f_244cc); the two undecoded bytes of each colour scheme; how
+   f_21336 re-lays a resized window's items (the message box's "Click here" line); `f_70edf`'s move condition
+   (event byte +7 & 0x60); the yard PLACE range highlight (`f_2f708`); type 0x0D's bitmap choice (+24 bit 2:
+   the code reads +28 or +2A, FILE_FORMATS says +26 / +28).
+4. The isometric yard map (f_7650c), if it differs from the yard window's colony views.
+5. Music fidelity: the original's AdLib / MT-32 patches live in the sound driver (f_284b3 → f_29f1a ..);
+   decoding them would let the synth sound like the original. Song triggers are all in SIM_NOTES.
+6. The spider's remarks (f_0696a style 10: G:10B4 lines at the spider) and event markers' own drawing.
+7. The clean-room art pack (ART_PLAN) once the screens exist.
 
 **Workflow tips for the shell:** build with `dotnet build remake/game/Formica.csproj`, then run Godot
 (path in the user's memory notes) with `--path remake/game -- <flags> --screenshot=<png>` and look at the
@@ -428,6 +446,16 @@ heredocs in bash turn `'\n'` into real line breaks (it happened twice more this 
   there rather than guess.
 
 ## Commit log since the last summary
+
+2026-10-18 night:
+```
+234c2fe Remake shell: the original's timed message over the Edit map (f_15e2c / f_15d96) and its yard copy; message boxes follow Options > Events
+45c352c Remake: windows drawn as f_223b3 does (fills, frame thickness, lines) in the colour schemes of HCEGANT 0/129
+c08aaa9 Port the tutorial (f_0e425 / f_0e4e4 / f_0e93e): verified against the original, in C#, playable in the shell
+87eb24a Remake shell: the scan-code keys of 8414:0383 (Ctrl+4..0, Ctrl+H / I, Alt+2)
+414d0f0 Remake: music (the SOUND songs through a small FM synth) and the original's speech balloon bitmaps
+4100000 Remake shell: the original's menu bar (SHARED type 6: File, Window, View, Options, Speed)
+```
 
 2026-10-18 evening:
 ```
