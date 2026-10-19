@@ -42,7 +42,8 @@ public partial class Main : Node2D
     bool follow = true, help, antInfoArmed;
     string lastMessage = "";
     string screenshot;
-    bool tutorialShot;
+    bool tutorialShot, screenshotSpider;
+    int shotFrames = 240;
     int frames;
 
     // the window stack (last = front) and each window's offset from its layout position
@@ -76,6 +77,7 @@ public partial class Main : Node2D
         GD.Print("Formica: game files in " + dir);
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--screenshot=")) screenshot = arg["--screenshot=".Length..];
+            else if (arg.StartsWith("--frames=")) shotFrames = int.Parse(arg["--frames=".Length..]);
             else if (arg == "--history") Front(HistoryWin);
             else if (arg == "--panels") { Front(BehaviorWin); Front(CasteWin); }
             else if (arg == "--help-overlay") help = true;
@@ -134,6 +136,8 @@ public partial class Main : Node2D
                 OpenMenu(a[0]);
                 if (a.Length > 1) menuHot = a[1];
             }
+        if (args.Contains("--spider-view"))                                 // the surface centred on the spider
+            screenshotSpider = true;
         argb = new uint[ScreenW * ScreenH];
         mapBuf = new uint[Cols * Cell * Rows * Cell];
         rgba = new byte[argb.Length * 4];
@@ -143,6 +147,7 @@ public partial class Main : Node2D
         AddChild(screen);
         MoveChild(screen, 0);
         SetView(session.Yellow.view);
+        if (screenshotSpider) { SetView(1); CenterOn(session.St.S16(Seg.G, 0xf12) >> 4, session.St.S16(Seg.G, 0xf34) >> 4); follow = false; }
         Redraw();
     }
 
@@ -178,7 +183,7 @@ public partial class Main : Node2D
         DrainEffects();
         if (follow) CenterOnYellow();
         Redraw();
-        if (screenshot != null && ++frames == 240)
+        if (screenshot != null && ++frames == shotFrames)
         {
             // --screenshot=<png>: save the screen after 240 frames and quit (for checking a build)
             GetViewport().GetTexture().GetImage().SavePng(screenshot);
@@ -1823,15 +1828,56 @@ public partial class Main : Node2D
         return lines != null && index < lines.Length ? lines[index] : null;
     }
 
+    // The spider's remarks (f_03de7, while the patch is visible, T:07B2): a timer T:098E; when it passes (not paused) it
+    // re-arms at clock + Rand64 + 180 and Rand2 == 0 shows a remark (G:0D6E = 1) and steps T:0992 through 0..4, else
+    // hides it. While the spider's state G:0FB8 stays the same (G:0EB4) and is <= 4 a shown remark is queued as
+    // f_0696a style 10 (pixels): G:10B4 = STR# 1210 [5 * state + T:0992] at the spider (G:0F12, G:0F34) + its
+    // heading's direction * 8; a new state re-arms the timer at clock + Rand32 + 30 and hides it. DIVERGENCE: the
+    // original draws these from the game's LFSR in the redraw; the shell uses its own generator (as for the fangs).
+    readonly Random spiderTalkRng = new();
+    long spiderTalkUntil;
+    int spiderTalkState = -1, spiderTalkLine;
+    bool spiderTalking;
+
+    (int x, int y, string text)? SpiderRemark()
+    {
+        var st = session.St;
+        if (st.U16(Seg.T, 0x7b2) == 0 || st.U16(Seg.G, 0xf0c) == 0) return null;
+        long clock = st.Clock;
+        if (!session.Paused && clock > spiderTalkUntil)
+        {
+            spiderTalkUntil = clock + spiderTalkRng.Next(64) + 180;
+            spiderTalking = spiderTalkRng.Next(2) == 0;
+            if (spiderTalking) spiderTalkLine = (spiderTalkLine + 1) % 5;
+        }
+        int state = st.S16(Seg.G, 0xfb8);
+        if (state != spiderTalkState)
+        {
+            spiderTalkUntil = clock + spiderTalkRng.Next(32) + 30;
+            spiderTalking = false;
+            spiderTalkState = state;
+            return null;
+        }
+        if (state > 4 || !spiderTalking || view != 1) return null;
+        var lines = session.Files.Strings(1210);
+        int k = 5 * state + spiderTalkLine, d = st.U16(Seg.G, 0x1004) & 7;
+        if (lines == null || k < 0 || k >= lines.Length) return null;
+        return (st.S16(Seg.G, 0xf12) + Movement.Dx(st, d) * 8, st.S16(Seg.G, 0xf34) + Movement.Dy(st, d) * 8, lines[k]);
+    }
+
     void DrawBalloon(UiArt.Canvas c)
     {
         var m = ItemRect(EditWin, EditMapItem);
-        foreach (var (a, b, v, text) in balloonsNow)
+        // f_07134 draws the first queued balloon in view: the ants' (f_07128) are queued before the spider's (f_03de7)
+        var queue = balloonsNow.Where(x => x.text != null && x.view == view).Select(x => (x: x.a * Cell + 8, y: x.b * Cell + 8, x.text)).ToList();
+        if (SpiderRemark() is { } sr) queue.Add(sr);
+        foreach (var (px, py, text) in queue)
         {
-            if (text == null || v != view || a < originA || b < originB || a >= originA + Cols || b >= originB + Rows) continue;
+            int a = px / Cell, b = py / Cell;
+            if (a < originA || b < originB || a >= originA + Cols || b >= originB + Rows) continue;   // f_06725
             if (!balloonCache.TryGetValue(text, out var bmp))
                 balloonCache[text] = bmp = Balloon.Make(session.Files.Flat, ui.Font(2), text);
-            int x = (a - originA) * Cell + 8 + 4 + m.l, y = (b - originB) * Cell + 8 - bmp.h - 4 + m.t;
+            int x = px - originA * Cell + 4 + m.l, y = py - originB * Cell - bmp.h - 4 + m.t;
             var clip = c.Clip(m.l, m.t, m.r, m.b);
             for (int yy = 0; yy < bmp.h; yy++)
                 for (int xx = 0; xx < bmp.w; xx++)

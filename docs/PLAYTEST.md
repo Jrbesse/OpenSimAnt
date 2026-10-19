@@ -62,6 +62,7 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
   ant) all work.
 - [ ] As a queen (after a mating flight, Full Game): Dig Hole, Start Brood in the menu.
 - [ ] As the spider (Exchange onto it): Chase, Hunt; Alt for lash out.
+- [ ] With Options > Silly on, the spider makes remarks in a balloon now and then (STR# 1210).
 - [ ] Death: the message box text matches the cause (eaten, mower, drowned, ...); you take over another ant.
 
 ## 3. The original's keys
