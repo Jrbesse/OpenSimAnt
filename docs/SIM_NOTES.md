@@ -1734,6 +1734,13 @@ STR# 1000 holds window titles: entries 0..8 name the Map window's contents T:07C
 modes G:035C ("Yard View", "House View", "Strategic View", "Graphic View"). Which routine fills the
 captions with them is not traced (matched by their order).
 
+### The Edit window's map region (`f_07558`)
+
+The Edit window's map item 4 is 64,41 .. 416,362 (321 px), but the map is 21 rows of 16 px (G:10DE = 0x15,
+336 px). Item 21 (64,362 .. 400,377) also has id 4. `f_07558` keeps its rectangle in G:1104 and makes the
+drawing region the map rectangle G:110C plus G:1104 (`f_1ee65`: a list of rectangles ended by 0x8000), so the
+21st row shows in the strip and only the corner 400,362 .. 416,377 stays the window's own.
+
 ### Keys and menu commands (`f_74386`, `f_76aeb`, `f_6e26d`, `f_8414_0000`)
 
 The main loop's event dispatcher (8414:0000) sends events by type (high byte): 0 → `f_1250_0c0f`, 0xFA

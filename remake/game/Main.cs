@@ -25,6 +25,9 @@ public partial class Main : Node2D
     const int Cols = 22, Rows = 21;
     // layout item indices (the ids repeat in layout 0, so the shell matches on the index)
     const int EditMapItem = 4, MapMapItem = 2;
+    // item 21 (id 4, like the map): the strip under the map item (64,362 .. 400,377); f_07558 makes the map's
+    // drawing region the map item plus this strip (f_1ee65), so the 21st row of 16 px shows in it
+    const int EditMapStrip = 21;
     static readonly string[] SpeedNames = { "slow", "normal", "fast", "ultra" };
     static readonly string[] ViewNames = { "Yard", "Surface", "Black Nest", "Red Nest" };
     static readonly string[] Scents = { "alarm", "black nest marker", "black trail", "red nest marker", "red trail" };
@@ -395,6 +398,8 @@ public partial class Main : Node2D
         if (view == 1)
             SpiderRenderer.Draw(st, session.Files, session.Art, mapBuf, w, h, originA * Cell, originB * Cell, SpiderRenderer.FangJitter(st));
         win.Clip(m.l, m.t, m.r, m.b).Blit(mapBuf, w, h, m.l, m.t);
+        var strip = ItemRect(EditWin, EditMapStrip);
+        win.Clip(strip.l, strip.t, strip.r, strip.b).Blit(mapBuf, w, h, m.l, m.t);
         if (session.Paused)                                                       // the PAUSE button while paused (G:047E)
         {
             var pr = ItemRect(EditWin, 15);
@@ -2587,6 +2592,7 @@ public partial class Main : Node2D
             }
             var (dx, dy) = Off(win);
             int index = ui.HitTest(win, dx, dy, (int)mb.Position.X, (int)mb.Position.Y);
+            if (win == EditWin && index == EditMapStrip) index = EditMapItem;   // the strip has the map's id, 4
             if (win == EditWin) EditWindowClick(index, mb);
             else if (win == MapWin && index == MapMapItem && mb.ButtonIndex == MouseButton.Right) MapWindowClick(index, mb);
             else if (mb.ButtonIndex != MouseButton.Left) return;

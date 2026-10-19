@@ -186,7 +186,7 @@ Suggested next session (in order):
 2. Tutorial in the shell: walk through all 56 steps by hand (or script it) and make sure each check can be
    met with the shell's controls (G:1074 is set when the view recentres / follows; the Escape-for-alarm text
    is a Mac leftover, the DOS key is 0). The help screens (f_76eb5) are an empty stub in the DOS version.
-3. Open screen details: the Edit window's bottom strip (item 21, a hotspot); the list (type 4, f_241f2) and
+3. Open screen details: (done: the Edit window's bottom strip, item 21); the list (type 4, f_241f2) and
    icon / check items (7 / 8, f_244cc) of the file dialog; the two undecoded bytes of each colour scheme; how
    f_21336 re-lays a resized window's items (the message box's "Click here" line); the Map window's click
    (0x102 → f_2f898); whether to give Space back to the original (left button) instead of the shell's pause.
@@ -494,8 +494,9 @@ downloads need a GitHub login until the owner decides about making it public. Go
 35d0ba7 Behavior / Caste Control: the bar charts as f_083d9 draws them
 d8e8746 Map window: the scent maps' colours as the driver's dither patterns (DS:1F9E)
 ```
-Next screen detail: the Edit window's bottom strip, item 21 (a hotspot, rect 64,362 .. 400,377, the same id 4
-as the map: probably part of the map's click area; what f_038a6 draws there is not traced).
+(done: the Edit window's bottom strip, item 21: `f_07558` makes the map's drawing region the map item plus
+the strip (`f_1ee65`, a rectangle list ended by 0x8000), so the 21st 16-px row shows in it; it has the map's
+id 4, so clicks there are map clicks.)
 
 2026-10-19 (test builds; the sound driver, decoded, ported and verified; the OPL2):
 ```
