@@ -50,6 +50,7 @@ public partial class Main : Node2D
     readonly List<int> zOrder = new() { MapWin, EditWin };
     readonly Dictionary<int, (int dx, int dy)> offsets = new() { [EditWin] = (0, 0), [MapWin] = (0, 0), [BehaviorWin] = (0, 0), [CasteWin] = (0, 0), [HistoryWin] = (0, 0), [YardWin] = (0, 0) };
     int dragWin = -1;
+    bool mapDrag;
     Vector2 dragFrom;
     (int dx, int dy) dragOrig;
 
@@ -629,13 +630,18 @@ public partial class Main : Node2D
         var st = session.St;
         switch (index)
         {
-            case MapMapItem:                                                            // centre the Edit window there
+            case MapMapItem:
             {
+                // f_6726a: the right button re-sends the click to the Edit map as an action (flags 0x2000 →
+                // f_74fe0); the left one recentres the Edit window on the cell under the mouse for as long as it is held
                 var (x0, y0) = MapOrigin();
                 int a = (int)(mb.Position.X - x0) / 4, b = (int)(mb.Position.Y - y0) / 4;
                 if (a < 0 || a >= MapRenderer.Width(MapView) || b >= MapRenderer.Height) break;
                 SetView(MapView);
+                if (mb.ButtonIndex == MouseButton.Right) { MapAction(a, b, true, false, mb.Position); break; }
                 CenterOn(a, b);
+                follow = false;
+                mapDrag = true;
                 break;
             }
             case 5:                                                                      // Yard: the yard map (Full Game)
@@ -2410,6 +2416,13 @@ public partial class Main : Node2D
             ToolMove(dm.Position, dm);                                          // the tool drag loop f_76f4a
             return;
         }
+        if (ev is InputEventMouseMotion md && mapDrag)
+        {
+            var (x0, y0) = MapOrigin();
+            int a = (int)(md.Position.X - x0) / 4, b = (int)(md.Position.Y - y0) / 4;
+            if (a >= 0 && a < MapRenderer.Width(MapView) && b >= 0 && b < MapRenderer.Height) CenterOn(a, b);
+            return;
+        }
         if (ev is InputEventMouseMotion tm && triangleDrag >= 0)
         {
             TriangleAt(triangleDrag, tm.Position);                              // dragging the marker
@@ -2418,6 +2431,7 @@ public partial class Main : Node2D
         if (ev is InputEventMouseButton up && !up.Pressed && up.ButtonIndex == MouseButton.Left)
         {
             dragWin = triangleDrag = -1;
+            mapDrag = false;
             popReport = false;
             cardPopup = null;                                                   // f_78e1c waits for the release
             toolDrag = false;
@@ -2470,6 +2484,7 @@ public partial class Main : Node2D
             var (dx, dy) = Off(win);
             int index = ui.HitTest(win, dx, dy, (int)mb.Position.X, (int)mb.Position.Y);
             if (win == EditWin) EditWindowClick(index, mb);
+            else if (win == MapWin && index == MapMapItem && mb.ButtonIndex == MouseButton.Right) MapWindowClick(index, mb);
             else if (mb.ButtonIndex != MouseButton.Left) return;
             else if (win == MapWin) MapWindowClick(index, mb);
             else if (win == HistoryWin) HistoryWindowClick(index);
