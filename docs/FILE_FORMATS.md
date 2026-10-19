@@ -85,7 +85,7 @@ needed for decoding.
 |---|---|---|
 | 20 | 30 | **Standard MIDI files** (SMF format 1, up to 10 tracks, 240 PPQ). Written out as-is to `.mid`. No program changes: each track's name is its instrument ("Kick", "Snare", "Tom", "Whap", "Stick", "Agogo" on channels 5..10; "Bassline", "Lead", "Strings", "Choir", "Mandolin", "Nylon Gu", ... on 0..4), for a driver with fixed patches. |
 | 18 | 33 | One per song effect id (10001.., 11002.., 20000..), 18 bytes, BE: u16 the type-20 song, u16 4 (the 10000s) or 1, u16 0, s16 a transposition in semitones (11014 / 11015 = song 11013 at +6 / +12, 11017 = 11016 at +12), then u16 / u16 (6 / 4, 5 / 5, 8 / 3, 4 / 2: voice counts?), u8 0x40..0x44, u8 0x08..0x10, 4 x 0. f_00ea1(id) → f_284b3 plays it. |
-| 5 | 57 | Sound effects. The first 16 bytes are a signed delta table, followed by 4-bit codes (high nibble first). Start at 0, add `table[code]`, clamp to ±127. The sample rate is not stored; 11025 Hz is a guess to confirm by ear. Sound 56 has a near-linear table and may use a different scheme. |
+| 5 | 57 | Sound effects. The first 16 bytes are a signed delta table, followed by 4-bit codes (high nibble first). Start at 0, add `table[code]`, clamp to ±127. The sample rate is not stored: the driver mixes at 5575.6 Hz and plays every effect at that rate (SIM_NOTES "The sound driver"; the samples are also the drum and effect instruments of the songs, pitched by key). Sound 56 has a near-linear table and may use a different scheme. |
 
 ## Window layouts (HCEGANT type 0; `tools/layouts.py`, `tools/render_windows.py`)
 

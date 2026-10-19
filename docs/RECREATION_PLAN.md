@@ -71,9 +71,10 @@ simant-godot/
 - **Rendering:** a `TileMapLayer` for terrain and `MultiMeshInstance2D` (or a single `_draw()`) for
   ants. That handles thousands of ants in one draw call. Pheromones go in an overlay `ImageTexture`
   updated each tick.
-- **Audio:** Godot has no built-in MIDI synth. The simplest route is to render the 30 `.mid` songs to OGG
-  at import with a General MIDI SoundFont (FluidSynth). Alternatively, play them live with a GDScript MIDI
-  player plus a SoundFont. Sound effects become `AudioStreamWAV`.
+- **Audio:** (superseded 2026-10-19) the original's FM instruments, songs and effect table are all in the
+  player's files, so the remake ports the sound driver and emulates the OPL2 for the original's own sound:
+  HANDOFF "Suggested next session" step 5 and SIM_NOTES "The sound driver". A SoundFont stays an option
+  for the clean-room asset pack.
 - **Fonts:** convert the Mac `FONT` strikes to BMFont `.fnt` + PNG, which Godot imports natively,
   for that pixel-exact UI text.
 
@@ -81,7 +82,7 @@ simant-godot/
 
 ### M0 — Finish the asset pipeline *(mostly done)*
 - [x] Archive reader, LZSS, bitmaps, palette, strings, texts, MIDI, SFX
-- [ ] Confirm the SFX sample rate by ear (11025 Hz is a guess) and look at sound #56's odd table
+- [x] The SFX sample rate: 5575.6 Hz, from the sound driver (SIM_NOTES "The sound driver"); sound #56's odd table is still open
 - [ ] Decode fonts (type 11, `FONT1-4`) to BMFont
 - [ ] Decode cursors (types 6/7/8), layouts (types 0/9), card layouts and styles (types 17/21)
 - [ ] Find where the tiny surface and nest ant sprites come from (probably drawn in code)
@@ -137,7 +138,7 @@ simant-godot/
 |---|---|
 | Overlay loading in the EXE is non-standard, so Ghidra misses code | Find the loader early in M1; DOSBox-X memory dumps after the overlays load give you a flat image to analyze |
 | RE takes longer than expected | M3–M5 can proceed on "observed behavior" from DOSBox side-by-side, with numbers refined later |
-| MIDI sounds different from the original AdLib/Roland | Offer 2–3 SoundFonts, or emulate OPL (e.g. an OPL3 emulator GDExtension) for authentic AdLib |
+| MIDI sounds different from the original AdLib/Roland | Chosen: port the driver and emulate the OPL2 in C# (the patches are decoded, SIM_NOTES "The sound driver") |
 | Legal | Ship code only; require the player's own original files |
 
 ## 6. Suggested next steps

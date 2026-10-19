@@ -1867,6 +1867,93 @@ The help (`f_76eb5`, menu command 0) is not this viewer: it opens window 26 (0x1
 picture 2100, which does not exist) and waits up to 30 s (`f_01277(0x1e)`) or for a key; in the DOS
 version it shows nothing useful.
 
+## The sound driver ("Sound Driver Shell (c) 1991 -- LIB link version", code 0x277E0..0x2A05C)
+
+Decoded 2026-10-19 with `tools/re/opl_capture.py`, which boots the original in the emulator with a sound
+mode set and logs every OPL2 register write (and Sound Blaster DSP traffic). It needs two things SimEmu
+does not do: the PIT counter on port 0x40 must count (the AdLib init `f_28415` times a delay on it and
+hangs otherwise) and the OPL status port must answer the timer detection (0xC0 after timer 1 starts).
+
+**Modes.** `SIMANT.CFG` "Sound Mode: n" → DS:610A (-1: detect with `f_293a6`); the `/s{NABCI}` switch too.
+`f_00df4` → `f_277e0(mode, 0)`: detect through DS:74DA[mode], init through DS:68B6[mode], set the timer
+(`f_2902b` / `f_29048(0xD6, 0x132)`, then `f_28f8c` installs the handler at DS:74BC straight into the
+interrupt table), G:01F0 = mode, then DS:1926 = 1 (sound hardware present). Mode 4 is AdLib (port 0x388),
+mode 5 probes 0x220 / 0x240 / 0x280 / 0x2C0 (CMS), mode 6 is Sound Blaster (DSP reset at 0x2x6; FM at
+0x388), mode 7 writes port 2. The owner's copy uses 6.
+
+**Timing.** The PIT runs at 1193182 / 0xD6 (DS:74A9) = 5575.6 Hz: the sample voices are mixed at this
+rate (see "Sound effects" below for what that means for the effects). Every 16th interrupt
+(DS:6B3E / 6B40 = 16; divisor DS:74AB = 0xD60) is a music tick, 348.5 Hz (2.870 ms). The sequencer
+`f_28b1f` handles one MIDI event per call and returns the wait in music ticks (kept in DS:6B42); the
+handlers at 0x28CB0 / 0x28F4A call it. The Game Theme (0x2711, 88320 MIDI ticks at 240 PPQ and
+280373 us per beat = 103.2 s) takes 35856 music ticks = 102.9 s.
+
+**Songs.** `f_284b3(id)` stops the song (`f_285aa`), loads SOUND type 18 `id` and its type-20 MIDI with
+`f_00193` (the type 18 transposition goes to DS:7576 and is added to every key), keeps the MIDI handle at
+G:4B28, and copies two 14-word arrays from the song header (DS:00B4 →): +0x00 → G:4BAA (a priority per
+MIDI channel: 7 for the tune, 5 for the drums in the Game Theme) and +0x1C → G:4B8E (the **instrument per
+MIDI channel**, 0..55: the Game Theme uses 25, 53, 3, 54, 35, 46, 50, 51, 48, 0, 12, 43, 52). MIDI
+channels 14 and 15 are ignored. Channel events (`f_289d7`): note on `f_28969` → `f_297ac(priority,
+instrument, key + DS:7576, velocity * DS:7570 >> 7)` (velocity 0 → note off `f_298a8`); meta events
+`f_28a65` (0x51 tempo), sysex `f_28b13`.
+
+**Instruments** (56, G:0000 + 6n: u16 device, far pointer to the record). The device's init copies them
+with `f_278ea(table)` from the static table at **DS:0D92** (flat 0x568C2; the same table in AdLib and
+Sound Blaster modes). Device 2 is FM, device 1 a sample voice:
+
+```
+types of instruments 0..55 (1 sample, 2 FM, 0 none):
+21121111121111122222111112111121111211111111112121221220
+```
+
+- **FM records**: 20 x 16 bytes in SIMANT.EXE's data at DS:0202 (flat 0x55D32). Bytes 0..10 are the
+  OPL2 registers in the order `f_2815a(record, channel)` writes them: [0] carrier 0x20, [1] modulator 0x20,
+  [2] carrier 0x40, [3] modulator 0x40, [4] carrier 0x60, [5] modulator 0x60, [6] carrier 0x80,
+  [7] modulator 0x80, [8] 0xC0 + channel, [9] carrier 0xE0, [10] modulator 0xE0; s16 at +0x0B an octave
+  shift (key += 12 * it), s16 at +0x0D a velocity offset. Operators by channel: modulator DS:68FE
+  {0,1,2,6,7,8,12,13,14}, carrier DS:6908 {3,4,5,9,10,11,15,16,17}, slot → register offset DS:6912
+  {0,1,2,3,4,5,8,9,10,11,12,13,16,17,18,19,20,21}. Instruments → records: 0 → 9, 3 → 7, 9 → 19,
+  15 / 16 → 1, 17 → 2, 18 → 3, 19 → 4, 25 → 8, 30 → 5, 35 → 14, 46 → 11, 48 → 12, 50 → 15, 51 → 13,
+  53 / 54 → 10 (records 0, 6, 16, 17, 18 unused by the table).
+- **Sample records**: 0x20 bytes from DS:0342: +09 u8, +0A s16 a transposition, +0C u16 loaded state,
+  +0E the original file name ("kick.adp", "snare.adp", "agogo.adp", "sinwave.adp", ...), +1D u16 the SOUND
+  type-5 id (loaded on demand by `f_00090`). Played pitched (`f_29263`): with k = key + the +0A
+  transposition, the step (8.8 fixed point) is DS:74C2[k % 12] (0x100, 0x10F, 0x11F, 0x130, 0x142, 0x155,
+  0x169, 0x17F, 0x196, 0x1AE, 0x1C8, 0x1E3: equal temperament), shifted left by k / 12 - the +09 byte (the
+  sample's base octave, 5 for every record in the table) or right by the difference; the attenuation
+  is (0x7F - v) >> 4 with v = velocity + DS:74C0 (0) clamped to 0..127, passed to `f_29168`. A step of 0x100 plays the sample at the mixing rate, 5575.6 Hz.
+
+**Sound effects** (`f_00ed8(n)` → `f_29927(n)`): the static table DS:0A82 + 8n = (key, priority,
+instrument, velocity) → `f_297ac(priority, instrument, key, velocity)`. Effects 0..54 are instrument n at
+key 60, priority 3, velocity 127; effect 55 is instrument 10 (burp) at key 100, priority 4 (step 0xA10:
+about ten times faster). So **every sample effect plays at 5575.6 Hz**, not 11025 (the remake's guess);
+effects 0, 3, 9, 15..19, 25, 30, 35, 46, 48, 50, 51, 53 and 54 are FM notes (key 60 on that instrument),
+not samples; effects 12, 43 and 52 play sample 5 (beep2), not samples 12 / 43 / 52.
+
+**Voices** (G:4A4E + 6v: device, hardware channel, MIDI channel, instrument, key, age). AdLib: two
+sample voices and FM channels 1..7 (channel 0 keeps the start-up detection tone's key-on bit); Sound
+Blaster: two sample voices and FM channels 0..7. `f_29689(priority, device)` picks a voice. Per-device
+calls: note on DS:7504[device], note off DS:7524, set patch DS:7544 (device 2: `f_282b5`, `f_2839d`,
+`f_283c5`).
+
+**FM note on** (`f_282b5(instrument, key, velocity, channel)`): carrier level =
+`(record[2] & 0xC0) | (0x3F ^ (((0x3F - att[v]) * (0x3F ^ (record[2] & 0x3F))) >> 6))` with v = velocity
++ G:4B16 + record s16 +0x0D clamped to 0..127 and att = the 128-entry table DS:6BA4 (64, 51, 45, ..., 0);
+key += 12 * record s16 +0x0B, played only if 0..127; 0xA0 + ch = F-number DS:6924[key % 12] low byte
+(12 words: 0x157, 0x16B, 0x181, 0x198, 0x1B0, 0x1CA, 0x1E5, 0x202, 0x220, 0x241, 0x263, 0x287), 0xB0 + ch
+= 0x20 (key on) | (key / 12) << 2 | the F-number's high bits. So block = key / 12: MIDI 60 plays as an
+OPL block-5 C (523 Hz), an octave above General MIDI. **Note off** (`f_2839d`): 0xA0 + ch = 0, 0xB0 + ch = 0.
+
+**Init** (`f_28268`, both modes): 0x01 = 0 (**waveform select off: every operator is a sine**, the 0xE0
+bytes have no effect on an OPL2), 0x04 = 0x80, 0x08 = 0, 0xBD = 0xC0 (deep tremolo and deep vibrato,
+no rhythm mode), 0xB0..0xB7 = 0. AdLib mode first runs the detection (`f_28415`: timers, then a tone on
+channel 0).
+
+Not decoded yet: `f_29689`'s voice stealing, the sample mixer itself (the 5575.6 Hz handler, how two
+voices mix, Sound Blaster direct DAC vs. the PC speaker in AdLib mode), the tempo handling of `f_28a65`,
+`f_2c75a` (what it does to the MIDI after loading), the volume G:4B16. DS:00B2 + 6n looks like the
+instrument → MIDI program map of the MIDI mode (0xFFFF: none).
+
 ## Verification harness (tools/re/emu.py)
 
 Status: **the original game runs headless and plays complete games.**

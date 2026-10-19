@@ -189,8 +189,29 @@ Suggested next session (in order):
    f_21336 re-lays a resized window's items (the message box's "Click here" line); the Map window's click
    (0x102 → f_2f898); whether to give Space back to the original (left button) instead of the shell's pause.
 4. (done: f_7650c is the colony pick in the yard window, see above.)
-5. Music fidelity: the original's AdLib / MT-32 patches live in the sound driver (f_284b3 → f_29f1a ..);
-   decoding them would let the synth sound like the original. Song triggers are all in SIM_NOTES.
+5. **Audio fidelity: port the sound driver and emulate the OPL2** (started 2026-10-19; SIM_NOTES "The sound
+   driver" has everything decoded so far: the FM bank DS:0202, the instrument table DS:0D92, note on / off,
+   velocity and frequency tables, the 348.5 Hz music tick, the 5575.6 Hz sample mixing, the effect table
+   DS:0A82). `tools/re/opl_capture.py` boots the original with a sound mode and records the exact OPL2
+   register stream of any song (`song 0x2711 6`). Target the **Sound Blaster mode** (6: the owner's, 8 FM
+   channels plus the two sample voices). Steps:
+   a. Quick win, no OPL needed: sound effects at 5575.6 Hz (not 11025) and by the effect table (effect n =
+      instrument n; 12 / 43 / 52 play sample 5; 55 is the burp at key 100; the FM effects wait for step d).
+   b. Finish the driver RE: voice choice and stealing `f_29689`, note off `f_298a8`, tempo `f_28a65`,
+      `f_2c75a`, the volume G:4B16, the 5575.6 Hz mixer (two voices, 8.8 steps, attenuation, the DSP
+      writes). Extend `opl_capture.py` to run the fast handler and record the DAC bytes too.
+   c. Reference traces: every song (the 33 type-18 ids) and every effect (0..55) as (music tick, register,
+      value) plus DAC bytes, into `remake/build/traces/opl/` (git-ignored: derived from the game).
+   d. C# port, `Formica.Data/SoundDriver.cs`: tables read from the player's SIMANT.EXE, the sequencer (MIDI
+      events → music ticks), voices, FM note on / off / patch → register writes, sample voices. An xUnit
+      test replays the traces and compares the register stream byte for byte, like the sim's.
+   e. OPL2 emulator in C#: port the YM3812 part of ymfm (Aaron Giles, BSD-3-Clause: permissive, accurate,
+      and pure C# keeps the export a single Windows build). Nuked-OPL3 is the most accurate but LGPL-2.1,
+      awkward for an in-tree port. Note the driver leaves waveform select off (all sines) and sets deep
+      tremolo / vibrato (0xBD = 0xC0). Check against reference tones and by ear.
+   f. Godot: one AudioStreamGenerator mixing the OPL output (49716 Hz, resampled) and the sample voices,
+      clocked by the driver's 348.5 Hz tick; replaces `Music.cs`'s stand-in synth and `Sounds.cs`.
+   g. Compare with a DOSBox recording of the original in Sound Blaster mode (Game Theme, a few effects).
 6. (done: the spider's remarks.) Event markers have no drawing of their own beyond the balloons.
 7. The clean-room art pack (ART_PLAN) once the screens exist.
 
@@ -417,7 +438,8 @@ downloads need a GitHub login until the owner decides about making it public. Go
     actors. Sound effects: done 2026-10-18 as a hypothesis: f_00ed8(n) → f_29927 plays entry n of the
     DS:0A80 table (8 bytes each, filled from the SOUND archive at start-up, only with sound hardware DS:1926
     and sound on T:07AC); the shell plays SOUND type 5 id n (`Formica.Data/Sounds.cs`, 11025 Hz guessed).
-    Confirm the table's load order and the rate by ear. Music: effect ids 10000+ (0x2713.., 0x4e20..) are
+    (Corrected 2026-10-19: the table DS:0A82 is static and names an instrument per effect; samples play at
+    5575.6 Hz; some effects are FM notes. SIM_NOTES "The sound driver", next-session step 5a.) Music: effect ids 10000+ (0x2713.., 0x4e20..) are
     the MIDI songs (SOUND types 18 / 20); not played yet (needs a synth or pre-rendered OGG, RECREATION_PLAN).
 15. Tutorial mode (G:0EAC = 0) is not ported (`World.Advisor` throws, f_0e425).
 16. Shell features added 2026-10-18 (all in `remake/game/Main.cs`, a stand-in until the real screens
