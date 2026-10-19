@@ -77,6 +77,16 @@ public sealed class SoundDriver
     }
 
     public bool Playing => playing == 1;
+    public SoundBank Bank => bank;
+
+    bool started;
+    /// <summary>A song started since the last call (f_284b3 then sets the handler's wait DS:6B42 to 5).</summary>
+    public bool TakeStarted()
+    {
+        bool s = started;
+        started = false;
+        return s;
+    }
 
     // ------------------------------------------------------------------------------------------- songs
 
@@ -113,6 +123,7 @@ public sealed class SoundDriver
         cur = 0;
         scale = Scale(0x1e0, 500000);
         playing = 1;
+        started = true;
         return true;
     }
 

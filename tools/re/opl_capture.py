@@ -197,6 +197,27 @@ def record(outdir, mode=6):
             k += 1
     t.save(os.path.join(outdir, 'mixed_2711.trace'))
     print('effects and mixed done')
+    # the sample mixer: the fast handler's DAC bytes (DSP command 0x10), one line per tick
+    for name, plan in (('dac_13', [(0, 13)]), ('dac_01', [(0, 1)]), ('dac_41', [(0, 41)]), ('dac_55', [(0, 55)]),
+                       ('dac_overlap', [(0, 13), (300, 41), (700, 1), (900, 13)])):
+        snap.restore(e)
+        lines, todo, k = [], list(plan), 0
+        while k < 20000:
+            while todo and todo[0][0] == k:
+                n = todo.pop(0)[1]
+                e.call_lin(0x29927, (n,))
+                lines.append(f'E {n}')
+            e.set16(0x55b3, 0x74a3, 1000)          # never chain to the BIOS timer (there is none here)
+            m = len(e.dac)
+            e.call(0x28bc, 0x28bd5 - 0x28bc0, (0x0202,))   # the handler, as an interrupt (FLAGS for its iret)
+            lines.append('K ' + (' '.join(str(v) for _, v in e.dac[m:]) or '-'))
+            k += 1
+            idle = all(e.w16(0x55b3, 0x6b4c + 0x14 * v + 2) == 0 and e.w16(0x55b3, 0x6b4c + 0x14 * v + 4) == 0 for v in (0, 1))
+            if idle and not todo:
+                break
+        with open(os.path.join(outdir, name + '.dac'), 'w', newline='\n') as f:
+            f.write('\n'.join(lines) + '\n')
+        print(name, k, 'ticks')
 
 
 def capture_song(e, song, max_events=20000):

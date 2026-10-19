@@ -18,8 +18,9 @@ public sealed class SoundBank
 
     public readonly record struct Instrument(int Device, int Record);
     public readonly record struct Effect(int Key, int Priority, int Instrument, int Velocity);
-    /// <summary>A sample record: +09 the base octave, +0A a transposition, +0E the file name, +1D the SOUND id.</summary>
-    public readonly record struct Sample(int BaseOctave, int Transpose, string Name, int SoundId);
+    /// <summary>A sample record: +06 the loop point (- 2), +08 loops, +09 the base octave, +0A a transposition,
+    /// +0E the file name, +1D the SOUND id. No record in the table loops.</summary>
+    public readonly record struct Sample(int BaseOctave, int Transpose, string Name, int SoundId, bool Loop, int LoopStart);
 
     readonly byte[] flat;
     public readonly Instrument[] Instruments = new Instrument[InstrumentCount];
@@ -51,8 +52,12 @@ public sealed class SoundBank
         if (ins.Device != DeviceSample) return null;
         int r = ins.Record;
         var name = System.Text.Encoding.ASCII.GetString(flat, Ds + r + 0x0e, 15).Split('\0')[0];
-        return new Sample(flat[Ds + r + 9], S16(r + 0x0a), name, U16(r + 0x1d));
+        return new Sample(flat[Ds + r + 9], S16(r + 0x0a), name, U16(r + 0x1d), flat[Ds + r + 8] != 0, U16(r + 6) + 2);
     }
+
+    /// <summary>The mixer's volume table for an attenuation 0..7 (DS:6B9E → DS:6CA3 + 256 * a): unsigned 8-bit
+    /// sample in, 128 + (in - 128) * (8 - a) / 8 out.</summary>
+    public ReadOnlySpan<byte> VolumeTable(int attenuation) => flat.AsSpan(Ds + U16(0x6b9e) + 256 * (attenuation & 7), 256);
 
     /// <summary>f_29263's pitch: the 8.8 step for `key` on a sample (DS:74C2[k % 12], shifted by k / 12 against
     /// the base octave, k = key + transposition). 0x100 plays the sample at MixRate.</summary>

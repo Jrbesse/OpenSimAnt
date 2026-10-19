@@ -35,6 +35,37 @@ public class OplTraceTests
 
     static OriginalFiles files;
 
+    public static IEnumerable<object[]> DacTraces()
+    {
+        var found = Directory.Exists(Dir) && OriginalFiles.Present(GameDir)
+            ? Directory.GetFiles(Dir, "*.dac").OrderBy(x => x).ToArray() : Array.Empty<string>();
+        if (found.Length == 0) yield return new object[] { NoTraces };
+        foreach (var f in found)
+            yield return new object[] { Path.GetFileName(f) };
+    }
+
+    /// <summary>The sample mixer: the original's 5575.6 Hz handler run tick by tick after some effects
+    /// (E n), with the byte it wrote to the Sound Blaster's DAC each tick (K v, or K - for none).</summary>
+    [Theory]
+    [MemberData(nameof(DacTraces))]
+    public void DacMatches(string name)
+    {
+        if (name == NoTraces) return;
+        files ??= new OriginalFiles(GameDir);
+        var mix = new SoundMixer(files);
+        int line = 0;
+        foreach (var l in File.ReadLines(Path.Combine(Dir, name)))
+        {
+            line++;
+            if (l.StartsWith("E ")) mix.Driver.Effect(int.Parse(l[2..]));
+            else
+            {
+                int got = mix.Tick();
+                Assert.True(l == "K " + (got < 0 ? "-" : got.ToString()), $"{name} line {line}: want '{l}', got {got}");
+            }
+        }
+    }
+
     [Theory]
     [MemberData(nameof(Traces))]
     public void TraceMatches(string name)

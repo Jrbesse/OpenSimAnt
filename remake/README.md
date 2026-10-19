@@ -114,10 +114,9 @@ The original's own sound, in its Sound Blaster mode (docs/SIM_NOTES.md "The soun
 | `Formica.Data/SoundBank.cs` | The driver's tables from SIMANT.EXE: 56 instruments (FM records or pitched samples), the effect table, the mixing and tick rates. |
 | `Formica.Data/SoundDriver.cs` | A port of the driver: the MIDI sequencer, the static channel map, the voices (priority, stealing), FM note on / off / patch as OPL2 register writes, the sample device behind an interface. `OplTraceTests` replays the original's register streams (`tools/re/opl_capture.py record`: 33 songs, 56 effects, effects in a row, a song with effects): every write and every wait match. |
 | `Formica.Data/Opl2.cs` | The YM3812 parts of ymfm (Aaron Giles, BSD-3-Clause, licence in the file and in `dist/THIRD_PARTY_NOTICES.txt`). |
-| `Formica.Data/SoundMixer.cs` | Clocks the driver like its timer handler (5575.6 Hz, a music tick every 16th), resamples the OPL2, mixes the two sample voices. The shell renders it into one `AudioStreamGenerator`. |
+| `Formica.Data/SoundMixer.cs` | The driver's 5575.6 Hz handler (two sample voices through its volume tables into the DAC, a music tick every 16th), the OPL2 resampled. `OplTraceTests.DacMatches` replays the original handler's DAC bytes tick by tick. The shell renders it into one `AudioStreamGenerator`. |
 
-Guessed, not decoded: how the sample mixer applies the attenuation and mixes its two voices, and the
-balance between the DAC and the FM (`SoundMixer.SampleGain`).
+Guessed, not measured: the balance between the Sound Blaster's DAC and its FM (`SoundMixer.SampleGain`).
 
 ## Test builds for players
 

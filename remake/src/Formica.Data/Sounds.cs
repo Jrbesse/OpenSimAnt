@@ -7,7 +7,9 @@ namespace Formica.Data;
 public static class Sounds
 {
 
-    /// <summary>16 signed delta-table bytes, then 4-bit codes (high nibble first), clamped: signed 8-bit PCM.</summary>
+    /// <summary>16 signed delta-table bytes, then 4-bit codes (high nibble first): signed 8-bit PCM. The sum
+    /// wraps in 8 bits, as the original's loader leaves the samples in memory (checked against the emulator:
+    /// clamping changes most of the cat's meow and the bird call).</summary>
     public static sbyte[] Decode(byte[] d)
     {
         if (d.Length < 16) return Array.Empty<sbyte>();
@@ -17,7 +19,7 @@ public static class Sounds
         {
             foreach (int nib in new[] { d[i] >> 4, d[i] & 0x0f })
             {
-                s = Math.Clamp(s + (sbyte)d[nib], -128, 127);
+                s = (sbyte)(s + (sbyte)d[nib]);
                 res[k++] = (sbyte)s;
             }
         }

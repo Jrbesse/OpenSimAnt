@@ -1980,9 +1980,23 @@ instrument, key and age 0. `f_298a8(instrument, key)` (note off): every voice wi
 priority 0, age 0x0F. Stopping a song (`f_285aa` → `f_29951`) does that for every voice with a priority.
 FM effects have no note off: they decay on their envelopes until a voice is taken.
 
-Not decoded yet: the sample mixer itself (the 5575.6 Hz handler, `f_29168`, how two voices mix and the
-attenuation applies, Sound Blaster direct DAC vs. the PC speaker in AdLib mode), `f_2c75a` (taken as a
-copy of the MIDI), the volume G:4B16 (0). DS:00B2 + 6n looks like the instrument → MIDI program map of
+**The sample mixer** (ported: `SoundMixer.Tick`, verified by `OplTraceTests.DacMatches` on 5 traces of the
+original's handler run tick by tick, `opl_capture.py record` → `*.dac`). The loader leaves a sample in memory
+as unsigned 8-bit PCM, its delta sum **wrapping** in 8 bits (not clamped as FILE_FORMATS first said: the
+cat's meow and the bird call differ in most bytes). `f_29168(record, step, attenuation, voice)` fills the
+voice (DS:6B4C + 0x14 * v): +00 position 0, +02 the record, +06 the end (size - 2), +08 the loop point
+(record +06, + 2), +0A the step, +0C the volume table DS:6B9E + attenuation * 256 (DS:6CA3: eight 256-byte
+tables, 128 + (in - 128) * (8 - a) / 8), +0E the fraction 0, +0F bit 7 = loops (record +08; none does),
+then starts the timer (`f_28f8c`). The handler (0x28BD5, 5575.6 Hz): per voice (an empty one gives 0x80)
+fraction + step, move by the carry, then **past the end** → loop or stop, and the tick ends there (no DAC
+byte, the other voice does not move); else the byte through the volume table. The output is the average
+`(a + b) >> 1`, through DS:6B9C (Sound Blaster: DSP command 0x10, the direct DAC, `0x28D4E`; other
+devices: the PC speaker, Covox at port 0x222 / DS:6B4A + 1, Tandy at port 0x200, ...). Then the music
+tick: DS:6B3E counts 16 handler ticks, DS:6B42 the sequencer's wait. `f_284b3` sets DS:6B42 = 5; with no
+song the sequencer returns 0xFFFF, so it is called again only 65535 music ticks later.
+
+Not decoded yet: `f_2c75a` (taken as a copy of the MIDI), the volume G:4B16 (0), the AdLib mode's
+sample output. DS:00B2 + 6n looks like the instrument → MIDI program map of
 the MIDI mode (0xFFFF: none).
 
 ## Verification harness (tools/re/emu.py)

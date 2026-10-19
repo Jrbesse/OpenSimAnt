@@ -37,19 +37,20 @@ def pstrings(d):
 
 
 def decode_sfx(d):
-    """16 signed delta-table bytes, then 4-bit codes (high nibble first), clamped, into 8-bit unsigned PCM.
-    Sample rate is not stored; 11025 Hz is a guess that should be confirmed by ear."""
+    """16 signed delta-table bytes, then 4-bit codes (high nibble first), into 8-bit unsigned PCM. The sum
+    wraps in 8 bits, as the game's loader leaves the samples in memory. The game plays them at 5575.6 Hz
+    (docs/SIM_NOTES.md "The sound driver")."""
     table = [b - 256 if b > 127 else b for b in d[:16]]
     s = 0
     out = bytearray()
     for byte in d[16:]:
         for nib in (byte >> 4, byte & 0x0f):
-            s = max(-128, min(127, s + table[nib]))
-            out.append(s + 128)
+            s = (s + table[nib]) & 0xff
+            out.append(s ^ 0x80)
     return bytes(out)
 
 
-def write_wav(path, pcm, rate=11025):
+def write_wav(path, pcm, rate=5576):
     with wave.open(path, 'wb') as w:
         w.setnchannels(1)
         w.setsampwidth(1)

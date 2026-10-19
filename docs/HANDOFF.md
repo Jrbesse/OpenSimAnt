@@ -202,11 +202,11 @@ Suggested next session (in order):
    - **Listen**: `Formica.Replay --songs` writes every song and effect to `remake/build/songs`; the owner
      has not heard them yet. Compare with a DOSBox recording of the original in Sound Blaster mode (the
      Game Theme, a few effects): that is the only check of the OPL2 port and the mix.
-   - The sample mixer (the 5575.6 Hz handler around 0x28CB0 / 0x28F4A, `f_29168`): how the attenuation
-     applies (`SoundMixer` takes it as a right shift), how its two voices mix, the DSP writes (direct DAC
-     0x10 per tick?). `opl_capture.py` would have to run the fast handler and record port 0x22C.
-     Then the DAC / FM balance (`SoundMixer.SampleGain`, a guess).
-   - Not modelled: AdLib mode (FM 1..7, the samples on the PC speaker?), `f_2c75a` (assumed a copy).
+   - (done the same day: the sample mixer, decoded and verified on 5 DAC traces of the original's
+     handler; it also showed the samples' delta sums wrap in 8 bits, not clamp: `Sounds.Decode` and
+     `tools/extract.py` fixed.) Left: the DAC / FM balance (`SoundMixer.SampleGain`, a guess: set it by
+     ear against DOSBox).
+   - Not modelled: AdLib mode (FM 1..7, the samples on the PC speaker), `f_2c75a` (assumed a copy).
 6. (done: the spider's remarks.) Event markers have no drawing of their own beyond the balloons.
 7. The clean-room art pack (ART_PLAN) once the screens exist.
 
