@@ -2135,6 +2135,24 @@ public partial class Main : Node2D
         var q = ItemRect(YardWin, 12);                                     // the swarm's black queens G:07C8
         clip.Fill(q.l, q.t, q.r, q.b, UiArt.White);
         ui.DrawText(clip, 3, 0, q.l, q.t, q.r, q.b, Math.Max(0, (int)st.S16(Seg.G, 0x7c8)).ToString());
+        if (placing)
+        {
+            // f_01efa's loop: the patch under the mouse (f_70edf's arithmetic) inside the range becomes G:07BC / G:07BE
+            // and f_70a7d XOR-fills its parallelogram (DS:2A42: (169, 67) (193, 67) (186, 74) (162, 74) from
+            // (col * 28 - row * 10, row * 10) past G:10D2 / G:10D4), unless it is the player's own patch
+            var mp = GetViewport().GetMousePosition();
+            int row = ((int)mp.Y - oy - 67) / 10, col = (row * 10 - 169 + (int)mp.X - ox) / 28;
+            if ((int)mp.Y - oy - 67 >= 0 && InPlaceRange(col, row))
+            {
+                st.Set16(Seg.G, 0x7bc, col);
+                st.Set16(Seg.G, 0x7be, row);
+                if (col != st.S16(Seg.G, 0x7ca) || row != st.S16(Seg.G, 0x7cc))
+                {
+                    int bx = col * 28 - row * 10 + ox, by = row * 10 + oy;
+                    for (int y = 0; y < 7; y++) area.Invert(bx + 169 - y, by + 67 + y, bx + 193 - y, by + 68 + y);
+                }
+            }
+        }
         if (statusText != null && session.St.Clock <= statusUntil)
         {
             // f_7052b: the message's second copy (DS:299A) as a font-2 sprite centred at the top of the yard picture
