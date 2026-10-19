@@ -1670,7 +1670,9 @@ captions with them is not traced (matched by their order).
 ### Keys and menu commands (`f_74386`, `f_76aeb`, `f_6e26d`, `f_8414_0000`)
 
 The main loop's event dispatcher (8414:0000) sends events by type (high byte): 0 → `f_1250_0c0f`, 0xFA
-(keys) → 8414:0383 (some key codes become 0xFD15 / 0xFD16 / 0xFD22..28 commands), 0xFD (menu commands) →
+(keys) → 8414:0383 (the low byte is the scan code, event +2 & 4 Ctrl, & 8 Alt: Ctrl+4 → `f_013ff` (back to the
+patch), Ctrl+5 / 6 / 7 → 0xFD22..24, Ctrl+8 / 9 / 0 → 0xFD26..28, Ctrl+H → 0xFD15, Ctrl+I → 0xFD16; Alt+2 →
+`f_76cb9(3)` (recruit all); Backspace → `f_76aeb(0x88)`, Tab → `f_2f8f2` (the Map window)), 0xFD (menu commands) →
 thunk 0x2f992 → `f_6e26d`, 0xFE (open a pull-down menu) → thunk 0x2fa0a → `f_6d7e3`. The pull-down itself
 is a generic text-cell menu (f_6d9a4 at 7d62:0384, "Menu data too long"; item n of menu m posts 0xFD00 + 16 m
 + n + 1).

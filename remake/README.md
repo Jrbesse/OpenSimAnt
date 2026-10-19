@@ -74,6 +74,10 @@ Keys:
 | Shift+0, Shift+1 / 2 / 3 / 4 | pause (G:047E); speed Slow / Normal / Fast / Ultra (T:07CC) |
 | Ctrl+N, Ctrl+L, Ctrl+S / A, Ctrl+Q / X | Select a Game; load, save (the file dialog: Godot's user:// folder, type a name to save, click / double-click a file to load); quit (asks to save first) |
 | Ctrl+E, Ctrl+M, Ctrl+B, Ctrl+C, Ctrl+T, Ctrl+Y | Edit window; Map window; Behavior / Caste Control; Efficiency Score; the yard window |
+| Ctrl+H, Ctrl+I | History; Info (the SimAntipedia) |
+| Ctrl+4 / 5 / 6 / 7 | back to the patch; the yard window as House / Strategic / Graphic view |
+| Ctrl+8 / 9 / 0 | Surface / Black Nest / Red Nest |
+| Alt+2 | recruit all |
 | Ctrl+G / J / K | Options: AutoTrack / Music (the songs: SOUND types 18 / 20 played through the remake's own FM voices, `Formica.Data/Music.cs`) / Sound Effects (T:07A8 / T:07AA / T:07AC); Events, Messages and Silly (speech balloons, off at start-up as in the original) are in the menu |
 | Tab | Map window (front / hide) |
 | **The shell's own keys** | |

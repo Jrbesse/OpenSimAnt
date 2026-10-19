@@ -2220,7 +2220,7 @@ public partial class Main : Node2D
             if (OriginalKey(k)) return;
             switch (k.Keycode)
             {
-                case Key.Key1 when k.CtrlPressed: SetView(1); break;                // the views (menu items 0xFD26..28, no key in the original)
+                case Key.Key1 when k.CtrlPressed: SetView(1); break;                // the views (the original's are Ctrl+8 / 9 / 0)
                 case Key.Key2 when k.CtrlPressed: SetView(2); break;
                 case Key.Key3 when k.CtrlPressed: SetView(3); break;
                 case Key.Left: Scroll(-4, 0); break;
@@ -2273,12 +2273,15 @@ public partial class Main : Node2D
         bool spider = st.U16(Seg.G, 0xa06) != 0, queen = st.U16(Seg.G, 0x4c2) == 0x40 && st.U16(Seg.G, 0xc24) == 0;
         if (k.CtrlPressed)
         {
-            // f_74386's table DS:2CBE
+            // f_74386's table DS:2CBE, then the scan codes of 8414:0383 (Ctrl+4 the patch, f_013ff; Ctrl+5..0, H, I)
+            if (k.Keycode == Key.Key4) { CloseYard(); return true; }
             int cmd = k.Keycode switch
             {
                 Key.N => 0x03, Key.L => 0x04, Key.S => 0x05, Key.A => 0x06, Key.Q or Key.X => 0x08,
                 Key.E => 0x11, Key.M => 0x12, Key.B => 0x13, Key.C => 0x14, Key.T => 0x17, Key.Y => 0x21,
-                Key.G => 0x31, Key.J => 0x32, Key.K => 0x33, _ => 0,
+                Key.G => 0x31, Key.J => 0x32, Key.K => 0x33,
+                Key.Key5 => 0x22, Key.Key6 => 0x23, Key.Key7 => 0x24, Key.Key8 => 0x26, Key.Key9 => 0x27, Key.Key0 => 0x28,
+                Key.H => 0x15, Key.I => 0x16, _ => 0,
             };
             if (cmd == 0) return false;
             MenuCommand(0xfd00 | cmd);
@@ -2289,6 +2292,7 @@ public partial class Main : Node2D
             MenuCommand(k.Keycode == Key.Key0 ? 0xfd41 : 0xfd43 + (int)(k.Keycode - Key.Key1));   // ')' '!' '@' '#' '$'
             return true;
         }
+        if (k.AltPressed && k.Keycode == Key.Key2) { Commands.Command(st, 3); return true; }   // 8414:0383: Alt+2 recruits all
         if (k.AltPressed || k.ShiftPressed && k.Keycode != Key.Backspace) return false;
         switch (k.Keycode)
         {

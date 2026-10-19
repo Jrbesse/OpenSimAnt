@@ -59,6 +59,8 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 - [ ] Shift+0: pause. Shift+1 / 2 / 3 / 4: slow / normal / fast / ultra (the status line shows the speed).
 - [ ] Ctrl+E / Ctrl+M: Edit / Map window to the front. Ctrl+B / Ctrl+C: Behavior / Caste Control.
 - [ ] Ctrl+T: Efficiency Score. Ctrl+Y: the yard window (Full Game).
+- [ ] Ctrl+H History, Ctrl+I the SimAntipedia; Ctrl+4 back to the patch, Ctrl+5 / 6 / 7 the yard window's House /
+  Strategic / Graphic views; Ctrl+8 / 9 / 0 Surface / Black / Red nest; Alt+2 recruits all.
 - [ ] Ctrl+K: sound effects off / on. Tab: Map window front / hide.
 - [ ] Ctrl+S: save dialog, type a name, SAVE (or Enter); Ctrl+L: load dialog, click / double-click the file.
 - [ ] Ctrl+Q: asks to save, then quits.
