@@ -1949,10 +1949,41 @@ bytes have no effect on an OPL2), 0x04 = 0x80, 0x08 = 0, 0xBD = 0xC0 (deep tremo
 no rhythm mode), 0xB0..0xB7 = 0. AdLib mode first runs the detection (`f_28415`: timers, then a tone on
 channel 0).
 
-Not decoded yet: `f_29689`'s voice stealing, the sample mixer itself (the 5575.6 Hz handler, how two
-voices mix, Sound Blaster direct DAC vs. the PC speaker in AdLib mode), the tempo handling of `f_28a65`,
-`f_2c75a` (what it does to the MIDI after loading), the volume G:4B16. DS:00B2 + 6n looks like the
-instrument → MIDI program map of the MIDI mode (0xFFFF: none).
+**The sequencer** (ported: `remake/src/Formica.Data/SoundDriver.cs`, verified by `OplTraceTests` on 91
+traces from `opl_capture.py record`). `f_286f6` reads the header (DS:7566 = tracks, G:4B2E = PPQ), finds
+the track chunks (read positions DS:8DD8), reads each track's first delta into G:4B42 (32-bit absolute
+times) and peeks its first byte into G:4B30 (running status). `f_28784`: last time DS:7568 = 0, current
+track DS:756C = 0, scale = `f_287c5(480, 500000)`. `f_28b1f` (one call per wait): read a byte; if it has
+bit 7 it is the new status; then 0xF0 / 0xF7 skip a length (`f_28b13`), 0xFF a meta event (`f_28a65`: 0x2F
+marks the track ended, 0x51 sets the scale, others are skipped), anything else is a channel event
+(`f_289d7`, then the read position moves by DS:75A4[(status & 0x70) >> 4] = 2, 2, 2, 2, 1, 1, 2); then
+`f_2882f`: the current track's next delta (or 0x7FFFFFFF when ended), the track with the earliest time
+wins (a later one only if strictly earlier and not ended), and the wait is `(time - last) * scale >> 8`
+(32-bit `f_2cddc`, `f_2ceba`, then the low word). It loops while the wait is 0; the end of every track sets
+DS:756E = 2. **The scale** (`f_287c5(ppq, tempo)`, G:4B8A) = `(tempo / 1000 * 1194 / ppq) / 13` in integers
+(107 for the Game Theme): about 3% faster than the MIDI's tempo against the 348.5 Hz tick, and each wait is
+truncated on its own. Only note on / off on channels 0..13 do anything (velocity 0 is a note off).
+
+**The song header** is one static table for every song: DS:00B4 points at DS:0068, priorities
+(0, 7, 7, 7, 7, 5 x 9) and instruments (0, 25, 53, 3, 54, 35, 46, 50, 51, 48, 0, 12, 43, 52) for MIDI
+channels 0..13. Channel 0 has priority 0 and never sounds; channels 1..10 are FM, the drums (5..10)
+included; 11..13 play sample 5 (beep2).
+
+**Voices.** `f_29689(device, priority)`: -1 if the priority is below 1; else over every voice: a sample
+voice whose sample ended gets priority 0; among the voices of the device, take the lowest priority, on a
+tie the highest age; every voice's age goes up by one (a byte); the note gets the voice only if its
+priority is at least the lowest found (no voice of the device: 0x0F). `f_297ac(priority, instrument, key,
+velocity)`: velocity * DS:7502 >> 7; the voice's old note is silenced (DS:7524[device](old key, channel)),
+the patch is loaded if the instrument changed (DS:7544), then note on; the voice keeps priority,
+instrument, key and age 0. `f_298a8(instrument, key)` (note off): every voice with that key and instrument
+(its stored byte against the full word) is silenced (by the instrument's device) and gets key 0,
+priority 0, age 0x0F. Stopping a song (`f_285aa` → `f_29951`) does that for every voice with a priority.
+FM effects have no note off: they decay on their envelopes until a voice is taken.
+
+Not decoded yet: the sample mixer itself (the 5575.6 Hz handler, `f_29168`, how two voices mix and the
+attenuation applies, Sound Blaster direct DAC vs. the PC speaker in AdLib mode), `f_2c75a` (taken as a
+copy of the MIDI), the volume G:4B16 (0). DS:00B2 + 6n looks like the instrument → MIDI program map of
+the MIDI mode (0xFFFF: none).
 
 ## Verification harness (tools/re/emu.py)
 

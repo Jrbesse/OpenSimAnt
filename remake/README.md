@@ -29,7 +29,8 @@ cd remake
 dotnet run --project tests/Formica.Replay -c Release -- --quiet
 dotnet test tests/Formica.Sim.Tests -c Release
 dotnet run --project tests/Formica.Replay -c Release -- --smoke
-dotnet run --project tests/Formica.Replay -c Release -- --songs   # every song as WAV in build/songs (to listen)
+dotnet run --project tests/Formica.Replay -c Release -- --songs   # every song and effect as WAV in build/songs (to listen)
+python tools/re/opl_capture.py record           # (from the repo root) the original driver's OPL2 streams → build/traces/opl
 ```
 
 At this commit all 25 trace files (about 225,000 calls, including 67,200 SimStep ticks) match.
@@ -83,7 +84,7 @@ Keys:
 | Alt+2 | recruit all |
 | Insert, Delete | the left / right mouse button at the pointer (the original's keyboard mouse; its Space too, which the shell keeps for pause) |
 | Ctrl + arrows / keypad (Home / PgUp / End / PgDn diagonals), the mouse at the screen's edge | scroll the Edit window while held (f_74140, f_0113e) |
-| Ctrl+G / J / K | Options: AutoTrack / Music (the songs: SOUND types 18 / 20 played through the remake's own FM voices, `Formica.Data/Music.cs`) / Sound Effects (T:07A8 / T:07AA / T:07AC); Events, Messages and Silly (speech balloons, off at start-up as in the original) are in the menu |
+| Ctrl+G / J / K | Options: AutoTrack / Music (the songs, through the original's driver on an emulated OPL2: see "Sound" below) / Sound Effects (T:07A8 / T:07AA / T:07AC); Events, Messages and Silly (speech balloons, off at start-up as in the original) are in the menu |
 | Tab | Map window (front / hide) |
 | **The shell's own keys** | |
 | Ctrl+1 / 2 / 3 | surface / black nest / red nest |
@@ -103,6 +104,20 @@ Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`,
 `--map-front`, `--help-overlay`, `--yard`, `--strat`, `--scent-menu`, `--ant-info`, `--select`, `--report`,
 `--exp-menu`, `--trails`, `--spider-view` (the surface around the spider), `--frames=N` (screenshot after N frames), `--tutorial[=step]` (the Tutorial, at that step), `--silly` (Options > Silly on: speech balloons), `--menu=m[,item]` (a menu open, an item highlighted), `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y), `--game-over`, `--load-dialog`, `--save-dialog` to open those
 windows first; `--full` / `--experimental` start that kind of game.
+
+## Sound
+
+The original's own sound, in its Sound Blaster mode (docs/SIM_NOTES.md "The sound driver"):
+
+| File | What |
+|---|---|
+| `Formica.Data/SoundBank.cs` | The driver's tables from SIMANT.EXE: 56 instruments (FM records or pitched samples), the effect table, the mixing and tick rates. |
+| `Formica.Data/SoundDriver.cs` | A port of the driver: the MIDI sequencer, the static channel map, the voices (priority, stealing), FM note on / off / patch as OPL2 register writes, the sample device behind an interface. `OplTraceTests` replays the original's register streams (`tools/re/opl_capture.py record`: 33 songs, 56 effects, effects in a row, a song with effects): every write and every wait match. |
+| `Formica.Data/Opl2.cs` | The YM3812 parts of ymfm (Aaron Giles, BSD-3-Clause, licence in the file and in `dist/THIRD_PARTY_NOTICES.txt`). |
+| `Formica.Data/SoundMixer.cs` | Clocks the driver like its timer handler (5575.6 Hz, a music tick every 16th), resamples the OPL2, mixes the two sample voices. The shell renders it into one `AudioStreamGenerator`. |
+
+Guessed, not decoded: how the sample mixer applies the attenuation and mixes its two voices, and the
+balance between the DAC and the FM (`SoundMixer.SampleGain`).
 
 ## Test builds for players
 

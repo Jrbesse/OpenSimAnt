@@ -128,12 +128,20 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 - [ ] Leave a Full Game on fast for 30+ minutes: no crash, no stall, memory steady.
 - [ ] Save, quit, start again, load: the game continues where it was.
 
+## Sound (new 2026-10-19: the original's driver on an emulated AdLib / Sound Blaster)
+
+- [ ] The title plays the Game Theme; it sounds like the DOS version in Sound Blaster mode (instruments,
+  tempo, drums). Note anything off: a wrong instrument, notes cut short, too fast / slow.
+- [ ] Sound effects (digging, dropping food, the spider, the lawnmower, rain) sound like the original:
+  pitch, speed, loudness against the music.
+- [ ] Effects and music together: an effect may briefly take a music voice, as in the original.
+- [ ] Options > Music off stops the song; Ctrl+K turns the effects off and on.
+
 ## Known gaps (don't report these)
 
-Music; the pull-down menus (their labels are not in the data); the tutorial; the help (empty in the DOS
-version anyway); speech balloons and event markers as bitmaps (text stands in); the file dialog's folders,
-path line and drive buttons; the Edit window's bottom strip; exact frame styles; the isometric yard map.
-Sound effects are a best guess at the sample rate.
+The help (empty in the DOS version anyway); the file dialog's folders, path line and drive buttons; the
+Edit window's bottom strip; exact frame styles. The balance between the sampled effects and the FM music
+is a guess.
 
 ## Reporting
 

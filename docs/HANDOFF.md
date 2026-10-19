@@ -109,9 +109,10 @@ screenshot flags).
   fonts, the window layouts (`Layouts.cs`), **`Ui.cs`** (`UiArt`: draws any layout as f_223b3 does, in
   the colour schemes of HCEGANT 0/129; hit tests by item index), **`YardRenderer.cs`** (the yard window),
   `GameSession` (new game, the original's main-loop timing, pause, speed incl. Ultra, the Options flags,
-  effects queue, `WalkTo`), **`Menus.cs`** (the pull-down menus, SHARED type 6), **`Music.cs`** (the songs:
-  type 18 → type 20 MIDI, rendered by a small FM synth; not the original's AdLib patches), **`Balloon.cs`**
-  (speech balloons as f_1629c builds them).
+  effects queue, `WalkTo`), **`Menus.cs`** (the pull-down menus, SHARED type 6), **the sound** (2026-10-19:
+  `SoundBank.cs`, `SoundDriver.cs` (the original's driver, verified on its OPL2 register streams),
+  `Opl2.cs` (ymfm's YM3812, BSD-3), `SoundMixer.cs`; remake/README "Sound"), **`Balloon.cs`** (speech
+  balloons as f_1629c builds them).
 - `remake/game/Main.cs`: the playable shell, **now built from the original's windows** (a window stack: drag
   by the caption, click to front):
   - the Edit window (layout 0: tool strip, the 22 x 21 cell map = G:10E0 / G:10DE, health bars, PAUSE,
@@ -131,8 +132,9 @@ screenshot flags).
   - **The menu bar** (2026-10-18 night): File / Window / View / Options / Speed from SHARED type 6 (the
     labels were in the data after all), laid out as f_2fd2_0663, pulled down as f_6d9a4, marks as f_6e0e0,
     every command through `MenuCommand` (f_6e26d); Alt+F/W/V/O/S and F2..F6 open them.
-  - **Music**: `voice` / `music` / `sound` >= 10000 effects, the title and File > New play songs (Options >
-    Music); `Formica.Replay --songs` writes every song as WAV to `remake/build/songs` (for listening).
+  - **Music and effects** through the original's driver on an emulated OPL2 (one `AudioStreamGenerator`):
+    `voice` / `music` / `sound` >= 10000 effects, the title and File > New play songs (Options > Music);
+    `Formica.Replay --songs` writes every song and effect as WAV to `remake/build/songs` (for listening).
   - **The tutorial** (Select a Game > Tutorial): `Formica.Sim/Tutorial.cs` (verified, see SIM_NOTES "The
     tutorial"), message boxes as f_71bb6 sizes them with the tutorial pictures; DS:5702 follows the active
     window; the yard window sets G:032E like f_01aec.
@@ -189,29 +191,22 @@ Suggested next session (in order):
    f_21336 re-lays a resized window's items (the message box's "Click here" line); the Map window's click
    (0x102 → f_2f898); whether to give Space back to the original (left button) instead of the shell's pause.
 4. (done: f_7650c is the colony pick in the yard window, see above.)
-5. **Audio fidelity: port the sound driver and emulate the OPL2** (started 2026-10-19; SIM_NOTES "The sound
-   driver" has everything decoded so far: the FM bank DS:0202, the instrument table DS:0D92, note on / off,
-   velocity and frequency tables, the 348.5 Hz music tick, the 5575.6 Hz sample mixing, the effect table
-   DS:0A82). `tools/re/opl_capture.py` boots the original with a sound mode and records the exact OPL2
-   register stream of any song (`song 0x2711 6`). Target the **Sound Blaster mode** (6: the owner's, 8 FM
-   channels plus the two sample voices). Steps:
-   a. Quick win, no OPL needed: sound effects at 5575.6 Hz (not 11025) and by the effect table (effect n =
-      instrument n; 12 / 43 / 52 play sample 5; 55 is the burp at key 100; the FM effects wait for step d).
-   b. Finish the driver RE: voice choice and stealing `f_29689`, note off `f_298a8`, tempo `f_28a65`,
-      `f_2c75a`, the volume G:4B16, the 5575.6 Hz mixer (two voices, 8.8 steps, attenuation, the DSP
-      writes). Extend `opl_capture.py` to run the fast handler and record the DAC bytes too.
-   c. Reference traces: every song (the 33 type-18 ids) and every effect (0..55) as (music tick, register,
-      value) plus DAC bytes, into `remake/build/traces/opl/` (git-ignored: derived from the game).
-   d. C# port, `Formica.Data/SoundDriver.cs`: tables read from the player's SIMANT.EXE, the sequencer (MIDI
-      events → music ticks), voices, FM note on / off / patch → register writes, sample voices. An xUnit
-      test replays the traces and compares the register stream byte for byte, like the sim's.
-   e. OPL2 emulator in C#: port the YM3812 part of ymfm (Aaron Giles, BSD-3-Clause: permissive, accurate,
-      and pure C# keeps the export a single Windows build). Nuked-OPL3 is the most accurate but LGPL-2.1,
-      awkward for an in-tree port. Note the driver leaves waveform select off (all sines) and sets deep
-      tremolo / vibrato (0xBD = 0xC0). Check against reference tones and by ear.
-   f. Godot: one AudioStreamGenerator mixing the OPL output (49716 Hz, resampled) and the sample voices,
-      clocked by the driver's 348.5 Hz tick; replaces `Music.cs`'s stand-in synth and `Sounds.cs`.
-   g. Compare with a DOSBox recording of the original in Sound Blaster mode (Game Theme, a few effects).
+5. **Audio fidelity** (2026-10-19: steps a..f done, the same day; SIM_NOTES "The sound driver", remake/README
+   "Sound"). The original's driver is ported (`SoundDriver.cs`) and **verified**: `OplTraceTests` replays 91
+   traces recorded from the original by `tools/re/opl_capture.py record` (33 songs, 56 effects, all
+   effects in a row, the Game Theme with effects in between), every OPL2 write and every wait identical.
+   The OPL2 is ymfm's YM3812 ported to C# (`Opl2.cs`, BSD-3; notice in `remake/dist/THIRD_PARTY_NOTICES.txt`,
+   which the release zip includes); `SoundMixer.cs` clocks it all like the original's timer handler; the
+   shell plays songs and effects on one AudioStreamGenerator (the stand-in synth `Music.cs` is gone).
+   Target: the Sound Blaster mode (6: 8 FM channels, two sample voices). Left:
+   - **Listen**: `Formica.Replay --songs` writes every song and effect to `remake/build/songs`; the owner
+     has not heard them yet. Compare with a DOSBox recording of the original in Sound Blaster mode (the
+     Game Theme, a few effects): that is the only check of the OPL2 port and the mix.
+   - The sample mixer (the 5575.6 Hz handler around 0x28CB0 / 0x28F4A, `f_29168`): how the attenuation
+     applies (`SoundMixer` takes it as a right shift), how its two voices mix, the DSP writes (direct DAC
+     0x10 per tick?). `opl_capture.py` would have to run the fast handler and record port 0x22C.
+     Then the DAC / FM balance (`SoundMixer.SampleGain`, a guess).
+   - Not modelled: AdLib mode (FM 1..7, the samples on the PC speaker?), `f_2c75a` (assumed a copy).
 6. (done: the spider's remarks.) Event markers have no drawing of their own beyond the balloons.
 7. The clean-room art pack (ART_PLAN) once the screens exist.
 

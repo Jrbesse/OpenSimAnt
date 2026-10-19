@@ -73,7 +73,7 @@ jobs:
           name="Formica-${version}-windows"
           mkdir -p dist/Formica
           cp -r remake/build/export/windows/. dist/Formica/
-          cp remake/dist/HOW_TO_PLAY.txt dist/Formica/
+          cp remake/dist/HOW_TO_PLAY.txt remake/dist/THIRD_PARTY_NOTICES.txt dist/Formica/
           (cd dist && zip -qr "$name.zip" Formica)
           echo "name=$name" >> "$GITHUB_OUTPUT"
 
