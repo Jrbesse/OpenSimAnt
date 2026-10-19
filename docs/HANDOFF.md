@@ -187,8 +187,10 @@ Suggested next session (in order):
    met with the shell's controls (G:1074 is set when the view recentres / follows; the Escape-for-alarm text
    is a Mac leftover, the DOS key is 0). The help screens (f_76eb5) are an empty stub in the DOS version.
 3. Open screen details: (done: the Edit window's bottom strip, item 21); the list (type 4, f_241f2) and
-   icon / check items (7 / 8, f_244cc) of the file dialog; the two undecoded bytes of each colour scheme; how
-   f_21336 re-lays a resized window's items (the message box's "Click here" line); the Map window's click
+   icon / check items (7 / 8, f_244cc) of the file dialog; the two undecoded bytes of each colour scheme;
+   (done: f_21336's re-layout by the attach modes at +18, FILE_FORMATS; the message box sized as f_71bb6 does,
+   "Click here" in b - 13 .. b - 2 over the 8 px under the text, font 3 as layout 30 says; whether the lines'
+   drawing, f_20983, fills its rows over part of it is not traced); the Map window's click
    (0x102 → f_2f898); whether to give Space back to the original (left button) instead of the shell's pause.
 4. (done: f_7650c is the colony pick in the yard window, see above.)
 5. **Audio fidelity** (2026-10-19: steps a..f done, the same day; SIM_NOTES "The sound driver", remake/README

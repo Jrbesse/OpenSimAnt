@@ -143,7 +143,11 @@ Text items (types 0x05, 0x09, 0x0C, 0x10..0x12) are drawn by `f_21fa2`:
 - Font: the byte at +28 (`f_24d5d`). Ids 2..5 are the slots DS:4A1A.. that start-up (`f_34ab_047d`) loads from
   the files FONT1..FONT4 (FONT1 / FONT2 have the glyph widths of SHARED 2 / 3; FONT3 is 15 rows, FONT4 an
   11-row bold); 0 / 1 are the PC fonts (SHARED 0 / 1). Captions and the status numbers use font
-  0, "Click here to continue" font 2, the yard counters font 3.
+  0, "Click here to continue" font 2 in layout 27 and font 3 in layout 30, the yard counters font 3.
+- Re-layout (`f_21336` opening a window at a new rectangle; `UiArt.Relayout`): the 4 words at +18 are attach
+  modes for the left, top, right and bottom edges. Left / top: 0 = +08 as stored, 1 / 2 = the window's left /
+  top + it, 3 / 4 = the window's right / bottom + it, 5 = the same edge + it. Right / bottom: 1 / 2 = the item's
+  own left / top + the size at +0C, 3 / 4 and 5 = the window's right / bottom + it. Checked on layouts 27, 30, 33.
 - Alignment: (word +24 & 0x180) >> 7.
   - 0 / 3: centred, x = (left + right - width) / 2 (3 also underlines).
   - 1: left + 4.

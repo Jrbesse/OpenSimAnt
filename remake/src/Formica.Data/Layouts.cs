@@ -7,7 +7,7 @@ namespace Formica.Data;
 /// +27 (UiArt.Schemes), Style the byte at +28 (a frame's thickness, a text's font).</summary>
 public sealed record LayoutItem(int Id, (int left, int top, int right, int bottom) Rect, (int x, int y) Pos, (int w, int h) Size,
                                 int Parent, int State, int Type, string Kind, int Param, string Text, int Bitmap, int[] Bitmaps,
-                                int Flags = 0, int Scheme = 0, int AltScheme = 0, int Style = 0)
+                                int Flags = 0, int Scheme = 0, int AltScheme = 0, int Style = 0, int[] Attach = null)
 {
     /// <summary>f_220e4: the colour scheme the item is drawn in.</summary>
     public int ColourScheme => (Flags & 4) != 0 ? AltScheme : Scheme;
@@ -54,7 +54,7 @@ public static class Layouts
                               U(b, 0x10), b[0x20], type, Types.GetValueOrDefault(type, $"type{type:x2}"), param, text,
                               type == 0x06 ? param : -1, type == 0x0d ? new[] { U(b, 0x26), U(b, 0x28) } : null,
                               b.Length > 0x25 ? U(b, 0x24) : 0, b.Length > 0x26 ? b[0x26] : 0, b.Length > 0x27 ? b[0x27] : 0,
-                              b.Length > 0x28 ? b[0x28] : 0);
+                              b.Length > 0x28 ? b[0x28] : 0, new int[] { S(b, 0x18), S(b, 0x1a), S(b, 0x1c), S(b, 0x1e) });
     }
 
     public static WindowLayout Decode(int id, byte[] data)

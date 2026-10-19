@@ -1209,36 +1209,31 @@ public partial class Main : Node2D
         modal = 30;
     }
 
-    /// <summary>f_71bb6: font 4 (3 at 320 px); the box is max(50, widest line) + 8 wide and (picture height + 2) +
-    /// lines * font height + 8 tall, centred on the screen, opened as window 0x1E00 with that rectangle (f_21336);
-    /// inside a 4 px margin the picture (HCEGANT bitmap, the tutorial's 17000..) goes on top and the lines follow,
-    /// one font line each (centred here). Layout 30's "Click here to continue" line is added below the content (how
-    /// f_21336 re-lays the window's items out is not traced).</summary>
+    /// <summary>f_71bb6: font 4 (3 at 320 px); the box is max(50, widest line) + 8 wide (the picture's width does not
+    /// count) and (picture height + 2) + lines * font height + 8 tall, centred on the screen, opened as window 0x1E00
+    /// (layout 30) at that rectangle: f_21336 re-lays its items (UiArt.Relayout), the 3D frame 5 / 4 px outside,
+    /// the fill 2 px inside, "Click here to continue" in (l + 2, b - 13, r - 1, b - 2). The picture (HCEGANT bitmap,
+    /// the tutorial's 17000..) is centred at the top, then each line (f_20983) in a font-height row from there.</summary>
     void DrawMessageBox(UiArt.Canvas c)
     {
         var f = ui.Font(4) ?? ui.Font(2);
         var (pw, ph, _) = boxPicture != 0 ? ui.Bitmap(boxPicture) : (0, 0, null);
         int lineH = f.Height, n = boxLines.Length;
-        var clickItem = ui.Layouts[30].Items[^1].Rect;
-        int clickH = clickItem.bottom - clickItem.top;
-        int w = Math.Max(Math.Max(0x32, pw), boxLines.Select(f.Width).DefaultIfEmpty(0).Max()) + 8;
-        int h = (ph > 0 ? ph + 2 : 0) + n * lineH + 8 + clickH;
-        int l = (ScreenW - w) / 2, t = (ScreenH - h) / 2, r = l + w, b = t + h;
-        c.Fill(l, t, r, b, UiArt.White);
-        c.Frame(l, t, r, b, UiArt.Black);
-        c.Frame(l + 2, t + 2, r - 2, b - 2, UiArt.Black);
-        int y = t + 4;
+        int w = Math.Max(0x32, boxLines.Select(f.Width).DefaultIfEmpty(0).Max()) + 8;
+        int h = (ph > 0 ? ph + 2 : 0) + n * lineH + 8;
+        int t = (ScreenH - h) / 2, l = (ScreenW - w) / 2, r = l + w, b = t + h;
+        ui.DrawLayout(c, ui.Relayout(30, (l, t, r, b)));
+        int y = t;
         if (ph > 0)
         {
-            ui.DrawBitmap(c, boxPicture, (l + r - pw) / 2, y);
+            ui.DrawBitmap(c, boxPicture, (r - pw + l) / 2, y);
             y += ph + 2;
         }
         foreach (var line in boxLines)
         {
-            ui.DrawText(c, 4, 0, l + 4, y, r - 4, y + lineH, line);
+            ui.DrawText(c, 4, 0, l, y, r, y + lineH, line);
             y += lineH;
         }
-        ui.DrawText(c, 2, 0, l + 4, b - 4 - clickH, r - 4, b - 4, "Click here to continue");
     }
 
     // ------------------------------------------------------------------------------- the SimAntipedia (layout 5)

@@ -166,6 +166,36 @@ public sealed class UiArt
         var (wl, wt, wr, wb) = w.Rect;
         var clip = c.Clip(wl + dx, wt + dy, wr + dx, wb + dy);
         clip.Fill(wl + dx, wt + dy, wr + dx, wb + dy, Grey);
+        DrawItems(clip, w, dx, dy, title, hidden);
+    }
+
+    /// <summary>
+    /// f_21336 opening window `id` at rectangle `rect`: each item edge follows its attach mode (+18: left, top,
+    /// right, bottom) against the new rectangle: left / top 0 = pos as stored, 1 / 2 = the window's left / top +
+    /// pos, 3 / 4 = the window's right / bottom + pos, 5 = the same edge + pos; right / bottom 1 / 2 = the item's own
+    /// left / top + size, 3 / 4 and 5 = the window's right / bottom + size. Checked on layouts 27, 30 and 33.
+    /// </summary>
+    public WindowLayout Relayout(int id, (int l, int t, int r, int b) rect)
+    {
+        var w = Layouts[id];
+        var items = new List<LayoutItem>();
+        foreach (var it in w.Items)
+        {
+            var a = it.Attach ?? new[] { 1, 2, 1, 2 };
+            int l = a[0] switch { 0 => it.Pos.x, 3 => rect.r + it.Pos.x, _ => rect.l + it.Pos.x };
+            int t = a[1] switch { 0 => it.Pos.y, 4 => rect.b + it.Pos.y, _ => rect.t + it.Pos.y };
+            int r = a[2] is 3 or 5 ? rect.r + it.Size.w : l + it.Size.w;
+            int b = a[3] is 4 or 5 ? rect.b + it.Size.h : t + it.Size.h;
+            items.Add(it with { Rect = (l, t, r, b) });
+        }
+        return new WindowLayout(id, (rect.l, rect.t, rect.r, rect.b), items);
+    }
+
+    /// <summary>Draw a (re-laid) layout's items, no background fill.</summary>
+    public void DrawLayout(Canvas c, WindowLayout w, string title = null) => DrawItems(c, w, 0, 0, title, null);
+
+    void DrawItems(Canvas clip, WindowLayout w, int dx, int dy, string title, ICollection<int> hidden)
+    {
         foreach (var it in w.Items)
         {
             var (l, t, r, b) = it.Rect;
