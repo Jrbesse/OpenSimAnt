@@ -140,7 +140,11 @@ public sealed class OriginalFiles
 
     public readonly List<Resource> Sound;
 
-    /// <summary>Sound effect n as signed 8-bit PCM (Sounds.SampleRate), null if there is none.</summary>
+    SoundBank bank;
+    /// <summary>The sound driver's instruments and effect table (from SIMANT.EXE).</summary>
+    public SoundBank Bank => bank ??= new SoundBank(Flat);
+
+    /// <summary>SOUND sample n (type 5) as signed 8-bit PCM, null if there is none.</summary>
     public sbyte[] SoundEffect(int n)
     {
         var r = Sound.FirstOrDefault(x => x.Type == 5 && x.Id == n);

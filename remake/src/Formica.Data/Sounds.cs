@@ -1,13 +1,11 @@
 namespace Formica.Data;
 
-/// <summary>The sound effects of the SOUND archive (type 5, ids 0..56; tools/extract.py decode_sfx).
-/// f_00ed8(n, ..) plays entry n of the table at DS:0A80 (8 bytes each, filled from the archive at start-up)
-/// when there is sound hardware (DS:1926) and sound is on (T:07AC): the remake takes entry n as resource id n.
+/// <summary>The samples of the SOUND archive (type 5, ids 0..56; tools/extract.py decode_sfx): the sample
+/// instruments of the sound driver. Which sample an effect plays, and at what rate, is SoundBank's: effect n
+/// is instrument n of the driver (DS:0A82), mixed at SoundBank.MixRate (5575.6 Hz) times the note's step.
 /// Ids 10000 and up are the MIDI songs (types 18 / 20), not decoded here.</summary>
 public static class Sounds
 {
-    /// <summary>The sample rate is not stored; 11025 Hz is a guess still to be confirmed by ear.</summary>
-    public const int SampleRate = 11025;
 
     /// <summary>16 signed delta-table bytes, then 4-bit codes (high nibble first), clamped: signed 8-bit PCM.</summary>
     public static sbyte[] Decode(byte[] d)

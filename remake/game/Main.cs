@@ -2057,19 +2057,27 @@ public partial class Main : Node2D
     readonly List<AudioStreamPlayer> players = new();
     bool muted;
 
+    /// <summary>f_00ed8(n) → f_29927: effect n is a note on an instrument (SoundBank.Effects, DS:0A82). A sample
+    /// instrument plays its SOUND sample at the driver's mixing rate times the note's pitch step; FM effects
+    /// wait for the OPL2 emulation (docs/HANDOFF.md, step 5).</summary>
     void PlaySound(int n)
     {
         if (muted) return;
         if (!sfxCache.TryGetValue(n, out var stream))
         {
-            var pcm = session.Files.SoundEffect(n);
-            stream = pcm == null || pcm.Length == 0 ? null : new AudioStreamWav
+            var bank = session.Files.Bank;
+            if (n >= 0 && n < SoundBank.EffectCount && bank.SampleOf(bank.Effects[n].Instrument) is SoundBank.Sample s)
             {
-                Format = AudioStreamWav.FormatEnum.Format8Bits,
-                MixRate = Sounds.SampleRate,
-                Stereo = false,
-                Data = (byte[])(Array)pcm,
-            };
+                var pcm = session.Files.SoundEffect(s.SoundId);
+                int rate = (int)Math.Round(SoundBank.MixRate * bank.SampleStep(bank.Effects[n].Key, s) / 256);
+                stream = pcm == null || pcm.Length == 0 ? null : new AudioStreamWav
+                {
+                    Format = AudioStreamWav.FormatEnum.Format8Bits,
+                    MixRate = rate,
+                    Stereo = false,
+                    Data = (byte[])(Array)pcm,
+                };
+            }
             sfxCache[n] = stream;
         }
         if (stream == null) return;
