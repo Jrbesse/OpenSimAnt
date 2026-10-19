@@ -138,7 +138,17 @@ screenshot flags).
     window; the yard window sets G:032E like f_01aec.
   - **The timed message** (f_15e2c) over the Edit map and in the yard window; message boxes follow Options >
     Events.
-  - The scan-code keys of 8414:0383 (Ctrl+4..0, Ctrl+H / I, Alt+2).
+  - The scan-code keys of 8414:0383 (Ctrl+4..0, Ctrl+H / I, Alt+2); Ctrl + keypad / arrows and the screen's
+    edge scroll while held (f_74140, f_0113e); Insert / Delete as the mouse buttons (f_2024b; the original's
+    Space too, which the shell keeps for pause).
+  - **The Edit map's clicks as `f_74fe0`**: a click walks after the 6-tick double-click wait; a double (or
+    right, or Shift) click acts (meet / fight an ant via f_11327, act on the surface, dig or pick up / drop in
+    a nest by f_1345e / f_135de); a quick click on the yellow ant recentres (f_01c03, G:1074 = 1), held its
+    menu; held on another ant Ant Info. Targets through `GameSession.SetTarget` (f_75869).
+  - The yard window: the PLACE highlight (f_70a7d), choosing a colony as `f_7650c` (it is the yard window in
+    Strategic view, not a separate isometric map), moves on a double click (f_70edf).
+  - The spider's remarks (f_03de7's timer, STR# 1210) with the shell's own generator (a DIVERGENCE like the
+    fangs).
   - **The original's keys** (f_74386's table DS:2CBE, f_76aeb, the menu commands f_6e26d): 1 / 2 / 3 / 4,
     X, 0, Backspace, Shift+0..3, Ctrl+N / L / S / A / Q / E / M / B / C / T / Y / G / J / K. The shell's
     own extras stay on other keys (views moved to Ctrl+1..3); README has the table. **The file
@@ -174,15 +184,14 @@ Suggested next session (in order):
 2. Tutorial in the shell: walk through all 56 steps by hand (or script it) and make sure each check can be
    met with the shell's controls (G:1074 is set when the view recentres / follows; the Escape-for-alarm text
    is a Mac leftover, the DOS key is 0). The help screens (f_76eb5) are an empty stub in the DOS version.
-3. Open screen details: the Edit window's bottom strip (item 21, a hotspot); the scroll bar (type 4,
-   f_241f2) and icon / check items (7 / 8, f_244cc); the two undecoded bytes of each colour scheme; how
-   f_21336 re-lays a resized window's items (the message box's "Click here" line); `f_70edf`'s move condition
-   (event byte +7 & 0x60); the yard PLACE range highlight (`f_2f708`); type 0x0D's bitmap choice (+24 bit 2:
-   the code reads +28 or +2A, FILE_FORMATS says +26 / +28).
-4. The isometric yard map (f_7650c), if it differs from the yard window's colony views.
+3. Open screen details: the Edit window's bottom strip (item 21, a hotspot); the list (type 4, f_241f2) and
+   icon / check items (7 / 8, f_244cc) of the file dialog; the two undecoded bytes of each colour scheme; how
+   f_21336 re-lays a resized window's items (the message box's "Click here" line); the Map window's click
+   (0x102 → f_2f898); whether to give Space back to the original (left button) instead of the shell's pause.
+4. (done: f_7650c is the colony pick in the yard window, see above.)
 5. Music fidelity: the original's AdLib / MT-32 patches live in the sound driver (f_284b3 → f_29f1a ..);
    decoding them would let the synth sound like the original. Song triggers are all in SIM_NOTES.
-6. The spider's remarks (f_0696a style 10: G:10B4 lines at the spider) and event markers' own drawing.
+6. (done: the spider's remarks.) Event markers have no drawing of their own beyond the balloons.
 7. The clean-room art pack (ART_PLAN) once the screens exist.
 
 **Workflow tips for the shell:** build with `dotnet build remake/game/Formica.csproj`, then run Godot
@@ -449,6 +458,14 @@ heredocs in bash turn `'\n'` into real line breaks (it happened twice more this 
 
 2026-10-18 night:
 ```
+fee5ca3 Remake shell: Insert / Delete as the left / right mouse button (f_2024b)
+b1eea20 Notes: type 0x0D's bitmap words
+65c1910 Remake shell: scrolling as the main loop does it (Ctrl + keypad / arrows, f_74140; the screen's edge, f_0113e)
+d0bb71b Docs: yard double clicks, the PLACE highlight
+398c47a Remake shell: choosing a colony as f_7650c does (the dead patch emptied, its refusals, voice 0x2AFB); yard moves on a double click (f_70edf)
+a4d50e2 Remake shell: the yard window's PLACE highlight (f_70a7d's parallelogram under the mouse, G:07BC / G:07BE)
+b0fa689 Remake shell: the spider's remarks (f_03de7's timer, STR# 1210) queued after the ants' balloons; --frames / --spider-view
+65bb6cc Remake shell: the Edit map's clicks as f_74fe0 does them (double-click wait, act modes, meet / fight, recentre, held Ant Info); f_75869 targets
 234c2fe Remake shell: the original's timed message over the Edit map (f_15e2c / f_15d96) and its yard copy; message boxes follow Options > Events
 45c352c Remake: windows drawn as f_223b3 does (fills, frame thickness, lines) in the colour schemes of HCEGANT 0/129
 c08aaa9 Port the tutorial (f_0e425 / f_0e4e4 / f_0e93e): verified against the original, in C#, playable in the shell
