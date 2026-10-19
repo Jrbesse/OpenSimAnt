@@ -180,6 +180,17 @@ public sealed class GameSession
         St.Set16(G, 0xd6c, 0xfffe);
     }
 
+    /// <summary>f_75869: the yellow ant's walk target (view 0 counts as the surface; in a nest's top two rows a stays
+    /// within 1..0x3E), then G:0AA0 = 1 as f_74fe0 sets it.</summary>
+    public void SetTarget(int view, int a, int b)
+    {
+        St.Set16(G, 0xaf8, view == 0 ? 1 : view);
+        St.Set16(G, 0xad6, view > 1 && b < 2 ? Math.Clamp(a, 1, 0x3e) : a);
+        St.Set16(G, 0xae8, b);
+        St.Set16(G, 0xd6c, 0xfffe);
+        St.Set16(G, 0xaa0, 1);
+    }
+
     /// <summary>The yellow ant: view, a, b.</summary>
     public (int view, int a, int b) Yellow => (St.U16(G, 0x48c), St.S16(G, 0x47c), St.S16(G, 0x48a));
 }

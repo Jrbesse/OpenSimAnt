@@ -54,8 +54,8 @@ Mouse:
 | Where | Action |
 |---|---|
 | Menu bar (top) | the original's pull-down menus (SHARED type 6): File, Window, View, Options, Speed. Press on a title and release on an item, or click a title, then an item; ► marks the speed and the Options that are on |
-| Edit window map | left click: walk the yellow ant there (Shift: walk and act on the cell: pick up / drop); right click: walk there digging; Ctrl + click: Ant Info |
-| on the yellow ant | press and hold: its menu (recruit, release, exchange; a queen: dig hole, start brood; the spider: chase, hunt); release on an entry |
+| Edit window map | as the original's f_74fe0: click: walk there; double click (or right click, or Shift+click): act: pick up / drop / eat on the surface, dig or pick up / drop in a nest, meet or fight the ant clicked; press and hold on an ant: Ant Info (Ctrl+click too) |
+| on the yellow ant | quick click: recentre on it; press and hold: its menu (recruit, release, exchange; a queen: dig hole, start brood; the spider: chase, hunt); release on an entry |
 | Edit tool strip | MAP (show / hide the Map window), ? (help overlays), Surface / Black / Red nest, go to the yellow ant / spider / queens, PAUSE, SCENT (cycle the scent views) |
 | Map window | click the map to look there; toolbar: Yard (Full Game), the views, scent layers, Behavior / Caste Control, Center on Yellow, the Mystery Button, History, Efficiency Score, Ant Info (the SimAntipedia: click a picture's labels or the BACK / PREVIOUS / TOP bar to change cards, hold the button on a bold word for its definition; Escape or a click outside closes it) |
 | Behavior / Caste Control | click or drag in the triangle; Auto / Manual |

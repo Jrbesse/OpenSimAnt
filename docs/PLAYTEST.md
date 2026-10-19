@@ -51,9 +51,11 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 
 ## 2. The yellow ant (Edit window)
 
-- [ ] Click on the map: the yellow ant walks there. Shift+click: walks and picks up / drops what is there.
-- [ ] Right click: walks there digging (in a nest).
-- [ ] Ctrl+click on an ant: the Ant Info window (caste, state, carrying).
+- [ ] Click on the map: the yellow ant walks there (after a short pause: the original waits for a double click).
+- [ ] Double click (or right click / Shift+click): acts: eats or picks up / drops food on the surface, digs in a
+  nest (or picks up / drops food, rocks, brood), walks up to an ant to meet (colony-mate) or fight (enemy).
+- [ ] Quick click on the yellow ant: the view recentres on it. Press and hold on another ant (or Ctrl+click):
+  the Ant Info window (caste, state, carrying).
 - [ ] Food: pick up, carry into the nest, drop; eat when hungry (health bar on the left).
 - [ ] Enter and leave the nest through the hole; the view follows (Surface / Black / Red nest).
 - [ ] Hold the button on the yellow ant: its menu. Recruit 5 / 10, Release 1/2 / All, Exchange (then click an

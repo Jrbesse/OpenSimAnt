@@ -173,6 +173,7 @@ public partial class Main : Node2D
         if (!session.Over && !yardChoose && modal < 0 && menuOpen < 0 && session.Advance(delta) > 0) balloonsNow.Clear();
         ToolPoll();
         ToolHold(delta);
+        PendingClick(delta);
         SongPoll();
         DrainEffects();
         if (follow) CenterOnYellow();
@@ -339,7 +340,7 @@ public partial class Main : Node2D
             case 8: SetView(1); break;
             case 9: SetView(2); break;
             case 10: SetView(3); break;
-            case 11: SetView(session.Yellow.view); follow = true; break;
+            case 11: session.St.Set16(Seg.G, 0x1074, 1); SetView(session.Yellow.view); follow = true; break;   // follow (f_01c52)
             case 12:                                                                 // the spider G:0F12 / G:0F34 (1/16 cell)
                 if (st.U16(Seg.G, 0xf0c) == 0) { lastMessage = "There is no spider."; break; }
                 SetView(1);
@@ -370,26 +371,105 @@ public partial class Main : Node2D
             return;
         }
         int target = st.U16(Seg.G, 0x105e);
-        // f_74fe0: a left press on the player itself, with the button still held (f_0122c → f_20262), opens its
-        // menu (f_2f8e8 → f_67e93) at the mouse
-        if (target != 0xa && target != 0xb && mb.ButtonIndex == MouseButton.Left && view == session.Yellow.view
-            && DebugCommands.PlayerAt(st, view, a, b) == 1)
+        bool act = mb.ButtonIndex == MouseButton.Right || mb.DoubleClick || mb.ShiftPressed;   // event byte +7 & 0x60
+        if (target == 0xa) { Commands.ExchangeClick(st, view, a, b); return; }       // Exchange: pick the ant to become
+        if (target == 0xb)
         {
-            OpenPopup((int)mb.Position.X, (int)mb.Position.Y);
+            if (view <= 1 && st.U16(Seg.G, 0xa06) == 1) Commands.SpiderClick(st, a, b, act ? 1 : 0);
             return;
         }
-        if (target == 0xa) Commands.ExchangeClick(st, view, a, b);                  // Exchange: pick the ant to become
-        else if (st.U16(Seg.G, 0xa06) == 1 || target == 0xb)
+        if (!act && mb.ButtonIndex == MouseButton.Left)
         {
-            if (view == 1) Commands.SpiderClick(st, a, b, mb.ButtonIndex == MouseButton.Right ? 1 : 0);
+            pendingClick = (a, b, mb.Position, 0);                                  // wait for a second click
+            return;
         }
-        else if (mb.ButtonIndex == MouseButton.Left)
+        pendingClick = null;
+        MapAction(a, b, true, false, mb.Position);
+    }
+
+    // f_74fe0, the Edit map's mouse handler outside the Experimental game and the pick-a-target modes. A left press
+    // waits up to 6 clock ticks for a second one (a double click; the right button counts as one at once, and here
+    // Shift too): that makes it an action. Then, without one: on the yellow ant (f_134b8 at its own view) a button
+    // still held opens its menu (f_2f8e8 → f_67e93), a released one recentres on it (f_01c03, G:1074 = 1); a held
+    // press on another ant shows Ant Info (f_2f8fc); otherwise a walk (mode G:0A8E = 0). With one: another ant (not
+    // the yellow one, caste > 7) becomes the target to meet (f_11327 → G:07C0; mode 4 for a colony-mate, 3 for an
+    // enemy; G:084E, G:08DA, G:08E2 / G:09F0); on the surface mode 1 (act on the cell); in a nest mode 1 (pick up /
+    // drop) where there is food, a rock or brood or the ant carries something, else 2 (dig). The spider on the
+    // surface takes the click as its own (f_756a6). The target is set by f_75869 (GameSession.SetTarget).
+    (int a, int b, Vector2 at, double waited)? pendingClick;
+
+    void PendingClick(double delta)
+    {
+        if (pendingClick is not { } p) return;
+        p.waited += delta;
+        pendingClick = p;
+        if (p.waited < 6 / GameSession.ClockHz) return;
+        pendingClick = null;
+        MapAction(p.a, p.b, false, Input.IsMouseButtonPressed(MouseButton.Left), p.at);
+    }
+
+    void MapAction(int a, int b, bool act, bool held, Vector2 at)
+    {
+        var st = session.St;
+        int v = view;
+        st.Set16(Seg.G, 0xf44, 0);
+        bool spider = st.U16(Seg.G, 0xa06) != 0;
+        if (!act)
         {
-            if (mb.ShiftPressed) ActOn(a, b);
-            else session.WalkTo(view, a, b);
+            if (DebugCommands.PlayerAt(st, st.U16(Seg.G, 0x48c), a, b) == 1)
+            {
+                if (held) OpenPopup((int)at.X, (int)at.Y);
+                else if (Player.GetOcc(st, st.U16(Seg.G, 0x48c), a, b) != 0xfe)
+                {
+                    st.Set16(Seg.G, 0x1074, 1);                                       // f_01c03
+                    SetView(session.Yellow.view);
+                    CenterOnYellow();
+                }
+                return;
+            }
+            if (held && AntInfo(a, b) != null) { OpenAntInfo(a, b); return; }
         }
-        else if (mb.ButtonIndex == MouseButton.Right)
-            session.WalkTo(view, a, b, dig: true);
+        else if (!spider && Player.GetOcc(st, v, a, b) is int o && o >= 0 && (o & 0x7f) > 7 && !Movement.IsYellow(o))
+        {
+            int i = Player.FindAntExact(st, v, a, b, o);
+            st.Set16(Seg.G, 0x7c0, i);
+            if (i < 0) return;
+            st.Set16(Seg.G, 0xa8e, ((st.U8(Seg.G, 0x4e2) ^ o) & 0x80) == 0 ? 4 : 3);
+            st.Set16(Seg.G, 0x84e, o);
+            st.Set16(Seg.G, 0x8da, v == 0 ? 1 : v);
+            st.Set16(Seg.G, 0x8e2, a);
+            st.Set16(Seg.G, 0x9f0, b);
+            session.SetTarget(v, a, b);
+            return;
+        }
+        if (v < 2)
+        {
+            if (spider)
+            {
+                if (st.U16(Seg.G, 0xa06) == 1) Commands.SpiderClick(st, a, b, act ? 1 : 0);
+                return;
+            }
+            st.Set16(Seg.G, 0xa8e, act ? 1 : 0);
+        }
+        else
+        {
+            if (spider) return;
+            int mode = 0;
+            if (act)
+            {
+                mode = 2;
+                if (!Player.IsDirt(st, v, a, b))
+                {
+                    int t = Player.GetTile(st, v, a, b);
+                    bool digTop = st.U16(Seg.G, 0x48c) > 1 && b < 1 && (NestGrid.IsDiggable(t) || (0x1c <= t && t <= 0x1f));   // f_11654
+                    var (bt, _) = Player.BroodAt(st, v, a, b);
+                    bool pickable = Player.IsFood(st, v, t) || Player.IsRock(v, t) || Player.IsBrood(bt);                // f_135de
+                    if (!digTop && ((st.U16(Seg.G, 0x4c2) & 8) != 0 || pickable)) mode = 1;
+                }
+            }
+            st.Set16(Seg.G, 0xa8e, mode);
+        }
+        session.SetTarget(v, a, b);
     }
 
     /// <summary>Go to the colony's queen in its nest: the first cell whose occupant has caste 12 (o &amp; 0x78 ==
@@ -570,7 +650,7 @@ public partial class Main : Node2D
                 break;
             case 15: ToggleWindow(BehaviorWin); break;
             case 17: ToggleWindow(CasteWin); break;
-            case 16: SetView(session.Yellow.view); follow = true; break;
+            case 16: st.Set16(Seg.G, 0x1074, 1); SetView(session.Yellow.view); follow = true; break;   // 0x110 → f_01c52
             case 18: DebugCommands.RandomAction(st); break;                              // the Mystery Button (f_022bc)
             case >= 24 and <= 30: popReport = true; break;                               // held: the population report
             case 19: ToggleWindow(HistoryWin); break;
@@ -2330,7 +2410,7 @@ public partial class Main : Node2D
                 case Key.Right: Scroll(4, 0); break;
                 case Key.Up: Scroll(0, -4); break;
                 case Key.Down: Scroll(0, 4); break;
-                case Key.F: follow = true; break;
+                case Key.F: session.St.Set16(Seg.G, 0x1074, 1); follow = true; break;
                 case Key.Space: session.Paused = !session.Paused; break;
                 case Key.Equal or Key.KpAdd: session.Speed++; break;
                 case Key.Minus or Key.KpSubtract: session.Speed--; break;
