@@ -2,12 +2,17 @@
 
 python opl_capture.py modes                 # boot with each Sound Mode 0..9 and count OPL writes (which is AdLib?)
 python opl_capture.py song <effect id> [mode]   # boot with AdLib, start a song (f_284b3), log the writes
+python opl_capture.py record [outdir]          # traces for the C# driver port (remake/build/traces/opl)
 
 The driver writes the OPL2 through f_28400 (index port 0x388, data port 0x389). SimEmu stubs all port I/O;
 this subclass answers the AdLib detection (timer 1 sets status bits 0xC0) and records (register, value) pairs.
 """
+import copy
+import os
 import sys
 from emu import SimEmu
+
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 OPL = 0x388
 
@@ -88,6 +93,110 @@ def main():
         mode = int(sys.argv[3]) if len(sys.argv) > 3 else 4
         for t, reg, v in capture_song(boot(mode), song):
             print(f'{t} {reg:02x} {v:02x}')
+    elif sys.argv[1] == 'record':
+        record(sys.argv[2] if len(sys.argv) > 2 else os.path.join(HERE, '..', '..', 'remake', 'build', 'traces', 'opl'))
+
+
+class Snapshot:
+    """The emulator's memory, registers and Python-side state, to run each case from the same booted game."""
+    SKIP = ('uc', 'layout', 'files')
+
+    def __init__(self, e):
+        self.mem = bytes(e.uc.mem_read(0, 0x100000))
+        self.ctx = e.uc.context_save()
+        self.py = {k: copy.deepcopy(v) for k, v in vars(e).items() if k not in self.SKIP}
+        self.files = {h: (f, f.tell()) for h, f in e.files.items()}   # open files: keep the objects, restore positions
+
+    def restore(self, e):
+        e.uc.mem_write(0, self.mem)
+        e.uc.context_restore(self.ctx)
+        e.uc.ctl_remove_cache(0, 0x100000)
+        for k, v in self.py.items():
+            setattr(e, k, copy.deepcopy(v))
+        for h, f in list(e.files.items()):
+            if h not in self.files:
+                f.close()
+        e.files = {}
+        for h, (f, pos) in self.files.items():
+            f.seek(pos)
+            e.files[h] = f
+
+
+class Trace:
+    """A replayable trace: commands for the driver and the register writes each one makes.
+    S id: start song id (f_284b3); T: one sequencer step (f_28b1f), then R wait; E n: sound effect n
+    (f_29927); W rr vv: an OPL2 register write (hex), belonging to the command above it."""
+
+    def __init__(self, e):
+        self.e, self.lines = e, []
+
+    def _run(self, cmd, lin, args=()):
+        n = len(self.e.writes)
+        r = self.e.call_lin(lin, args)
+        self.lines.append(cmd)
+        self.lines += [f'W {reg:02x} {v:02x}' for reg, v in self.e.writes[n:]]
+        return r
+
+    def song(self, song_id):
+        self._run(f'S {song_id}', 0x284b3, (song_id,))
+
+    def step(self):
+        wait = self._run('T', 0x28b1f)
+        self.lines.append(f'R {wait}')
+        return wait
+
+    def effect(self, n):
+        self._run(f'E {n}', 0x29927, (n,))
+
+    def play(self, max_steps=20000):
+        for _ in range(max_steps):
+            if self.step() == 0xffff:
+                break
+
+    def save(self, path):
+        with open(path, 'w', newline='\n') as f:
+            f.write('\n'.join(self.lines) + '\n')
+
+
+def record(outdir, mode=6):
+    """Every song (SOUND type 18 ids) and every effect from a fresh boot, all effects in a row, and a song
+    with effects in between (voice stealing), as traces for Formica.Data's driver port."""
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+    import simres
+    game_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+    songs = sorted(r['id'] for r in simres.read_archive(os.path.join(game_dir, 'SOUND')) if r['type'] == 18)
+    os.makedirs(outdir, exist_ok=True)
+    e = boot(mode)
+    snap = Snapshot(e)
+    for s in songs:
+        snap.restore(e)
+        t = Trace(e)
+        t.song(s)
+        t.play()
+        t.save(os.path.join(outdir, f'song_{s}.trace'))
+        print('song', s, len(t.lines))
+    for n in range(56):
+        snap.restore(e)
+        t = Trace(e)
+        t.effect(n)
+        t.save(os.path.join(outdir, f'fx_{n:02d}.trace'))
+    snap.restore(e)
+    t = Trace(e)
+    for n in range(56):
+        t.effect(n)
+    t.save(os.path.join(outdir, 'fx_all.trace'))
+    snap.restore(e)
+    t = Trace(e)
+    t.song(0x2711)
+    k = 0
+    for i in range(3000):
+        if t.step() == 0xffff:
+            break
+        if i % 40 == 7:
+            t.effect([0, 3, 9, 15, 25, 30, 35, 46, 48, 50, 51, 53, 54][k % 13])
+            k += 1
+    t.save(os.path.join(outdir, 'mixed_2711.trace'))
+    print('effects and mixed done')
 
 
 def capture_song(e, song, max_events=20000):
