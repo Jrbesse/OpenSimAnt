@@ -101,8 +101,8 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 ## 6. Full Game: the yard
 
 - [ ] The yard window: Patch / House / Strat / Graphic views; the human, mower, dog, bird, rain.
-- [ ] Moving to another patch (click a patch next to the colony), the refusals ("suicide to transfer", ...).
-- [ ] MATE, AUTOMATIC / MANUAL, PLACE (a new queen within 3 patches, Shift to keep placing).
+- [ ] Moving to another patch (double-click a patch next to the colony), the refusals ("suicide to transfer", ...).
+- [ ] MATE, AUTOMATIC / MANUAL, PLACE (a new queen within 3 patches, highlighted under the mouse; Shift to keep placing).
 - [ ] Losing the colony's last ant opens the yard to pick another.
 - [ ] The house patches.
 

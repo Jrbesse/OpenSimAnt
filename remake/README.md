@@ -90,7 +90,7 @@ Keys:
 | P, O | Behavior and Caste Control windows; automatic / manual jobs (G:0378) |
 | G, V | History window; scent views (T:07BE) |
 | F1 | the help overlays (File > New is Select a Game, File > About the about box) |
-| Y, Esc | yard map in a Full Game (click a patch to move; also opens when another colony must be picked); Esc also closes the SimAntipedia |
+| Y, Esc | yard map in a Full Game (double-click a patch to move; also opens when another colony must be picked: click one with a black colony); Esc also closes the SimAntipedia |
 | F8 / F9 | quick save / load (the original's .ANT format, in Godot's user:// folder) |
 | S | sound effects on / off (the shell's mute) |
 | N / M / K | new Quick Game / Full Game / Experimental game |
