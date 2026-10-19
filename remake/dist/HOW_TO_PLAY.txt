@@ -1,0 +1,56 @@
+FORMICA - a fan remake of SimAnt (1991)
+=======================================
+
+This is a test build. Thanks for trying it!
+
+WHAT YOU NEED
+
+  * A Windows 10 or 11 PC (64-bit).
+  * Your own copy of the original DOS version of SimAnt. The remake does not include
+    any of the original game: it reads the art, sounds and rules from your copy.
+    The folder you need has these files in it:
+
+        SIMANT.EXE   HCEGANT.DAT   HCEGANT.NDX   SHARED.DAT   SHARED.NDX   SOUND.DAT   SOUND.NDX
+
+    (Only the first three are required. Without SHARED and SOUND there are no menus or sounds.)
+
+STARTING THE GAME
+
+  1. Right-click the zip you downloaded and choose "Extract All...", then open the
+     extracted folder. (Running it straight from inside the zip won't work.)
+
+  2. Double-click Formica.exe.
+
+     Windows may show a blue box saying "Windows protected your PC". That happens because
+     this test build isn't signed. Click "More info", then "Run anyway".
+
+  3. The first time, the game asks where your SimAnt files are. Click
+     "Find my game folder..." and pick the folder with SIMANT.EXE in it (picking the folder
+     just above it works too). The game remembers it, so you only do this once.
+
+     Shortcut: if you copy your SimAnt files into the same folder as Formica.exe (or into a
+     folder next to it), the game finds them by itself and skips this step.
+
+PLAYING
+
+  The screen works like the original game: the menus are along the top, and the game starts
+  at the title screen. Click on the map to walk the yellow ant, double-click (or right-click)
+  to pick up, drop, dig or fight. Press and hold on the yellow ant for its menu.
+
+  Keyboard: Space pauses, + and - change the speed, arrow keys scroll, F follows the yellow ant.
+
+  Saved games are kept in:  %APPDATA%\Godot\app_userdata\Formica
+  (Paste that into the address bar of a File Explorer window to open it.)
+
+IF SOMETHING GOES WRONG
+
+  * "Find my game folder" says the files aren't there: make sure the folder really has
+    SIMANT.EXE, HCEGANT.DAT and HCEGANT.NDX in it. The Windows version of SimAnt has
+    different files and won't work; it has to be the DOS version.
+
+  * To choose a different SimAnt folder, delete settings.cfg from the saved-games folder
+    above and start the game again.
+
+  * Anything else (a crash, something that looks wrong, something that doesn't work like
+    the original): tell whoever sent you this, and say what you were doing when it happened.
+    A screenshot helps a lot.

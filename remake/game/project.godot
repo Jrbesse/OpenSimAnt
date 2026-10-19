@@ -21,6 +21,7 @@ window/stretch/scale_mode="integer"
 [dotnet]
 
 project/assembly_name="Formica"
+project/solution_directory="../"
 
 [rendering]
 

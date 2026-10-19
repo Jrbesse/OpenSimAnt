@@ -68,11 +68,9 @@ public partial class Main : Node2D
         }
         if (dir == null)
         {
-            status.Text = "Original game files not found.";
-            message.Text = "Copy SIMANT.EXE, HCEGANT.DAT/.NDX into the game folder or pass --game-dir=<path>.";
-            status.Position = new Vector2(8, 200);
-            message.Position = new Vector2(8, 220);
             GD.PrintErr("Formica: no SIMANT.EXE / HCEGANT found");
+            screenshot = OS.GetCmdlineUserArgs().FirstOrDefault(x => x.StartsWith("--screenshot="))?["--screenshot=".Length..];
+            ShowSetup(layer);
             return;
         }
         GD.Print("Formica: game files in " + dir);
@@ -152,14 +150,27 @@ public partial class Main : Node2D
         Redraw();
     }
 
-    /// <summary>--game-dir=..., FORMICA_GAME_DIR, or the folders above the project / the executable.</summary>
+    const string SettingsPath = "user://settings.cfg";
+
+    /// <summary>--game-dir=..., FORMICA_GAME_DIR, the folder picked on the setup screen (settings.cfg), the
+    /// executable's folder and the ones just inside it, or the folders above the project / the executable.</summary>
     static string FindGameDir()
     {
         foreach (var arg in OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()))
             if (arg.StartsWith("--game-dir=")) return arg["--game-dir=".Length..];
         var env = System.Environment.GetEnvironmentVariable("FORMICA_GAME_DIR");
         if (!string.IsNullOrEmpty(env) && OriginalFiles.Present(env)) return env;
-        foreach (var start in new[] { ProjectSettings.GlobalizePath("res://"), System.IO.Path.GetDirectoryName(OS.GetExecutablePath()) })
+        var settings = new ConfigFile();
+        if (settings.Load(SettingsPath) == Error.Ok)
+        {
+            var saved = (string)settings.GetValue("files", "game_dir", "");
+            if (saved != "" && OriginalFiles.Present(saved)) return saved;
+        }
+        var exeDir = System.IO.Path.GetDirectoryName(OS.GetExecutablePath());
+        if (SearchGameDir(exeDir, 2) is string near) return near;
+        // res:// is the project folder only when running from source; an exported build has no such folder
+        var starts = OS.HasFeature("template") ? new[] { exeDir } : new[] { ProjectSettings.GlobalizePath("res://"), exeDir };
+        foreach (var start in starts)
         {
             var d = new System.IO.DirectoryInfo(start);
             for (int i = 0; i < 5 && d != null; i++, d = d.Parent)
@@ -168,10 +179,63 @@ public partial class Main : Node2D
         return null;
     }
 
+    /// <summary>The first folder with the game's files: root itself, then the folders inside it, depth levels down.</summary>
+    static string SearchGameDir(string root, int depth)
+    {
+        if (OriginalFiles.Present(root)) return root;
+        if (depth == 0) return null;
+        try
+        {
+            foreach (var sub in System.IO.Directory.EnumerateDirectories(root))
+                if (SearchGameDir(sub, depth - 1) is string found) return found;
+        }
+        catch (System.UnauthorizedAccessException) { }
+        catch (System.IO.IOException) { }
+        return null;
+    }
+
+    /// <summary>
+    /// No game files found: the first-run screen. A button opens the system's folder picker; the folder the
+    /// player picks (or one up to two levels inside it) is kept in user://settings.cfg and the scene restarts.
+    /// </summary>
+    void ShowSetup(CanvasLayer layer)
+    {
+        status.Text = "Formica needs the files from your own copy of the original DOS game.";
+        message.Text = "Click the button below and choose the folder that has SIMANT.EXE in it.";
+        status.Position = new Vector2(16, 170);
+        message.Position = new Vector2(16, 190);
+        var button = new Button { Text = "Find my game folder...", Position = new Vector2(16, 224) };
+        button.AddThemeFontSizeOverride("font_size", 12);
+        var dialog = new FileDialog
+        {
+            FileMode = FileDialog.FileModeEnum.OpenDir,
+            Access = FileDialog.AccessEnum.Filesystem,
+            UseNativeDialog = true,
+            Title = "Choose the folder with SIMANT.EXE",
+        };
+        dialog.DirSelected += picked =>
+        {
+            var found = SearchGameDir(picked, 2);
+            if (found == null)
+            {
+                message.Text = "SIMANT.EXE, HCEGANT.DAT and HCEGANT.NDX are not in that folder. Try another one.";
+                return;
+            }
+            var settings = new ConfigFile();
+            settings.Load(SettingsPath);
+            settings.SetValue("files", "game_dir", found);
+            settings.Save(SettingsPath);
+            GetTree().ReloadCurrentScene();
+        };
+        button.Pressed += () => dialog.PopupCentered(new Vector2I(600, 420));
+        layer.AddChild(button);
+        layer.AddChild(dialog);
+    }
+
     public override void _Process(double delta)
     {
-        if (session == null) return;
-        if (session.Hooks.YardMapWanted)                                    // the yellow ant died: pick a colony
+        if (session == null) { ShotPoll(); return; }                       // the setup screen
+        if (session.Hooks.YardMapWanted)                                   // the yellow ant died: pick a colony
         {
             session.Hooks.YardMapWanted = false;
             OpenYard(true);
@@ -185,6 +249,11 @@ public partial class Main : Node2D
         DrainEffects();
         if (follow) CenterOnYellow();
         Redraw();
+        ShotPoll();
+    }
+
+    void ShotPoll()
+    {
         if (screenshot != null && ++frames == shotFrames)
         {
             // --screenshot=<png>: save the screen after 240 frames and quit (for checking a build)

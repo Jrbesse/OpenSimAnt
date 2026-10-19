@@ -201,6 +201,17 @@ reached through `90 90 90 EA off seg` thunks (scan flat.bin for the target), and
 after the `jmp cs:[bx + n]`, which gives the CS base. Write C# with the Write / Edit tools: Python
 heredocs in bash turn `'\n'` into real line breaks (it happened twice more this session).
 
+**Test builds for friends (2026-10-19):** `remake/game/export_presets.cfg` (Windows Desktop) and
+`.github/workflows/release.yml` (a `v*` tag → a pre-release with `Formica-<tag>-windows.zip`, the export plus
+`remake/dist/HOW_TO_PLAY.txt`). `project.godot` sets `dotnet/project/solution_directory="../"` (the export
+fails with "no solution file exists" without it). With no game files found, the game shows a setup screen
+(`ShowSetup`): a native folder picker; the pick is searched two levels down and kept in
+`user://settings.cfg` (`[files] game_dir`). The exported exe also searches its own folder two levels down.
+Exported locally and checked (in place, from an empty folder, with settings.cfg, with the files in a
+subfolder); the native picker itself and the GitHub workflow are not yet run. The repo is private, so release
+downloads need a GitHub login until the owner decides about making it public. Godot here:
+`C:\Godot\Godot_v4.6.2-stable_mono_win64\Godot_v4.6.2-stable_mono_win64_console.exe`.
+
 ## Notes for the Godot remake (what the reference teaches)
 
 - **Art and audio**: read `docs/ART_PLAN.md`. It covers the two asset modes ("Use your own copy" for a

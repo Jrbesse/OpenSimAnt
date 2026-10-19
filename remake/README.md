@@ -38,7 +38,9 @@ At this commit all 25 trace files (about 225,000 calls, including 67,200 SimStep
 
 Open `remake/game` in Godot 4.6 (.NET), or build with `dotnet build remake/game/Formica.csproj` and run
 Godot with `--path remake/game`. The game looks for the original files in `--game-dir=<path>` (a user arg after
-`--`), `FORMICA_GAME_DIR`, or the folders above the project. `-- --screenshot=out.png` saves the screen after
+`--`), `FORMICA_GAME_DIR`, the folder picked on the setup screen (kept in `user://settings.cfg`), the
+executable's folder and up to two levels inside it, or the folders above the project / the executable. With
+none of those it shows the setup screen: a button opening the system's folder picker. `-- --screenshot=out.png` saves the screen after
 240 frames and quits; `--ticks=N` runs the game N ticks ahead first, `--history` opens the History graph.
 
 The screen is built from the original's window layouts (`Formica.Data/Ui.cs` draws them with the player's own
@@ -101,6 +103,20 @@ Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`,
 `--map-front`, `--help-overlay`, `--yard`, `--strat`, `--scent-menu`, `--ant-info`, `--select`, `--report`,
 `--exp-menu`, `--trails`, `--spider-view` (the surface around the spider), `--frames=N` (screenshot after N frames), `--tutorial[=step]` (the Tutorial, at that step), `--silly` (Options > Silly on: speech balloons), `--menu=m[,item]` (a menu open, an item highlighted), `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y), `--game-over`, `--load-dialog`, `--save-dialog` to open those
 windows first; `--full` / `--experimental` start that kind of game.
+
+## Test builds for players
+
+`game/export_presets.cfg` has a "Windows Desktop" preset (x86_64, the PCK embedded in the exe; the .NET
+runtime goes in `data_Formica_windows_x86_64/`, so players install nothing). Export locally with
+
+```
+Godot_v4.6.2-stable_mono_win64_console.exe --headless --path remake/game --export-release "Windows Desktop" ../build/export/windows/Formica.exe
+```
+
+`.github/workflows/release.yml` does the same on GitHub: pushing a tag `v*` exports, zips the build with
+`dist/HOW_TO_PLAY.txt` (the player's instructions) and attaches the zip to a pre-release; running it by hand
+keeps the zip as a workflow artifact only. No original data goes in the zip: on first run the game asks for
+the player's own copy (the setup screen above).
 
 ## Porting notes
 

@@ -41,5 +41,8 @@ python -I tools/extract.py                          # optional: browse the art, 
 cd remake && dotnet build game/Formica.csproj       # then open remake/game in Godot 4.6 (.NET) and run
 ```
 
+Test builds for Windows (no Godot or .NET needed) come from tagged releases; see "Test builds for players"
+in `remake/README.md`. On first run the game asks for the folder with your copy of the original files.
+
 The verification setup (emulator snapshots, traces) is described in `docs/HANDOFF.md` and
 `remake/README.md`.
