@@ -123,7 +123,7 @@ item record
 | 0x06 | 0x2A | picture, bitmap id at +28 (`f_25c75`) |
 | 0x07, 0x08 | 0x2A | icon / check control (`f_244cc`) |
 | 0x0C | strlen + 0x2D | text button, string at +2A: fill, a 1-px line in the foreground along the bottom, text |
-| 0x0D | 0x2C | two-state picture: +24 bit 2 picks the bitmap word at +26 or +28 |
+| 0x0D | 0x2C | two-state picture: the bitmap word at +28 when +24 has bit 2, else at +2A (`f_223b3` 0x224E0; no layout uses the type) |
 | 0x0F | 0x29 | a frame +28 px thick (`f_22248` → `f_1d018`), no fill; windows' borders are 2 |
 | 0x10 | strlen + 0x31 | formatted field: +2C, printf format at +2E ("%d", "%d%%") |
 | 0x11 | strlen + 0x31 | filled text, string at +2E |
