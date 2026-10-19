@@ -189,8 +189,8 @@ Suggested next session (in order):
 3. Open screen details: (done: the Edit window's bottom strip, item 21); the list (type 4, f_241f2) and
    icon / check items (7 / 8, f_244cc) of the file dialog; the two undecoded bytes of each colour scheme;
    (done: f_21336's re-layout by the attach modes at +18, FILE_FORMATS; the message box sized as f_71bb6 does,
-   "Click here" in b - 13 .. b - 2 over the 8 px under the text, font 3 as layout 30 says; whether the lines'
-   drawing, f_20983, fills its rows over part of it is not traced); the Map window's click
+   "Click here" in b - 13 .. b - 2 over the 8 px under the text, font 3 as layout 30 says; the lines' drawing,
+   f_20983, does no fill: width, height, then the glyphs through f_24e3d, whose blit mode is not traced); the Map window's click
    (0x102 → f_2f898); whether to give Space back to the original (left button) instead of the shell's pause.
 4. (done: f_7650c is the colony pick in the yard window, see above.)
 5. **Audio fidelity** (2026-10-19: steps a..f done, the same day; SIM_NOTES "The sound driver", remake/README
@@ -489,6 +489,9 @@ downloads need a GitHub login until the owner decides about making it public. Go
 
 2026-10-19, later (screen details, all decoded from the VGA driver):
 ```
+bd09ebb Message boxes: f_21336's re-layout by the items' attach modes; the box sized as f_71bb6 does
+2c70529 Edit window: the map's 21st row shows in the strip under the map item (item 21, f_07558)
+0c7168d Handoff: the screen-detail commits
 90be88e Notes: the driver's line routine
 710ce9a Lines as the VGA driver draws them (DS:916C): left to right, error from 0 against half the span
 0c21a2b History window: the plot as f_795ec draws it, with the series slots and labels of f_79373
@@ -512,7 +515,7 @@ b67bca6 Setup screen: draw its text at the window's resolution
 bf7dc9e Release workflow: add the zip to a release made on GitHub's web page
 122e3ca Test builds for players: Windows export, release workflow, setup screen
 ```
-Usage: this session ran from about 12% to about 35% of the 5-hour window (weekly 22%).
+Usage: this session ran from about 12% to about 85% of the 5-hour window (weekly about 29%).
 
 2026-10-18 night:
 ```
