@@ -82,7 +82,12 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 
 ## 4. Map window and the colony controls
 
-- [ ] Click the map to look there; the scent layers; Show Trails.
+- [ ] Press / drag on the map to look there; right click: the yellow ant goes there and acts; the scent
+  layers; Show Trails.
+- [ ] Scrolling: Ctrl + arrows / keypad (diagonals on Home / PgUp / End / PgDn) and the mouse at the screen's
+  edge scroll the Edit window while held. Insert / Delete act as the left / right mouse button.
+- [ ] Messages: the advisor's lines ("Your colony needs food", ...) appear centred at the top of the Edit map
+  for a few seconds (Options > Messages); death / queen messages come as message boxes (Options > Events).
 - [ ] Hold the population report: the detailed per-caste window.
 - [ ] Behavior / Caste Control: drag the marker; Auto / Manual; Set 1..3 presets; the bars and corner values
   move as the colony changes.
