@@ -2500,6 +2500,14 @@ public partial class Main : Node2D
                 case Key.Up when !k.CtrlPressed: Scroll(0, -4); break;
                 case Key.Down when !k.CtrlPressed: Scroll(0, 4); break;
                 case Key.F: session.St.Set16(Seg.G, 0x1074, 1); follow = true; break;
+                case Key.Insert or Key.Delete:                                             // f_2024b: Insert (and Space) the left button, Delete the right
+                {
+                    var mp = GetViewport().GetMousePosition();
+                    var button = k.Keycode == Key.Insert ? MouseButton.Left : MouseButton.Right;
+                    Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = button, Pressed = true, Position = mp, GlobalPosition = mp });
+                    Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = button, Pressed = false, Position = mp, GlobalPosition = mp });
+                    break;
+                }
                 case Key.Space: session.Paused = !session.Paused; break;
                 case Key.Equal or Key.KpAdd: session.Speed++; break;
                 case Key.Minus or Key.KpSubtract: session.Speed--; break;
