@@ -484,6 +484,20 @@ downloads need a GitHub login until the owner decides about making it public. Go
 
 ## Commit log since the last summary
 
+2026-10-19 (test builds; the sound driver, decoded, ported and verified; the OPL2):
+```
+ff6d025 The sample mixer as the original's handler, verified on its DAC bytes; samples wrap, not clamp
+48d3088 Handoff and notes: the sound driver port, the OPL2, the third-party notices
+41f1d31 The original's own sound: an OPL2 port (ymfm, BSD-3) under the verified driver, in the game
+192ebe3 Port the sound driver (Sound Blaster mode); verified on the original's OPL2 register streams
+b716d47 Sound effects by the driver's effect table, at its 5575.6 Hz mixing rate
+362e7a6 Decode the sound driver's AdLib instruments; plan the OPL2 emulation
+b67bca6 Setup screen: draw its text at the window's resolution
+bf7dc9e Release workflow: add the zip to a release made on GitHub's web page
+122e3ca Test builds for players: Windows export, release workflow, setup screen
+```
+Usage: this session ran from about 12% to about 35% of the 5-hour window (weekly 22%).
+
 2026-10-18 night:
 ```
 fee5ca3 Remake shell: Insert / Delete as the left / right mouse button (f_2024b)
