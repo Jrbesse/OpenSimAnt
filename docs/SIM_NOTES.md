@@ -1340,7 +1340,14 @@ content is T:07C8:
   T:04A6[dirt >> 2].
 - 4..8, the black nest marker, black trail, red nest marker, red trail and alarm maps (`f_6eb66`):
   each map cell is 2 x 2 bytes, v ? 0x10 + (v >> 5) : 0x0B.
-- Bytes 0x10 and up are dithered by the driver; not decoded.
+- Bytes 0x10 and up are dither patterns (decoded 2026-10-19; `MapRenderer.DitherIndex`). The image goes to
+  the screen a row at a time through the 16-colour driver's converter (`f_6e830` → G:38B8 = 0x31260 for 128
+  wide, G:38BC = 0x31397 for 64): colour byte c is four plane bytes at DS:1F9E + 4c (static; 0..15 are
+  solid, 0x10 = ff 55 00 55, 0x11 = ff 55 00 55, 0x12 = ff 00 00 00, 0x13 = 55 aa 00 00, 0x14 = 00 ff 00
+  00, 0x15 = aa ff 00 00, 0x16 = ff ff 00 00, 0x17 = 55 55 aa 00). A cell is 4 x 4 px; two neighbouring
+  cells share each plane byte (the even one its high nibble, the odd one its low nibble, a bit per pixel
+  from the left); scanlines 0 and 2 take the bytes as they are, 1 and 3 rotated left by one: checkerboards
+  from yellow through orange to red for the scent maps.
 
 These are the 16-colour tables, used when the video mode DS:5A97 has bit 0 clear (8 in the
 snapshots). The other set (T:061E, T:04CE, T:054E, T:0656) holds 256-colour values.

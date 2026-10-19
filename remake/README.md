@@ -101,7 +101,7 @@ Keys:
 | N / M / K | new Quick Game / Full Game / Experimental game |
 
 Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`, `--efficiency`, `--popup`,
-`--map-front`, `--help-overlay`, `--yard`, `--strat`, `--scent-menu`, `--ant-info`, `--select`, `--report`,
+`--map-front`, `--map-content=n` (the Map window shows T:07C8 = n: 4..8 the scent maps), `--help-overlay`, `--yard`, `--strat`, `--scent-menu`, `--ant-info`, `--select`, `--report`,
 `--exp-menu`, `--trails`, `--spider-view` (the surface around the spider), `--frames=N` (screenshot after N frames), `--tutorial[=step]` (the Tutorial, at that step), `--silly` (Options > Silly on: speech balloons), `--menu=m[,item]` (a menu open, an item highlighted), `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y), `--game-over`, `--load-dialog`, `--save-dialog` to open those
 windows first; `--full` / `--experimental` start that kind of game.
 

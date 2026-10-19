@@ -331,7 +331,7 @@ downloads need a GitHub login until the owner decides about making it public. Go
    Also documented (SIM_NOTES): the Ant Info window (`f_67c1c`), the tool palette (`f_680a4`), the
    four in-game menus.
    Open (all visual detail; none blocks the Godot port):
-   - colours 0x10.. in the map window (driver dither, DS:914C; drawn as a plain ramp);
+   - (done 2026-10-19: colours 0x10.. in the map window, the dither patterns DS:1F9E.)
    - the panels' bar charts (`f_0839a` / `f_08255`), the History Window's line drawing;
    - the text colours (+26?), the frame styles (named from their drawing routines only), the item
      fields +10 / +18 / +20, the UI tables 128 / 129 / 131;

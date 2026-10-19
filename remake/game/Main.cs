@@ -147,6 +147,9 @@ public partial class Main : Node2D
         MoveChild(screen, 0);
         SetView(session.Yellow.view);
         if (screenshotSpider) { SetView(1); CenterOn(session.St.S16(Seg.G, 0xf12) >> 4, session.St.S16(Seg.G, 0xf34) >> 4); follow = false; }
+        foreach (var arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--map-content="))                           // --map-content=n: the Map window shows T:07C8 = n
+                session.St.Set16(Seg.T, 0x7c8, int.Parse(arg["--map-content=".Length..]));
         Redraw();
     }
 
@@ -637,10 +640,13 @@ public partial class Main : Node2D
                 uint col;
                 if (content >= 4 && content <= 8)
                 {
-                    // f_6eb66: v ? 0x10 + (v >> 5) : 0x0B; the 0x10.. colours are the driver's dithers (not decoded):
-                    // drawn as a ramp from light to dark
+                    // f_6eb66: v ? 0x10 + (v >> 5) : 0x0B; the 0x10.. colours are the driver's dither patterns
                     int v = MapRenderer.Scent(st, MapRenderer.ScentMode(content), a, b);
-                    col = v == 0 ? session.Art.Palette[11] : Ramp(v);
+                    int cb = v == 0 ? 0x0b : 0x10 + (v >> 5);
+                    for (int py = 0; py < 4; py++)
+                        for (int px = 0; px < 4; px++)
+                            area.Plot(x0 + a * 4 + px, y0 + b * 4 + py, session.Art.Palette[MapRenderer.DitherIndex(session.Files.Flat, cb, a, px, py)]);
+                    continue;
                 }
                 else if (trails)
                 {
@@ -691,13 +697,6 @@ public partial class Main : Node2D
             var it = ui.Layouts[MapWin].Items.First(x => x.Bitmap == 14001);
             ui.DrawBitmap(win, 14001, it.Rect.left + dx, it.Rect.top + dy);
         }
-    }
-
-    static uint Ramp(int v)
-    {
-        int k = Math.Clamp(v >> 5, 0, 7);
-        int g = 230 - k * 28;
-        return 0xff000000u | ((uint)g << 16) | ((uint)(g * 3 / 4) << 8) | (uint)(g / 3);
     }
 
     void MapWindowClick(int index, InputEventMouseButton mb)

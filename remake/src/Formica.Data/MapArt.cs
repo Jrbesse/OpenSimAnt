@@ -99,6 +99,25 @@ public static class MapRenderer
 
     public const int Height = 64;
 
+    /// <summary>
+    /// The 16-colour driver's row converter for the 128-wide map image (G:38B8 → 0x31260): colour byte c is four
+    /// plane bytes at DS:1F9E + 4c (0..15 solid, 0x10.. dither patterns). A cell is 4 x 4 px; two neighbouring cells
+    /// share each plane byte, the even one taking its high nibble and the odd one its low nibble, a bit per pixel
+    /// from the left; scanlines 1 and 3 take the byte rotated left by one. Returns the palette index (0..15) of
+    /// pixel (px, py) of cell column `a` in colour `c`.
+    /// </summary>
+    public static int DitherIndex(byte[] flat, int c, int a, int px, int py)
+    {
+        int index = 0, bit = (a & 1) == 0 ? 7 - px : 3 - px;
+        for (int p = 0; p < 4; p++)
+        {
+            int t = flat[0x55b3 * 16 + 0x1f9e + 4 * c + p];
+            if ((py & 1) != 0) t = ((t << 1) | (t >> 7)) & 0xff;
+            index |= ((t >> bit) & 1) << p;
+        }
+        return index;
+    }
+
     /// <summary>f_02c21: the recolour mode, the low byte of the word at DS:1A58 + ((fg &amp; 0xFFBF) >> 6).</summary>
     static int ColourMode(State st, int fg) => st.U8(DS, 0x1a58 + (((fg & 0xffbf) >> 6) & 0xffff));
 
