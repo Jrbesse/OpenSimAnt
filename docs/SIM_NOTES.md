@@ -1746,6 +1746,17 @@ Rand(5) the sad songs (the yellow ant's deaths, f_75d01). The reference had thre
 volume argument): fixed to `'voice', 0x2afa` (newgame.move_to_patch) and `'sound', 1` (f_00ed8(1, 0, 0x7E): a
 refused patch, and death events 3 / 4).
 
+**The timed message** (`f_15e2c(text, duration, force)`, the "status line"): two slots, DS:19C6 (text far
+pointer, expiry DS:19CA = clock + duration * 3 / 2, or 0x7FFFFFFF for a negative duration; dirty DS:19CE) and the
+copy DS:299A (expiry DS:299E, dirty DS:29A2). A message is taken when forced, or when none is shown and Messages
+(T:07B0) is on, or when it clears (null) a lasting one. The Edit window draw `f_038a6` clears an expired one, else
+draws it with `f_15d96(text, G:110C (the map rectangle), G:110E + 4)`: font 2 (0 at 320 px), scheme 3, centred
+over the map at its top + 4. `f_7052b` shows the copy in the yard window as a font-2 sprite centred at the top of
+the yard picture (G:10D2..G:10D6). Texts: the advisor G:0360 (STR# 1020) for 120; STR# 1010 by offset from G:034C
+(e.g. +0x10 [4] entering the red nest, +0x58 [22] / +0x54 [21] the dig / fill refusals, forced, 120; MATE's
+[15] / [5] / [6] for 180). `f_71b1a(picture, id, flag)` (the reference's 'message' / 'message_box') is a message
+box shown when flag != 0 or Events (T:07AE) is on.
+
 Layout (`f_2fd2_0663`): the titles' widths in cells go to DS:46BC and their x to DS:46A8: x0 = 0, then + (len +
 gap) * 8 with gap = (screen width / 8 - all titles' cells) / (n - 1) kept within 1..3 (3 at 640 px: x = 0, 64,
 144, 208, 296). The bar is the font's height + 3 px tall, titles at y = 1 in font 1 (8 x 10, DS:3DDE / DS:3DDC);

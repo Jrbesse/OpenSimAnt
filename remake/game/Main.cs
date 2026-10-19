@@ -190,14 +190,25 @@ public partial class Main : Node2D
         while (session.Hooks.Effects.Count > 0)
         {
             var e = session.Hooks.Effects.Dequeue();
-            if (e.Name is "message" or "message_box" && e.Args.Length > 0 && e.Args[0] is int id)
+            if (e.Name is "message" or "message_box" && e.Args.Length > 0 && e.Args[0] is int)
             {
+                // f_71b1a(picture, STR# id, flag): a message box, shown when flag != 0 or Options > Events (T:07AE) is on.
+                // "message" is f_71b1a(0, id, 0); "message_box" carries (id, flag[, picture]); the starved queens'
+                // "message" has (0x1093, 0, id, 1).
+                int id = (int)e.Args[0], flag = 0, pic = 0;
+                if (e.Name == "message" && e.Args.Length >= 4) { id = Convert.ToInt32(e.Args[2]); flag = Convert.ToInt32(e.Args[3]); }
+                else if (e.Name == "message_box")
+                {
+                    flag = e.Args.Length > 1 ? Convert.ToInt32(e.Args[1]) : 1;
+                    pic = e.Args.Length > 2 && e.Args[2] is int p ? p : 0;
+                }
                 var lines = session.Files.Strings(id);
-                lastMessage = lines != null ? string.Join(" ", lines) : $"message 0x{id:x}";
-                GD.Print("message: " + lastMessage);
-                if (e.Name == "message_box" && lines != null && (screenshot == null || tutorialShot))
-                    OpenMessageBox(lines, e.Args.Length > 2 && e.Args[2] is int pic ? pic : 0);
+                GD.Print("message: " + (lines != null ? string.Join(" ", lines) : $"0x{id:x}"));
+                if (lines != null && (flag != 0 || session.Option(3)) && (screenshot == null || tutorialShot))
+                    OpenMessageBox(lines, pic);
             }
+            else if (e.Name == "status" && e.Args.Length > 0)
+                StatusEffect(e.Args);
             else if (e.Name == "sound" && e.Args.Length > 0 && e.Args[0] is int sfx && sfx < 57
                      && session.St.U16(Seg.T, 0x7ac) != 0)
                 PlaySound(sfx);
@@ -1668,6 +1679,51 @@ public partial class Main : Node2D
         }
     }
 
+    // ------------------------------------------------------------------------------- the timed message (f_15e2c)
+    // f_15e2c(text, duration, force) keeps the message the Edit window draw (f_038a6) shows centred at the top of its
+    // map (f_15d96: font 2, scheme 3 black on white, y = map top + 4) until clock + duration * 3 / 2 (a negative
+    // duration: until replaced); the yard window shows a second copy (DS:299A, f_7052b). A new message replaces the
+    // shown one only when forced, or when none is shown and Options > Messages (T:07B0) is on. The sim's "status"
+    // effects: the advisor's (STR# 1020 [index] = G:0360, 120 ticks; null clears a lasting one), entering the red
+    // nest (1010 [4]), the map tools' refusals (1010 [22] / [21], forced); MATE and PLACE use it too.
+    string statusText;
+    long statusUntil;
+
+    void ShowStatus(string text, int duration, bool force)
+    {
+        bool lasting = statusUntil == long.MaxValue;
+        if (!(force || (statusText == null && session.Option(4)) || (text == null && lasting))) return;
+        statusUntil = duration < 0 ? long.MaxValue : session.St.Clock + duration * 3L / 2;
+        statusText = text;
+    }
+
+    void StatusEffect(object[] a)
+    {
+        string S(int list, int k) => session.Files.Strings(list) is { } l && k < l.Length ? l[k] : null;
+        switch (a[0])
+        {
+            case null: ShowStatus(null, 0, false); break;
+            case "red nest": ShowStatus(S(1010, 4), 120, false); break;
+            case "cannot dig here": ShowStatus(S(1010, 22), 120, true); break;
+            case "cannot fill here": ShowStatus(S(1010, 21), 120, true); break;
+            case int list when list >= 1000 && a.Length > 1: ShowStatus(S(list, Convert.ToInt32(a[1])), 120, false); break;
+            case int k: ShowStatus(S(1020, k), a.Length > 1 ? Convert.ToInt32(a[1]) : 120, a.Length > 2 && Convert.ToInt32(a[2]) != 0); break;
+        }
+    }
+
+    void DrawStatusMessage(UiArt.Canvas c)
+    {
+        if (statusText == null) return;
+        if (session.St.Clock > statusUntil) { statusText = null; return; }
+        var f = ui.Font(2);
+        var m = ItemRect(EditWin, EditMapItem);
+        string text = statusText.Replace("\n", " ");
+        int w = f.Width(text), x = (m.l + m.r - w) / 2, y = m.t + 4;
+        var clip = c.Clip(m.l, m.t, m.r, m.b);
+        clip.Fill(x - 2, y, x + w + 2, y + f.Height, UiArt.White);
+        f.Draw(clip, x, y, text, UiArt.Black);
+    }
+
     // ------------------------------------------------------------------------------- speech balloons
     // Balloons.Run (f_06a4d) emits ("balloon", a, b, view, style, (list handle, line)) each tick a balloon is
     // shown (Options > Silly, T:07B2); the list handles are the STR# lists loaded at start-up: G:020A 1220 (black
@@ -1875,7 +1931,7 @@ public partial class Main : Node2D
         {
             yardChoose = true;
             session.St.Set16(Seg.G, 0x35c, 2);
-            lastMessage = session.Files.Strings(1010)?[20] ?? "Click on a black colony to continue.";
+            ShowStatus(session.Files.Strings(1010)?[20] ?? "Click on a black colony to continue.", -1, true);
         }
         Front(YardWin);
     }
@@ -1953,6 +2009,15 @@ public partial class Main : Node2D
         var q = ItemRect(YardWin, 12);                                     // the swarm's black queens G:07C8
         clip.Fill(q.l, q.t, q.r, q.b, UiArt.White);
         ui.DrawText(clip, 3, 0, q.l, q.t, q.r, q.b, Math.Max(0, (int)st.S16(Seg.G, 0x7c8)).ToString());
+        if (statusText != null && session.St.Clock <= statusUntil)
+        {
+            // f_7052b: the message's second copy (DS:299A) as a font-2 sprite centred at the top of the yard picture
+            var f = ui.Font(2);
+            string text = statusText.Replace("\n", " ");
+            int w = f.Width(text), x = (pic.l + pic.r - w) / 2;
+            area.Fill(x - 2, pic.t + 4, x + w + 2, pic.t + 4 + f.Height, UiArt.White);
+            f.Draw(area, x, pic.t + 4, text, UiArt.Black);
+        }
         if (help)
         {
             var it = ui.Layouts[YardWin].Items.First(x => x.Bitmap == 7011);
@@ -1970,7 +2035,7 @@ public partial class Main : Node2D
         if (st.U16(Seg.G, 0xeac) != 2)
         {
             st.Hooks.Effect(st, "sound", 1, 0x7e);
-            lastMessage = S(15);
+            ShowStatus(S(15), 180, true);
             return;
         }
         int n = st.S16(Seg.G, 0xaf2) + st.S16(Seg.G, 0xaf4), t = st.U16(Seg.G, 0x4c2);
@@ -1978,11 +2043,11 @@ public partial class Main : Node2D
         if (n <= 0)
         {
             st.Hooks.Effect(st, "sound", 1, 0x7e);
-            lastMessage = S(5);
+            ShowStatus(S(5), 180, true);
             return;
         }
         st.Set16(Seg.G, 0x8dc, 0xc8);
-        lastMessage = S(6);
+        ShowStatus(S(6), 180, true);
     }
 
     // PLACE (0x1910 → f_01efa): with no new queens (G:07C8 < 1) sound 1 and STR# 1010 [7] (Full Game) or [16];
@@ -2000,12 +2065,12 @@ public partial class Main : Node2D
         if (st.S16(Seg.G, 0x7c8) < 1)
         {
             st.Hooks.Effect(st, "sound", 1, 0x7e);
-            lastMessage = S(st.U16(Seg.G, 0xeac) == 2 ? 7 : 16);
+            ShowStatus(S(st.U16(Seg.G, 0xeac) == 2 ? 7 : 16), 180, true);
             return;
         }
         if (st.U16(Seg.T, 0x2c0) == 1) st.Set16(Seg.T, 0x2c0, 0);
         placing = true;
-        lastMessage = S(8);
+        ShowStatus(S(8), -1, true);
     }
 
     bool InPlaceRange(int col, int row)
@@ -2023,7 +2088,7 @@ public partial class Main : Node2D
         int row = ((int)p.Y - oy - 67) / 10, col = (row * 10 - 169 + (int)p.X - ox) / 28;   // as f_70edf
         if (!InPlaceRange(col, row))
         {
-            lastMessage = S(10);
+            ShowStatus(S(10), 0x78, true);
             st.Hooks.Effect(st, "sound", 1, 0x7e);
             placing = shift;
             return;
@@ -2035,7 +2100,7 @@ public partial class Main : Node2D
         st.Set8(Seg.T, 0xa4 + col * 16 + row, st.U8(Seg.T, 0xa4 + col * 16 + row) + 1);
         st.Set16(Seg.G, 0xa90, st.U16(Seg.G, 0xa90) + 1);
         st.Set16(Seg.G, 0xc20, 1);
-        lastMessage = S(9);
+        ShowStatus(S(9), 180, true);
         placing = shift && st.S16(Seg.G, 0x7c8) >= 1;
     }
 
@@ -2045,7 +2110,7 @@ public partial class Main : Node2D
         if (placing)
         {
             if (Inside(ItemRect(YardWin, 2), p)) PlaceClick(p, Input.IsKeyPressed(Key.Shift));
-            else { placing = false; lastMessage = ""; }
+            else { placing = false; ShowStatus(null, 0, true); }
             return;
         }
         switch (index)
@@ -2078,6 +2143,7 @@ public partial class Main : Node2D
         if (st.U16(Seg.G, 0x7ca) == patch >> 4 && st.U16(Seg.G, 0x7cc) == (patch & 15))
         {
             yardChoose = false;
+            ShowStatus(null, 0, true);
             CloseYard();
             SetView(session.Yellow.view);
         }
@@ -2118,7 +2184,7 @@ public partial class Main : Node2D
                     argb[y * ScreenW + x] = ((x ^ y) & 1) == 0 ? 0xff9a9a9au : 0xff7a7a7au;
             DrawStatus(canvas);
             foreach (int win in zOrder)
-                if (win == EditWin) { DrawEditWindow(canvas); DrawBalloon(canvas); }
+                if (win == EditWin) { DrawEditWindow(canvas); DrawBalloon(canvas); DrawStatusMessage(canvas); }
                 else if (win == MapWin) DrawMapWindow(canvas);
                 else if (win == HistoryWin) DrawHistoryWindow(canvas);
                 else if (win == YardWin) DrawYardWindow(canvas);

@@ -45,8 +45,9 @@ The screen is built from the original's window layouts (`Formica.Data/Ui.cs` dra
 bitmaps and fonts): the **Edit window** (the close-up map with its tool strip and health bars) and the **Map
 window** (the whole map, the toolbar and the population report), plus the Behavior / Caste Control, History
 and Efficiency Score windows and the yellow ant's pop-up menu. Drag a window by its caption; a click brings it
-to the front. The menu bar across the top is the original's (SHARED type 6). The status lines below the windows are the
-shell's own.
+to the front. The menu bar across the top is the original's (SHARED type 6). The game's timed messages (the advisor,
+refusals, the yard's notices) appear centred at the top of the Edit window's map, as `f_15e2c` / `f_038a6` show
+them; message boxes follow Options > Events. The status lines below the windows are the shell's own.
 
 Mouse:
 
