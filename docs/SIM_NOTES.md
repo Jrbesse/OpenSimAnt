@@ -1653,8 +1653,13 @@ The windows' handlers switch on the item id through jump tables (cs base 0x7980)
   then the chart redraw. `f_083d9(window, 0, flag)` (from `f_080d1` / `f_08255`) writes into items
   0x1209 + i the weight i as "%-ld%%" = (100 w + 0x3FFF) / 0xFFFF when the flag is set, else "%-ld" =
   (w x total + 0x3FFF) / 0xFFFF with total = G:0B12 + G:0B14 + G:0B16 (foragers, diggers, nurses) or, in
-  the Caste window, G:0AEC; the bars in item 0x0C are a fifth of its width each, at x = left + 2 i fifths
-  (their height is not traced).
+  the Caste window, G:0AEC. **The bars** (decoded 2026-10-19) in item 0x0C (l, t, r, b): bar i spans
+  l + 2 i w5 .. + w5 (w5 = (r - l) / 5), from b up to top = b + w (b - t) / -65535 (`f_2cd42`, truncated);
+  when top + 1 < b it is filled with DS:1B4A[i] (Behavior: 0x28, 0x2B, 0x27) or DS:1B46[i] (Caste: 0x24,
+  0x26, 0x22) and framed in 0x0F (`f_1d28d`, `f_1d26d`), then (l, t - 1, r, top) is cleared with 0x40.
+  The VGA driver's fill (DS:9134 → 0x33191) programs set / reset with the colour's low nibble only, so the
+  pattern nibble of a colour code draws nothing in this mode (DS:5AAE = 0) and DS:41C0 is the identity:
+  the bars are palette 8, 11, 7 and 4, 6, 2, the colours of their corner boxes.
 
 ### Speech balloons (`f_06a4d`; ported: `simant_ref/balloons.py`, verified by `test_balloons.py`)
 

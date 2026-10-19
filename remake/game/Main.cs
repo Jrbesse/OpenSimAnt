@@ -1695,20 +1695,31 @@ public partial class Main : Node2D
         int mx = st.U16(Seg.G, point), my = st.U16(Seg.G, point + 2);
         clip.Fill(mx - 3, my - 3, mx + 4, my + 4, UiArt.Black);
         clip.Fill(mx - 1, my - 1, mx + 2, my + 2, UiArt.White);
-        // f_083d9 (from f_080d1 / f_08255): bar i is a fifth of item 0x0C's width at 2 i fifths (its height is not
-        // traced: here the weight's share of the item's height); the corner values (items 9..11) show the weight
-        // as a percentage ("%-ld%%", (100 w + 0x3FFF) / 0xFFFF) when DS:1B62 / DS:1B64 is set, else as ants
-        // ("%-ld", (w x total + 0x3FFF) / 0xFFFF; total G:0B12 + G:0B14 + G:0B16, the Caste window G:0AEC)
+        // f_083d9 (from f_080d1 / f_08255): bar i spans a fifth of item 0x0C's width at 2 i fifths, from the item's
+        // bottom up by w * height / 65535 (an ldiv by -65535: truncated); a bar of 2 px or more is filled with the
+        // colour DS:1B4A[i] (Caste DS:1B46[i]) and framed in 15, the rest of the column up to top - 1 is cleared
+        // with 0x40. These fills (driver DS:9134) take only the colour's low nibble, DS:41C0 = the identity.
+        // The corner values (items 9..11) show the weight as a percentage ("%-ld%%", (100 w + 0x3FFF) / 0xFFFF)
+        // when DS:1B62 / DS:1B64 is set, else as ants ("%-ld", (w x total + 0x3FFF) / 0xFFFF; total G:0B12 +
+        // G:0B14 + G:0B16, the Caste window G:0AEC)
         var bars = ItemRect(win, 12);
-        int w5 = (bars.r - bars.l) / 5;
+        int w5 = (bars.r - bars.l) / 5, bh = bars.b - bars.t;
         bool percent = (st.U8(Seg.DS, win == BehaviorWin ? 0x1b62 : 0x1b64) & 1) != 0;
         long total = win == BehaviorWin ? st.S16(Seg.G, 0xb12) + st.S16(Seg.G, 0xb14) + st.S16(Seg.G, 0xb16) : st.S16(Seg.G, 0xaec);
+        var pal = session.Art.Palette;
         for (int i = 0; i < 3; i++)
         {
             long w = st.U16(Seg.G, values + 2 * i);
-            int h = (int)(w * (bars.b - bars.t - 2) / 0xffff);
-            int l = bars.l + 2 * i * w5;
-            clip.Fill(l, bars.b - 1 - h, l + w5, bars.b - 1, UiArt.Black);
+            int l = bars.l + 2 * i * w5, r = l + w5;
+            int top = bars.b + (int)(w * bh / -65535);
+            if (top + 1 < bars.b)
+            {
+                int colour = st.U8(Seg.DS, (win == BehaviorWin ? 0x1b4a : 0x1b46) + i) & 15;
+                clip.Fill(l, top, r, bars.b, pal[colour]);
+                clip.Frame(l, top, r, bars.b, pal[15]);
+            }
+            else top = bars.b;
+            clip.Fill(l, bars.t - 1, r, top, pal[0]);
             var lr = ItemRect(win, 9 + i);
             clip.Fill(lr.l, lr.t, lr.r, lr.b, UiArt.White);
             string text = percent ? $"{(100 * w + 0x3fff) / 0xffff}%" : $"{(w * total + 0x3fff) / 0xffff}";
