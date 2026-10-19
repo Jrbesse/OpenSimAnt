@@ -78,7 +78,7 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 - [ ] Ctrl+K: sound effects off / on. Tab: Map window front / hide.
 - [ ] Ctrl+S: save dialog, type a name, SAVE (or Enter); Ctrl+L: load dialog, click / double-click the file.
 - [ ] Ctrl+Q: asks to save, then quits.
-- [ ] Shell keys still work: Ctrl+1 / 2 / 3 views, arrows scroll, Space pause, + / - speed, F8 / F9 (quick save / load).
+- [ ] Shell keys still work: Ctrl+1 / 2 / 3 views, arrows scroll, + / - speed, F8 / F9 (quick save / load).
 
 ## 4. Map window and the colony controls
 

@@ -82,14 +82,14 @@ Keys:
 | Ctrl+4 / 5 / 6 / 7 | back to the patch; the yard window as House / Strategic / Graphic view |
 | Ctrl+8 / 9 / 0 | Surface / Black Nest / Red Nest |
 | Alt+2 | recruit all |
-| Insert, Delete | the left / right mouse button at the pointer (the original's keyboard mouse; its Space too, which the shell keeps for pause) |
+| Space or Insert, Delete | the left / right mouse button at the pointer (the original's keyboard mouse, f_2024b); pause with the PAUSE button or Speed > Pause |
 | Ctrl + arrows / keypad (Home / PgUp / End / PgDn diagonals), the mouse at the screen's edge | scroll the Edit window while held (f_74140, f_0113e) |
 | Ctrl+G / J / K | Options: AutoTrack / Music (the songs, through the original's driver on an emulated OPL2: see "Sound" below) / Sound Effects (T:07A8 / T:07AA / T:07AC); Events, Messages and Silly (speech balloons, off at start-up as in the original) are in the menu |
 | Tab | Map window (front / hide) |
 | **The shell's own keys** | |
 | Ctrl+1 / 2 / 3 | surface / black nest / red nest |
 | Arrows, F | scroll; follow the yellow ant |
-| Space, + / - | pause; speed |
+| + / - | speed |
 | R, Shift+R, E, Shift+E, A, H, B | recruit 5 / 10, release half / all, alarm trail, dig a hole, start brood |
 | C, U, Shift+U | as the spider: chase (then click), hunt, lash out |
 | P, O | Behavior and Caste Control windows; automatic / manual jobs (G:0378) |

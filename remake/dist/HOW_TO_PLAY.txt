@@ -37,7 +37,9 @@ PLAYING
   at the title screen. Click on the map to walk the yellow ant, double-click (or right-click)
   to pick up, drop, dig or fight. Press and hold on the yellow ant for its menu.
 
-  Keyboard: Space pauses, + and - change the speed, arrow keys scroll, F follows the yellow ant.
+  Keyboard (as in the original): Space or Insert is the left mouse button and Delete the right one;
+  pause with the PAUSE button or the Speed menu. Also: + and - change the speed, arrow keys scroll,
+  F follows the yellow ant.
 
   Saved games are kept in:  %APPDATA%\Godot\app_userdata\Formica
   (Paste that into the address bar of a File Explorer window to open it.)

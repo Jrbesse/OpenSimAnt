@@ -142,7 +142,7 @@ screenshot flags).
     Events.
   - The scan-code keys of 8414:0383 (Ctrl+4..0, Ctrl+H / I, Alt+2); Ctrl + keypad / arrows and the screen's
     edge scroll while held (f_74140, f_0113e); Insert / Delete as the mouse buttons (f_2024b; the original's
-    Space too, which the shell keeps for pause).
+    Space too: since 2026-10-19 Space is the left button again, as the original's READ.ME says).
   - **The Edit map's clicks as `f_74fe0`**: a click walks after the 6-tick double-click wait; a double (or
     right, or Shift) click acts (meet / fight an ant via f_11327, act on the surface, dig or pick up / drop in
     a nest by f_1345e / f_135de); a quick click on the yellow ant recentres (f_01c03, G:1074 = 1), held its
@@ -191,7 +191,8 @@ Suggested next session (in order):
    (done: f_21336's re-layout by the attach modes at +18, FILE_FORMATS; the message box sized as f_71bb6 does,
    "Click here" in b - 13 .. b - 2 over the 8 px under the text, font 3 as layout 30 says; the lines' drawing,
    f_20983, does no fill: width, height, then the glyphs through f_24e3d, whose blit mode is not traced); the Map window's click
-   (0x102 → f_2f898); whether to give Space back to the original (left button) instead of the shell's pause.
+   (0x102 → f_2f898). (Decided 2026-10-19 by the owner: this version stays 1:1, so Space is the left button
+   again; modern controls belong to the new version.)
 4. (done: f_7650c is the colony pick in the yard window, see above.)
 5. **Audio fidelity** (2026-10-19: steps a..f done, the same day; SIM_NOTES "The sound driver", remake/README
    "Sound"). The original's driver is ported (`SoundDriver.cs`) and **verified**: `OplTraceTests` replays 91
