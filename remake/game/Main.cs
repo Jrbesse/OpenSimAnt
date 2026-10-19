@@ -1691,18 +1691,31 @@ public partial class Main : Node2D
         }
     }
 
-    /// <summary>A Bresenham line, both ends included (the driver's line routine DS:916C is not traced).</summary>
+    /// <summary>The VGA driver's line (DS:916C → 0x32F69): drawn left to right (the ends swapped if needed), both
+    /// ends included; the longer axis steps every pixel (x when dx >= dy) and the error, from 0, adds the shorter
+    /// span, moving the shorter axis on once it passes half the longer one (then less the longer span).</summary>
     static void Line(UiArt.Canvas c, int x0, int y0, int x1, int y1, uint colour)
     {
-        int dx = Math.Abs(x1 - x0), dy = -Math.Abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1, err = dx + dy;
-        while (true)
-        {
-            c.Plot(x0, y0, colour);
-            if (x0 == x1 && y0 == y1) return;
-            int e2 = 2 * err;
-            if (e2 >= dy) { err += dy; x0 += sx; }
-            if (e2 <= dx) { err += dx; y0 += sy; }
-        }
+        if (x1 < x0) (x0, y0, x1, y1) = (x1, y1, x0, y0);
+        int dx = x1 - x0, dy = y1 - y0, sy = 1;
+        if (dy < 0) { dy = -dy; sy = -1; }
+        int err = 0, x = x0, y = y0;
+        if (dx >= dy)
+            for (int n = dx; n >= 0; n--)
+            {
+                c.Plot(x, y, colour);
+                x++;
+                err += dy;
+                if (err > dx >> 1) { err -= dx; y += sy; }
+            }
+        else
+            for (int n = dy; n >= 0; n--)
+            {
+                c.Plot(x, y, colour);
+                y += sy;
+                err += dx;
+                if (err > dy >> 1) { err -= dy; x++; }
+            }
     }
 
     void HistoryWindowClick(int index)
