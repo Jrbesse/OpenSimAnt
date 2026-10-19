@@ -197,15 +197,20 @@ public partial class Main : Node2D
     /// <summary>
     /// No game files found: the first-run screen. A button opens the system's folder picker; the folder the
     /// player picks (or one up to two levels inside it) is kept in user://settings.cfg and the scene restarts.
+    /// The game's own text is the original's bitmap font, which is not there yet, so this screen uses Godot's
+    /// font, drawn at the window's resolution (canvas_items stretch) instead of doubled from 640 x 480.
     /// </summary>
     void ShowSetup(CanvasLayer layer)
     {
+        var root = GetTree().Root;
+        root.ContentScaleMode = Window.ContentScaleModeEnum.CanvasItems;
         status.Text = "Formica needs the files from your own copy of the original DOS game.";
         message.Text = "Click the button below and choose the folder that has SIMANT.EXE in it.";
         status.Position = new Vector2(16, 170);
         message.Position = new Vector2(16, 190);
         var button = new Button { Text = "Find my game folder...", Position = new Vector2(16, 224) };
         button.AddThemeFontSizeOverride("font_size", 12);
+        foreach (var c in new Control[] { status, message, button }) c.TextureFilter = CanvasItem.TextureFilterEnum.Linear;
         var dialog = new FileDialog
         {
             FileMode = FileDialog.FileModeEnum.OpenDir,
@@ -225,6 +230,7 @@ public partial class Main : Node2D
             settings.Load(SettingsPath);
             settings.SetValue("files", "game_dir", found);
             settings.Save(SettingsPath);
+            root.ContentScaleMode = Window.ContentScaleModeEnum.Viewport;     // back to the game's pixel scaling
             GetTree().ReloadCurrentScene();
         };
         button.Pressed += () => dialog.PopupCentered(new Vector2I(600, 420));
