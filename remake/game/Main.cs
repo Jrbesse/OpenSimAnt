@@ -179,6 +179,7 @@ public partial class Main : Node2D
         ToolPoll();
         ToolHold(delta);
         PendingClick(delta);
+        ScrollPoll(delta);
         SongPoll();
         DrainEffects();
         if (follow) CenterOnYellow();
@@ -2494,10 +2495,10 @@ public partial class Main : Node2D
                 case Key.Key1 when k.CtrlPressed: SetView(1); break;                // the views (the original's are Ctrl+8 / 9 / 0)
                 case Key.Key2 when k.CtrlPressed: SetView(2); break;
                 case Key.Key3 when k.CtrlPressed: SetView(3); break;
-                case Key.Left: Scroll(-4, 0); break;
-                case Key.Right: Scroll(4, 0); break;
-                case Key.Up: Scroll(0, -4); break;
-                case Key.Down: Scroll(0, 4); break;
+                case Key.Left when !k.CtrlPressed: Scroll(-4, 0); break;
+                case Key.Right when !k.CtrlPressed: Scroll(4, 0); break;
+                case Key.Up when !k.CtrlPressed: Scroll(0, -4); break;
+                case Key.Down when !k.CtrlPressed: Scroll(0, 4); break;
                 case Key.F: session.St.Set16(Seg.G, 0x1074, 1); follow = true; break;
                 case Key.Space: session.Paused = !session.Paused; break;
                 case Key.Equal or Key.KpAdd: session.Speed++; break;
@@ -2626,6 +2627,43 @@ public partial class Main : Node2D
         session.St.Set16(Seg.G, 0x32e, v);                    // the view on screen
         follow = session.Yellow.view == v;
         Clamp();
+    }
+
+    // The main loop's scrolling, one cell per pass while held (f_03210(dx, dy) steps the Edit window's origin
+    // G:0508 / G:050A along the line): Ctrl with the keypad / arrow keys (f_74140: Home / PgUp / End / PgDn the
+    // diagonals), and the mouse at the screen's edge (f_0113e: x < 2 or >= width - 4, y < 1 or >= height - 4).
+    // A pass is about a tick at Normal speed (T:07CE): here every 1 / 8 s.
+    double scrollWait;
+
+    void ScrollPoll(double delta)
+    {
+        if (modal >= 0 || menuOpen >= 0 || popup >= 0) return;
+        int dx = 0, dy = 0;
+        if (Input.IsKeyPressed(Key.Ctrl))
+        {
+            if (Input.IsKeyPressed(Key.Kp7) || Input.IsKeyPressed(Key.Home)) { dx--; dy--; }
+            if (Input.IsKeyPressed(Key.Kp9) || Input.IsKeyPressed(Key.Pageup)) { dx++; dy--; }
+            if (Input.IsKeyPressed(Key.Kp1) || Input.IsKeyPressed(Key.End)) { dx--; dy++; }
+            if (Input.IsKeyPressed(Key.Kp3) || Input.IsKeyPressed(Key.Pagedown)) { dx++; dy++; }
+            if (Input.IsKeyPressed(Key.Kp6) || Input.IsKeyPressed(Key.Right)) dx++;
+            if (Input.IsKeyPressed(Key.Kp4) || Input.IsKeyPressed(Key.Left)) dx--;
+            if (Input.IsKeyPressed(Key.Kp8) || Input.IsKeyPressed(Key.Up)) dy--;
+            if (Input.IsKeyPressed(Key.Kp2) || Input.IsKeyPressed(Key.Down)) dy++;
+        }
+        if (dx == 0 && dy == 0 && screenshot == null && GetWindow().HasFocus())
+        {
+            var mp = GetViewport().GetMousePosition();
+            if (mp.X >= 0 && mp.Y >= 0 && mp.X < ScreenW && mp.Y < ScreenH)
+            {
+                dx = mp.X < 2 ? -1 : mp.X >= ScreenW - 4 ? 1 : 0;
+                dy = mp.Y < 1 ? -1 : mp.Y >= ScreenH - 4 ? 1 : 0;
+            }
+        }
+        if (dx == 0 && dy == 0) { scrollWait = 0; return; }
+        scrollWait -= delta;
+        if (scrollWait > 0) return;
+        scrollWait = 1.0 / 8;
+        Scroll(Math.Sign(dx) * Math.Max(1, Math.Abs(dx)), Math.Sign(dy) * Math.Max(1, Math.Abs(dy)));
     }
 
     void Scroll(int da, int db)

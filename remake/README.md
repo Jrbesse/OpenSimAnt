@@ -79,6 +79,7 @@ Keys:
 | Ctrl+4 / 5 / 6 / 7 | back to the patch; the yard window as House / Strategic / Graphic view |
 | Ctrl+8 / 9 / 0 | Surface / Black Nest / Red Nest |
 | Alt+2 | recruit all |
+| Ctrl + arrows / keypad (Home / PgUp / End / PgDn diagonals), the mouse at the screen's edge | scroll the Edit window while held (f_74140, f_0113e) |
 | Ctrl+G / J / K | Options: AutoTrack / Music (the songs: SOUND types 18 / 20 played through the remake's own FM voices, `Formica.Data/Music.cs`) / Sound Effects (T:07A8 / T:07AA / T:07AC); Events, Messages and Silly (speech balloons, off at start-up as in the original) are in the menu |
 | Tab | Map window (front / hide) |
 | **The shell's own keys** | |
