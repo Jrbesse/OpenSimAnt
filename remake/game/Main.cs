@@ -292,7 +292,7 @@ public partial class Main : Node2D
             }
             else if (e.Name == "status" && e.Args.Length > 0)
                 StatusEffect(e.Args);
-            else if (e.Name == "sound" && e.Args.Length > 0 && e.Args[0] is int sfx && sfx < 57
+            else if (e.Name == "sound" && e.Args.Length > 0 && e.Args[0] is int sfx && sfx < SoundBank.EffectCount
                      && session.St.U16(Seg.T, 0x7ac) != 0)
                 PlaySound(sfx);
             else if (e.Name is "sound" or "voice" or "music" && e.Args.Length > 0 && e.Args[0] is int song && song >= 10000)
@@ -1968,129 +1968,77 @@ public partial class Main : Node2D
         }
     }
 
-    // ------------------------------------------------------------------------------- music
-    // f_00ea1(id) → f_284b3: a song by effect id (Formica.Data.Music: SOUND type 18 → the type-20 MIDI, rendered with
-    // the remake's own FM voices, not the original's AdLib patches), only while Options > Music (T:07AA) is on; a new
-    // song stops the one playing (f_285aa). The sim reports songs as "voice", "music" (f_00ed0, an empty stub, for ids
-    // below 10000) and "sound" ids from 10000. Songs asked for in the same frame play one after the other (the game
-    // over's ending, then its fanfare once f_00f28 says the ending is done). Rendering runs off the main thread.
-    readonly Dictionary<int, AudioStreamWav> songCache = new();
+    // ------------------------------------------------------------------------------- sound
+    // The original's own sound: its driver (Formica.Data.SoundDriver, verified on its OPL2 register streams) on an
+    // emulated OPL2 plus its two sample voices (SoundMixer), rendered each frame into one AudioStreamGenerator.
+    // Songs: f_00ea1(id) → f_284b3, only while Options > Music (T:07AA) is on; a new song stops the one playing
+    // (f_285aa). The sim reports songs as "voice", "music" (f_00ed0, an empty stub, for ids below 10000) and "sound"
+    // ids from 10000. Songs asked for in the same frame play one after the other (the game over's ending, then its
+    // fanfare once f_00f28 says the ending is done). Effects: f_00ed8(n) → f_29927, on the same driver and voices.
+    const int AudioRate = 44100;
+    const float AudioGain = 1.6f;
     readonly Queue<int> songQueue = new();
-    AudioStreamPlayer songPlayer;
-    System.Threading.Tasks.Task<short[]> songTask;
-    int songTaskId = -1, songWanted = -1;
-    bool songThisFrame;
+    SoundMixer mixer;
+    AudioStreamGeneratorPlayback playback;
+    short[] mixBuf = Array.Empty<short>();
+    Vector2[] frameBuf = Array.Empty<Vector2>();
+    bool songThisFrame, muted;
+
+    /// <summary>The mixer and its stream, made on first use (never in screenshot runs).</summary>
+    bool AudioReady()
+    {
+        if (screenshot != null || session == null) return false;
+        if (mixer != null) return true;
+        mixer = new SoundMixer(session.Files);
+        var player = new AudioStreamPlayer { Stream = new AudioStreamGenerator { MixRate = AudioRate, BufferLength = 0.15f } };
+        AddChild(player);
+        player.Play();
+        playback = (AudioStreamGeneratorPlayback)player.GetStreamPlayback();
+        return true;
+    }
 
     void PlaySong(int id)
     {
-        if (!session.Option(1) || screenshot != null || Music.Entry(session.Files, id) == null) return;
-        if (songThisFrame && songWanted >= 0) { songQueue.Enqueue(id); return; }
+        if (!session.Option(1) || !AudioReady() || !session.Files.Sound.Any(r => r.Type == 18 && r.Id == id)) return;
+        if (songThisFrame && mixer.Driver.Playing) { songQueue.Enqueue(id); return; }
         songThisFrame = true;
         songQueue.Clear();
-        songWanted = id;
-        songPlayer?.Stop();
-        RenderOrStart(id);
-    }
-
-    void RenderOrStart(int id)
-    {
-        if (songCache.TryGetValue(id, out var cached))
-        {
-            if (cached != null) StartSong(cached);
-            return;
-        }
-        if (songTask != null) return;                                     // SongPoll starts it when the current one is done
-        songTaskId = id;
-        var files = session.Files;
-        songTask = System.Threading.Tasks.Task.Run(() => Music.Render(files, id));
-    }
-
-    /// <summary>Each frame: take a finished render, start what is wanted, move on down the queue.</summary>
-    void SongPoll()
-    {
-        songThisFrame = false;
-        if (songTask is { IsCompleted: true })
-        {
-            var pcm = songTask.IsCompletedSuccessfully ? songTask.Result : null;
-            AudioStreamWav stream = null;
-            if (pcm != null)
-            {
-                var bytes = new byte[pcm.Length * 2];
-                Buffer.BlockCopy(pcm, 0, bytes, 0, bytes.Length);
-                stream = new AudioStreamWav { Format = AudioStreamWav.FormatEnum.Format16Bits, MixRate = Music.SampleRate, Stereo = false, Data = bytes };
-            }
-            songCache[songTaskId] = stream;
-            songTask = null;
-            if (songTaskId == songWanted && stream != null) StartSong(stream);
-            songTaskId = -1;
-            if (songWanted >= 0 && !songCache.ContainsKey(songWanted)) RenderOrStart(songWanted);
-        }
-        if (songWanted >= 0 && songPlayer is { Playing: false } && songCache.ContainsKey(songWanted) && songQueue.Count > 0
-            && songPlayer.Stream == songCache[songWanted])
-        {
-            songWanted = songQueue.Dequeue();
-            RenderOrStart(songWanted);
-        }
-    }
-
-    void StartSong(AudioStreamWav stream)
-    {
-        if (songPlayer == null)
-        {
-            songPlayer = new AudioStreamPlayer { VolumeDb = -4 };
-            AddChild(songPlayer);
-        }
-        songPlayer.Stream = stream;
-        songPlayer.Play();
-        GD.Print($"music: song {songWanted} ({stream.Data.Length / 2 / (double)Music.SampleRate:F1} s)");
+        mixer.Driver.StartSong(id);
+        GD.Print($"music: song {id}");
     }
 
     void StopSong()
     {
-        songWanted = -1;
         songQueue.Clear();
-        songPlayer?.Stop();
+        mixer?.Driver.Stop();
     }
 
-    // ------------------------------------------------------------------------------- sound effects
-    readonly Dictionary<int, AudioStreamWav> sfxCache = new();
-    readonly List<AudioStreamPlayer> players = new();
-    bool muted;
-
-    /// <summary>f_00ed8(n) → f_29927: effect n is a note on an instrument (SoundBank.Effects, DS:0A82). A sample
-    /// instrument plays its SOUND sample at the driver's mixing rate times the note's pitch step; FM effects
-    /// wait for the OPL2 emulation (docs/HANDOFF.md, step 5).</summary>
     void PlaySound(int n)
     {
-        if (muted) return;
-        if (!sfxCache.TryGetValue(n, out var stream))
+        if (muted || n < 0 || n >= SoundBank.EffectCount || !AudioReady()) return;
+        mixer.Driver.Effect(n);
+    }
+
+    /// <summary>Each frame: the next queued song once the last one ended, then as much sound as the stream takes.</summary>
+    void SongPoll()
+    {
+        songThisFrame = false;
+        if (playback == null) return;
+        if (!mixer.Driver.Playing && songQueue.Count > 0) mixer.Driver.StartSong(songQueue.Dequeue());
+        int n = playback.GetFramesAvailable();
+        if (n <= 0) return;
+        if (mixBuf.Length != n)
         {
-            var bank = session.Files.Bank;
-            if (n >= 0 && n < SoundBank.EffectCount && bank.SampleOf(bank.Effects[n].Instrument) is SoundBank.Sample s)
-            {
-                var pcm = session.Files.SoundEffect(s.SoundId);
-                int rate = (int)Math.Round(SoundBank.MixRate * bank.SampleStep(bank.Effects[n].Key, s) / 256);
-                stream = pcm == null || pcm.Length == 0 ? null : new AudioStreamWav
-                {
-                    Format = AudioStreamWav.FormatEnum.Format8Bits,
-                    MixRate = rate,
-                    Stereo = false,
-                    Data = (byte[])(Array)pcm,
-                };
-            }
-            sfxCache[n] = stream;
+            mixBuf = new short[n];
+            frameBuf = new Vector2[n];
         }
-        if (stream == null) return;
-        var p = players.FirstOrDefault(x => !x.Playing);
-        if (p == null)
+        mixer.Render(mixBuf, AudioRate);
+        for (int i = 0; i < n; i++)
         {
-            if (players.Count >= 6) return;
-            p = new AudioStreamPlayer { VolumeDb = -6 };
-            AddChild(p);
-            players.Add(p);
+            float s = mixBuf[i] / 32768f * AudioGain;
+            frameBuf[i] = new Vector2(s, s);
         }
-        p.Stream = stream;
-        p.Play();
+        playback.PushBuffer(frameBuf);
     }
 
     void CenterOnYellow()
