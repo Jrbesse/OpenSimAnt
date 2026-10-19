@@ -67,7 +67,8 @@ needed for decoding.
 | 17 | 53 | SimAntipedia cards 127..179 (BE): u16 height, u16 width (200 x 320), then records `PICT` (u16 bitmap id, Rect t/l/b/r, u16 n, n x (Rect, s16 link)) and `TEXT` (Rect, u16 n, n x u16 text id). Link 1 = PREVIOUS, > 1 a card, <= 0 a pop-up of text -link. SIM_NOTES "The SimAntipedia". |
 | 19 | 53 | Card names (`Top_Card`, `Ant_Anatomy`, `Castes`, `Scent_Trails`, …) |
 | 21 | 88 | Text style runs for the type 10 texts: Mac `styl` (u16 count, 20-byte ScrpSTElements: u32 start, height, ascent, font, face, size, colour). Face 0x0100 (bold) = a link word. |
-| 6, 7, 9 | 1–2 each | Cursor table, cursor, misc tables (not yet decoded) |
+| 6 | 1 | **The pull-down menus** (id 0, loaded by 82e5:0039 into DS:6054): LE u32 offsets from the resource start. A table up to a 0 entry: entry 0 lists the menu titles, entry m + 1 menu m's items; each list ends with a 0 entry, each string is NUL-terminated. Titles " File", " Window", " View", " Options", " Speed". An item's first byte is its state (0x20 plain, 0x10 checked, drawn by font 1 as a ►; 0x80 disabled); "---" is a separator. SIM_NOTES "Keys and menu commands"; remake `Formica.Data/Menus.cs`. |
+| 7, 9 | 1–2 each | Cursor, misc tables (not yet decoded) |
 
 ### HCEGANT
 | type | count | content |

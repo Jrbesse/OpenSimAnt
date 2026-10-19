@@ -20,8 +20,21 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 - [ ] The title screen shows; a click brings up Select a Game.
 - [ ] Quick Game, Full Game and Experimental each start the right kind of game (the status line names it).
 - [ ] Cancel closes the dialog; Tutorial shows "not ported yet" (expected).
-- [ ] F2 / Ctrl+N mid-game asks to save first; DON'T SAVE, Save and Cancel each do what they say.
-- [ ] F3 shows the about box; a click closes it.
+- [ ] File > New / Ctrl+N mid-game asks to save first; DON'T SAVE, Save and Cancel each do what they say.
+- [ ] File > About shows the about box; a click closes it.
+
+## 1b. The menu bar (the original's menus, SHARED type 6)
+
+- [ ] File / Window / View / Options / Speed across the top. Press on a title, slide to an item, release: it runs.
+  Click a title: the menu stays open; click an item (or elsewhere to close).
+- [ ] Alt+F / W / V / O / S and F2..F6 open them; Up / Down, Left / Right, a letter, Enter, Esc work.
+- [ ] Window: Edit, Map, Behavior, Caste, History, Info (SimAntipedia), Status (Efficiency Score).
+- [ ] View: Yard / House / Strategic / Graphic open the yard window in that mode; Surface / Black Nest / Red Nest.
+- [ ] Options (► = on): AutoTrack (the view follows the walking yellow ant), Sound Effects, Events (death
+  messages), Messages (the advisor's line), Silly (speech balloons: off at start, as in the original). Music
+  does nothing yet (no music playback).
+- [ ] Speed: ► on the current speed; Ultra runs faster than Fast; Pause reads "Unpause" while paused.
+- [ ] Options and speed carry over to the next new game.
 
 ## 2. The yellow ant (Edit window)
 
@@ -41,13 +54,13 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 - [ ] 1 / 2: recruit 5 / 10 (a queen: dig hole / start brood; the spider: chase / hunt).
 - [ ] 3 / 4: release half / all. X: exchange. 0: alarm trail on / off.
 - [ ] Backspace while walking: stops. Backspace standing still: recentres. Shift+Backspace: follows.
-- [ ] Shift+0: pause. Shift+1 / 2 / 3: slow / medium / fast (the status line shows the speed).
+- [ ] Shift+0: pause. Shift+1 / 2 / 3 / 4: slow / normal / fast / ultra (the status line shows the speed).
 - [ ] Ctrl+E / Ctrl+M: Edit / Map window to the front. Ctrl+B / Ctrl+C: Behavior / Caste Control.
 - [ ] Ctrl+T: Efficiency Score. Ctrl+Y: the yard window (Full Game).
 - [ ] Ctrl+K: sound effects off / on. Tab: Map window front / hide.
 - [ ] Ctrl+S: save dialog, type a name, SAVE (or Enter); Ctrl+L: load dialog, click / double-click the file.
 - [ ] Ctrl+Q: asks to save, then quits.
-- [ ] Shell keys still work: Ctrl+1 / 2 / 3 views, arrows scroll, Space pause, + / - speed, F5 / F9.
+- [ ] Shell keys still work: Ctrl+1 / 2 / 3 views, arrows scroll, Space pause, + / - speed, F8 / F9 (quick save / load).
 
 ## 4. Map window and the colony controls
 
@@ -105,7 +118,7 @@ For each issue, one line or a short note:
 
 ```
 [section] what you did → what happened (expected: ...)
-seed / mode / tick (from the status line), F5 save attached if it can be reproduced, screenshot if visual
+seed / mode / tick (from the status line), F8 quick save attached if it can be reproduced, screenshot if visual
 ```
 
 Fidelity notes are as useful as bugs: anything that "feels different" from the original (speed, colours,

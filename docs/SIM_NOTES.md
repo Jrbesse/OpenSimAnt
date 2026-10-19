@@ -1656,8 +1656,44 @@ captions with them is not traced (matched by their order).
 The main loop's event dispatcher (8414:0000) sends events by type (high byte): 0 → `f_1250_0c0f`, 0xFA
 (keys) → 8414:0383 (some key codes become 0xFD15 / 0xFD16 / 0xFD22..28 commands), 0xFD (menu commands) →
 thunk 0x2f992 → `f_6e26d`, 0xFE (open a pull-down menu) → thunk 0x2fa0a → `f_6d7e3`. The pull-down itself
-is a generic text-cell menu (7d62:0384, "Menu data too long"; item n of menu m posts 0xFD00 + 16 m + n + 1)
-whose item strings are not in the executable or the archives: no menu labels are known.
+is a generic text-cell menu (f_6d9a4 at 7d62:0384, "Menu data too long"; item n of menu m posts 0xFD00 + 16 m
++ n + 1).
+
+**The menus are SHARED type 6 id 0** (FILE_FORMATS; corrected 2026-10-18 night: an earlier note said the labels
+were nowhere). 82e5:0039 loads it (resource loader `f_2a53_0125(id, 6)`) into DS:6054 and turns its offsets into
+far pointers. The menus, with their commands:
+
+| menu (Alt / F key) | items → command |
+|---|---|
+| File (Alt+F, F2) | About 0x01 (`f_72931`, the about box 0x1F00), ---, New 0x03, Load 0x04, Save 0x05, Save As 0x06, ---, Quit 0x08 |
+| Window (Alt+W, F3) | Edit 0x11, Map 0x12, Behavior 0x13, Caste 0x14, History 0x15, Info 0x16 (the SimAntipedia), Status 0x17 (the Efficiency Score) |
+| View (Alt+V, F4) | Yard 0x21, House 0x22, Strategic 0x23, Graphic 0x24 (the yard window's modes G:035C), ---, Surface 0x26, Black Nest 0x27, Red Nest 0x28 |
+| Options (Alt+O, F5) | AutoTrack 0x31 (T:07A8), Music 0x32 (T:07AA), Sound Effects 0x33 (T:07AC), Events 0x34 (T:07AE), Messages 0x35 (T:07B0), Silly 0x36 (T:07B2) |
+| Speed (Alt+S, F6) | Pause 0x41, ---, Slow 0x43, Normal 0x44, Fast 0x45, Ultra 0x46 (T:07CC = 0..3) |
+
+What the Options flags do (their readers in `segmap_3d57.tsv`): AutoTrack, the view follows the walking yellow ant
+(`player.ui_follow` each step, f_7b661; the spider too, f_0ce63); Music, the songs (game over, f_71d95), the
+long death animations (f_7c149 0x40 frames) and `sound_done`; Sound Effects, f_00ed8; Events, the yellow ant's
+death messages (f_75d01, f_76707, f_7686d) and f_71b1a's message boxes; Messages, the advisor's status line
+(`world.advisor` f_0e2ea returns early) and f_15e2c; Silly, the speech balloons (f_06a4d) and the event records
+behind them (nests, surface, `sim.py`: the reference called T:07B2 "the patch is visible"). SIMANT.EXE's start-up
+values are 0, 1, 1, 1, 1, 0: **Silly is off** unless the player turns it on (the emulator's Quick Game has T:07B2
+= 0, so `test_nest.py` / `test_balloons.py` set it).
+
+Layout (`f_2fd2_0663`): the titles' widths in cells go to DS:46BC and their x to DS:46A8: x0 = 0, then + (len +
+gap) * 8 with gap = (screen width / 8 - all titles' cells) / (n - 1) kept within 1..3 (3 at 640 px: x = 0, 64,
+144, 208, 296). The bar is the font's height + 3 px tall, titles at y = 1 in font 1 (8 x 10, DS:3DDE / DS:3DDC);
+`f_1fd28(x, y, normal, text)` draws a title, inverted while its menu is open. f_6d9a4 (opened from the bar): w =
+the longest item (state byte included), the box left = (title cells - w) / 2 cells from the title (>= 0), top = font
+height + 5, w * 8 + 16 wide and n rows + 6 tall (kept on screen); it saves the area (f_1d2e9), fills and frames the
+inner rectangle (8 px in at the sides, 3 at top and bottom; `f_1ffd1(1)`, `f_1d26d`, `f_1ffd1(0)`, `f_1d26d`) and
+draws the items from its top-left, one font line each; a separator is drawn as a space, w - 2 dashes and a space.
+Keys inside: '+' / Down next, '-' / Up previous (wrapping), Enter / CR / Space pick, Esc cancel, a letter jumps to
+an item; f_6d7e3 moves between menus on the scan codes 'K' / 'M' (Left / Right), skipping disabled titles
+(first byte & 0x80). With the button held a release picks; after a click the menu stays until the next one.
+`f_6e0e0` sets the marks before: `f_2033e(id, 0x10 / 0x20)` (id = 16 m + item) checks Slow..Ultra for T:07CC and
+each Options flag that is on, and `f_1fe55(0x41, " Unpause" / " Pause")` relabels the Pause item (DS:297E /
+DS:2987).
 
 `f_74386` (a typed key; it also feeds the cheats, `f_6a920`): with Ctrl (`f_1c160(0x1d)`) Alt+F 0x817 /
 0x820 / 0x821 / 0x82F are debug keys. Then the table DS:2CBE (u16 key, u16 command; 0-terminated) posts
@@ -1691,8 +1727,9 @@ the command (`f_1ba3f`): Alt+F / W / V / O / S and F2..F6 → 0xFE00..04; ')' 0x
   3)` (surface / black / red nest);
 - 0x31..0x36 → toggle T:0746 + 2n, i.e. T:07A8, T:07AA (0x32 also stops the music, `f_285aa`), T:07AC
   (sound effects), T:07AE (messages), T:07B0, T:07B2;
-- 0x41 → G:047E ^= 1 (pause) and `f_6e17e(G:047E)`; 0x43..0x46 → T:07CC = 0..3 (3 reads the delay
-  T:07D4 = -1), then `f_6e0e0` (probably the menus' check marks).
+- 0x41 → G:047E ^= 1 (pause) and `f_6e17e(G:047E)`; 0x43..0x46 → T:07CC = 0..3 (Slow, Normal, Fast, Ultra; 3
+  reads the delay T:07D4 = -1: no wait; at Ultra with a Shift key held the main loop also skips the redraw,
+  16196), then `f_6e0e0` (the menus' marks, above).
 
 ### The SimAntipedia (window 5, `f_78db9` / `f_78808` / `f_790f0`, overlay 881a; remake: `Formica.Data/Antipedia.cs`)
 

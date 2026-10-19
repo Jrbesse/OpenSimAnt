@@ -25,7 +25,7 @@ public partial class Main : Node2D
     const int Cols = 22, Rows = 21;
     // layout item indices (the ids repeat in layout 0, so the shell matches on the index)
     const int EditMapItem = 4, MapMapItem = 2;
-    static readonly string[] SpeedNames = { "slow", "medium", "fast" };
+    static readonly string[] SpeedNames = { "slow", "normal", "fast", "ultra" };
     static readonly string[] ViewNames = { "Yard", "Surface", "Black Nest", "Red Nest" };
     static readonly string[] Scents = { "alarm", "black nest marker", "black trail", "red nest marker", "red trail" };
 
@@ -117,6 +117,14 @@ public partial class Main : Node2D
         if (OS.GetCmdlineUserArgs().Contains("--ant-info")) { var (_, ya, yb) = session.Yellow; SetView(session.Yellow.view); CenterOnYellow(); OpenAntInfo(ya, yb); }
         if (OS.GetCmdlineUserArgs().Contains("--strat")) session.St.Set16(Seg.G, 0x35c, 2);
         font = ui.Font(2);
+        menus = new Menus(session.Files, ScreenW);
+        foreach (var arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--menu="))                                  // --menu=m[,item]: that menu open, the item highlighted
+            {
+                var a = arg["--menu=".Length..].Split(',').Select(int.Parse).ToArray();
+                OpenMenu(a[0]);
+                if (a.Length > 1) menuHot = a[1];
+            }
         argb = new uint[ScreenW * ScreenH];
         mapBuf = new uint[Cols * Cell * Rows * Cell];
         rgba = new byte[argb.Length * 4];
@@ -153,7 +161,7 @@ public partial class Main : Node2D
             session.Hooks.YardMapWanted = false;
             OpenYard(true);
         }
-        if (!session.Over && !yardChoose && modal < 0 && session.Advance(delta) > 0) balloonsNow.Clear();
+        if (!session.Over && !yardChoose && modal < 0 && menuOpen < 0 && session.Advance(delta) > 0) balloonsNow.Clear();
         ToolPoll();
         ToolHold(delta);
         DrainEffects();
@@ -183,6 +191,11 @@ public partial class Main : Node2D
             else if (e.Name == "sound" && e.Args.Length > 0 && e.Args[0] is int sfx && sfx < 57
                      && session.St.U16(Seg.T, 0x7ac) != 0)
                 PlaySound(sfx);
+            else if (e.Name == "follow")                                     // f_01c52 (AutoTrack): scroll to the yellow ant
+            {
+                if (view != session.Yellow.view) SetView(session.Yellow.view);
+                follow = true;
+            }
             else if (e.Name == "info" && e.Args.Length >= 2)                // the Ant Info tool (f_2f8fc)
                 OpenAntInfo((int)e.Args[0], (int)e.Args[1]);
             else if (e.Name == "balloon" && e.Args.Length >= 5 && e.Args[4] is ValueTuple<int, int> line)
@@ -641,6 +654,211 @@ public partial class Main : Node2D
                 if (cmd == 0) lastMessage = "Help: the original's help screens (f_76eb5) are not built yet.";
                 else Commands.Command(session.St, cmd);
             }
+        }
+    }
+
+    // ------------------------------------------------------------------------------- the pull-down menus
+    // SHARED type 6 (Formica.Data.Menus): File, Window, View, Options, Speed across the top of the screen in font 1.
+    // f_6d7e3 (event 0xFE00 + m: a press on a title, Alt+F / W / V / O / S or F2..F6) shows the title inverted and
+    // runs the menu f_6d9a4: while the button is held, releasing on an item picks it; after a click the menu stays
+    // open until the next one. Keys: Down / + and Up / - move past separators, Left / Right the next menu (scan codes
+    // 'K' / 'M'), a letter the next item starting with it, Enter or Space picks, Esc closes. A pick posts 0xFD00 +
+    // 16 m + n + 1 (MenuCommand). The game waits while a menu is open, as in the original's menu loop.
+    Menus menus;
+    int menuOpen = -1, menuHot = -1;
+    bool menuHeld;
+
+    void OpenMenu(int m)
+    {
+        menuOpen = m;
+        menuHot = -1;
+    }
+
+    void CloseMenu() => menuOpen = menuHot = -1;
+
+    bool Selectable(int m, int i) => i >= 0 && i < menus.Items[m].Length && !Menus.IsSeparator(menus.Items[m][i])
+                                     && (menus.Items[m][i][0] & Menus.Disabled) == 0;
+
+    /// <summary>The next selectable item after `from` in direction `dir`, wrapping (f_6d9a4's + / -).</summary>
+    int NextItem(int m, int from, int dir)
+    {
+        int n = menus.Items[m].Length;
+        for (int k = 1; k <= n; k++)
+        {
+            int i = ((from + dir * k) % n + n) % n;
+            if (Selectable(m, i)) return i;
+        }
+        return -1;
+    }
+
+    void PickItem(int m, int i)
+    {
+        CloseMenu();
+        if (Selectable(m, i)) MenuCommand(Menus.Command(m, i));
+    }
+
+    /// <summary>f_6e0e0 before a menu is shown: ► on the speed T:07CC (items 0x42..0x45) and on each Options flag
+    /// that is on (T:07A8 + 2 n, items 0x30..0x35); the Pause item reads " Unpause" while paused.</summary>
+    void MenuMarks()
+    {
+        var st = session.St;
+        for (int si = 0x43; si <= 0x46; si++)
+            menus.SetState(si - 1, st.U16(Seg.T, 0x7cc) == si - 0x43 ? Menus.Checked : Menus.Plain);
+        menus.SetText(0x41, session.Paused ? " Unpause" : " Pause");
+        for (int n = 0; n < 6; n++) menus.SetState(0x30 + n, session.Option(n) ? Menus.Checked : Menus.Plain);
+    }
+
+    bool MenuInput(InputEvent ev)
+    {
+        if (menus == null) return false;
+        if (ev is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left)
+        {
+            int x = (int)mb.Position.X, y = (int)mb.Position.Y, m = menus.TitleAt(x, y);
+            if (mb.Pressed)
+            {
+                if (menuOpen >= 0)
+                {
+                    int i = menus.ItemAt(menuOpen, x, y);
+                    if (m >= 0 && m != menuOpen) { OpenMenu(m); menuHeld = true; }
+                    else if (i >= 0) PickItem(menuOpen, i);
+                    else CloseMenu();
+                    return true;
+                }
+                if (modal >= 0 || y >= menus.BarHeight) return false;
+                if (m >= 0 && (menus.Items[m].Length > 0))
+                {
+                    MenuMarks();
+                    OpenMenu(m);
+                    menuHeld = true;
+                }
+                return true;                                                    // the bar itself does nothing
+            }
+            if (menuOpen < 0) return false;
+            if (menuHeld)
+            {
+                menuHeld = false;
+                int i = menus.ItemAt(menuOpen, x, y);
+                if (i >= 0) PickItem(menuOpen, i);
+                else if (m != menuOpen) CloseMenu();                            // released on the title: a click, it stays open
+            }
+            return true;
+        }
+        if (ev is InputEventMouseMotion mm && menuOpen >= 0)
+        {
+            int x = (int)mm.Position.X, y = (int)mm.Position.Y, m = menus.TitleAt(x, y);
+            if (m >= 0 && m != menuOpen && (menuHeld || mm.ButtonMask.HasFlag(MouseButtonMask.Left))) OpenMenu(m);
+            int i = menus.ItemAt(menuOpen, x, y);
+            if (Selectable(menuOpen, i)) menuHot = i;
+            else if (menuHeld) menuHot = -1;
+            return true;
+        }
+        if (ev is InputEventKey k && k.Pressed)
+        {
+            int n = menus.Titles.Length;
+            if (menuOpen < 0)
+            {
+                int m = k.AltPressed ? k.Keycode switch { Key.F => 0, Key.W => 1, Key.V => 2, Key.O => 3, Key.S => 4, _ => -1 }
+                    : k.CtrlPressed || k.ShiftPressed ? -1
+                    : k.Keycode switch { Key.F2 => 0, Key.F3 => 1, Key.F4 => 2, Key.F5 => 3, Key.F6 => 4, _ => -1 };
+                if (m < 0 || m >= n || modal >= 0 || k.Echo) return false;
+                MenuMarks();
+                OpenMenu(m);
+                menuHot = NextItem(m, -1, 1);
+                return true;
+            }
+            switch (k.Keycode)
+            {
+                case Key.Escape: CloseMenu(); break;
+                case Key.Enter or Key.KpEnter or Key.Space:
+                    if (menuHot >= 0) PickItem(menuOpen, menuHot); else CloseMenu();
+                    break;
+                case Key.Down or Key.KpAdd or Key.Equal: menuHot = NextItem(menuOpen, menuHot, 1); break;
+                case Key.Up or Key.KpSubtract or Key.Minus: menuHot = NextItem(menuOpen, menuHot < 0 ? 0 : menuHot, -1); break;
+                case Key.Left or Key.Right:
+                    OpenMenu(((menuOpen + (k.Keycode == Key.Left ? -1 : 1)) % n + n) % n);
+                    menuHot = NextItem(menuOpen, -1, 1);
+                    break;
+                case >= Key.A and <= Key.Z:
+                    for (int s = 1; s <= menus.Items[menuOpen].Length; s++)
+                    {
+                        int i = (Math.Max(menuHot, -1) + s) % menus.Items[menuOpen].Length;
+                        var item = menus.Items[menuOpen][i];
+                        if (Selectable(menuOpen, i) && item.Length > 1 && char.ToUpperInvariant(item[1]) == (char)k.Keycode)
+                        {
+                            menuHot = i;
+                            break;
+                        }
+                    }
+                    break;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    void DrawMenuBar(UiArt.Canvas c)
+    {
+        var f = ui.Font(Menus.Font);
+        if (f == null || menus.Titles.Length == 0) return;
+        c.Fill(0, 0, ScreenW, menus.BarHeight, UiArt.White);
+        c.Fill(0, menus.BarHeight, ScreenW, menus.BarHeight + 1, UiArt.Black);
+        for (int m = 0; m < menus.Titles.Length; m++)
+        {
+            var (l, t, r, b) = menus.TitleRect(m);
+            f.Draw(c, l, t, menus.Titles[m], UiArt.Black);
+            if (m == menuOpen) c.Invert(l, t - 1, r, b);
+        }
+    }
+
+    void DrawMenu(UiArt.Canvas c)
+    {
+        var f = ui.Font(Menus.Font);
+        if (f == null) return;
+        MenuMarks();
+        var (fr, x, y) = menus.Box(menuOpen);
+        c.Fill(fr.l - 1, fr.t - 1, fr.r + 1, fr.b + 1, UiArt.White);
+        c.Frame(fr.l - 1, fr.t - 1, fr.r + 1, fr.b + 1, UiArt.Black);
+        c.Fill(fr.l + 1, fr.b + 1, fr.r + 2, fr.b + 2, UiArt.Black);                 // a drop shadow (not traced)
+        c.Fill(fr.r + 1, fr.t + 1, fr.r + 2, fr.b + 2, UiArt.Black);
+        for (int i = 0; i < menus.Items[menuOpen].Length; i++)
+        {
+            bool off = (menus.Items[menuOpen][i][0] & Menus.Disabled) != 0;
+            string text = menus.Text(menuOpen, i);
+            f.Draw(c, x, y + i * Menus.CellH, off ? " " + text[1..] : text, off ? UiArt.DarkGrey : UiArt.Black);
+            if (i == menuHot) c.Invert(x, y + i * Menus.CellH, fr.r, y + (i + 1) * Menus.CellH);
+        }
+    }
+
+    /// <summary>f_6e26d: a menu command 0xFDmn, from a menu or a key (SIM_NOTES "Keys and menu commands").</summary>
+    void MenuCommand(int cmd)
+    {
+        var st = session.St;
+        int n = cmd & 0xff;
+        switch (n)
+        {
+            case 0x01: modal = AboutWin; break;                                          // About: f_72931, window 0x1F00
+            case 0x03: modal = SelectWin; selectMidGame = true; break;                   // New: f_2f848 (and music 0x2711)
+            case 0x04: OpenFileDialog(false); break;                                     // Load (DS:2CBC = 4)
+            case 0x05 or 0x06: OpenFileDialog(true); break;                              // Save, Save As
+            case 0x08: pendingGame = 5; modal = SavePrompt; break;                       // Quit (save first?)
+            case 0x11: Front(EditWin); break;                                            // f_03370
+            case 0x12: Front(MapWin); break;                                             // f_0148a
+            case 0x13: Front(BehaviorWin); break;                                        // f_07aab
+            case 0x14: Front(CasteWin); break;                                           // f_07a95
+            case 0x15: Front(HistoryWin); break;                                         // f_2f9ba
+            case 0x16: OpenAntipedia(); break;                                           // Info: f_2f9b0, the SimAntipedia
+            case 0x17: OpenEfficiency(); break;                                          // Status: f_2f9a6, the Efficiency Score
+            case >= 0x21 and <= 0x24:                                                    // the yard window's mode G:035C
+                if (!yardChoose) st.Set16(Seg.G, 0x35c, n - 0x21);
+                OpenYard(false);
+                break;
+            case >= 0x26 and <= 0x28:                                                    // f_01aec(1 / 2 / 3): the Map window's view
+                st.Set16(Seg.T, 0x7c8, n - 0x25);
+                SetView(n - 0x25);
+                break;
+            case >= 0x31 and <= 0x36: session.ToggleOption(n - 0x31); break;            // T:07A8 + 2 n (0x32 also stops the music)
+            case 0x41: session.Paused = !session.Paused; break;                          // G:047E ^= 1
+            case >= 0x43 and <= 0x46: session.Speed = n - 0x43; break;                   // T:07CC = 0..3
         }
     }
 
@@ -1785,6 +2003,7 @@ public partial class Main : Node2D
                 else if (win == YardWin) DrawYardWindow(canvas);
                 else DrawControlWindow(canvas, win);
             if (popReport) DrawPopulationReport(canvas);
+            DrawMenuBar(canvas);
             if (modal == EfficiencyWin) DrawEfficiency(canvas);
             if (modal == AntInfoWin) DrawAntInfo(canvas);
             if (modal == SelectWin) ui.DrawWindow(canvas, SelectWin, 0, 0, null);
@@ -1797,6 +2016,7 @@ public partial class Main : Node2D
             if (modal is TitleWin or AboutWin) ui.DrawWindow(canvas, modal, 0, 0, null);
             if (modal == 11) ui.DrawWindow(canvas, 11, 245, 200, null);       // "not available in the full game"
             if (popup >= 0) DrawPopup(canvas);
+            if (menuOpen >= 0) DrawMenu(canvas);
         }
         for (int i = 0; i < argb.Length; i++)
         {
@@ -1813,6 +2033,7 @@ public partial class Main : Node2D
     public override void _UnhandledInput(InputEvent ev)
     {
         if (session == null) return;
+        if (popup < 0 && MenuInput(ev)) return;
         if (popup >= 0 && ev is InputEventMouse)
         {
             PopupInput(ev);
@@ -1824,7 +2045,7 @@ public partial class Main : Node2D
             var r = ui.Layouts[dragWin].Rect;
             // keep the caption reachable on screen
             int dx = Math.Clamp(dragOrig.dx + (int)d.X, -r.right + 40, ScreenW - 40 - r.left);
-            int dy = Math.Clamp(dragOrig.dy + (int)d.Y, -r.top, ScreenH - 20 - r.top);
+            int dy = Math.Clamp(dragOrig.dy + (int)d.Y, menus.BarHeight + 1 - r.top, ScreenH - 20 - r.top);
             offsets[dragWin] = (dx, dy);
             return;
         }
@@ -1948,10 +2169,8 @@ public partial class Main : Node2D
                 case Key.G: ToggleWindow(HistoryWin); break;                                     // the History graph
                 case Key.P: ToggleWindow(BehaviorWin); ToggleWindow(CasteWin); break;                                       // the colony controls
                 case Key.F1: help = !help; break;                                          // the help overlays
-                case Key.F5: QuickSave(); break;                                           // save (the original's .ANT format)
+                case Key.F8: QuickSave(); break;                                           // quick save (F5 is the Options menu now)
                 case Key.F9: QuickLoad(); break;                                           // load
-                case Key.F2: modal = SelectWin; selectMidGame = true; break;
-                case Key.F3: modal = AboutWin; break;                                      // the about box                                     // Select a Game
                 case Key.V: CycleScent(); break;                                           // the scent views (T:07BE)
                 case Key.O: session.St.Set16(Seg.G, 0x378, session.St.U16(Seg.G, 0x378) == 1 ? 0 : 1); break;   // auto / manual jobs
                 case Key.N: Restart(1); break;
@@ -1962,36 +2181,29 @@ public partial class Main : Node2D
     }
 
     /// <summary>The original's keys (SIM_NOTES "Keys and menu commands"): f_74386's table DS:2CBE turns Ctrl and
-    /// shifted keys into menu commands 0xFDmn (f_6e26d), and f_76aeb handles the plain ones. Alt+F/W/V/O/S and
-    /// F2..F6 open the pull-down menus 0xFE00..04, whose items are not in the data: the shell keeps F2 / F3.</summary>
+    /// shifted keys into menu commands 0xFDmn (MenuCommand, f_6e26d), and f_76aeb handles the plain ones. Alt+F / W /
+    /// V / O / S and F2..F6 open the pull-down menus 0xFE00..04 (MenuInput).</summary>
     bool OriginalKey(InputEventKey k)
     {
         var st = session.St;
         bool spider = st.U16(Seg.G, 0xa06) != 0, queen = st.U16(Seg.G, 0x4c2) == 0x40 && st.U16(Seg.G, 0xc24) == 0;
         if (k.CtrlPressed)
-            switch (k.Keycode)
-            {
-                case Key.N: modal = SelectWin; selectMidGame = true; return true;          // 0xFD03 new game (f_2f848)
-                case Key.L: OpenFileDialog(false); return true;                              // 0xFD04 load (DS:2CBC = 4)
-                case Key.S or Key.A: OpenFileDialog(true); return true;                      // 0xFD05 save, 0xFD06 save as
-                case Key.Q or Key.X: pendingGame = 5; modal = SavePrompt; return true;       // 0xFD08 quit (save first?)
-                case Key.E: Front(EditWin); return true;                                     // 0xFD11 f_03370
-                case Key.M: Front(MapWin); return true;                                      // 0xFD12 f_0148a
-                case Key.B: ToggleWindow(BehaviorWin); return true;                          // 0xFD13 f_07aab
-                case Key.C: ToggleWindow(CasteWin); return true;                             // 0xFD14 f_07a95
-                case Key.T: OpenEfficiency(); return true;                                   // 0xFD17 f_2f9a6
-                case Key.Y: st.Set16(Seg.G, 0x35c, 0); if (!zOrder.Contains(YardWin)) OpenYard(false); return true;  // 0xFD21 Yard View
-                case Key.G or Key.J or Key.K:                                                // 0xFD31..33: T:07A8 / 07AA / 07AC on / off
-                    int flag = k.Keycode == Key.G ? 0x7a8 : k.Keycode == Key.J ? 0x7aa : 0x7ac;    // 07AC: sound effects
-                    st.Set16(Seg.T, flag, st.U16(Seg.T, flag) == 0 ? 1 : 0);
-                    return true;
-                default: return false;
-            }
-        if (k.ShiftPressed && k.Keycode is Key.Key0 or Key.Key1 or Key.Key2 or Key.Key3)
         {
-            if (k.Keycode == Key.Key0) session.Paused = !session.Paused;                    // ')' 0xFD41: G:047E ^= 1
-            else session.Speed = (int)(k.Keycode - Key.Key1);                                     // '!' '@' '#' 0xFD43..45: T:07CC = 0..2
-            return true;                                                                     // ('$' 0xFD46 sets 3: a delay of -1)
+            // f_74386's table DS:2CBE
+            int cmd = k.Keycode switch
+            {
+                Key.N => 0x03, Key.L => 0x04, Key.S => 0x05, Key.A => 0x06, Key.Q or Key.X => 0x08,
+                Key.E => 0x11, Key.M => 0x12, Key.B => 0x13, Key.C => 0x14, Key.T => 0x17, Key.Y => 0x21,
+                Key.G => 0x31, Key.J => 0x32, Key.K => 0x33, _ => 0,
+            };
+            if (cmd == 0) return false;
+            MenuCommand(0xfd00 | cmd);
+            return true;
+        }
+        if (k.ShiftPressed && k.Keycode is Key.Key0 or Key.Key1 or Key.Key2 or Key.Key3 or Key.Key4)
+        {
+            MenuCommand(k.Keycode == Key.Key0 ? 0xfd41 : 0xfd43 + (int)(k.Keycode - Key.Key1));   // ')' '!' '@' '#' '$'
+            return true;
         }
         if (k.AltPressed || k.ShiftPressed && k.Keycode != Key.Backspace) return false;
         switch (k.Keycode)

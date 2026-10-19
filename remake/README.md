@@ -44,12 +44,14 @@ The screen is built from the original's window layouts (`Formica.Data/Ui.cs` dra
 bitmaps and fonts): the **Edit window** (the close-up map with its tool strip and health bars) and the **Map
 window** (the whole map, the toolbar and the population report), plus the Behavior / Caste Control, History
 and Efficiency Score windows and the yellow ant's pop-up menu. Drag a window by its caption; a click brings it
-to the front. The status lines below the windows are the shell's own.
+to the front. The menu bar across the top is the original's (SHARED type 6). The status lines below the windows are the
+shell's own.
 
 Mouse:
 
 | Where | Action |
 |---|---|
+| Menu bar (top) | the original's pull-down menus (SHARED type 6): File, Window, View, Options, Speed. Press on a title and release on an item, or click a title, then an item; ► marks the speed and the Options that are on |
 | Edit window map | left click: walk the yellow ant there (Shift: walk and act on the cell: pick up / drop); right click: walk there digging; Ctrl + click: Ant Info |
 | on the yellow ant | press and hold: its menu (recruit, release, exchange; a queen: dig hole, start brood; the spider: chase, hunt); release on an entry |
 | Edit tool strip | MAP (show / hide the Map window), ? (help overlays), Surface / Black / Red nest, go to the yellow ant / spider / queens, PAUSE, SCENT (cycle the scent views) |
@@ -67,10 +69,11 @@ Keys:
 | 1 / 2 | recruit 5 / 10 (a queen: dig hole / start brood; the spider: chase / hunt) |
 | 3 / 4, X, 0 | release half / all; exchange (then click an ant or the spider); alarm trail |
 | Backspace, Shift+Backspace | stop the yellow ant's walk (else recentre on it); follow it |
-| Shift+0, Shift+1 / 2 / 3 | pause (G:047E); speed slow / medium / fast (T:07CC) |
+| Alt+F / W / V / O / S, F2..F6 | open a menu (File, Window, View, Options, Speed); then Up / Down, Left / Right, a letter, Enter / Space, Esc |
+| Shift+0, Shift+1 / 2 / 3 / 4 | pause (G:047E); speed Slow / Normal / Fast / Ultra (T:07CC) |
 | Ctrl+N, Ctrl+L, Ctrl+S / A, Ctrl+Q / X | Select a Game; load, save (the file dialog: Godot's user:// folder, type a name to save, click / double-click a file to load); quit (asks to save first) |
 | Ctrl+E, Ctrl+M, Ctrl+B, Ctrl+C, Ctrl+T, Ctrl+Y | Edit window; Map window; Behavior / Caste Control; Efficiency Score; the yard window |
-| Ctrl+G / J / K | toggle T:07A8 / T:07AA / T:07AC (K: sound effects) |
+| Ctrl+G / J / K | Options: AutoTrack / Music / Sound Effects (T:07A8 / T:07AA / T:07AC); Events, Messages and Silly (speech balloons, off at start-up as in the original) are in the menu |
 | Tab | Map window (front / hide) |
 | **The shell's own keys** | |
 | Ctrl+1 / 2 / 3 | surface / black nest / red nest |
@@ -80,15 +83,15 @@ Keys:
 | C, U, Shift+U | as the spider: chase (then click), hunt, lash out |
 | P, O | Behavior and Caste Control windows; automatic / manual jobs (G:0378) |
 | G, V | History window; scent views (T:07BE) |
-| F1, F2, F3 | the help overlays; Select a Game (after the title at start-up; asks to save a running game); the about box |
+| F1 | the help overlays (File > New is Select a Game, File > About the about box) |
 | Y, Esc | yard map in a Full Game (click a patch to move; also opens when another colony must be picked); Esc also closes the SimAntipedia |
-| F5 / F9 | quick save / load (the original's .ANT format, in Godot's user:// folder) |
+| F8 / F9 | quick save / load (the original's .ANT format, in Godot's user:// folder) |
 | S | sound effects on / off (the shell's mute) |
 | N / M / K | new Quick Game / Full Game / Experimental game |
 
 Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`, `--efficiency`, `--popup`,
 `--map-front`, `--help-overlay`, `--yard`, `--strat`, `--scent-menu`, `--ant-info`, `--select`, `--report`,
-`--exp-menu`, `--trails`, `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y), `--game-over`, `--load-dialog`, `--save-dialog` to open those
+`--exp-menu`, `--trails`, `--menu=m[,item]` (a menu open, an item highlighted), `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y), `--game-over`, `--load-dialog`, `--save-dialog` to open those
 windows first; `--full` / `--experimental` start that kind of game.
 
 ## Porting notes

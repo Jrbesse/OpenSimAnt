@@ -72,7 +72,8 @@ public sealed class GameSession
         Game.StartGame(St, mode);
         St.Set16(T, 0x7cc, speed);
         nextTick = St.Clock3();
-        St.Set16(T, 0x7b2, 1);                                  // the patch is shown
+        if (options != null)
+            for (int i = 0; i < 6; i++) St.Set16(T, 0x7a8 + 2 * i, options[i]);
         Ticks = 0;
     }
 
@@ -102,15 +103,29 @@ public sealed class GameSession
         Ticks++;
     }
 
-    /// <summary>The speed T:07CC: 0 slow, 1 medium (the start-up value), 2 fast.</summary>
+    /// <summary>The speed T:07CC: 0 Slow, 1 Normal (the start-up value), 2 Fast, 3 Ultra (the Speed menu).</summary>
     public int Speed
     {
         get => speed;
         set
         {
-            speed = Math.Clamp(value, 0, 2);
+            speed = Math.Clamp(value, 0, 3);
             St?.Set16(T, 0x7cc, speed);
         }
+    }
+
+    int[] options;
+
+    /// <summary>The Options menu's flags T:07A8 + 2 n (f_6e26d's 0xFD31..36): 0 AutoTrack (follow the walking
+    /// yellow ant), 1 Music, 2 Sound Effects, 3 Events (the yellow ant's death messages), 4 Messages (the advisor's
+    /// status line), 5 Silly (speech balloons and the event markers behind them). The start-up values are SIMANT.EXE's
+    /// (0, 1, 1, 1, 1, 0); a new State starts from them, so the session carries the player's choices over.</summary>
+    public bool Option(int n) => St.U16(T, 0x7a8 + 2 * n) != 0;
+
+    public void ToggleOption(int n)
+    {
+        St.Set16(T, 0x7a8 + 2 * n, Option(n) ? 0 : 1);
+        options = Enumerable.Range(0, 6).Select(i => (int)St.U16(T, 0x7a8 + 2 * i)).ToArray();
     }
 
     /// <summary>The pause flag G:047E (a pending yellow-ant action still runs, as in the original).</summary>
@@ -127,6 +142,7 @@ public sealed class GameSession
     /// number of SimSteps run.</summary>
     public int Advance(double seconds, int maxSteps = 8)
     {
+        if (St.U16(T, 0x7cc) == 3) maxSteps *= 4;
         clockFrac += seconds * ClockHz;
         long whole = (long)clockFrac;
         clockFrac -= whole;
@@ -136,8 +152,8 @@ public sealed class GameSession
         {
             long now = St.Clock3();
             if (now < nextTick) break;
-            int delay = St.S16(T, 0x7ce + 2 * St.U16(T, 0x7cc));
-            nextTick = now + Math.Max(delay, FastDelay);
+            int delay = St.S16(T, 0x7ce + 2 * St.U16(T, 0x7cc));         // Ultra: T:07D4 = -1, no wait at all
+            nextTick = now + (delay < 0 ? 0 : Math.Max(delay, FastDelay));
             if (St.U16(G, 0x47e) == 0 || (St.U16(G, 0xaa0) != 0 && St.S16(G, 0x105e) < 10))
             {
                 global::Formica.Sim.Sim.SimStep(St);
