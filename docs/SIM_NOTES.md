@@ -1620,7 +1620,10 @@ added a pixel at a time; the last row sits 1 px higher. The remake draws it (`Ma
   together with the other colony's ring T:0852[k]. All 64 entries from (G:04F4 - T:0828) & 63: point 0 at the
   graph's left, point i at left + slot + i * w / 64 (truncated toward zero); y as above (mult when M < H:
   the largest with M * mult < H; else the smallest div with M / div <= H; values not clamped). The lines go
-  through the driver's DS:916C (not traced). The colour is DS:2EE8[DS:8C26[s]] (0x43, 0x46, 0x49, 0x45). The
+  through the driver's DS:916C (0x32F69: left to right, the ends swapped if needed, both drawn; the longer
+  axis steps every pixel, x when dx >= dy; the error starts at 0, adds the shorter span and moves the shorter
+  axis once it passes half the longer one, then loses the longer span; x < 0 is skipped). The colour is
+  DS:2EE8[DS:8C26[s]] (0x43, 0x46, 0x49, 0x45). The
   caller draws every slot's line (flag 1), then every label (flag 0): the last value ("%d", DS:2EFA) in font
   3 at the last point, its top half the text height above it, framed 1 px out in the same colour
   (`f_9128(colour, 0, colour)`).
