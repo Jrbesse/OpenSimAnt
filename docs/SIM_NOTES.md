@@ -1642,6 +1642,22 @@ brood, queen, rest:
 The fight timers are checked one after the other, then both balloons are drawn. The clock is read again
 for the new value (`f_1bc34` twice).
 
+**Drawing** (decoded 2026-10-18 night; remake `Formica.Data/Balloon.cs`). `f_0696a(a, b, view, style, text)` only
+queues: up to 6 (count G:1092) when the spot is in the Edit window (`f_06725`), with the cell centre in pixels a *
+16 + 8, b * 16 + 8 (style 10 means a, b are pixels already: the spider's remarks) at G:04C8, the view G:04F6, the
+style G:04E6 and the text G:04A6. `f_07134` sets font 2 and draws the first queued balloon still in view (one per
+frame, then G:1092 = 0): `f_1629c(text, 0)` builds its bitmap, which goes at (x + 4, y - height - 4) over the map
+cells it covers (redrawn into a buffer first; DS:15C4 marks them for the next redraw, so a balloon lasts one
+frame unless queued again). `f_1629c` ("MakeBaloon", "BAD font in MakeBaloon") splits the text at literal
+backslash-n (up to 10 breaks), measures it (`f_24dd9`), makes a (widest + 0x17) & ~7 by lines * font height + 16
+bitmap and tiles it from 8 x 8 pieces in DS (16 bytes: 8 rows of the white inside byte and the shape byte; shape
+without inside is the black outline): top-left 1D0A, top 1D2A (repeated, `f_169e0`), top-right 1D1A; for y = 8
+while y < height - 8 left 1D4A, inside 1D8A, right 1D3A; at y = lines * font height + 6 bottom-right 1D6A,
+bottom-left 1D5A, bottom 1D7A, and the tail: 1DAA in column 1 (pointing down-left; `f_1629c(.., 1)` would put
+1D9A in the second-last column). Line i goes at x = 1 byte + ((-width) & 6) / 2, y = 6 + i * font height
+(`f_2632e`, `f_16a36`). The height then shrinks by 1, by 2 for a single line; the result is converted for the
+video mode (DS:5A97: `f_166f3` / `f_167c1`).
+
 STR# list handles loaded at startup (`f_0765e`, part of the STR# loader 0x7691..0x77C5; these are
 string lists, not bitmaps): 1000 → G:046C, 1001 → G:0324, 1010 → G:034C, 1020 → G:0360,
 1050 → G:02BA, 1100..1103 → G:106E / 1078 / 1086 / 1096, 1200 → G:10A8, 1210 → G:10B4, 1220 → G:020A,
@@ -1679,6 +1695,21 @@ death messages (f_75d01, f_76707, f_7686d) and f_71b1a's message boxes; Messages
 behind them (nests, surface, `sim.py`: the reference called T:07B2 "the patch is visible"). SIMANT.EXE's start-up
 values are 0, 1, 1, 1, 1, 0: **Silly is off** unless the player turns it on (the emulator's Quick Game has T:07B2
 = 0, so `test_nest.py` / `test_balloons.py` set it).
+
+**Songs** (`f_00ea1(id, 0x7E)`: only with sound hardware DS:1926 and Music T:07AA; `f_026e7`, then `f_284b3(id)`
+stops the current song (`f_285aa`) and starts SOUND type 18 entry `id`; FILE_FORMATS). `f_00ed8(n, 0, 0x7E)` is a
+sound effect (Sound Effects T:07AC), `f_00ed0` an empty stub, `f_00f28` "has the song finished". The call sites
+(`calls.tsv`, the pushed id): 0x2711 Game Theme from the title `f_72bc2` (window 0x300, then a wait `f_01277(0x28)`)
+and File > New (f_6e26d); 0x2713 + Rand2 the fanfare and 0x2718 / 0x271A Victory / Defeat (f_71d95); 0x2713 +
+G:0228 the three Ant Themes in turn (`player.jingle` f_0cd37, at most every 0x1C20 clock ticks); 0x2AFA moving to a
+patch (f_01d48), 0x2AFB placing a queen / Start Game / the yard map (f_01efa, f_67010, f_67a24, f_7650c), 0x2AFD
+NEWBODY (f_758e0, no ant to become), 0x2AFE the Exchange (f_11b81), 0x2B05..0x2B09 recruit 5 / 10 / all and
+release half / all (f_76cb9: CALL2ARM at +0 / +6 / +12, then song 11016 at +0 / +12), 0x2B0A ATTACK (f_13d35, the
+alarm), 0x2B0C / 0x2B0D the black / red queen (f_0be34), 0x4E20 / 0x4E21 HAPPY1 / 2 (f_758e0: the queen scene,
+found a nest), 0x4E22 / 0x4E23 / 0x4E25 the yard's news (reds gone, the human moves in, ...; `yard.py`), 0x4E27 +
+Rand(5) the sad songs (the yellow ant's deaths, f_75d01). The reference had three of these as `'sound', 0x7e` (the
+volume argument): fixed to `'voice', 0x2afa` (newgame.move_to_patch) and `'sound', 1` (f_00ed8(1, 0, 0x7E): a
+refused patch, and death events 3 / 4).
 
 Layout (`f_2fd2_0663`): the titles' widths in cells go to DS:46BC and their x to DS:46A8: x0 = 0, then + (len +
 gap) * 8 with gap = (screen width / 8 - all titles' cells) / (n - 1) kept within 1..3 (3 at 640 px: x = 0, 64,

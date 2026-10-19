@@ -6,6 +6,9 @@ if (args.Length > 0 && args[0] == "--smoke")
     return Formica.Replay.Smoke.Run(args.Length > 1 ? args[1] : Path.Combine(TracePaths.DefaultDir(), "..", "..", ".."),
                                     args.Length > 2 ? int.Parse(args[2]) : 2000,
                                     args.Length > 3 ? args[3] : Path.Combine(TracePaths.DefaultDir(), "..", "smoke"));
+if (args.Length > 0 && args[0] == "--songs")
+    return Formica.Replay.Songs.Run(args.Length > 1 ? args[1] : Path.Combine(TracePaths.DefaultDir(), "..", "..", ".."),
+                                    args.Length > 2 ? args[2] : Path.Combine(TracePaths.DefaultDir(), "..", "songs"));
 if (args.Length > 0 && args[0] == "--fuzz")
     return Formica.Replay.Fuzz.Run(args.Length > 1 ? args[1] : "..", args.Length > 2 ? int.Parse(args[2]) : 30,
                                    args.Length > 3 ? int.Parse(args[3]) : 3000);

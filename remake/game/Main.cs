@@ -84,6 +84,8 @@ public partial class Main : Node2D
         session.NewGame(args.Contains("--full") ? 2 : args.Contains("--experimental") ? 3 : 1);
         if (screenshot == null || args.Contains("--title")) modal = TitleWin;    // the title, then Select a Game
         else if (args.Contains("--select")) modal = SelectWin;
+        if (modal == TitleWin) PlaySong(0x2711);                            // f_72bc2: the title plays the Game Theme
+        if (args.Contains("--silly")) session.ToggleOption(5);             // Options > Silly: the speech balloons
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--ticks="))                                 // run the game ahead (for checking a build)
                 for (int t = int.Parse(arg["--ticks=".Length..]); t > 0 && !session.Over; t--) session.Step();
@@ -164,10 +166,10 @@ public partial class Main : Node2D
         if (!session.Over && !yardChoose && modal < 0 && menuOpen < 0 && session.Advance(delta) > 0) balloonsNow.Clear();
         ToolPoll();
         ToolHold(delta);
+        SongPoll();
         DrainEffects();
         if (follow) CenterOnYellow();
         Redraw();
-        ShowBalloons();
         if (screenshot != null && ++frames == 240)
         {
             // --screenshot=<png>: save the screen after 240 frames and quit (for checking a build)
@@ -191,6 +193,8 @@ public partial class Main : Node2D
             else if (e.Name == "sound" && e.Args.Length > 0 && e.Args[0] is int sfx && sfx < 57
                      && session.St.U16(Seg.T, 0x7ac) != 0)
                 PlaySound(sfx);
+            else if (e.Name is "sound" or "voice" or "music" && e.Args.Length > 0 && e.Args[0] is int song && song >= 10000)
+                PlaySong(song);
             else if (e.Name == "follow")                                     // f_01c52 (AutoTrack): scroll to the yellow ant
             {
                 if (view != session.Yellow.view) SetView(session.Yellow.view);
@@ -199,7 +203,7 @@ public partial class Main : Node2D
             else if (e.Name == "info" && e.Args.Length >= 2)                // the Ant Info tool (f_2f8fc)
                 OpenAntInfo((int)e.Args[0], (int)e.Args[1]);
             else if (e.Name == "balloon" && e.Args.Length >= 5 && e.Args[4] is ValueTuple<int, int> line)
-                balloonsNow[(int)e.Args[3]] = ((int)e.Args[0], (int)e.Args[1], (int)e.Args[2], BalloonText(line.Item1, line.Item2));
+                balloonsNow.Add(((int)e.Args[0], (int)e.Args[1], (int)e.Args[2], BalloonText(line.Item1, line.Item2)));
             else if (e.Name == "game_over" && e.Args.Length >= 2)
             {
                 // f_71d95's rating window: the rank's title (STR# 1900 = G:0328) and the score (Game.Rating). f_71d95
@@ -837,7 +841,7 @@ public partial class Main : Node2D
         switch (n)
         {
             case 0x01: modal = AboutWin; break;                                          // About: f_72931, window 0x1F00
-            case 0x03: modal = SelectWin; selectMidGame = true; break;                   // New: f_2f848 (and music 0x2711)
+            case 0x03: PlaySong(0x2711); modal = SelectWin; selectMidGame = true; break; // New: music 0x2711, f_2f848
             case 0x04: OpenFileDialog(false); break;                                     // Load (DS:2CBC = 4)
             case 0x05 or 0x06: OpenFileDialog(true); break;                              // Save, Save As
             case 0x08: pendingGame = 5; modal = SavePrompt; break;                       // Quit (save first?)
@@ -856,7 +860,10 @@ public partial class Main : Node2D
                 st.Set16(Seg.T, 0x7c8, n - 0x25);
                 SetView(n - 0x25);
                 break;
-            case >= 0x31 and <= 0x36: session.ToggleOption(n - 0x31); break;            // T:07A8 + 2 n (0x32 also stops the music)
+            case >= 0x31 and <= 0x36:                                                    // T:07A8 + 2 n
+                session.ToggleOption(n - 0x31);
+                if (n == 0x32 && !session.Option(1)) StopSong();                         // 0x32 also stops the music (f_285aa)
+                break;
             case 0x41: session.Paused = !session.Paused; break;                          // G:047E ^= 1
             case >= 0x43 and <= 0x46: session.Speed = n - 0x43; break;                   // T:07CC = 0..3
         }
@@ -1642,45 +1649,122 @@ public partial class Main : Node2D
 
     // ------------------------------------------------------------------------------- speech balloons
     // Balloons.Run (f_06a4d) emits ("balloon", a, b, view, style, (list handle, line)) each tick a balloon is
-    // shown; the list handles are the STR# lists loaded at start-up: G:020A 1220 (black fighters), G:0218 1230
-    // (red fighters), G:021C 1240 (brood), G:0234 1250 (queen), G:023A 1260 (resting). The original draws a
-    // balloon bitmap group (f_0696a); this shows the text.
+    // shown (Options > Silly, T:07B2); the list handles are the STR# lists loaded at start-up: G:020A 1220 (black
+    // fighters), G:0218 1230 (red fighters), G:021C 1240 (brood), G:0234 1250 (queen), G:023A 1260 (resting).
+    // f_0696a queues up to 6 (G:1092: the cell centre in pixels a * 16 + 8, b * 16 + 8, view, style, the text) when
+    // the spot is in the Edit window (f_06725); f_07134 then draws the first queued one that is in view, built by
+    // f_1629c (Formica.Data.Balloon), with its top-left at (x + 4, y - height - 4) so the tail points at the ant,
+    // and empties the queue. The cells under it are marked for redrawing (DS:15C4), so it lasts one frame unless
+    // queued again.
     static readonly Dictionary<int, int> BalloonLists = new() { [0x20a] = 1220, [0x218] = 1230, [0x21c] = 1240, [0x234] = 1250, [0x23a] = 1260 };
-    readonly Dictionary<int, (int a, int b, int view, string text)> balloonsNow = new();
-    readonly List<Label> balloonLabels = new();
+    readonly List<(int a, int b, int view, string text)> balloonsNow = new();
+    readonly Dictionary<string, (int w, int h, uint[] px)> balloonCache = new();
 
     string BalloonText(int handle, int index)
     {
         var lines = BalloonLists.TryGetValue(handle, out int id) ? session.Files.Strings(id) : null;
-        // the lines hold a literal backslash-n where the original's text drawing breaks the line
-        return lines != null && index < lines.Length ? lines[index].Replace("\\n", "\n") : null;
+        return lines != null && index < lines.Length ? lines[index] : null;
     }
 
-    void ShowBalloons()
+    void DrawBalloon(UiArt.Canvas c)
     {
-        int k = 0;
         var m = ItemRect(EditWin, EditMapItem);
-        bool editOnTop = zOrder[^1] == EditWin;
-        foreach (var (a, b, v, text) in balloonsNow.Values)
+        foreach (var (a, b, v, text) in balloonsNow)
         {
-            if (text == null || v != view || !editOnTop) continue;
-            int x = (a - originA) * Cell + m.l, y = (b - originB) * Cell - 18 + m.t;
-            if (x < m.l || y < m.t || x >= m.r || y >= m.b) continue;
-            if (k == balloonLabels.Count)
-            {
-                var l = new Label();
-                l.AddThemeFontSizeOverride("font_size", 10);
-                l.AddThemeColorOverride("font_color", new Color(0, 0, 0));
-                l.AddThemeStyleboxOverride("normal", new StyleBoxFlat { BgColor = new Color(1, 1, 1), ContentMarginLeft = 3, ContentMarginRight = 3 });
-                status.GetParent().AddChild(l);
-                balloonLabels.Add(l);
-            }
-            balloonLabels[k].Text = text;
-            balloonLabels[k].Position = new Vector2(Math.Min(x, m.r - 160), y);
-            balloonLabels[k].Visible = true;
-            k++;
+            if (text == null || v != view || a < originA || b < originB || a >= originA + Cols || b >= originB + Rows) continue;
+            if (!balloonCache.TryGetValue(text, out var bmp))
+                balloonCache[text] = bmp = Balloon.Make(session.Files.Flat, ui.Font(2), text);
+            int x = (a - originA) * Cell + 8 + 4 + m.l, y = (b - originB) * Cell + 8 - bmp.h - 4 + m.t;
+            var clip = c.Clip(m.l, m.t, m.r, m.b);
+            for (int yy = 0; yy < bmp.h; yy++)
+                for (int xx = 0; xx < bmp.w; xx++)
+                    if (bmp.px[yy * bmp.w + xx] != Balloon.Transparent) clip.Plot(x + xx, y + yy, bmp.px[yy * bmp.w + xx]);
+            return;                                                         // one per frame, as f_07134
         }
-        for (; k < balloonLabels.Count; k++) balloonLabels[k].Visible = false;
+    }
+
+    // ------------------------------------------------------------------------------- music
+    // f_00ea1(id) → f_284b3: a song by effect id (Formica.Data.Music: SOUND type 18 → the type-20 MIDI, rendered with
+    // the remake's own FM voices, not the original's AdLib patches), only while Options > Music (T:07AA) is on; a new
+    // song stops the one playing (f_285aa). The sim reports songs as "voice", "music" (f_00ed0, an empty stub, for ids
+    // below 10000) and "sound" ids from 10000. Songs asked for in the same frame play one after the other (the game
+    // over's ending, then its fanfare once f_00f28 says the ending is done). Rendering runs off the main thread.
+    readonly Dictionary<int, AudioStreamWav> songCache = new();
+    readonly Queue<int> songQueue = new();
+    AudioStreamPlayer songPlayer;
+    System.Threading.Tasks.Task<short[]> songTask;
+    int songTaskId = -1, songWanted = -1;
+    bool songThisFrame;
+
+    void PlaySong(int id)
+    {
+        if (!session.Option(1) || screenshot != null || Music.Entry(session.Files, id) == null) return;
+        if (songThisFrame && songWanted >= 0) { songQueue.Enqueue(id); return; }
+        songThisFrame = true;
+        songQueue.Clear();
+        songWanted = id;
+        songPlayer?.Stop();
+        RenderOrStart(id);
+    }
+
+    void RenderOrStart(int id)
+    {
+        if (songCache.TryGetValue(id, out var cached))
+        {
+            if (cached != null) StartSong(cached);
+            return;
+        }
+        if (songTask != null) return;                                     // SongPoll starts it when the current one is done
+        songTaskId = id;
+        var files = session.Files;
+        songTask = System.Threading.Tasks.Task.Run(() => Music.Render(files, id));
+    }
+
+    /// <summary>Each frame: take a finished render, start what is wanted, move on down the queue.</summary>
+    void SongPoll()
+    {
+        songThisFrame = false;
+        if (songTask is { IsCompleted: true })
+        {
+            var pcm = songTask.IsCompletedSuccessfully ? songTask.Result : null;
+            AudioStreamWav stream = null;
+            if (pcm != null)
+            {
+                var bytes = new byte[pcm.Length * 2];
+                Buffer.BlockCopy(pcm, 0, bytes, 0, bytes.Length);
+                stream = new AudioStreamWav { Format = AudioStreamWav.FormatEnum.Format16Bits, MixRate = Music.SampleRate, Stereo = false, Data = bytes };
+            }
+            songCache[songTaskId] = stream;
+            songTask = null;
+            if (songTaskId == songWanted && stream != null) StartSong(stream);
+            songTaskId = -1;
+            if (songWanted >= 0 && !songCache.ContainsKey(songWanted)) RenderOrStart(songWanted);
+        }
+        if (songWanted >= 0 && songPlayer is { Playing: false } && songCache.ContainsKey(songWanted) && songQueue.Count > 0
+            && songPlayer.Stream == songCache[songWanted])
+        {
+            songWanted = songQueue.Dequeue();
+            RenderOrStart(songWanted);
+        }
+    }
+
+    void StartSong(AudioStreamWav stream)
+    {
+        if (songPlayer == null)
+        {
+            songPlayer = new AudioStreamPlayer { VolumeDb = -4 };
+            AddChild(songPlayer);
+        }
+        songPlayer.Stream = stream;
+        songPlayer.Play();
+        GD.Print($"music: song {songWanted} ({stream.Data.Length / 2 / (double)Music.SampleRate:F1} s)");
+    }
+
+    void StopSong()
+    {
+        songWanted = -1;
+        songQueue.Clear();
+        songPlayer?.Stop();
     }
 
     // ------------------------------------------------------------------------------- sound effects
@@ -1997,7 +2081,7 @@ public partial class Main : Node2D
                     argb[y * ScreenW + x] = ((x ^ y) & 1) == 0 ? 0xff9a9a9au : 0xff7a7a7au;
             DrawStatus(canvas);
             foreach (int win in zOrder)
-                if (win == EditWin) DrawEditWindow(canvas);
+                if (win == EditWin) { DrawEditWindow(canvas); DrawBalloon(canvas); }
                 else if (win == MapWin) DrawMapWindow(canvas);
                 else if (win == HistoryWin) DrawHistoryWindow(canvas);
                 else if (win == YardWin) DrawYardWindow(canvas);

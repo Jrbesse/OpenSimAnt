@@ -437,10 +437,10 @@ def move_to_patch(st):
         if st.u8(T, 0xa4 + idx) < 1 and not (st.u16(G, 0x4c2) == 0x40 and st.u16(T, 0xc24) == 0):
             refuse = 0x2714                  # no black colony there
     if refuse:
-        st.player.effect(st, 'sound', 0x7e)                            # f_00ed8(1, 0, 0x7e)
+        st.player.effect(st, 'sound', 1)                               # f_00ed8(1, 0, 0x7e)
         st.player.effect(st, 'message_box', refuse, 1)                 # f_2f6ea → f_71b1a(0, id, 1)
         return
-    st.player.effect(st, 'sound', 0x7e)                                # f_00ea1(0x2afa, 0x7e)
+    st.player.effect(st, 'voice', 0x2afa)                              # f_00ea1(0x2afa, 0x7e)
     st.set16(G, 0x7ca, row)
     st.set16(G, 0x7cc, col)
     st.player.effect(st, 'yard_map')                                   # f_2f6e0 → f_6f46a

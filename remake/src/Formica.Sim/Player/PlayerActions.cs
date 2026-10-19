@@ -370,7 +370,7 @@ public static partial class Player
         }
         else if (n == 3 || n == 4)
         {
-            st.Hooks.Effect(st, "sound", 0x7e);
+            st.Hooks.Effect(st, "sound", 1);                                    // f_00ed8(1, 0, 0x7e)
             if (msg != 0) st.Hooks.Effect(st, "message_box", EVENT_MESSAGE[n], 1);
             st.Inc32(G, 0xefc);
         }

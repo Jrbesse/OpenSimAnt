@@ -1108,7 +1108,7 @@ def player_event(st, n):
         st.player.effect(st, 'sound', st.rand(5) + 0x4e27)
         fight_animation(st, g(0x48c), g(0x47c), g(0x48a), st.u16(G, 0x496), st.u16(G, 0x4c2), n)
     elif n in (3, 4):
-        st.player.effect(st, 'sound', 0x7e)
+        st.player.effect(st, 'sound', 1)                               # f_00ed8(1, 0, 0x7e)
         if msg:
             st.player.effect(st, 'message_box', EVENT_MESSAGE[n], 1)
         st.inc32(G, 0xefc)

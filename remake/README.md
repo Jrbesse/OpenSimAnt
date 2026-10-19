@@ -29,6 +29,7 @@ cd remake
 dotnet run --project tests/Formica.Replay -c Release -- --quiet
 dotnet test tests/Formica.Sim.Tests -c Release
 dotnet run --project tests/Formica.Replay -c Release -- --smoke
+dotnet run --project tests/Formica.Replay -c Release -- --songs   # every song as WAV in build/songs (to listen)
 ```
 
 At this commit all 25 trace files (about 225,000 calls, including 67,200 SimStep ticks) match.
@@ -73,7 +74,7 @@ Keys:
 | Shift+0, Shift+1 / 2 / 3 / 4 | pause (G:047E); speed Slow / Normal / Fast / Ultra (T:07CC) |
 | Ctrl+N, Ctrl+L, Ctrl+S / A, Ctrl+Q / X | Select a Game; load, save (the file dialog: Godot's user:// folder, type a name to save, click / double-click a file to load); quit (asks to save first) |
 | Ctrl+E, Ctrl+M, Ctrl+B, Ctrl+C, Ctrl+T, Ctrl+Y | Edit window; Map window; Behavior / Caste Control; Efficiency Score; the yard window |
-| Ctrl+G / J / K | Options: AutoTrack / Music / Sound Effects (T:07A8 / T:07AA / T:07AC); Events, Messages and Silly (speech balloons, off at start-up as in the original) are in the menu |
+| Ctrl+G / J / K | Options: AutoTrack / Music (the songs: SOUND types 18 / 20 played through the remake's own FM voices, `Formica.Data/Music.cs`) / Sound Effects (T:07A8 / T:07AA / T:07AC); Events, Messages and Silly (speech balloons, off at start-up as in the original) are in the menu |
 | Tab | Map window (front / hide) |
 | **The shell's own keys** | |
 | Ctrl+1 / 2 / 3 | surface / black nest / red nest |
@@ -91,7 +92,7 @@ Keys:
 
 Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`, `--efficiency`, `--popup`,
 `--map-front`, `--help-overlay`, `--yard`, `--strat`, `--scent-menu`, `--ant-info`, `--select`, `--report`,
-`--exp-menu`, `--trails`, `--menu=m[,item]` (a menu open, an item highlighted), `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y), `--game-over`, `--load-dialog`, `--save-dialog` to open those
+`--exp-menu`, `--trails`, `--silly` (Options > Silly on: speech balloons), `--menu=m[,item]` (a menu open, an item highlighted), `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y), `--game-over`, `--load-dialog`, `--save-dialog` to open those
 windows first; `--full` / `--experimental` start that kind of game.
 
 ## Porting notes

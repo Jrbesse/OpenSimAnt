@@ -31,8 +31,10 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 - [ ] Window: Edit, Map, Behavior, Caste, History, Info (SimAntipedia), Status (Efficiency Score).
 - [ ] View: Yard / House / Strategic / Graphic open the yard window in that mode; Surface / Black Nest / Red Nest.
 - [ ] Options (► = on): AutoTrack (the view follows the walking yellow ant), Sound Effects, Events (death
-  messages), Messages (the advisor's line), Silly (speech balloons: off at start, as in the original). Music
-  does nothing yet (no music playback).
+  messages), Messages (the advisor's line), Silly (speech balloons, drawn as the original's
+  balloon bitmaps: off at start, as in the original). Music
+  (the songs, through the remake's own FM voices: listen for wrong instruments, timing or pitch; the console
+  prints "music: song N").
 - [ ] Speed: ► on the current speed; Ultra runs faster than Fast; Pause reads "Unpause" while paused.
 - [ ] Options and speed carry over to the next new game.
 

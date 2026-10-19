@@ -485,11 +485,11 @@ public static partial class NewGame
         }
         if (refuse != 0)
         {
-            st.Hooks.Effect(st, "sound", 0x7e);                             // f_00ed8(1, 0, 0x7e)
+            st.Hooks.Effect(st, "sound", 1);                                // f_00ed8(1, 0, 0x7e)
             st.Hooks.Effect(st, "message_box", refuse, 1);                  // f_2f6ea → f_71b1a(0, id, 1)
             return;
         }
-        st.Hooks.Effect(st, "sound", 0x7e);                                 // f_00ea1(0x2afa, 0x7e)
+        st.Hooks.Effect(st, "voice", 0x2afa);                               // f_00ea1(0x2afa, 0x7e)
         st.Set16(G, 0x7ca, row);
         st.Set16(G, 0x7cc, col);
         st.Hooks.Effect(st, "yard_map");                                    // f_2f6e0 → f_6f46a
