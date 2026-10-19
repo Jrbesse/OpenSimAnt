@@ -83,11 +83,14 @@ public static class YardRenderer
     /// <summary>The colony views (G:035C >= 2): 'strat' (f_70b82) fills each patch's parallelogram with DS:2AD2[k]
     /// and outlines it with DS:2ACA[k], k = 0 black only, 1 both, 2 red only, 3 none; 'graphic' (f_70cf5) stands
     /// bars of height (strength + 3) >> 2 on 10 row + 0x47, 9 px wide, black (0x0F) at x 28 col - 10 row + 168 and
-    /// red (0x23) at + 180. Colour codes: the low nibble is the palette colour, the high nibble a fill pattern
-    /// (f_1b4ed; not decoded: pattern 1 is drawn as a checker with black, the others solid).</summary>
+    /// red (0x23) at + 180. Colour codes: the VGA driver draws their low nibble only (the high nibble is a pattern
+    /// for other display modes).
+    /// The parallelogram is f_1faa6: rows from p0.y up to (not including) p2.y, each from the left edge to (not
+    /// including) the right one, the edges 16.16 fixed point from p0 / p1 stepping by (p0.x - p3.x) &lt;&lt; 16 / height
+    /// and (p1.x - p2.x) &lt;&lt; 16 / height; fill == frame paints the row solid, else (DS:9138 with pattern 0, DS:41D0)
+    /// a checkerboard: the fill colour where x + y is odd, the frame colour elsewhere. No separate outline.</summary>
     public static void DrawColonies(UiArt.Canvas c, State st, uint[] pal, int ox, int oy, bool strat)
     {
-        uint Colour(int code, int x, int y) => (code >> 4) == 1 && ((x ^ y) & 1) != 0 ? pal[15] : pal[code & 15];
         for (int col = 0; col < 12; col++)
             for (int row = 0; row < 16; row++)
             {
@@ -99,13 +102,18 @@ public static class YardRenderer
                     int fill = st.U16(DS, 0x2ad2 + 2 * k), frame = st.U16(DS, 0x2aca + 2 * k);
                     var p = new (int x, int y)[4];
                     for (int i = 0; i < 4; i++) p[i] = (x + st.S16(DS, 0x2a42 + 4 * i), y + st.S16(DS, 0x2a44 + 4 * i));
-                    // a parallelogram with horizontal top and bottom edges: rows p0.y .. p2.y, sides sloping by one px per row
-                    for (int yy = p[0].y; yy <= p[2].y; yy++)
+                    int top = p[0].y, bottom = p[2].y, dy = bottom - top;
+                    int slopeL = dy == 0 ? 0 : (int)(((long)(p[0].x - p[3].x) << 16) / dy);
+                    int slopeR = dy == 0 ? 0 : (int)(((long)(p[1].x - p[2].x) << 16) / dy);
+                    int accL = p[0].x << 16, accR = p[1].x << 16;
+                    for (int yy = top; yy < bottom; yy++)
                     {
-                        int t = yy - p[0].y, l = p[0].x - t * (p[0].x - p[3].x) / Math.Max(1, p[3].y - p[0].y);
-                        int r = p[1].x - t * (p[1].x - p[2].x) / Math.Max(1, p[2].y - p[1].y);
-                        for (int xx = l; xx <= r; xx++)
-                            c.Plot(xx, yy, xx == l || xx == r || yy == p[0].y || yy == p[2].y ? Colour(frame, xx, yy) : Colour(fill, xx, yy));
+                        int l = accL >> 16, r = accR >> 16;
+                        if (l > r) (l, r) = (r, l);
+                        for (int xx = l; xx < r; xx++)
+                            c.Plot(xx, yy, pal[(fill == frame || ((xx + yy) & 1) != 0 ? fill : frame) & 15]);
+                        accL -= slopeL;
+                        accR -= slopeR;
                     }
                 }
                 else

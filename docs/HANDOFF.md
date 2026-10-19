@@ -333,8 +333,7 @@ downloads need a GitHub login until the owner decides about making it public. Go
    Open (all visual detail; none blocks the Godot port):
    - (done 2026-10-19: colours 0x10.. in the map window, the dither patterns DS:1F9E.)
    - (done 2026-10-19: the panels' bar charts, f_083d9; rectangle fills ignore the pattern nibble in VGA.)
-     The yard's Strat parallelograms (`f_1faa6`) fill scanlines through DS:9138 (0x31BF2, with 0x20) when fill
-     and frame differ: not decoded, so YardRenderer's pattern-1 checker is still a guess. The History Window's line drawing;
+     (done the same day: the yard's Strat parallelograms, `f_1faa6`, and the 8 fill patterns DS:41D0.) The History Window's line drawing;
    - the text colours (+26?), the frame styles (named from their drawing routines only), the item
      fields +10 / +18 / +20, the UI tables 128 / 129 / 131;
    - the line algorithm of `f_16b58` (Bresenham assumed);

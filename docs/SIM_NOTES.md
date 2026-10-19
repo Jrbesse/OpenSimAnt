@@ -1398,8 +1398,16 @@ proper is the crossing (G:10A0, 1250).
     only, 3 none.
   - Graphic (`f_70cf5`): bars (strength + 3) >> 2 tall standing on 10 row + 0x47, 9 px wide; black
     (0x0F) at x + 168, red (0x23) at x + 180 (`f_1d28d`).
-  - Colour codes go through `f_1b4ed(c) = (c & 0xF0) | DS:41C0[c & 0xF]`: the low nibble is the
-    palette colour, the high nibble a pattern.
+  - Colour codes go through `f_1b4ed(c) = (c & 0xF0) | DS:41C0[c & 0xF]` (DS:41C0 is the identity): the
+    low nibble is the palette colour, the high nibble a pattern that the VGA driver's fills ignore.
+  - The parallelogram (`f_1faa6`, decoded 2026-10-19; `YardRenderer.DrawColonies`): rows p0.y .. p2.y - 1,
+    each from the left edge to the right one - 1, the edges 16.16 fixed point starting at p0.x / p1.x and
+    stepping by -((p0.x - p3.x) << 16) / height, -((p1.x - p2.x) << 16) / height (`f_2cd42`). The pen
+    `f_9128(fill, frame)` keeps DS:3DE0 / DS:3DE2. A fill of -1 draws through DS:913C; fill == frame a solid
+    row (DS:9134); else DS:9138 (0x31BF2) with pattern 0x20 & 15 = 0: the 8 patterns at DS:41D0 (16 bytes,
+    row (2y & 7)), drawn in two passes, DS:3DE0 where the mask bit is set and DS:3DE2 where it is clear.
+    Pattern 0 is 55 / AA: the fill colour where x + y is odd. With DS:2AD2 / DS:2ACA = (0x0F, 0x0F), (0x13,
+    0x1F), (0x23, 0x23), (0x48, 0x48), only "both colonies" is a checkerboard (red and black).
 
 The window's items go to `f_6f7f0(event)`, a jump table at 0x6f815 (cs base 0x6f7f0, item - 0x1902):
 - 0x1902, the yard picture: `f_70edf(event)` (the patch click);
