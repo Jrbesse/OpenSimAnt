@@ -2055,6 +2055,10 @@ public partial class Main : Node2D
         }
         if (choose)
         {
+            // f_7650c: the dead colony's patch is emptied, the Strategic view (f_01823(2)), G:0C20 = 1
+            var st = session.St;
+            st.Set8(Seg.T, 0xa4 + st.S16(Seg.G, 0x7ca) * 16 + st.S16(Seg.G, 0x7cc), 0);
+            st.Set16(Seg.G, 0xc20, 1);
             yardChoose = true;
             session.St.Set16(Seg.G, 0x35c, 2);
             ShowStatus(session.Files.Strings(1010)?[20] ?? "Click on a black colony to continue.", -1, true);
@@ -2248,7 +2252,7 @@ public partial class Main : Node2D
         placing = shift && st.S16(Seg.G, 0x7c8) >= 1;
     }
 
-    void YardWindowClick(int index, Vector2 p)
+    void YardWindowClick(int index, Vector2 p, bool doubleClick = false)
     {
         var st = session.St;
         if (placing)
@@ -2257,6 +2261,7 @@ public partial class Main : Node2D
             else { placing = false; ShowStatus(null, 0, true); }
             return;
         }
+        if (!yardChoose)                                                    // f_7650c's loop takes every click as a yard click
         switch (index)
         {
             case 7: BackToPatch(); return;
@@ -2270,14 +2275,33 @@ public partial class Main : Node2D
             case 16: StartPlacing(); return;
         }
         var pic = ItemRect(YardWin, 2);
-        if (!Inside(pic, p)) return;
         var (ox, oy) = YardOrigin();
+        if (yardChoose)
+        {
+            // f_7650c's loop: out of the yard: sound 1 and STR# 1010 [10] for 0x78; a patch with no black colony
+            // (T:00A4): sound 1 and [19]; else voice 0x2AFB, G:07BC / G:07BE, f_01d48, and the message cleared
+            string S(int k) => session.Files.Strings(1010)?[k] ?? "";
+            int row = ((int)p.Y - oy - 67) / 10, col = (row * 10 - 169 + (int)p.X - ox) / 28;
+            if (col < 0 || row < 0 || col >= 12 || row >= 16) { st.Hooks.Effect(st, "sound", 1); ShowStatus(S(10), 0x78, true); return; }
+            if (st.U8(Seg.T, 0xa4 + col * 16 + row) == 0) { st.Hooks.Effect(st, "sound", 1); ShowStatus(S(19), 0x78, true); return; }
+            st.Hooks.Effect(st, "voice", 0x2afb);
+            st.Set16(Seg.G, 0x7bc, col);
+            st.Set16(Seg.G, 0x7be, row);
+            NewGame.MoveToPatch(st);
+            yardChoose = false;
+            ShowStatus(null, -2, true);
+            CloseYard();
+            SetView(session.Yellow.view);
+            return;
+        }
+        if (!Inside(pic, p)) return;
         int patch = YardRenderer.PatchAt((int)p.X - ox, (int)p.Y - oy);
         if (patch < 0) return;
         st.Set16(Seg.G, 0x7bc, patch >> 4);                                 // f_70edf: the clicked patch
         st.Set16(Seg.G, 0x7be, patch & 15);
-        // f_70edf moves (f_01d48) only when bits 0x60 of the event's byte +7 are set (not decoded: a double
-        // click or a button?); the shell moves on any click, and only in a Full Game
+        // f_70edf moves (f_01d48) only on a double click (event byte +7 & 0x60, as in f_74fe0), and the shell
+        // only in a Full Game
+        if (!doubleClick) return;
         if (st.U16(Seg.G, 0xeac) != 2)
         {
             lastMessage = "Moving between patches is for the Full Game.";
@@ -2448,7 +2472,7 @@ public partial class Main : Node2D
             else if (mb.ButtonIndex != MouseButton.Left) return;
             else if (win == MapWin) MapWindowClick(index, mb);
             else if (win == HistoryWin) HistoryWindowClick(index);
-            else if (win == YardWin) YardWindowClick(index, mb.Position);
+            else if (win == YardWin) YardWindowClick(index, mb.Position, mb.DoubleClick);
             else ControlWindowClick(win, index, mb.Position);
         }
         else if (ev is InputEventKey k && k.Pressed && !k.Echo)
