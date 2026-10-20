@@ -86,20 +86,16 @@ Keys:
 | Ctrl + arrows / keypad (Home / PgUp / End / PgDn diagonals), the mouse at the screen's edge | scroll the Edit window while held (f_74140, f_0113e) |
 | Ctrl+G / J / K | Options: AutoTrack / Music (the songs, through the original's driver on an emulated OPL2: see "Sound" below) / Sound Effects (T:07A8 / T:07AA / T:07AC); Events, Messages and Silly (speech balloons, off at start-up as in the original) are in the menu |
 | Tab | Map window (front / hide) |
-| **The shell's own keys** | |
+| letters | typed into the cheat matcher first, as the original does (f_74386 → f_6a920: "heal", "jeff", ...; SIM_NOTES "Cheat codes") |
+| **The shell's own keys** (no letters: those are the cheats') | |
+| Arrows | scroll |
 | Ctrl+1 / 2 / 3 | surface / black nest / red nest |
-| Arrows, F | scroll; go to the yellow ant |
 | + / - | speed |
-| R, Shift+R, E, Shift+E, A, H, B | recruit 5 / 10, release half / all, alarm trail, dig a hole, start brood |
-| C, U, Shift+U | as the spider: chase (then click), hunt, lash out |
-| P, O | Behavior and Caste Control windows; automatic / manual jobs (G:0378) |
-| G, V | History window; scent views (T:07BE) |
 | F1 | the help overlays (File > New is Select a Game, File > About the about box) |
-| Y, Esc | yard map in a Full Game (double-click a patch to move; also opens when another colony must be picked: click one with a black colony); Esc also closes the SimAntipedia |
+| Esc | closes the SimAntipedia and the yard window |
 | F8 / F9 | quick save / load (the original's .ANT format, in Godot's user:// folder) |
 | Ctrl / Ctrl+Shift / Ctrl+Alt (+Shift) on the Map window's Center on Yellow button | the original's hidden debug actions (f_6f733): drop food; add black / red ants (left / right half; with Alt kill them); clear all food |
 | F12 | the shell's debug lines (tick, populations, speed, its messages) below the windows |
-| S | sound effects on / off (the shell's mute) |
 | N / M / K | new Quick Game / Full Game / Experimental game |
 
 Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`, `--efficiency`, `--popup`,

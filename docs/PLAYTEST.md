@@ -98,6 +98,9 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 - [ ] Ctrl+Q: asks to save, then quits.
 - [ ] Shell keys still work: Ctrl+1 / 2 / 3 views, arrows scroll, + / - speed, F8 / F9 (quick save / load).
 
+- [ ] Cheat codes typed during a game work (e.g. "heal" restores the black colony's health, "jenn" makes the yellow
+  ant invulnerable, "fred" shows the win screen); letters no longer trigger shell shortcuts.
+
 ## 4. Map window and the colony controls
 
 - [ ] Press / drag on the map to look there; right click: the yellow ant goes there and acts; the scent

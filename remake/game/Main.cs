@@ -8,14 +8,11 @@ namespace Formica.Game;
 /// The playable shell, laid out like the original's 640 x 480 screen from its window layouts (UiArt, Layouts):
 /// the Edit window (layout 0: the tool strip, bitmap 15000, a 22 x 21 cell map of 16 px, the health bars) and
 /// the Map window (layout 1: the whole map at 4 px per cell, the toolbar, bitmap 14000, the population report).
-/// Windows move by their caption and come to the front on a click. Status lines sit below them.
+/// Windows move by their caption and come to the front on a click.
 ///
-/// Edit window: left click walks the yellow ant there (with Shift: acts on the cell, picking up / dropping;
-/// right click: digs its way). Keys: 1 / 2 / 3 the surface / black nest / red nest, arrow keys scroll, F follows
-/// the yellow ant, Space / Insert the left mouse button (Delete the right), + / - change the speed, N a new Quick Game, M a new Full Game.
-/// Commands: R / Shift+R recruit 5 / 10, E / Shift+E release half / all, X exchange (then click an ant, or
-/// the spider), A alarm trail, H dig a hole, B start brood, C chase (as the spider, then click), U / Shift+U
-/// hunt / lash out. remake/README.md lists every control.
+/// Edit window: the original's clicks (f_74fe0). Keys: the original's (f_74386: letters go to the cheat matcher, the
+/// key table DS:2CBE, f_76aeb), plus the shell's own non-letter keys (arrows, + / -, Ctrl+1..3, Tab, F1, F8 / F9, F12).
+/// remake/README.md lists every control.
 /// </summary>
 public partial class Main : Node2D
 {
@@ -3538,6 +3535,8 @@ public partial class Main : Node2D
                 selectMidGame = false;
                 return;
             }
+            // f_74386: every key goes to the cheat matcher first (f_2f924 → f_6a920), then to the key table
+            if (!k.CtrlPressed && !k.AltPressed && k.Unicode is >= 0x20 and < 0x7f) Cheats.Cheat(session.St, (int)k.Unicode);
             if (OriginalKey(k)) return;
             switch (k.Keycode)
             {
@@ -3548,7 +3547,6 @@ public partial class Main : Node2D
                 case Key.Right when !k.CtrlPressed: Scroll(4, 0); break;
                 case Key.Up when !k.CtrlPressed: Scroll(0, -4); break;
                 case Key.Down when !k.CtrlPressed: Scroll(0, 4); break;
-                case Key.F: FollowYellow(); break;
                 case Key.Insert or Key.Space or Key.Delete:                                // f_2024b: Insert and Space the left button, Delete the right
                 {
                     var mp = GetViewport().GetMousePosition();
@@ -3559,15 +3557,6 @@ public partial class Main : Node2D
                 }
                 case Key.Equal or Key.KpAdd: session.Speed++; break;
                 case Key.Minus or Key.KpSubtract: session.Speed--; break;
-                // the yellow ant's menu commands (f_76cb9)
-                case Key.R: Commands.Command(session.St, k.ShiftPressed ? 2 : 1); break;      // recruit 5 / 10
-                case Key.E: Commands.Command(session.St, k.ShiftPressed ? 5 : 4); break;      // release half / all
-                case Key.A: Commands.Command(session.St, 7); break;                           // alarm trail on / off
-                case Key.H: Commands.Command(session.St, 8); break;                           // dig a hole (a queen founds a nest)
-                case Key.B: Commands.Command(session.St, 9); break;                           // start brood (a queen in the nest)
-                case Key.C: Commands.Command(session.St, 0xa); break;                         // the spider: chase (then click)
-                case Key.U: Commands.Command(session.St, k.ShiftPressed ? 0xc : 0xb); break;  // the spider: hunt / lash out
-                case Key.Y: if (zOrder.Contains(YardWin)) CloseYard(); else OpenYard(false); break;  // the yard window
                 case Key.Escape:
                     if (modal == TextWin) modal = -1;
                     else if (zOrder.Contains(YardWin)) CloseYard();
@@ -3577,18 +3566,10 @@ public partial class Main : Node2D
                     else if (zOrder.Contains(MapWin)) zOrder.Remove(MapWin);
                     else Front(MapWin);
                     break;
-                case Key.S: muted = !muted; break;                                         // sound effects on / off
-                case Key.G: ToggleWindow(HistoryWin); break;                                     // the History graph
-                case Key.P: ToggleWindow(BehaviorWin); ToggleWindow(CasteWin); break;                                       // the colony controls
                 case Key.F1: help = !help; break;                                          // the help overlays
                 case Key.F8: QuickSave(); break;
                 case Key.F12: showStatus = !showStatus; break;                              // the shell's debug lines                                           // quick save (F5 is the Options menu now)
                 case Key.F9: QuickLoad(); break;                                           // load
-                case Key.V: CycleScent(); break;                                           // the scent views (T:07BE)
-                case Key.O: session.St.Set16(Seg.G, 0x378, session.St.U16(Seg.G, 0x378) == 1 ? 0 : 1); break;   // auto / manual jobs
-                case Key.N: Restart(1); break;
-                case Key.M: Restart(2); break;
-                case Key.K: Restart(3); break;
             }
         }
     }
