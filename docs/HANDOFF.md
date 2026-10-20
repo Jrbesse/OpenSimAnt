@@ -189,10 +189,16 @@ the current view's buttons highlighted, the Experimental button's icon (5107 out
 window decorations (`f_2271d`: close / zoom / grow boxes from the header flags +1C / +1D), Behavior / Caste / Map
 opened at game start (`f_7256f`), the corner values in font 4. The Edit window's caption row, the menu bar, the
 Select a Game dialog and the corner boxes now match the original pixel for pixel (bar the font-0 glyphs).
-Known remaining differences seen in `quick.png`: the Map window is narrower in a nest view (its width follows the
-view: 64 cells at 4 px; check `f_013ff` / `f_21336` sizing), the Map window's black area right of a nest, window
-positions / overlaps at start, and anything not yet captured (more screens: drive the emulator with
-`e.mouse_event(cond, x, y, buttons)` and `e.run(polls, max_insns)` as `screens.py` does).
+Later the same morning: the Map window opens at (62, 62) (measured; `f_013ff` calls `f_21336(0x100)` with only the
+id, so the re-layout from header +10..+16 is not decoded: the offset is taken from the screen), after Behavior /
+Caste so it sits above them (the shell now starts with no windows open, as the original before a game); a nest's
+margins in the Map window are black; the population report's counts are font 3 and its gauges `f_23971` fill
+fg / bg with no frame. **Result: the whole Quick Game start screen differs from the original's in 2.7% of its
+pixels, all of them game state** (the tunnels dug, bars, counts, the caste marker, the cursor). Next: capture more
+screens (drive the emulator with `e.mouse_event(cond, x, y, buttons)` and `e.run(polls, max_insns)` as
+`screens.py` does: open each window, the yard window, a nest view, the Experimental game, message boxes) and diff
+each one; for state-independent comparisons, load the same saved game in both (`emu` can serve a file; the shell
+has `--load`-like flags to add).
 
 **2026-10-20 night: an audit of the shell against the original's handlers.** Comparing each window's event
 handler (jump tables) and every sim effect with what the shell did found real gaps, now fixed (SIM_NOTES "The Edit
@@ -527,6 +533,7 @@ downloads need a GitHub login until the owner decides about making it public. Go
 
 2026-10-20 morning (the rest of the audit; the original's screens):
 ```
+be7d120 Map window as on the original's screen: opened at (62, 62) after Behavior / Caste, black nest margins, the population report's counts in font 3 and gauges in the items' schemes (f_6eea5, f_23971)
 8fde9e4 Behavior / Caste corner values in font 4 (f_083d9), as on the original's screen
 8e0690e Window decorations as f_2271d: close box, zoom boxes, grow box from the layout header's flags (+1C / +1D)
 0bbeb7c Shell matched to the original's own screens (tools/re/screens.py): checker fills from the schemes' byte 3, cyan desktop, menu bar and menus in f_1ffd1's colours and 8 x 14 cells, font-0 captions opaque, XOR highlights by palette index, the current view's buttons highlighted, the Experimental button's icon
@@ -556,8 +563,9 @@ b762da7 Fight and death animations replayed in the Edit window (the sim marks f_
 414bb64 Handoff: the handler audit (file dialog, tool strip, scenes, win screen, cursor)
 6850492 File dialog as f_6c566 draws it: folders, drives, path line, the list and its scroll bar; Save / Save As, OVERWRITE
 ```
-Usage: this session ran from 3% to about 80% of the 5-hour window (weekly 31% → 41%); a screen piece costs
-3-6% early in a session and more as the context grows.
+Usage: this session ran from 3% to about 80% of one 5-hour window, waited for the reset (a background `sleep`),
+then used about 70% of the next (weekly 31% → 50%); a screen piece costs 3-6% early in a session and more as the
+context grows.
 
 2026-10-19, later (screen details, all decoded from the VGA driver):
 ```
