@@ -14,7 +14,7 @@ from bitmaps import decode  # noqa: E402
 from png import write_png  # noqa: E402
 
 TYPE_NAMES = {
-    'SHARED': {2: 'bitmap_mono', 4: 'strings', 6: 'cursor_table', 7: 'cursor', 9: 'misc9', 10: 'text',
+    'SHARED': {2: 'bitmap_mono', 4: 'strings', 6: 'menus', 7: 'cursor', 9: 'misc9', 10: 'text',
                11: 'font', 17: 'card_layout', 19: 'card_name', 21: 'text_style'},
     'HCEGANT': {0: 'layout', 2: 'bitmap', 4: 'strings', 7: 'cursor', 8: 'cursor16', 9: 'rects', 15: 'palette'},
     'SOUND': {5: 'sfx', 18: 'music_info', 20: 'music'},
