@@ -134,10 +134,13 @@ item record
 
 Every item starts with `f_220e4`: its **colour scheme** is the byte at +26 (+27 when the word at +24 has bit 2),
 an index into the table at G:46E2, which start-up (`f_210d0`) copies from HCEGANT type 0 id 129 (16 schemes of 6
-bytes: foreground, foreground, background, background in the modes with DS:5A97 bit 0, two bytes not decoded).
+bytes: foreground, foreground, background, a second background, two bytes not decoded). Fills (`f_22170`) are a
+50% checker when bytes 2 and 3 differ: byte 3 where x + y is odd, byte 2 where even (the captions' dark / light
+grey, scheme 1); else byte 2 solid (checked on the original's screen, `tools/re/screens.py`).
 The colours are palette indices: e.g. scheme 1 (captions) cyan on dark grey, 3 black on white (fields, lists), 4
 yellow on light grey (dialogs), 6 red on black (CANCEL), 9 black on light grey. Frames and lines are drawn in
-DS:3DE0 (15, black) whatever the scheme. Texts of types 5 and 0x11 are filled with the background first, 9 and
+DS:3DE0, which `f_220e4` sets to the scheme's foreground (checked on the original's screen rendered by
+`tools/re/screens.py`: Select a Game's frame is scheme 6's red). Texts of types 5 and 0x11 are filled with the background first, 9 and
 0x10 are not. Records of length 0x29 hold +28 as a single byte (the thickness or the font).
 
 Text items (types 0x05, 0x09, 0x0C, 0x10..0x12) are drawn by `f_21fa2`:

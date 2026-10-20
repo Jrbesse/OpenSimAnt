@@ -43,6 +43,12 @@ def main():
     e.run(3000, 3_000_000_000)
     print(f'after Quick Game: {v.writes} video writes')
     v.png(os.path.join(out, 'quick.png'))
+    e.mouse_event(1, 20, 8, 0)                    # File held open
+    e.mouse_event(2, 20, 8, 1)
+    e.run(200, 200_000_000)
+    v.png(os.path.join(out, 'menu.png'))
+    e.mouse_event(4, 300, 300, 0)
+    e.run(200, 200_000_000)
     print('wrote', out)
 
 
