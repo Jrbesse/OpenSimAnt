@@ -1806,8 +1806,18 @@ public partial class Main : Node2D
             case 4: Replace(3); break;
             case 5: modal = -1; break;
             case 6: Replace(0); break;                                      // the Tutorial (G:0EAC = 0, Formica.Sim.Tutorial)
-            case 7: Replace(4); break;
+            case 7: loadFromSelect = true; Replace(4); break;
         }
+    }
+
+    // f_725b6 loops back to its dialog when Load (0x207) loads nothing; File > Load with no game running (G:0EAC = -1)
+    // brings the new-game dialog too (8414:0000).
+    bool loadFromSelect;
+
+    void LoadFailed()
+    {
+        if (loadFromSelect || session.St.U16(Seg.G, 0xeac) == 0xffff) { modal = SelectWin; selectMidGame = false; }
+        loadFromSelect = false;
     }
 
     // ------------------------------------------------------------------------------- the save prompt (layout 33)
@@ -1909,12 +1919,14 @@ public partial class Main : Node2D
     void LoadFrom(string path)
     {
         gameFile = path;
-        if (!System.IO.File.Exists(path)) { OpenAlert("No such file or directory", null); return; }
+        if (!System.IO.File.Exists(path)) { OpenAlert("No such file or directory", null, _ => LoadFailed()); return; }
         if (!LoadGame(path))
         {
-            OpenAlert("  Read error  \ngame not loaded", null, _ => { modal = SelectWin; selectMidGame = false; });
             session.St.Set16(Seg.G, 0xeac, 0xffff);
+            OpenAlert("  Read error  \ngame not loaded", null, _ => LoadFailed());
+            return;
         }
+        loadFromSelect = false;
     }
 
     // ------------------------------------------------------------------------------- alert boxes
@@ -2100,7 +2112,13 @@ public partial class Main : Node2D
 
     void FileDialogDone(bool ok)
     {
-        if (!ok) { modal = -1; afterSave = null; return; }
+        if (!ok)
+        {
+            modal = -1;
+            afterSave = null;
+            if (!fileSave) LoadFailed();
+            return;
+        }
         string name = fileName;
         if (name.Length == 0)
         {
