@@ -1,8 +1,8 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-20 (night: an audit of the shell's handlers against the original's; file dialog,
-alerts, scenes, win screen, cursor).
+old transcript. Last updated 2026-10-20 (morning: the original's own screens through a VGA model in the emulator; the night
+before: the handler audit).
 
 ## Goals (from the owner)
 
@@ -173,6 +173,27 @@ screenshot flags).
 - "Formica" is a placeholder code name (the public name is still open, ART_PLAN). The repository has a
   top-level README for GitHub.
 
+**2026-10-20 morning: the original's own screens.** `tools/re/vga.py` is a planar VGA (mode 12h) for the Unicorn
+emulator: sequencer / graphics controller write and read modes, latches, the DAC and INT 10h palette calls, and
+stand-in ROM fonts for INT 10h AX=1130h (built from SHARED's PC fonts: the IBM ROM glyphs are not available, so text in
+font 0 is only right in position, size and colour). `emu.py` now delivers mouse events through the game's own handler
+(INT 33h AX=0Ch, called by a trampoline between emulation slices) and counts down the INT 8 delay word 1b73:0006.
+`tools/re/screens.py` boots SIMANT.EXE with it, nothing stubbed, and writes `build/screens/boot.png` (Select a Game),
+`quick.png` (a Quick Game just started) and `menu.png` (File held open); `tools/re/pngdiff.py a.png b.png [l t r b]
+[--out diff.png]` compares them with the remake's `--screenshot` output. **This is the oracle for every screen
+detail from now on** (run it, diff a region, fix, repeat). Fixed from it so far: the palette through the 6-bit DAC,
+frames in the scheme's foreground (not always black), fills as a checker when a scheme's bytes 2 and 3 differ (the
+captions' dark / light grey), the cyan desktop, the menu bar and menus (DS:5FEA / 5FEC / 5FEE colours, 8 x 14
+cells, measured box geometry), font-0 captions opaque in 8-px cells, XOR highlights by palette index (index ^ 15),
+the current view's buttons highlighted, the Experimental button's icon (5107 outside the Experimental game), the
+window decorations (`f_2271d`: close / zoom / grow boxes from the header flags +1C / +1D), Behavior / Caste / Map
+opened at game start (`f_7256f`), the corner values in font 4. The Edit window's caption row, the menu bar, the
+Select a Game dialog and the corner boxes now match the original pixel for pixel (bar the font-0 glyphs).
+Known remaining differences seen in `quick.png`: the Map window is narrower in a nest view (its width follows the
+view: 64 cells at 4 px; check `f_013ff` / `f_21336` sizing), the Map window's black area right of a nest, window
+positions / overlaps at start, and anything not yet captured (more screens: drive the emulator with
+`e.mouse_event(cond, x, y, buttons)` and `e.run(polls, max_insns)` as `screens.py` does).
+
 **2026-10-20 night: an audit of the shell against the original's handlers.** Comparing each window's event
 handler (jump tables) and every sim effect with what the shell did found real gaps, now fixed (SIM_NOTES "The Edit
 window's tool strip", "The file dialog", the game-flow notes on the win screen and window 26):
@@ -209,6 +230,10 @@ fresh window (weekly 5% → 12%): a screen piece costs 5-10%, the tutorial (RE +
 traces + C# + shell) about 15%.
 
 Suggested next session (in order):
+0. Keep comparing screens with the original (`tools/re/screens.py` + `pngdiff.py`, see above): the Map window
+   (nest-view width, the toolbar), the yard window, History, the SimAntipedia, message boxes, the file dialog, the
+   game-over and win screens. Add captures to `screens.py` as needed (clicks through the game's handler). Note the
+   ROM font: font-0 text cannot be compared glyph for glyph.
 1. Ask the owner for their play-test results (`docs/PLAYTEST.md`, updated tonight); fix what they report first.
    Still not played by a human.
 2. Continue the handler audit where it stopped: the yard window's handler `f_6f7f0` (decoded earlier, re-check against
@@ -499,6 +524,20 @@ downloads need a GitHub login until the owner decides about making it public. Go
   there rather than guess.
 
 ## Commit log since the last summary
+
+2026-10-20 morning (the rest of the audit; the original's screens):
+```
+8fde9e4 Behavior / Caste corner values in font 4 (f_083d9), as on the original's screen
+8e0690e Window decorations as f_2271d: close box, zoom boxes, grow box from the layout header's flags (+1C / +1D)
+0bbeb7c Shell matched to the original's own screens (tools/re/screens.py): checker fills from the schemes' byte 3, cyan desktop, menu bar and menus in f_1ffd1's colours and 8 x 14 cells, font-0 captions opaque, XOR highlights by palette index, the current view's buttons highlighted, the Experimental button's icon
+5d282d6 Screens from the original: mouse events through the game's handler, the INT 8 delay counter, stand-in ROM fonts; pngdiff.py
+2471e62 RE: a planar VGA model for the emulator (mode 12h write / read modes, latches, DAC, INT 10h palette); screens.py captures the original's own screens
+67839ac Home goes to the yellow ant with sound 0xF (f_76aeb, key 0x847)
+d4482d1 Typed keys go to the cheat matcher first (f_74386 â†’ f_6a920); the shell's own letter shortcuts are gone (1:1)
+ed1090a Map window: Center on Yellow's hidden Ctrl variants (f_6f733: drop food, add / kill ants by half, clear food)
+a35c18c Mower sound while the yard window is open (f_701a5); the game-over window's follow-up song 0x2713 + Rand2 (f_71d95)
+f7e6d0c History window: pressing on the graph shows it without labels until release (f_792d2 0x150E)
+```
 
 2026-10-20 night (the handler audit):
 ```
