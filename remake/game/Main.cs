@@ -84,6 +84,8 @@ public partial class Main : Node2D
             else if (arg == "--panels") { Front(BehaviorWin); Front(CasteWin); }
             else if (arg == "--help-overlay") help = true;
             else if (arg == "--status") showStatus = true;
+            else if (arg.StartsWith("--scene="))                                   // the window-26 scenes, for screenshots
+                sceneArg = int.Parse(arg["--scene=".Length..]);
             else if (arg == "--map-front") Front(MapWin);
         session = new GameSession(dir);
         var args = OS.GetCmdlineUserArgs();
@@ -107,6 +109,15 @@ public partial class Main : Node2D
         if (OS.GetCmdlineUserArgs().Contains("--yard")) OpenYard(false);
         if (OS.GetCmdlineUserArgs().Contains("--scent-menu")) OpenScentMenu();
         if (OS.GetCmdlineUserArgs().Contains("--mini-map")) miniMap = true;
+        if (sceneArg != 0) ArmTimeout(15);                                       // as after a message box
+        switch (sceneArg)
+        {
+            case 1: Present(AntLionScene); break;
+            case 2: Present(() => PictureScene(0x238c, 0)); break;
+            case 3: Present(() => PictureScene(0x238d, 1)); break;
+            case 4: Present(() => PictureScene(0x2396, -1)); break;
+            case 5: Present(() => SpiderScene(session.Files.Strings(0x2740))); break;
+        }
         if (OS.GetCmdlineUserArgs().Contains("--win")) { StartWin(); winPhase = 2; winSong = 0x4e25; winFrame = 1; }
         if (OS.GetCmdlineUserArgs().Contains("--trails")) session.St.Set16(Seg.DS, 0x2994, 1);
         if (OS.GetCmdlineUserArgs().Contains("--report")) popReport = true;
@@ -259,13 +270,26 @@ public partial class Main : Node2D
             session.Hooks.YardMapWanted = false;
             OpenYard(true);
         }
-        if (!session.Over && !yardChoose && modal < 0 && menuOpen < 0 && !miniMap && !helpHeld && winPhase == 0 && session.Advance(delta) > 0) balloonsNow.Clear();
+        if (!session.Over && !yardChoose && modal < 0 && menuOpen < 0 && !miniMap && !helpHeld && winPhase == 0 && !Presenting && session.Advance(delta) > 0) balloonsNow.Clear();
         ToolPoll();
         ToolHold(delta);
         PendingClick(delta);
         ScrollPoll(delta);
         FilePoll(delta);
         WinPoll(delta);
+        PresentPoll();
+        // f_72bc2 (the title, f_01277(40)) and f_71d95 (game over, f_01277(100)) also close when the timeout fires
+        if (modal != timedModal)
+        {
+            timedModal = modal;
+            if (modal == TitleWin) ArmTimeout(40);
+            else if (modal == GameOverWin) ArmTimeout(100);
+        }
+        else if (modal is TitleWin or GameOverWin && TimeoutFired())
+        {
+            modal = timedModal = SelectWin;
+            selectMidGame = false;
+        }
         SongPoll();
         DrainEffects();
         if (follow) CenterOnYellow();
@@ -303,7 +327,10 @@ public partial class Main : Node2D
                 var lines = session.Files.Strings(id);
                 GD.Print("message: " + (lines != null ? string.Join(" ", lines) : $"0x{id:x}"));
                 if (lines != null && (flag != 0 || session.Option(3)) && (screenshot == null || tutorialShot))
-                    OpenMessageBox(lines, pic);
+                {
+                    if (id is 0x273f or 0x2740) Present(() => SpiderScene(lines));       // f_71f52, then its box
+                    else Present(() => MessageBoxP(lines, pic));
+                }
             }
             else if (e.Name == "status" && e.Args.Length > 0)
                 StatusEffect(e.Args);
@@ -322,6 +349,15 @@ public partial class Main : Node2D
             else if (e.Name == "balloon" && e.Args.Length >= 5 && e.Args[4] is ValueTuple<int, int> line)
                 balloonsNow.Add(((int)e.Args[0], (int)e.Args[1], (int)e.Args[2], BalloonText(line.Item1, line.Item2)));
             else if (e.Name == "win_screen") StartWin();
+            else if (e.Name == "scene") Present(AntLionScene);                    // f_76707
+            else if (e.Name == "help" && e.Args.Length >= 2 && session.St.U16(Seg.T, 0x7ae) != 0)
+            {
+                int pic = Convert.ToInt32(e.Args[0]), n = Convert.ToInt32(e.Args[1]);
+                Present(() => PictureScene(pic, n));                                   // f_7686d
+            }
+            else if (e.Name == "menu" && e.Args.Length > 0) MenuEffect(Convert.ToInt32(e.Args[0]));
+            else if (e.Name == "picture" && e.Args.Length > 0) PauseLine(Convert.ToInt32(e.Args[0]));   // f_71a7d
+            else if (e.Name is "pause" or "edit_tool" && e.Args.Length > 0) SetPause(Convert.ToInt32(e.Args[0]));   // f_2f816 → f_6e17e
             else if (e.Name == "game_over" && e.Args.Length >= 2)
             {
                 // f_71d95's rating window: the rank's title (STR# 1900 = G:0328) and the score (Game.Rating). f_71d95
@@ -334,6 +370,237 @@ public partial class Main : Node2D
                 OpenGameOver(rank, Convert.ToInt64(e.Args[1]));
             }
         }
+    }
+
+    // ------------------------------------------------------------------------------- presentations
+    // The original shows message boxes and the scenes of window 26 in local loops: the game waits and they come one
+    // after the other. Here each is a coroutine in a queue; while one runs the game does not advance. A key (f_01572)
+    // or a press (f_21cb8) during one is handed to it through presentKey / presentPress.
+    readonly Queue<Func<IEnumerator<bool>>> presentQueue = new();
+    IEnumerator<bool> present;
+    bool presentKey, presentPress;
+
+    void Present(Func<IEnumerator<bool>> p) => presentQueue.Enqueue(p);
+
+    bool Presenting => present != null || presentQueue.Count > 0;
+
+    void PresentPoll()
+    {
+        for (int guard = 0; guard < 8; guard++)
+        {
+            if (present == null)
+            {
+                if (presentQueue.Count == 0) return;
+                presentKey = presentPress = false;
+                present = presentQueue.Dequeue()();
+            }
+            if (present.MoveNext()) return;
+            present = null;
+            scenePic = -1;
+            presentKey = presentPress = false;
+        }
+    }
+
+    // f_01277(s) / f_012c4: the global timeout DS:8BA8 (start) / DS:8BAC (ticks), checked by f_1ccfc: outside
+    // [start, start + ticks) it reports true once and restarts from now. At start-up both are 0: it always fires.
+    double timeoutStart;
+    int timeoutTicks;
+
+    static double UiTicks => Time.GetTicksMsec() / 1000.0 * GameSession.ClockHz;
+
+    void ArmTimeout(int seconds)
+    {
+        timeoutStart = UiTicks;
+        timeoutTicks = seconds * 0x12;
+    }
+
+    bool TimeoutFired()
+    {
+        double now = UiTicks;
+        if (now >= timeoutStart && now < timeoutStart + timeoutTicks) return false;
+        timeoutStart = now;
+        return true;
+    }
+
+    /// <summary>f_01572: a key, or the timeout.</summary>
+    bool KeyOrTimeout()
+    {
+        if (TimeoutFired()) return true;
+        bool k = presentKey;
+        presentKey = false;
+        return k;
+    }
+
+    /// <summary>f_011e5(n): until n clock ticks pass, an event is pending (left for the caller) or f_01572.</summary>
+    IEnumerable<bool> WaitTicks(int n)
+    {
+        double end = UiTicks + n;
+        while (UiTicks < end && !presentPress && !presentKey && !KeyOrTimeout()) yield return true;
+    }
+
+    /// <summary>f_71bb6's wait: f_01277(15), then until f_01572 (a key or the 15 s), the window closing, or a press.</summary>
+    IEnumerator<bool> MessageBoxP(string[] lines, int picture)
+    {
+        OpenMessageBox(lines, picture);
+        ArmTimeout(15);
+        while (modal == 30)
+        {
+            if (KeyOrTimeout() || presentPress) { modal = -1; break; }
+            yield return true;
+        }
+    }
+
+    // Window 26's scenes (layout 26: the picture at 153, 85, a 2-px black frame around it, the hotspot 0x1A00 / item 2
+    // a 16-px strip from the picture's top - 1, inset 2 px, where f_7686d writes its line: f_20a0f centres the text
+    // and fills its row in the scheme's background, scheme 13: yellow on dark grey).
+    int scenePic = -1;
+    (int bmp, int x, int y)? sceneOverlay;
+    string sceneCaption;
+
+    void OpenScene(int pic)
+    {
+        scenePic = pic;
+        sceneOverlay = null;
+        sceneCaption = null;
+    }
+
+    void DrawScene(UiArt.Canvas c)
+    {
+        if (scenePic < 0) return;
+        var (w, h, _) = ui.Bitmap(scenePic);
+        int x = 153, y = 85;
+        c.Fill(x - 2, y - 2, x + w + 2, y + h + 2, UiArt.Grey);
+        UiArt.ThickFrame(c, x - 2, y - 2, x + w + 2, y + h + 2, 2, UiArt.Black);
+        ui.DrawBitmap(c, scenePic, x, y);
+        if (sceneOverlay is { } o) ui.DrawBitmap(c, o.bmp, x + o.x, y + o.y);
+        if (sceneCaption != null)
+        {
+            var f = ui.Font(0);
+            var (fg, bg) = ui.Schemes[13];
+            int l = x, r = x + w, t = y - 1, b = t + 16;
+            int ty = t + (b - t - f.Height) / 2;
+            c.Fill(l, ty, r, ty + f.Height, bg);
+            f.Draw(c.Clip(l, t, r, b), Math.Max(l, (l + r - f.Width(sceneCaption)) / 2), ty, sceneCaption, fg);
+        }
+    }
+
+    /// <summary>f_76707, the ant lion takes the yellow ant (T:07AE on): picture 9200, sound 0x26, then until an event,
+    /// 300 clock3 units or the window closing: every 0x1E clock3 units frame 9200 + i (i = 1, 2, 3, 2, 3, ...) at the
+    /// picture's corner + (T:0B14, T:0B16)[i] ((38, 39), (38, 52), (38, 52)), with sound 0x25 for odd i.</summary>
+    IEnumerator<bool> AntLionScene()
+    {
+        OpenScene(9200);
+        PlaySound(0x26);
+        var st = session.St;
+        double end = UiTicks * 3 + 300, next = UiTicks * 3 + 0x1e;
+        int i = 1;
+        while (!presentPress && !presentKey && UiTicks * 3 < end)
+        {
+            if (UiTicks * 3 >= next)
+            {
+                next = UiTicks * 3 + 0x1e;
+                sceneOverlay = (9200 + i, st.S16(Seg.T, 0xb14 + 4 * i), st.S16(Seg.T, 0xb16 + 4 * i));
+                if ((i & 1) != 0) PlaySound(0x25);
+                if (++i > 3) i = 2;
+            }
+            yield return true;
+        }
+    }
+
+    /// <summary>f_7686d(picture, n) (T:07AE on): 9100 "Your ant has been killed" / 9101 "You have been reborn!" or
+    /// "You are now a worker!" (STR# 1010 [23 + n] in the strip, then f_011e5(300)); 9110 a nestmate feeds the yellow
+    /// ant (sound 0x2A, f_011e5(0x2D), 9111 at T:0B24 / T:0B26 = (72, 62), sound 0x2D, f_011e5(0x2D)).</summary>
+    IEnumerator<bool> PictureScene(int pic, int n)
+    {
+        OpenScene(pic);
+        var st = session.St;
+        if (pic is 0x238c or 0x238d)
+        {
+            sceneCaption = session.Files.Strings(1010) is { } l && 23 + n < l.Length ? l[23 + n] : null;
+            foreach (var w in WaitTicks(300)) yield return w;
+        }
+        else if (pic == 0x2396)
+        {
+            PlaySound(0x2a);
+            foreach (var w in WaitTicks(0x2d)) yield return w;
+            sceneOverlay = (0x2397, st.S16(Seg.T, 0xb24), st.S16(Seg.T, 0xb26));
+            PlaySound(0x2d);
+            foreach (var w in WaitTicks(0x2d)) yield return w;
+        }
+    }
+
+    /// <summary>f_71f52, the spider takes the yellow ant (T:07AE on): picture 12000, sound 0x2D, f_01277(8); until
+    /// f_01572 or an event, every 8 clock3 units the next of 12001 + (0, 1, 2, 1)[i] (T:09B4) at the corner + (46,
+    /// 77), sound 0x2D each time i wraps to 0; then (the sim drew Rand(2) for the line) the message box over it.</summary>
+    IEnumerator<bool> SpiderScene(string[] lines)
+    {
+        OpenScene(12000);
+        PlaySound(0x2d);
+        ArmTimeout(8);
+        var st = session.St;
+        double next = UiTicks * 3 + 8;
+        int i = 0;
+        while (!presentPress && !KeyOrTimeout())
+        {
+            if (UiTicks * 3 >= next)
+            {
+                next = UiTicks * 3 + 8;
+                if (++i > 3) { i = 0; PlaySound(0x2d); }
+                sceneOverlay = (12001 + st.S16(Seg.T, 0x9b4 + 2 * i), 46, 77);
+            }
+            yield return true;
+        }
+        presentPress = presentKey = false;
+        if (lines != null)
+        {
+            var box = MessageBoxP(lines, 0);
+            while (box.MoveNext()) yield return true;
+        }
+    }
+
+    // f_6e17e(n) (from f_2f816, the PAUSE button and Speed > Pause): unpausing in the Exchange / Chase modes cancels
+    // them (f_11b5f / f_11aff: G:105E = -1); G:047E = n; the timed line (f_15e2c, lasting) STR# 1010 [2] "Game
+    // Paused", [3] while choosing the ant to exchange with (G:105E 10), [17] while choosing the ant to chase (11);
+    // unpaused, the line is cleared. f_71a7d(flag) shows the same line without changing anything.
+    void SetPause(int n)
+    {
+        var st = session.St;
+        if (n == 0 && st.U16(Seg.G, 0x105e) is 0xa or 0xb) st.Set16(Seg.G, 0x105e, 0xffff);
+        st.Set16(Seg.G, 0x47e, n);
+        PauseLine(1);
+    }
+
+    void PauseLine(int flag)
+    {
+        var st = session.St;
+        int k = st.U16(Seg.G, 0x47e) == 0 ? -1 : st.U16(Seg.G, 0x105e) switch { 0xffff => 2, 0xa => 3, 0xb => 17, _ => -2 };
+        if (k == -2) return;
+        string text = k < 0 ? null : session.Files.Strings(1010) is { } l && k < l.Length ? l[k] : null;
+        ShowStatus(text, -1, flag != 0 || k < 0);
+    }
+
+    /// <summary>f_12de1's screen part ("menu" n): 0 eating: sound 0x2C, f_71a7d(1); 1 fed by a nestmate: the 9110
+    /// scene, then "You feel much better now!" (STR# 1010 [11], 0x78); 2 [12] "Thank you for your contribution";
+    /// 3 eating brood: sound 0x2C, sound 10, [13] "Cannibalism has restored your health" (0xB4).</summary>
+    void MenuEffect(int n)
+    {
+        string S(int k) => session.Files.Strings(1010) is { } l && k < l.Length ? l[k] : null;
+        switch (n)
+        {
+            case 0: PlaySound(0x2c); PauseLine(1); break;
+            case 1:
+                if (session.St.U16(Seg.T, 0x7ae) != 0) Present(() => PictureScene(0x2396, -1));
+                Present(() => After(() => ShowStatus(S(11), 0x78, false)));
+                break;
+            case 2: ShowStatus(S(12), 0x78, false); break;
+            case 3: PlaySound(0x2c); PlaySound(10); ShowStatus(S(13), 0xb4, false); break;
+        }
+    }
+
+    static IEnumerator<bool> After(Action a)
+    {
+        a();
+        yield break;
     }
 
     // ------------------------------------------------------------------------------- windows
@@ -543,7 +810,7 @@ public partial class Main : Node2D
                 break;
             case 13: GotoQueen(2); break;
             case 14: GotoQueen(3); break;
-            case 15: session.Paused = !session.Paused; break;
+            case 15: SetPause(session.Paused ? 0 : 1); break;                        // f_2f73a(G:047E == 0)
             case 16: OpenScentMenu(); break;
         }
     }
@@ -1162,7 +1429,7 @@ public partial class Main : Node2D
                 session.ToggleOption(n - 0x31);
                 if (n == 0x32 && !session.Option(1)) StopSong();                         // 0x32 also stops the music (f_285aa)
                 break;
-            case 0x41: session.Paused = !session.Paused; break;                          // G:047E ^= 1
+            case 0x41: SetPause(session.Paused ? 0 : 1); break;                          // G:047E ^= 1
             case >= 0x43 and <= 0x46: session.Speed = n - 0x43; break;                   // T:07CC = 0..3
         }
     }
@@ -2889,6 +3156,7 @@ public partial class Main : Node2D
     // The shell's debug lines (tick, populations, speed, its own messages): not in the original, so off unless F12
     // (or --status) turns them on.
     bool showStatus;
+    int sceneArg, timedModal = -1;
 
     void DrawStatus(UiArt.Canvas canvas)
     {
@@ -2936,6 +3204,7 @@ public partial class Main : Node2D
             if (modal == EfficiencyWin) DrawEfficiency(canvas);
             if (modal == AntInfoWin) DrawAntInfo(canvas);
             if (modal == SelectWin) ui.DrawWindow(canvas, SelectWin, 0, 0, null);
+            DrawScene(canvas);
             if (modal is 27 or 30) DrawMessageBox(canvas);
             if (modal == SavePrompt) DrawSavePrompt(canvas);
             if (modal == TextWin) DrawTextViewer(canvas);
@@ -3016,6 +3285,12 @@ public partial class Main : Node2D
         }
         if (ev is InputEventMouseButton mb && mb.Pressed)
         {
+            if (present != null)                                                // a local loop: the press is its event
+            {
+                presentPress = true;
+                if (modal == 30) modal = -1;
+                return;
+            }
             if (miniMap)
             {
                 MiniMapPress(mb.Position);
@@ -3085,6 +3360,11 @@ public partial class Main : Node2D
         }
         else if (ev is InputEventKey k && k.Pressed && !k.Echo)
         {
+            if (present != null)
+            {
+                presentKey = true;
+                return;
+            }
             if (modal == FileWin)
             {
                 FileDialogKey(k);
@@ -3100,7 +3380,7 @@ public partial class Main : Node2D
                 WinNext(true);
                 return;
             }
-            if (modal == GameOverWin)                                           // f_71d95: any event closes it
+            if (modal is GameOverWin or TitleWin)                               // f_71d95 / f_72bc2: any event closes them
             {
                 modal = SelectWin;
                 selectMidGame = false;

@@ -69,6 +69,13 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 - [ ] As the spider (Exchange onto it): Chase, Hunt; Alt for lash out.
 - [ ] With Options > Silly on, the spider makes remarks in a balloon now and then (STR# 1210).
 - [ ] Death: the message box text matches the cause (eaten, mower, drowned, ...); you take over another ant.
+- [ ] With Options > Events on: killed by the spider, its picture (jaws moving) then the message; by an ant lion, its
+  animated picture; then "Your ant has been killed" and "You have been reborn!" / "You are now a worker!" pictures.
+  A nestmate feeding the yellow ant shows its picture and "You feel much better now!". Message boxes close by
+  themselves after 15 s, or on a key.
+- [ ] Exchange (X) and Chase pause the game with "Click on another ant to exchange bodies" / "Click on the ant to be
+  chased or UnPause to cancel"; PAUSE shows "Game Paused"; unpausing cancels Exchange / Chase. A loaded game
+  starts paused.
 
 ## 3. The original's keys
 
@@ -146,7 +153,7 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 - [ ] Effects and music together: an effect may briefly take a music voice, as in the original.
 - [ ] Options > Music off stops the song; Ctrl+K turns the effects off and on.
 
-## 9. Winning a Full Game (or the cheat 'fred')
+## 8b. Winning a Full Game (or the cheat 'fred')
 
 - [ ] The yard window opens (Yard view) for a few seconds, then the picture of the fleeing human, cat and dog with
   spinning eyes and two songs; a key ends it early, otherwise it closes after about 10 seconds.

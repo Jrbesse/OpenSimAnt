@@ -1065,6 +1065,29 @@ G:0AF6 / G:0B04 += 1, population counters.
   `f_00f28` reports the music idle, songs 0x4E23 then 0x4E24 (`f_00ea1(n, 0x7E)`); every 8 clock3 units the six
   eyes, bitmaps 16210 + frame (0..2 in turn) at the picture's corner + DS:2C2C's (x, y) pairs (72, 74), (87, 66),
   (175, 64), (191, 66), (159, 122), (179, 124). Then `f_011e5(300)` and the window closes (`f_214b5(0x1A00)`).
+- The other scenes in window 26 (decoded 2026-10-20), all only with T:07AE (Options > Events) on:
+  - `f_76707`, the ant lion takes the yellow ant: picture 9200, sound 0x26 (then `f_00f1d`, always 1); until an
+    event, clock3 + 300 or the window closing, every 0x1E clock3 units frame 9200 + i (i = 1, 2, 3, 2, 3, ...) at
+    the corner + T:0B14 / T:0B16[4 i] ((38, 39), (38, 52), (38, 52)), sound 0x25 for odd i.
+  - `f_71f52`, the spider takes it: picture 12000, sound 0x2D, `f_01277(8)`; until `f_01572` or an event, every 8
+    clock3 units 12001 + T:09B4[i] ((0, 1, 2, 1), i wraps after 3 with sound 0x2D) at the corner + (46, 77); then
+    **Rand(2)** (the game's RNG, in the port's player event) picks the box 0x273F / 0x2740, drawn over the scene
+    (`f_71b1a(0, id, 1)`), and the window closes after it.
+  - `f_7686d(picture, n)` (from `f_75d01`, `f_758e0` and `f_12de1(1)`): 9100 / 9101 with STR# 1010 [23 + n] ("Your
+    ant has been killed", "You have been reborn!", "You are now a worker!") written into item 2 (`f_23943` →
+    `f_20a0f`: centred, its row filled in scheme 13), then `f_011e5(300)`; 9110 (a nestmate feeds the yellow ant):
+    sound 0x2A, `f_011e5(0x2D)`, 9111 at the corner + T:0B24 / T:0B26 = (72, 62), sound 0x2D, `f_011e5(0x2D)`.
+- `f_12de1(n)`'s screen part (the port's "menu" effect): 0 sound 0x2C and `f_71a7d(1)`; 1 the 9110 scene and the
+  timed line STR# 1010 [11] for 0x78; 2 [12] for 0x78; 3 sound 0x2C, sound 10, [13] for 0xB4.
+- `f_71a7d(flag)` (the port's "picture") and `f_6e17e(n)` (the port's "pause" / "edit_tool", via `f_2f816`): the
+  pause line. `f_6e17e` first cancels the Exchange / Chase modes when unpausing (`f_11b5f` / `f_11aff`), sets
+  G:047E = n, then (both) the lasting timed line STR# 1010 [2] "Game Paused" (G:105E -1), [3] (10, Exchange) or
+  [17] (11, Chase) while paused, or clears it. Loading a game pauses it (`f_2f816(1)`).
+- The global timeout: `f_01277(s)` sets DS:8BA8 = now and DS:8BAC = 18 s; `f_012c4` → `f_1ccfc(&8BA8, 8BAC)` is
+  true when now is outside [start, start + period) and then restarts the period from now (a periodic timer that
+  starts expired: 0 / 0). Message boxes (`f_71bb6`) arm 15 s and close on it, a key or a press; the title
+  (`f_72bc2`) 40 s; game over (`f_71d95`) 100 s; `f_71f52` 8 s; the win screen 10 s; the help stub (`f_76eb5`) 30 s.
+  A wait like `f_011e5(300)` therefore ends early when the period of the last armed timeout runs out.
 - `f_011e5(n)`: waits until n clock ticks pass, an event arrives (`f_21cb8`) or `f_01572` is true. `f_01277(s)`:
   flushes the mouse buttons and starts an s-second timeout that `f_012c4` / `f_01572` report.
 
