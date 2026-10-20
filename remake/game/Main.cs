@@ -270,7 +270,20 @@ public partial class Main : Node2D
             session.Hooks.YardMapWanted = false;
             OpenYard(true);
         }
-        if (!session.Over && !yardChoose && modal < 0 && menuOpen < 0 && !miniMap && !helpHeld && winPhase == 0 && !Presenting && session.Advance(delta) > 0) balloonsNow.Clear();
+        if (!session.Over && !yardChoose && modal < 0 && menuOpen < 0 && !miniMap && !helpHeld && winPhase == 0 && !Presenting && session.Advance(delta) > 0)
+        {
+            balloonsNow.Clear();
+            // f_701a5 (the yard window's mower, drawn each tick while the window is open): sound 0x24 while mowing
+            // (T:0C28 3 or 4) and not paused
+            if (zOrder.Contains(YardWin) && session.St.U16(Seg.T, 0xc28) is 3 or 4 && !session.Paused) PlaySound(0x24);
+        }
+        // f_71d95's loop: once the game-over jingle is done, song 0x2713 + Rand2 (once)
+        if (modal == GameOverWin && !gameOverSong && (!session.Option(1) || !AudioReady() || !mixer.Driver.Playing))
+        {
+            gameOverSong = true;
+            PlaySong(0x2713 + session.St.Rand2());
+        }
+        if (modal != GameOverWin) gameOverSong = false;
         ToolPoll();
         ToolHold(delta);
         PendingClick(delta);
@@ -3275,6 +3288,7 @@ public partial class Main : Node2D
     // (or --status) turns them on.
     bool showStatus;
     int sceneArg, timedModal = -1;
+    bool gameOverSong;
     readonly List<(int x0, int y0, int x1, int y1)> strikes = new();
 
     void DrawStatus(UiArt.Canvas canvas)
