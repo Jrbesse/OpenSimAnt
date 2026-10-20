@@ -2106,7 +2106,7 @@ public partial class Main : Node2D
 
     void HistoryWindowClick(int index)
     {
-        if (index == 13) help = !help;
+        if (index == 13) help = helpHeld = true;                               // 0x150D: f_2f74e(0x150F), while held
         else if (index >= 3 && index <= 12)
         {
             ToggleSeries(index - 3);
@@ -2118,7 +2118,7 @@ public partial class Main : Node2D
     // G:049E.. (forage apex, dig bottom left, nurse bottom right) and G:0482.. (breeders, workers, soldiers), each
     // summing to 0xFFFF. Items (indices): 3 help, 4 Auto, 5 Manual, 6..8 Set 1..3 (preset ratios),
     // 12 the relative-setting bars (f_0839a / f_08255, drawn here as three plain bars), 13 the triangle
-    // (f_07980 takes its rectangle), 9..11 / 15..17 the corner labels ("click to toggle display", not decoded).
+    // (f_07980 takes its rectangle), 9..11 / 15..17 the corner boxes (percent / count, DS:1B62 / DS:1B64).
     // As the original's handlers do, a behaviour drag sets manual jobs G:0378 = 0 (f_07d07), a caste drag sets
     // T:07E8 = 0 and recomputes the targets with f_085f8 (f_07ac1).
     const int BehaviorWin = 18, CasteWin = 19, TriangleItem = 13;
@@ -2190,7 +2190,7 @@ public partial class Main : Node2D
                 triangleDrag = win;
                 TriangleAt(win, p);
                 break;
-            case 3: help = !help; break;
+            case 3: help = helpHeld = true; break;                                   // f_2f74e(0x120E / 0x130E), while held
             case 4:
             case 5:
                 if (win == BehaviorWin) st.Set16(Seg.G, 0x378, index == 4 ? 1 : 0);
@@ -2770,7 +2770,7 @@ public partial class Main : Node2D
             case 8: st.Set16(Seg.G, 0x35c, st.S16(Seg.G, 0x35c) == 0 ? 1 : 0); return;
             case 9: st.Set16(Seg.G, 0x35c, 2); return;
             case 10: st.Set16(Seg.G, 0x35c, 3); return;
-            case 17: help = !help; return;
+            case 17: help = helpHeld = true; return;                                 // f_2f74e(0x1906), while held
             case 11: Mate(); return;
             case 13: st.Set16(Seg.T, 0x2c0, 1); return;                     // AUTOMATIC: the sim settles the swarm's queens
             case 14: st.Set16(Seg.T, 0x2c0, 0); return;                     // MANUAL
