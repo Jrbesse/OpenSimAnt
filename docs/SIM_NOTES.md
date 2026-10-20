@@ -1083,6 +1083,15 @@ G:0AF6 / G:0B04 += 1, population counters.
   pause line. `f_6e17e` first cancels the Exchange / Chase modes when unpausing (`f_11b5f` / `f_11aff`), sets
   G:047E = n, then (both) the lasting timed line STR# 1010 [2] "Game Paused" (G:105E -1), [3] (10, Exchange) or
   [17] (11, Chase) while paused, or clears it. Loading a game pauses it (`f_2f816(1)`).
+- `f_753e5(sx, sy, x, y)` (thunk 0x2F7E4, from the spider's lash `f_0dd40`, the port's "spider_strike"): sound 0x37
+  (`f_00ed8(0x37, 0x8265, 0x3F)`); with the Edit window on the surface a line in colour 3 from the spider (G:0F12 /
+  G:0F34, 1/16 cell = 1 px at 16 px per cell) to the struck ant's cell centre, again 1 px down-right, and a 2 x 2
+  dot in colour 2 at its end (the driver's line DS:916C, the fill DS:9134); the same in the Map window at its scale.
+  The next redraw removes it.
+- `f_22e9f(id, on)` sets an item's highlight bit (+24 bit 2) and redraws it inverted (`f_1d250`, the XOR fill): the
+  yellow ant's alarm trail marks the Edit window's SCENT button 0x10 this way (`f_22f65`, the port's
+  "menu_check"), as G:047E marks PAUSE. `f_00ed0` and `f_0125f` are empty in the DOS version (the 'joke' cheat and
+  the Mystery Button's music do nothing on screen).
 - The global timeout: `f_01277(s)` sets DS:8BA8 = now and DS:8BAC = 18 s; `f_012c4` → `f_1ccfc(&8BA8, 8BAC)` is
   true when now is outside [start, start + period) and then restarts the period from now (a periodic timer that
   starts expired: 0 / 0). Message boxes (`f_71bb6`) arm 15 s and close on it, a key or a press; the title

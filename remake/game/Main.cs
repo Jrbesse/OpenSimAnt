@@ -334,7 +334,7 @@ public partial class Main : Node2D
             }
             else if (e.Name == "status" && e.Args.Length > 0)
                 StatusEffect(e.Args);
-            else if (e.Name == "sound" && e.Args.Length > 0 && e.Args[0] is int sfx && sfx < SoundBank.EffectCount
+            else if (e.Name is "sound" or "sound2" && e.Args.Length > 0 && e.Args[0] is int sfx && sfx < SoundBank.EffectCount
                      && session.St.U16(Seg.T, 0x7ac) != 0)
                 PlaySound(sfx);
             else if (e.Name is "sound" or "voice" or "music" && e.Args.Length > 0 && e.Args[0] is int song && song >= 10000)
@@ -350,6 +350,12 @@ public partial class Main : Node2D
                 balloonsNow.Add(((int)e.Args[0], (int)e.Args[1], (int)e.Args[2], BalloonText(line.Item1, line.Item2)));
             else if (e.Name == "win_screen") StartWin();
             else if (e.Name == "scene") Present(AntLionScene);                    // f_76707
+            else if (e.Name == "spider_strike" && e.Args.Length >= 2)             // f_753e5: from the spider (1/16 cell = px) to the ant
+            {
+                PlaySound(0x37);
+                var st0 = session.St;
+                strikes.Add((st0.S16(Seg.G, 0xf12), st0.S16(Seg.G, 0xf34), Convert.ToInt32(e.Args[0]), Convert.ToInt32(e.Args[1])));
+            }
             else if (e.Name == "help" && e.Args.Length >= 2 && session.St.U16(Seg.T, 0x7ae) != 0)
             {
                 int pic = Convert.ToInt32(e.Args[0]), n = Convert.ToInt32(e.Args[1]);
@@ -684,6 +690,20 @@ public partial class Main : Node2D
             var pr = ItemRect(EditWin, 15);
             win.Invert(pr.l, pr.t, pr.r, pr.b);
         }
+        if (st.U16(Seg.G, 0x104e) != 0)                                            // f_22e9f(0x10, 1): SCENT while the alarm trail is on
+        {
+            var sr = ItemRect(EditWin, 16);
+            win.Invert(sr.l, sr.t, sr.r, sr.b);
+        }
+        if (view == 1)                                                              // f_753e5: the spider's strikes
+            foreach (var (x0, y0, x1, y1) in strikes)
+            {
+                var mc = win.Clip(m.l, m.t, m.r, strip.b);
+                int ox = m.l - originA * Cell, oy = m.t - originB * Cell;
+                Line(mc, ox + x0, oy + y0, ox + x1, oy + y1, session.Art.Palette[3]);
+                Line(mc, ox + x0 + 1, oy + y0 + 1, ox + x1 + 1, oy + y1 + 1, session.Art.Palette[3]);
+                mc.Fill(ox + x1, oy + y1, ox + x1 + 2, oy + y1 + 2, session.Art.Palette[2]);
+            }
         // f_03a83, the health bars (items 0x11..0x13): the yellow ant G:0F78, the black colony G:10BE, the red colony
         // G:01FE out of 100; the filled part, bottom - height * v / 100 .. bottom, in the item's scheme foreground, the
         // rest in its background (schemes 4, 9, 10: yellow, black, red on light grey). Then the warning levels, a 1-px
@@ -1045,6 +1065,13 @@ public partial class Main : Node2D
             if (st.U16(Seg.T, 0xc28) is 3 or 4)
                 ui.DrawBitmap(area, 1210 + (st.U16(Seg.T, 0xc30) & 1), x0 + st.S16(Seg.G, 0x470) * 4, y0 + st.S16(Seg.G, 0x47a) * 4);
         }
+        if (mv == 1 && content == 1)                                                        // f_753e5 in the Map window, 4 px per cell
+            foreach (var (sx0, sy0, sx1, sy1) in strikes)
+            {
+                Line(area, x0 + sx0 / 16 * 4, y0 + sy0 / 16 * 4, x0 + sx1 / 16 * 4, y0 + sy1 / 16 * 4, session.Art.Palette[3]);
+                Line(area, x0 + sx0 / 16 * 4 + 1, y0 + sy0 / 16 * 4 + 1, x0 + sx1 / 16 * 4 + 1, y0 + sy1 / 16 * 4 + 1, session.Art.Palette[3]);
+                area.Fill(x0 + sx1 / 16 * 4, y0 + sy1 / 16 * 4, x0 + sx1 / 16 * 4 + 2, y0 + sy1 / 16 * 4 + 2, session.Art.Palette[2]);
+            }
         if (mv == view)                                                                     // the Edit window's view
         {
             int l = x0 + originA * 4, t = y0 + originB * 4;
@@ -3157,6 +3184,7 @@ public partial class Main : Node2D
     // (or --status) turns them on.
     bool showStatus;
     int sceneArg, timedModal = -1;
+    readonly List<(int x0, int y0, int x1, int y1)> strikes = new();
 
     void DrawStatus(UiArt.Canvas canvas)
     {
@@ -3227,6 +3255,7 @@ public partial class Main : Node2D
             rgba[4 * i + 3] = 255;
         }
         image.SetData(ScreenW, ScreenH, false, Image.Format.Rgba8, rgba);
+        strikes.Clear();                                                            // drawn once, until the next redraw
         texture.Update(image);
     }
 
