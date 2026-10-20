@@ -1212,7 +1212,23 @@ public partial class Main : Node2D
                 break;
             case 15: ToggleWindow(BehaviorWin); break;
             case 17: ToggleWindow(CasteWin); break;
-            case 16: FollowYellow(); break;                                             // 0x110 → f_6f733 → f_01c52
+            case 16:                                                                     // 0x110 → f_6f733
+            {
+                // the BIOS shift flags: no Ctrl f_01c52; Ctrl + Shift add (with Alt kill) surface ants, black in the
+                // button's left half, red in its right (f_015be / f_0161f); Ctrl + Alt sound 0x20 and all food cleared
+                // (f_01707); Ctrl alone food dropped (f_6bca5(0x96, 1))
+                if (!mb.CtrlPressed) { FollowYellow(); break; }
+                if (mb.ShiftPressed)
+                {
+                    var (l, _, r, _) = ItemRect(MapWin, 16);
+                    bool black = mb.Position.X <= (l + r) / 2;
+                    if (mb.AltPressed) DebugCommands.KillAnts(st, black);
+                    else DebugCommands.AddAnts(st, black);
+                }
+                else if (mb.AltPressed) { PlaySound(0x20); DebugCommands.ClearFood(st); }
+                else Colony.DropFood(st, 0x96, 1);
+                break;
+            }
             case 18: DebugCommands.RandomAction(st); break;                              // the Mystery Button (f_022bc)
             case >= 24 and <= 30: popReport = true; break;                               // held: the population report
             case 19: ToggleWindow(HistoryWin); break;

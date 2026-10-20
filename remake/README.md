@@ -97,6 +97,7 @@ Keys:
 | F1 | the help overlays (File > New is Select a Game, File > About the about box) |
 | Y, Esc | yard map in a Full Game (double-click a patch to move; also opens when another colony must be picked: click one with a black colony); Esc also closes the SimAntipedia |
 | F8 / F9 | quick save / load (the original's .ANT format, in Godot's user:// folder) |
+| Ctrl / Ctrl+Shift / Ctrl+Alt (+Shift) on the Map window's Center on Yellow button | the original's hidden debug actions (f_6f733): drop food; add black / red ants (left / right half; with Alt kill them); clear all food |
 | F12 | the shell's debug lines (tick, populations, speed, its messages) below the windows |
 | S | sound effects on / off (the shell's mute) |
 | N / M / K | new Quick Game / Full Game / Experimental game |
