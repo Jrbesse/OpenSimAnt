@@ -18,13 +18,34 @@ public sealed class UiArt
     /// f_220e4 picks an item's scheme (LayoutItem.ColourScheme). Frames are drawn in DS:3DE0, the scheme's foreground.</summary>
     public readonly (uint fg, uint bg)[] Schemes;
 
+    /// <summary>Palette colour → the colour of index ^ 15 (Canvas.Invert).</summary>
+    public static Dictionary<uint, uint> XorMap;
+
     public UiArt(OriginalFiles files, MapArt art)
     {
         Files = files;
         Palette = art.Palette;
         Layouts = Data.Layouts.All(files);
+        XorMap = new Dictionary<uint, uint>();
+        for (int i = 0; i < 16; i++) XorMap.TryAdd(Palette[i], Palette[i ^ 15]);
         var t = files.Hcegant.FirstOrDefault(r => r.Type == 0 && r.Id == 129)?.Data ?? Array.Empty<byte>();
         Schemes = Enumerable.Range(0, t.Length / 6).Select(i => (Palette[t[6 * i] & 15], Palette[t[6 * i + 2] & 15])).ToArray();
+        Checkers = Enumerable.Range(0, t.Length / 6).Select(i => (t[6 * i + 2] & 15) != (t[6 * i + 3] & 15) ? Palette[t[6 * i + 3] & 15] : (uint?)null).ToArray();
+    }
+
+    /// <summary>f_22170, the fill of an item's background: when a scheme's bytes 2 and 3 differ, a 50% checker (the
+    /// driver's pattern 0, DS:9138) of byte 3 where x + y is odd and byte 2 where it is even, e.g. the captions'
+    /// dark / light grey (scheme 1); else byte 2 solid. Checked on the original's screen (tools/re/screens.py).</summary>
+    public readonly uint?[] Checkers;
+
+    public void FillScheme(Canvas c, int l, int t, int r, int b, LayoutItem it)
+    {
+        var (_, bg) = SchemeOf(it);
+        uint? odd = it.ColourScheme < Checkers.Length ? Checkers[it.ColourScheme] : null;
+        if (odd is not { } o) { c.Fill(l, t, r, b, bg); return; }
+        for (int y = Math.Max(t, c.T); y < Math.Min(b, c.B); y++)
+            for (int x = Math.Max(l, c.L); x < Math.Min(r, c.R); x++)
+                c.Px[y * c.Stride + x] = ((x + y) & 1) != 0 ? o : bg;
     }
 
     public (uint fg, uint bg) SchemeOf(LayoutItem it) =>
@@ -96,13 +117,19 @@ public sealed class UiArt
             Fill(r - 1, t, r, b, c);
         }
 
-        /// <summary>Invert the colours of a rectangle (a highlighted menu entry).</summary>
+        /// <summary>Invert a rectangle as the VGA driver's XOR fill does (DS:913C, f_1d250: the highlighted items,
+        /// PAUSE, the current view's button): palette index ^ 15 (brown becomes purple, light grey red; checked on
+        /// the original's screen); colours outside the palette are inverted in RGB.</summary>
         public void Invert(int l, int t, int r, int b)
         {
             l = Math.Max(l, L); t = Math.Max(t, T); r = Math.Min(r, R); b = Math.Min(b, B);
+            var map = XorMap;
             for (int y = t; y < b; y++)
                 for (int x = l; x < r; x++)
-                    Px[y * Stride + x] ^= 0x00ffffffu;
+                {
+                    uint p = Px[y * Stride + x];
+                    Px[y * Stride + x] = map != null && map.TryGetValue(p, out var q) ? q : p ^ 0x00ffffffu;
+                }
         }
 
         /// <summary>Copy a block of ARGB pixels (w x h) with its top-left at (x, y).</summary>
@@ -127,10 +154,23 @@ public sealed class UiArt
 
     /// <summary>f_21fa2: text in item rectangle (l, t, r, b), font `font`, alignment 0 / 3 centred, 1 left + 4,
     /// 2 right - width - 4, never left of `l`; vertically centred.</summary>
-    public void DrawText(Canvas c, int font, int align, int l, int t, int r, int b, string text, uint colour = Black)
+    public void DrawText(Canvas c, int font, int align, int l, int t, int r, int b, string text, uint colour = Black, uint? back = null)
     {
         var f = Font(font) ?? Font(2);
         if (f == null || string.IsNullOrEmpty(text)) return;
+        if (font == 0 && back is { } bk)
+        {
+            // font 0 is the PC font of the BIOS (8 x 14 cells, DS:3DDE / DS:3DDC), drawn opaque in the item's background:
+            // a caption's title sits in a dark box on the checker (the original's screen, tools/re/screens.py)
+            int cw = 8 * text.Length, ch = 14;
+            int cx = Math.Max(l, align switch { 1 => l + 4, 2 => r - cw - 4, _ => (l + r - cw) / 2 });
+            int cy = (t + b - ch) / 2;
+            var cc = c.Clip(l, t, r, b);
+            cc.Fill(cx, cy, cx + cw, cy + ch, bk);
+            for (int i = 0; i < text.Length; i++)
+                if (text[i] != ' ') f.Draw(cc.Clip(cx + 8 * i, cy, cx + 8 * i + 8, cy + ch), cx + 8 * i, cy, text[i].ToString(), colour);
+            return;
+        }
         int w = f.Width(text);
         int x = align switch { 1 => l + 4, 2 => r - w - 4, _ => (l + r - w) / 2 };
         x = Math.Max(x, l);
@@ -208,23 +248,23 @@ public sealed class UiArt
             switch (it.Type)
             {
                 case 0x00:
-                    clip.Fill(l, t, r, b, bg);
+                    FillScheme(clip, l, t, r, b, it);
                     ThickFrame(clip, l, t, r, b, it.Style, fg);
                     break;
                 case 0x02:
-                    clip.Fill(l, t, r, b, bg);
+                    FillScheme(clip, l, t, r, b, it);
                     break;
                 case 0x0f:
                     ThickFrame(clip, l, t, r, b, it.Style, fg);
                     break;
                 case 0x13 or 0x14 or 0x15 or 0x16:
-                    if (it.Type >= 0x15) clip.Fill(l, t, r, b, bg);
+                    if (it.Type >= 0x15) FillScheme(clip, l, t, r, b, it);
                     ThickFrame(clip, l, t, r, b, it.Style, fg, it.Type is 0x13 or 0x15 ? 5 : 10);
                     break;
                 case 0x12:
-                    clip.Fill(l, t, r, b, bg);
+                    FillScheme(clip, l, t, r, b, it);
                     clip.Fill(l, b - 1, r, b, fg);
-                    DrawText(clip, it.Style, Align(it), l, t, r, b, it.Text != null && !it.Text.Contains('%') ? it.Text : title ?? "", fg);
+                    DrawText(clip, it.Style, Align(it), l, t, r, b, it.Text != null && !it.Text.Contains('%') ? it.Text : title ?? "", fg, bg);
                     break;
                 case 0x06:
                     if (hidden == null || !hidden.Contains(it.Bitmap)) DrawBitmap(clip, it.Bitmap, l, t);
@@ -233,7 +273,7 @@ public sealed class UiArt
                     DrawBitmap(clip, it.Bitmaps[0], l, t);
                     break;
                 case 0x05 or 0x09 or 0x0c or 0x10 or 0x11:
-                    if (it.Type is 0x05 or 0x0c or 0x11) clip.Fill(l, t, r, b, bg);
+                    if (it.Type is 0x05 or 0x0c or 0x11) FillScheme(clip, l, t, r, b, it);
                     if (it.Type == 0x0c) clip.Fill(l, b - 1, r, b, fg);
                     if (it.Text != null && !it.Text.Contains('%')) DrawText(clip, it.Style, Align(it), l, t, r, b, it.Text, fg);
                     break;
@@ -247,7 +287,7 @@ public sealed class UiArt
     {
         var (l, t, r, b) = it.Rect;
         var (fg, bg) = SchemeOf(it);
-        if (it.Type is 0x05 or 0x0c or 0x11) c.Fill(l + dx, t + dy, r + dx, b + dy, bg);
+        if (it.Type is 0x05 or 0x0c or 0x11) FillScheme(c, l + dx, t + dy, r + dx, b + dy, it);
         DrawText(c, font >= 0 ? font : it.Style, Align(it), l + dx, t + dy, r + dx, b + dy, text, fg);
     }
 

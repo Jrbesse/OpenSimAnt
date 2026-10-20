@@ -759,6 +759,15 @@ public partial class Main : Node2D
         win.Clip(m.l, m.t, m.r, m.b).Blit(mapBuf, w, h, m.l, m.t);
         var strip = ItemRect(EditWin, EditMapStrip);
         win.Clip(strip.l, strip.t, strip.r, strip.b).Blit(mapBuf, w, h, m.l, m.t);
+        {
+            var ti = ItemRect(EditWin, 7);                                             // the Experimental button's tool icon
+            ui.DrawBitmap(win, (st.U16(Seg.G, 0xeac) == 3 ? 5100 + Math.Clamp(st.U16(Seg.G, 0x104c), 0, 7) : 5107), ti.l, ti.t);
+            if (view is >= 1 and <= 3)                                                 // f_01976: items 8..10, the view shown
+            {
+                var vb = ItemRect(EditWin, 7 + view);
+                win.Invert(vb.l, vb.t, vb.r, vb.b);
+            }
+        }
         if (session.Paused)                                                       // the PAUSE button while paused (G:047E)
         {
             var pr = ItemRect(EditWin, 15);
@@ -1151,10 +1160,16 @@ public partial class Main : Node2D
             int l = x0 + originA * 4, t = y0 + originB * 4;
             area.Frame(l, t, l + Cols * 4, t + Rows * 4, 0xffffff40u);
         }
-        if (st.U16(Seg.G, 0xeac) == 3)                                                     // f_67010: the tool's icon
         {
+            // the Experimental button shows the current tool's icon 5100 + G:104C in every game (the original's screen)
             var ti = ItemRect(MapWin, 23);
-            ui.DrawBitmap(win, 5100 + Math.Clamp(st.U16(Seg.G, 0x104c), 0, 7), ti.l, ti.t);
+            ui.DrawBitmap(win, (st.U16(Seg.G, 0xeac) == 3 ? 5100 + Math.Clamp(st.U16(Seg.G, 0x104c), 0, 7) : 5107), ti.l, ti.t);
+            // f_01976: the button of the view shown (0x105 + G:032E) highlighted (f_22fae, the XOR)
+            if (view is >= 0 and <= 3 && MapContent == view)
+            {
+                var vb = ItemRect(MapWin, 5 + view);
+                win.Invert(vb.l, vb.t, vb.r, vb.b);
+            }
         }
         // the population report f_6eea5: counts 0x119 / 0x11A, gauges 0x11B black health (G:10BE / 100), 0x11C red
         // health (G:01FE / 100, 0 without red ants), 0x11D / 0x11E each population / max(1, black, red)
@@ -1482,36 +1497,58 @@ public partial class Main : Node2D
         return false;
     }
 
-    void DrawMenuBar(UiArt.Canvas c)
+    // The bar and menus in f_1ffd1's colours (DS:5FEA cyan, DS:5FEC dark grey, DS:5FEE light grey after start-up):
+    // normal cyan text on dark grey, highlighted swapped, disabled cyan on light grey (highlighted dark grey on light
+    // grey); text in 8 x 14 cells (f_1fbd0). Measured on the original's screen (tools/re/screens.py, menu.png).
+    uint MenuText => session.Art.Palette[7];
+    uint MenuBack => session.Art.Palette[14];
+
+    void MenuCells(UiArt.Canvas c, int x, int y, string text, uint fg, uint bg)
     {
         var f = ui.Font(Menus.Font);
-        if (f == null || menus.Titles.Length == 0) return;
-        c.Fill(0, 0, ScreenW, menus.BarHeight, UiArt.White);
-        c.Fill(0, menus.BarHeight, ScreenW, menus.BarHeight + 1, UiArt.Black);
-        for (int m = 0; m < menus.Titles.Length; m++)
+        c.Fill(x, y, x + text.Length * Menus.CellW, y + Menus.CellH, bg);
+        foreach (char ch in text)
         {
-            var (l, t, r, b) = menus.TitleRect(m);
-            f.Draw(c, l, t, menus.Titles[m], UiArt.Black);
-            if (m == menuOpen) c.Invert(l, t - 1, r, b);
+            if (ch != ' ') f?.Draw(c.Clip(x, y, x + Menus.CellW, y + Menus.CellH), x, y, ch.ToString(), fg);
+            x += Menus.CellW;
         }
     }
 
+    void DrawMenuBar(UiArt.Canvas c)
+    {
+        if (menus.Titles.Length == 0) return;
+        c.Fill(0, 0, ScreenW, menus.BarHeight, MenuBack);
+        for (int m = 0; m < menus.Titles.Length; m++)
+        {
+            var (l, t, r, b) = menus.TitleRect(m);
+            bool open = m == menuOpen;
+            MenuCells(c, l, t, menus.Titles[m], open ? MenuBack : MenuText, open ? MenuText : MenuBack);
+        }
+    }
+
+    // f_6d9a4's box (measured): the outer area (l, t, l + 8 w + 11, b) in cyan, the inner (l + 7, t + 2, r - 2, b - 2)
+    // in dark grey, the items from (l + 16, t + 3), one 14-px row each; a separator is a 1-px cyan line 6 px into its
+    // row across w - 2 cells.
     void DrawMenu(UiArt.Canvas c)
     {
-        var f = ui.Font(Menus.Font);
-        if (f == null) return;
         MenuMarks();
-        var (fr, x, y) = menus.Box(menuOpen);
-        c.Fill(fr.l - 1, fr.t - 1, fr.r + 1, fr.b + 1, UiArt.White);
-        c.Frame(fr.l - 1, fr.t - 1, fr.r + 1, fr.b + 1, UiArt.Black);
-        c.Fill(fr.l + 1, fr.b + 1, fr.r + 2, fr.b + 2, UiArt.Black);                 // a drop shadow (not traced)
-        c.Fill(fr.r + 1, fr.t + 1, fr.r + 2, fr.b + 2, UiArt.Black);
+        var (fr, _, _) = menus.Box(menuOpen);
+        int w = menus.Width(menuOpen);
+        int l = fr.l - 8, t = fr.t - 3, r = l + 8 * w + 11, b = fr.b + 3, x = l + 16, y = t + 3;
+        c.Fill(l, t, r, b, MenuText);
+        c.Fill(l + 7, t + 2, r - 2, b - 2, MenuBack);
         for (int i = 0; i < menus.Items[menuOpen].Length; i++)
         {
-            bool off = (menus.Items[menuOpen][i][0] & Menus.Disabled) != 0;
+            int ry = y + i * Menus.CellH;
+            if (Menus.IsSeparator(menus.Items[menuOpen][i]))
+            {
+                c.Fill(x, ry + 6, x + (w - 2) * Menus.CellW, ry + 7, MenuText);
+                continue;
+            }
+            bool off = (menus.Items[menuOpen][i][0] & Menus.Disabled) != 0, hot = i == menuHot;
             string text = menus.Text(menuOpen, i);
-            f.Draw(c, x, y + i * Menus.CellH, off ? " " + text[1..] : text, off ? UiArt.DarkGrey : UiArt.Black);
-            if (i == menuHot) c.Invert(x, y + i * Menus.CellH, fr.r, y + (i + 1) * Menus.CellH);
+            uint fg = hot ? MenuBack : MenuText, bg = off ? session.Art.Palette[12] : hot ? MenuText : MenuBack;
+            MenuCells(c, x - Menus.CellW, ry, text, fg, bg);
         }
     }
 
@@ -3343,7 +3380,7 @@ public partial class Main : Node2D
             // the desktop: a 50% grey pattern, the status lines on it, then the windows back to front
             for (int y = 0; y < ScreenH; y++)
                 for (int x = 0; x < ScreenW; x++)
-                    argb[y * ScreenW + x] = ((x ^ y) & 1) == 0 ? 0xff9a9a9au : 0xff7a7a7au;
+                    argb[y * ScreenW + x] = session.Art.Palette[7];                      // the desktop: cyan (the original's screen)
             DrawStatus(canvas);
             foreach (int win in zOrder)
                 if (win == EditWin) { DrawEditWindow(canvas); DrawBalloon(canvas); DrawStatusMessage(canvas); }

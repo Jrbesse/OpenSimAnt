@@ -6,10 +6,11 @@ namespace Formica.Data;
 /// and each string NUL-terminated. Titles: File, Window, View, Options, Speed. An item's first byte is its state:
 /// 0x20 plain, 0x10 checked (font 1 draws it as a ►, f_2033e sets it), 0x80 disabled; "---" is a separator.
 /// Item n of menu m posts the command 0xFD00 + 16 m + n + 1 (f_6e26d). The bar and the menus are drawn in the
-/// text-cell font 1 (8 px wide, DS:3DDE; 10 px tall, DS:3DDC).</summary>
+/// PC font's text cells: 8 px wide (DS:3DDE), 14 tall in VGA (DS:3DDC, the BIOS 8x14 font, INT 10h AX=1130h BH=2;
+/// checked on the original's screen: the bar is 17 px tall). The shell draws SHARED's PC font 0 in those cells.</summary>
 public sealed class Menus
 {
-    public const int CellW = 8, CellH = 10, Font = 1;
+    public const int CellW = 8, CellH = 14, Font = 0;
     public const byte Plain = 0x20, Checked = 0x10, Disabled = 0x80;
 
     public readonly string[] Titles;
