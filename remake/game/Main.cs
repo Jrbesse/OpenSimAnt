@@ -378,6 +378,48 @@ public partial class Main : Node2D
         }
     }
 
+    // ------------------------------------------------------------------------------- the mouse cursor
+    // The driver draws its own cursor (2b73: the image DS:3D10 from type 8 and the mask DS:3D14 from type 7 with the
+    // same id, set by f_1b3a9) with its top-left corner at the mouse (DS:9122 / DS:9124). Type 8: u16 width, height,
+    // then per row 4 planes of (width / 8) bytes, plane p = bit p of the palette index; type 7: u16 width, height,
+    // then a 1-bit AND mask per row (1 = the screen shows through). Cursor 0 is the arrow (HCEGANT 8/0 with SHARED
+    // 7/0), 1 the hourglass (HCEGANT 8/1, 7/1). (Start-up asks for cursor 4, which does not exist, so 0 stays.)
+    (int w, int h, uint[] px)? cursorArt;
+
+    (int w, int h, uint[] px)? LoadCursor(int id)
+    {
+        var img = session.Files.Hcegant.FirstOrDefault(r => r.Type == 8 && r.Id == id)?.Data;
+        var mask = (session.Files.Hcegant.FirstOrDefault(r => r.Type == 7 && r.Id == id) ?? session.Files.Shared.FirstOrDefault(r => r.Type == 7 && r.Id == id))?.Data;
+        if (img == null || mask == null || img.Length < 4 || mask.Length < 4) return null;
+        int w = img[0] | img[1] << 8, h = img[2] | img[3] << 8;
+        int mw = mask[0] | mask[1] << 8, mh = mask[2] | mask[3] << 8;
+        if (w <= 0 || h <= 0 || (img.Length - 4) % h != 0) return null;
+        int row = (img.Length - 4) / h, plane = row / 4, mrow = mh > 0 ? (mask.Length - 4) / mh : 0;
+        var px = new uint[w * h];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                bool clear = x >= mw || y >= mh || ((mask[4 + y * mrow + x / 8] >> (7 - x % 8)) & 1) != 0;
+                if (clear) continue;
+                int k = 0;
+                for (int p = 0; p < 4; p++) k |= ((img[4 + y * row + p * plane + x / 8] >> (7 - x % 8)) & 1) << p;
+                px[y * w + x] = session.Art.Palette[k];
+            }
+        return (w, h, px);
+    }
+
+    void DrawCursor(UiArt.Canvas c)
+    {
+        cursorArt ??= LoadCursor(0);
+        bool shot = OS.GetCmdlineUserArgs().Contains("--cursor");             // screenshots: at (300, 200)
+        if (cursorArt is not { } a || screenshot != null && !shot) return;
+        var p = shot ? new Vector2(300, 200) : GetViewport().GetMousePosition();
+        for (int y = 0; y < a.h; y++)
+            for (int x = 0; x < a.w; x++)
+                if (a.px[y * a.w + x] != 0) c.Plot((int)p.X + x, (int)p.Y + y, a.px[y * a.w + x]);
+        if (Input.MouseMode != Input.MouseModeEnum.Hidden) Input.MouseMode = Input.MouseModeEnum.Hidden;
+    }
+
     // ------------------------------------------------------------------------------- presentations
     // The original shows message boxes and the scenes of window 26 in local loops: the game waits and they come one
     // after the other. Here each is a coroutine in a queue; while one runs the game does not advance. A key (f_01572)
@@ -3246,6 +3288,7 @@ public partial class Main : Node2D
             if (popup >= 0) DrawPopup(canvas);
             if (menuOpen >= 0) DrawMenu(canvas);
         }
+        DrawCursor(canvas);
         for (int i = 0; i < argb.Length; i++)
         {
             uint c = argb[i];

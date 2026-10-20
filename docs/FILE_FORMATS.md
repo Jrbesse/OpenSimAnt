@@ -68,7 +68,8 @@ needed for decoding.
 | 19 | 53 | Card names (`Top_Card`, `Ant_Anatomy`, `Castes`, `Scent_Trails`, …) |
 | 21 | 88 | Text style runs for the type 10 texts: Mac `styl` (u16 count, 20-byte ScrpSTElements: u32 start, height, ascent, font, face, size, colour). Face 0x0100 (bold) = a link word. |
 | 6 | 1 | **The pull-down menus** (id 0, loaded by 82e5:0039 into DS:6054): LE u32 offsets from the resource start. A table up to a 0 entry: entry 0 lists the menu titles, entry m + 1 menu m's items; each list ends with a 0 entry, each string is NUL-terminated. Titles " File", " Window", " View", " Options", " Speed". An item's first byte is its state (0x20 plain, 0x10 checked, drawn by font 1 as a ►; 0x80 disabled); "---" is a separator. SIM_NOTES "Keys and menu commands"; remake `Formica.Data/Menus.cs`. |
-| 7, 9 | 1–2 each | Cursor, misc tables (not yet decoded) |
+| 7 | 1 | the arrow cursor's AND mask (id 0: u16 width, height, then 1 bit per pixel, 1 = transparent) |
+| 9 | 1–2 | misc tables (not yet decoded) |
 
 ### HCEGANT
 | type | count | content |
@@ -78,7 +79,7 @@ needed for decoding.
 | 0 | 37 | Window/dialog layouts: 0..33 are windows, 128 / 129 / 131 UI tables (see "Window layouts") |
 | 9 | 11 | id 0: rectangle table (320 bytes). **ids 9 / 10: the house / yard tile sheets; 13..20: ant sprite sheets** (see "Map tiles and ant sprites") |
 | 4 | 6 | Tutorial `STR#` strings |
-| 7, 8 | 3 | Cursors |
+| 7, 8 | 3 | Cursors (decoded 2026-10-20): type 8 the image (u16 width, height, then per row 4 planes of width / 8 bytes, plane p = bit p of the palette index), type 7 the AND mask with the same id (u16 width, height, 1 bit per pixel, 1 = transparent; the arrow's, id 0, is in SHARED). 0 the arrow, 1 the hourglass. The driver draws the cursor with its top-left at the mouse (f_1b3a9 sets it; 2b73) |
 
 ### SOUND
 | type | count | content |
