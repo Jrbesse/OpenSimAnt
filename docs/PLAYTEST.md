@@ -83,7 +83,7 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 
 - [ ] 1 / 2: recruit 5 / 10 (a queen: dig hole / start brood; the spider: chase / hunt).
 - [ ] 3 / 4: release half / all. X: exchange. 0: alarm trail on / off.
-- [ ] Backspace while walking: stops. Backspace standing still: recentres. Shift+Backspace: follows.
+- [ ] Backspace while walking: stops. Backspace standing still: recentres. Shift+Backspace: goes to it (once; with Options > AutoTrack on the view keeps up with it while it walks).
 - [ ] Shift+0: pause. Shift+1 / 2 / 3 / 4: slow / normal / fast / ultra (the Speed menu's mark; F12 shows the shell's debug line with the speed).
 - [ ] Ctrl+E / Ctrl+M: Edit / Map window to the front. Ctrl+B / Ctrl+C: Behavior / Caste Control.
 - [ ] Ctrl+T: Efficiency Score. Ctrl+Y: the yard window (Full Game).

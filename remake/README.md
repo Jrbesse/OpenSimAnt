@@ -73,7 +73,7 @@ Keys:
 | **The original's keys** (f_74386's table, f_76aeb; the SimAntipedia's "Keyboard Shortcuts" card) | |
 | 1 / 2 | recruit 5 / 10 (a queen: dig hole / start brood; the spider: chase / hunt) |
 | 3 / 4, X, 0 | release half / all; exchange (then click an ant or the spider); alarm trail |
-| Backspace, Shift+Backspace | stop the yellow ant's walk (else recentre on it); follow it |
+| Backspace, Shift+Backspace | stop the yellow ant's walk (else recentre on it); go to it (f_01c52: once; Options > AutoTrack keeps the view on it while it walks) |
 | Alt+F / W / V / O / S, F2..F6 | open a menu (File, Window, View, Options, Speed); then Up / Down, Left / Right, a letter, Enter / Space, Esc |
 | Shift+0, Shift+1 / 2 / 3 / 4 | pause (G:047E); speed Slow / Normal / Fast / Ultra (T:07CC) |
 | Ctrl+N, Ctrl+L, Ctrl+S / A, Ctrl+Q / X | Select a Game; load, save / save as (the original's file dialog: folders, drives A: .. H:, starting in Godot's user:// folder; type a name to save, click / double-click a file to load; Save reuses the last file, asking OVERWRITE); quit (asks to save first) |
@@ -88,7 +88,7 @@ Keys:
 | Tab | Map window (front / hide) |
 | **The shell's own keys** | |
 | Ctrl+1 / 2 / 3 | surface / black nest / red nest |
-| Arrows, F | scroll; follow the yellow ant |
+| Arrows, F | scroll; go to the yellow ant |
 | + / - | speed |
 | R, Shift+R, E, Shift+E, A, H, B | recruit 5 / 10, release half / all, alarm trail, dig a hole, start brood |
 | C, U, Shift+U | as the spider: chase (then click), hunt, lash out |

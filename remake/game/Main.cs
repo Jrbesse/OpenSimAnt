@@ -292,7 +292,6 @@ public partial class Main : Node2D
         }
         SongPoll();
         DrainEffects();
-        if (follow) CenterOnYellow();
         Redraw();
         ShotPoll();
     }
@@ -339,11 +338,7 @@ public partial class Main : Node2D
                 PlaySound(sfx);
             else if (e.Name is "sound" or "voice" or "music" && e.Args.Length > 0 && e.Args[0] is int song && song >= 10000)
                 PlaySong(song);
-            else if (e.Name == "follow")                                     // f_01c52 (AutoTrack): scroll to the yellow ant
-            {
-                if (view != session.Yellow.view) SetView(session.Yellow.view);
-                follow = true;
-            }
+            else if (e.Name == "follow") FollowYellow();                     // f_01c52 (each step with AutoTrack on)
             else if (e.Name == "info" && e.Args.Length >= 2)                // the Ant Info tool (f_2f8fc)
                 OpenAntInfo((int)e.Args[0], (int)e.Args[1]);
             else if (e.Name == "balloon" && e.Args.Length >= 5 && e.Args[4] is ValueTuple<int, int> line)
@@ -885,7 +880,7 @@ public partial class Main : Node2D
             case 8: SetView(1); break;
             case 9: SetView(2); break;
             case 10: SetView(3); break;
-            case 11: session.St.Set16(Seg.G, 0x1074, 1); SetView(session.Yellow.view); follow = true; break;   // follow (f_01c52)
+            case 11: FollowYellow(); break;                                          // f_01c52
             case 12:                                                                 // f_01ca5: the spider G:0F12 / G:0F34 (1/16 cell)
                 if (st.U16(Seg.G, 0xf0c) == 0) { PlaySound(1); break; }              // none: f_00ed8(1, 0, 0x7E)
                 GoTo(1, st.S16(Seg.G, 0xf12) >> 4, st.S16(Seg.G, 0xf34) >> 4);
@@ -1204,7 +1199,7 @@ public partial class Main : Node2D
                 break;
             case 15: ToggleWindow(BehaviorWin); break;
             case 17: ToggleWindow(CasteWin); break;
-            case 16: st.Set16(Seg.G, 0x1074, 1); SetView(session.Yellow.view); follow = true; break;   // 0x110 → f_01c52
+            case 16: FollowYellow(); break;                                             // 0x110 → f_6f733 → f_01c52
             case 18: DebugCommands.RandomAction(st); break;                              // the Mystery Button (f_022bc)
             case >= 24 and <= 30: popReport = true; break;                               // held: the population report
             case 19: ToggleWindow(HistoryWin); break;
@@ -2877,6 +2872,19 @@ public partial class Main : Node2D
         playback.PushBuffer(frameBuf);
     }
 
+    /// <summary>f_01c52: G:1074 = 1; in the Experimental game a beep (sound 1), else f_01aa7 to the yellow ant (G:048C,
+    /// G:047C, G:048A): recentre in its view, or switch to it. A one-shot move: the original has no continuous follow;
+    /// with Options > AutoTrack (T:07A8) the walk calls it every step.</summary>
+    void FollowYellow()
+    {
+        var st = session.St;
+        st.Set16(Seg.G, 0x1074, 1);
+        if (st.U16(Seg.G, 0xeac) == 3) { PlaySound(1); return; }
+        var (v, a, b) = session.Yellow;
+        if (v < 1) return;
+        GoTo(v, a, b);
+    }
+
     void CenterOnYellow()
     {
         var (v, a, b) = session.Yellow;
@@ -3506,7 +3514,7 @@ public partial class Main : Node2D
                 case Key.Right when !k.CtrlPressed: Scroll(4, 0); break;
                 case Key.Up when !k.CtrlPressed: Scroll(0, -4); break;
                 case Key.Down when !k.CtrlPressed: Scroll(0, 4); break;
-                case Key.F: session.St.Set16(Seg.G, 0x1074, 1); follow = true; break;
+                case Key.F: FollowYellow(); break;
                 case Key.Insert or Key.Space or Key.Delete:                                // f_2024b: Insert and Space the left button, Delete the right
                 {
                     var mp = GetViewport().GetMousePosition();
@@ -3591,7 +3599,7 @@ public partial class Main : Node2D
             case Key.X: Commands.Command(st, 6); return true;                                // exchange
             case Key.Backspace:
                 var (yv, ya, yb) = session.Yellow;
-                if (k.ShiftPressed) { st.Set16(Seg.G, 0x1074, 1); follow = true; return true; }   // f_01c52
+                if (k.ShiftPressed) { FollowYellow(); return true; }                     // f_01c52
                 if (!spider && st.U16(Seg.G, 0xaa0) != 0) { Player.StopAction(st, yv, ya, yb); return true; }   // f_757dd
                 if (spider && st.U16(Seg.G, 0xa06) == 1 && (st.S16(Seg.G, 0xf42) != ya || st.S16(Seg.G, 0xf7e) != yb))
                 {
@@ -3627,6 +3635,7 @@ public partial class Main : Node2D
         bool ok = SaveFile.Load(session.St, System.IO.File.ReadAllBytes(path));
         lastMessage = ok ? "Loaded " + path : "Read error, game not loaded";
         SetView(session.Yellow.view);
+        if (ok) CenterOnYellow();                                              // f_725b6's load path: f_034c4 on the yellow ant
         return ok;
     }
 
@@ -3635,6 +3644,7 @@ public partial class Main : Node2D
         session.NewGame(mode);
         lastMessage = "";
         SetView(session.Yellow.view);
+        CenterOnYellow();                                                      // f_725b6: f_034c4(G:047C, G:048A)
     }
 
     // f_01aec(v), the Edit window's view: G:032E = v; each view's centre is kept in G (the surface G:0596 / 0598, the
