@@ -82,6 +82,7 @@ Keys:
 | Ctrl+4 / 5 / 6 / 7 | back to the patch; the yard window as House / Strategic / Graphic view |
 | Ctrl+8 / 9 / 0 | Surface / Black Nest / Red Nest |
 | Alt+2 | recruit all |
+| Home | go to the yellow ant, with a chirp (f_76aeb's key 0x847) |
 | Space or Insert, Delete | the left / right mouse button at the pointer (the original's keyboard mouse, f_2024b); pause with the PAUSE button or Speed > Pause |
 | Ctrl + arrows / keypad (Home / PgUp / End / PgDn diagonals), the mouse at the screen's edge | scroll the Edit window while held (f_74140, f_0113e) |
 | Ctrl+G / J / K | Options: AutoTrack / Music (the songs, through the original's driver on an emulated OPL2: see "Sound" below) / Sound Effects (T:07A8 / T:07AA / T:07AC); Events, Messages and Silly (speech balloons, off at start-up as in the original) are in the menu |

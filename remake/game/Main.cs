@@ -3612,6 +3612,7 @@ public partial class Main : Node2D
             case Key.Key3: Commands.Command(st, 4); return true;                             // release half
             case Key.Key4: Commands.Command(st, 5); return true;                             // release all
             case Key.X: Commands.Command(st, 6); return true;                                // exchange
+            case Key.Home: PlaySound(0xf); FollowYellow(); return true;                     // 0x847 (scan 0x47): f_00ed8(0xF), f_01c52
             case Key.Backspace:
                 var (yv, ya, yb) = session.Yellow;
                 if (k.ShiftPressed) { FollowYellow(); return true; }                     // f_01c52
