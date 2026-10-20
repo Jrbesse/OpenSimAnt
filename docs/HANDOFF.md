@@ -1,7 +1,8 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-18 (night: menus, music, balloons, the tutorial, window colours, messages).
+old transcript. Last updated 2026-10-20 (night: an audit of the shell's handlers against the original's; file dialog,
+alerts, scenes, win screen, cursor).
 
 ## Goals (from the owner)
 
@@ -172,6 +173,28 @@ screenshot flags).
 - "Formica" is a placeholder code name (the public name is still open, ART_PLAN). The repository has a
   top-level README for GitHub.
 
+**2026-10-20 night: an audit of the shell against the original's handlers.** Comparing each window's event
+handler (jump tables) and every sim effect with what the shell did found real gaps, now fixed (SIM_NOTES "The Edit
+window's tool strip", "The file dialog", the game-flow notes on the win screen and window 26):
+- the file dialog as `f_6c566`: folders (<NAME>, <..>), drives A:..H:, the path line, the list (type 4) and its scroll
+  bar (type 8: arrows 109 / 111, thumb), single selection, double click; Save reuses the last file (G:3862) and asks
+  "OVERWRITE" (the library's alert boxes `f_1ca35` / `f_1c6f5`, drawn in PC-font cells, magenta on black);
+- the Edit window's tool strip `f_0310f`: MAP = a quick click opens / fronts the Map window, else the whole-map pop-up
+  (window 20, `f_6776f`); "?" buttons show their overlays only while held (`f_714ab`; the Map window's "?" was
+  opening the Experimental menu); clicking the yellow / black health bars sets G:0FBA / G:0FFE, drawn as marks; the
+  bars use their schemes (light grey, not white); go-to buttons as `f_01aa7` (queens' spots T:02B4 / T:02B8, a beep
+  without a spider); per-view centres (G:0596 / 06A6 / 072E) and the Map window following the Edit view (`f_01aec`,
+  `f_01781`); the Edit caption "SimAnt - <mode>" (`f_03bfd`);
+- effects the shell ignored: the pause setter `f_6e17e` ("pause" / "edit_tool": Exchange and Chase now pause the game
+  with their line, a loaded game starts paused), `f_71a7d` ("picture"), the window-26 scenes (ant lion `f_76707`,
+  spider `f_71f52`, killed / reborn / fed `f_7686d`), the eating lines of `f_12de1` ("menu"), the spider's strike
+  lines `f_753e5`, SCENT inverted while the alarm trail is on (`f_22e9f`), the Full Game's win screen `f_72750`
+  (16200 with spinning eyes);
+- message boxes and scenes now queue (one after the other, the game waiting) and close after 15 s or on a key (the
+  global timeout `f_01277` / `f_012c4`); the title closes after 40 s, game over after 100 s;
+- the original's mouse cursor (HCEGANT type 8 + type 7 mask) is drawn into the screen; the shell's debug status lines
+  are off unless F12.
+
 **Performance:** the C# SimStep runs well over 10,000 ticks per second, so the original's "fast" speed is
 bounded only by drawing (`GameSession.FastDelay`).
 
@@ -181,37 +204,21 @@ fresh window (weekly 5% → 12%): a screen piece costs 5-10%, the tutorial (RE +
 traces + C# + shell) about 15%.
 
 Suggested next session (in order):
-1. Ask the owner for their play-test results (`docs/PLAYTEST.md` is the checklist, now with the menus,
-   music and the tutorial); fix what they report first. Still not played by a human.
-2. Tutorial in the shell: walk through all 56 steps by hand (or script it) and make sure each check can be
-   met with the shell's controls (G:1074 is set when the view recentres / follows; the Escape-for-alarm text
-   is a Mac leftover, the DOS key is 0). The help screens (f_76eb5) are an empty stub in the DOS version.
-3. Open screen details: (done: the Edit window's bottom strip, item 21); the list (type 4, f_241f2) and
-   icon / check items (7 / 8, f_244cc) of the file dialog; the two undecoded bytes of each colour scheme;
-   (done: f_21336's re-layout by the attach modes at +18, FILE_FORMATS; the message box sized as f_71bb6 does,
-   "Click here" in b - 13 .. b - 2 over the 8 px under the text, font 3 as layout 30 says; the lines' drawing,
-   f_20983, does no fill: width, height, then the glyphs through f_24e3d, whose blit mode is not traced); the Map window's click
-   (0x102 → f_2f898). (Decided 2026-10-19 by the owner: this version stays 1:1, so Space is the left button
-   again; modern controls belong to the new version.)
-4. (done: f_7650c is the colony pick in the yard window, see above.)
-5. **Audio fidelity** (2026-10-19: steps a..f done, the same day; SIM_NOTES "The sound driver", remake/README
-   "Sound"). The original's driver is ported (`SoundDriver.cs`) and **verified**: `OplTraceTests` replays 91
-   traces recorded from the original by `tools/re/opl_capture.py record` (33 songs, 56 effects, all
-   effects in a row, the Game Theme with effects in between), every OPL2 write and every wait identical.
-   The OPL2 is ymfm's YM3812 ported to C# (`Opl2.cs`, BSD-3; notice in `remake/dist/THIRD_PARTY_NOTICES.txt`,
-   which the release zip includes); `SoundMixer.cs` clocks it all like the original's timer handler; the
-   shell plays songs and effects on one AudioStreamGenerator (the stand-in synth `Music.cs` is gone).
-   Target: the Sound Blaster mode (6: 8 FM channels, two sample voices). Left:
-   - **Listen**: `Formica.Replay --songs` writes every song and effect to `remake/build/songs`; the owner
-     has not heard them yet. Compare with a DOSBox recording of the original in Sound Blaster mode (the
-     Game Theme, a few effects): that is the only check of the OPL2 port and the mix.
-   - (done the same day: the sample mixer, decoded and verified on 5 DAC traces of the original's
-     handler; it also showed the samples' delta sums wrap in 8 bits, not clamp: `Sounds.Decode` and
-     `tools/extract.py` fixed.) Left: the DAC / FM balance (`SoundMixer.SampleGain`, a guess: set it by
-     ear against DOSBox).
-   - Not modelled: AdLib mode (FM 1..7, the samples on the PC speaker), `f_2c75a` (assumed a copy).
-6. (done: the spider's remarks.) Event markers have no drawing of their own beyond the balloons.
-7. The clean-room art pack (ART_PLAN) once the screens exist.
+1. Ask the owner for their play-test results (`docs/PLAYTEST.md`, updated tonight); fix what they report first.
+   Still not played by a human.
+2. Continue the handler audit where it stopped: the yard window's handler `f_6f7f0` (decoded earlier, re-check against
+   the shell), the History window `f_792d2` (0x150E redraw), the SimAntipedia `f_790f0`, the Experimental menu
+   `f_67010` / tools `f_76f4a`, the Ant Info window, and the keys `f_74386` against `OriginalKey`. Method: dump the
+   jump table (`adis.py` on the `jmp cs:[bx + n]`, table right after it), decompile each case, compare with the
+   shell's switch. Effects the sim emits that the shell still ignores on purpose: redraws, "anim_timer", "music" 0 / 1
+   (`f_00ed0` is empty), "joke" (`f_0125f` is empty), "yard_map" (a Map redraw), "scroll" (the spider player: follow).
+3. Tutorial: walk all 56 steps by hand or by script (message boxes now close after 15 s, as in the original).
+4. Open screen details: the hourglass cursor (id 1) is never shown (the shell has no slow operations); the driver's
+   XOR fill DS:913C is assumed to be index ^ 15; the alert boxes' and scenes' colours are from the code's arguments,
+   not traced on a real screen; the two undecoded bytes of each colour scheme.
+5. **Audio fidelity** (unchanged): listen to `Formica.Replay --songs` against DOSBox; the DAC / FM balance
+   (`SoundMixer.SampleGain`). Not modelled: AdLib mode.
+6. The clean-room art pack (ART_PLAN) once the owner has played it.
 
 **Workflow tips for the shell:** build with `dotnet build remake/game/Formica.csproj`, then run Godot
 (path in the user's memory notes) with `--path remake/game -- <flags> --screenshot=<png>` and look at the
@@ -487,6 +494,21 @@ downloads need a GitHub login until the owner decides about making it public. Go
   there rather than guess.
 
 ## Commit log since the last summary
+
+2026-10-20 night (the handler audit):
+```
+7abc774 extract.py: SHARED type 6 is the menus, not a cursor table
+dd8e960 The original's mouse cursor (HCEGANT type 8 image + type 7 mask), drawn into the screen at the mouse
+479d0c8 The spider's strike lines (f_753e5) and sound; SCENT inverted while the alarm trail is on (f_22e9f); sound2 effects
+26ea663 Window 26 scenes (ant lion, spider, killed / reborn, fed), the pause setter f_6e17e and its line, the global timeout
+ccfd854 The win screen as f_72750: the yard window, then bitmap 16200 with the six spinning eyes and songs 0x4E23 / 0x4E24
+c61ae20 Help buttons of the History, Behavior / Caste and yard windows show their overlays while held (f_714ab)
+293b0fa Edit window caption as f_03bfd (SimAnt - <mode>); the shell's debug lines off unless F12 / --status
+7ad2b8c Edit view switches as f_01aec: per-view centres (G:0596 / 06A6 / 072E), the Map window follows; go-to buttons
+58c35ff Edit window tool strip as f_0310f: the MAP pop-up (window 20), the health bars' warning levels, ? while held
+6850492 File dialog as f_6c566 draws it: folders, drives, path line, the list and its scroll bar; Save / Save As, OVERWRITE
+```
+Usage: this session ran from 3% to about 65% of the 5-hour window (weekly 31% → 38%).
 
 2026-10-19, later (screen details, all decoded from the VGA driver):
 ```
