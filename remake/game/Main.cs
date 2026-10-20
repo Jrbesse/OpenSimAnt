@@ -2435,7 +2435,7 @@ public partial class Main : Node2D
             }
             labels.Add((px, py, V(ring, 63).ToString(), colour));
         }
-        foreach (var (x, y, text, colour) in labels)
+        foreach (var (x, y, text, colour) in historyHeld ? new() : labels)
         {
             int top = y - font.Height / 2, tw = font.Width(text);
             area.Fill(x - 1, top - 1, x + tw + 1, top + font.Height + 1, session.Art.Palette[0]);
@@ -2476,9 +2476,12 @@ public partial class Main : Node2D
             }
     }
 
+    bool historyHeld;
+
     void HistoryWindowClick(int index)
     {
         if (index == 13) help = helpHeld = true;                               // 0x150D: f_2f74e(0x150F), while held
+        else if (index == 14) historyHeld = true;                              // 0x150E: the plot without labels while held, then f_7959a(3)
         else if (index >= 3 && index <= 12)
         {
             ToggleSeries(index - 3);
@@ -3394,6 +3397,7 @@ public partial class Main : Node2D
             dragWin = triangleDrag = -1;
             mapDrag = false;
             if (helpHeld) help = helpHeld = false;
+            historyHeld = false;
             if (miniMapPress) MiniMapRelease(up.Position);
             miniMapDrag = false;
             popReport = false;
