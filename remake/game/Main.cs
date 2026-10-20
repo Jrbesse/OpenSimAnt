@@ -117,7 +117,9 @@ public partial class Main : Node2D
                 if (a.Length > 2) AntipediaPress(a[1], a[2]);
             }
         if (OS.GetCmdlineUserArgs().Contains("--load-dialog")) OpenFileDialog(false);
-        if (OS.GetCmdlineUserArgs().Contains("--save-dialog")) { OpenFileDialog(true); fileName = "MYCOLONY"; }
+        if (OS.GetCmdlineUserArgs().Contains("--alert")) OpenAlert("OVERWRITE\nC:\\SIMANT\\MYCOLONY.ANT", new[] { "\rYes", "\x1bNo" });
+        if (OS.GetCmdlineUserArgs().Contains("--error")) OpenAlert("  Read error  \ngame not loaded", null);
+        if (OS.GetCmdlineUserArgs().Contains("--save-dialog")) { gameFile = "MYCOLONY.ANT"; OpenFileDialog(true); }
         if (OS.GetCmdlineUserArgs().Contains("--game-over"))
         {
             var (score, _) = Formica.Sim.Game.Rating(session.St);
@@ -259,6 +261,7 @@ public partial class Main : Node2D
         ToolHold(delta);
         PendingClick(delta);
         ScrollPoll(delta);
+        FilePoll(delta);
         SongPoll();
         DrainEffects();
         if (follow) CenterOnYellow();
@@ -1034,8 +1037,8 @@ public partial class Main : Node2D
         {
             case 0x01: modal = AboutWin; break;                                          // About: f_72931, window 0x1F00
             case 0x03: PlaySong(0x2711); modal = SelectWin; selectMidGame = true; break; // New: music 0x2711, f_2f848
-            case 0x04: OpenFileDialog(false); break;                                     // Load (DS:2CBC = 4)
-            case 0x05 or 0x06: OpenFileDialog(true); break;                              // Save, Save As
+            case 0x04: selectMidGame = st.U16(Seg.G, 0x2c2) != 0; Replace(4); break;   // Load: f_6c1a0 asks to save first
+            case 0x05 or 0x06: SaveCommand(n == 5); break;                               // Save, Save As: f_6c328(1 / 0)
             case 0x08: pendingGame = 5; modal = SavePrompt; break;                       // Quit (save first?)
             case 0x11: Front(EditWin); break;                                            // f_03370
             case 0x12: Front(MapWin); break;                                             // f_0148a
@@ -1393,69 +1396,335 @@ public partial class Main : Node2D
         switch (index)
         {
             case 3: Proceed(pendingGame); break;
-            case 4: QuickSave(); Proceed(pendingGame); break;
+            case 4: { int what = pendingGame; modal = -1; SaveCommand(true, () => Proceed(what)); break; }   // f_6c328(1)
             case 5: modal = -1; selectMidGame = false; break;
         }
     }
 
     void QuickSave() => SaveGame(ProjectSettings.GlobalizePath("user://quicksave.ANT"));
 
-    void SaveGame(string path)
+    bool SaveGame(string path)
     {
-        System.IO.File.WriteAllBytes(path, SaveFile.Save(session.St));
+        try { System.IO.File.WriteAllBytes(path, SaveFile.Save(session.St)); }
+        catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException)
+        {
+            OpenAlert(e.Message, null);                                        // f_1c6cc(strerror(errno))
+            return false;
+        }
         lastMessage = "Saved to " + path;
+        return true;
+    }
+
+    // ------------------------------------------------------------------------------- saving and loading
+    // f_6c328(n), File > Save (n = 1) and Save As (n = 0): with Save and a game file name already known (G:3862, the
+    // last file loaded or saved) it skips the dialog; else the dialog (f_6c566, "Save Game", "SAVE"), its name becomes
+    // G:3862. A file that exists asks "OVERWRITE\n<name>" (f_1ca35, Yes / No): No goes back to the dialog. A failed
+    // write shows the C library's message (f_1c6cc) and forgets the name.
+    string gameFile;                                                            // G:3862
+    Action afterSave;
+
+    void SaveCommand(bool save, Action then = null)
+    {
+        afterSave = then;
+        if (save && !string.IsNullOrEmpty(gameFile)) SaveTo(gameFile);
+        else OpenFileDialog(true);
+    }
+
+    void SaveTo(string path)
+    {
+        gameFile = path;
+        void Write()
+        {
+            if (!SaveGame(path)) { gameFile = null; return; }
+            var then = afterSave;
+            afterSave = null;
+            then?.Invoke();
+        }
+        if (System.IO.File.Exists(path))
+            OpenAlert("OVERWRITE\n" + path.ToUpperInvariant(), new[] { "\rYes", "\x1bNo" }, b => { if (b == 0) Write(); else OpenFileDialog(true); });
+        else Write();
+    }
+
+    // f_6c1a0, File > Load: the dialog ("Load Game", "LOAD"), the name to G:3862; a file that will not open shows the
+    // C library's message; a read error "  Read error  \ngame not loaded" and no game (G:0EAC = -1: Select a Game).
+    void LoadFrom(string path)
+    {
+        gameFile = path;
+        if (!System.IO.File.Exists(path)) { OpenAlert("No such file or directory", null); return; }
+        if (!LoadGame(path))
+        {
+            OpenAlert("  Read error  \ngame not loaded", null, _ => { modal = SelectWin; selectMidGame = false; });
+            session.St.Set16(Seg.G, 0xeac, 0xffff);
+        }
+    }
+
+    // ------------------------------------------------------------------------------- alert boxes
+    // The library's alerts, drawn in character cells of the PC font (8 x DS:3DDC) without a layout. f_1ca35(text,
+    // set): the box (max(longest line, 2 x buttons) + 2) x (lines + 4) cells, centred on the 80-column screen, filled
+    // black (0xF2F), a 4-px frame in colour 4, a 1-px white one on its outer edge; the lines centred from the second
+    // row in colour 4 on black (f_1c926); the buttons (sets at DS:5570: Yes / No, Yes / Cancel, Retry / Cancel; the
+    // first character of each is its key, \r Enter, \x1b Esc; the label's first letter works too) on the row
+    // bottom - 2, centred, 2 cells apart, each (f_6d620) its label in colour 4 on light grey (12), ringed 2 px light
+    // grey and 1 px colour 4 outside it. f_1c6f5 (f_1c6cc, set null here): the same box without the white line and one
+    // "Continue" button; C, Enter or any click closes it.
+    const int AlertWin = 100;
+    string[] alertLines = Array.Empty<string>(), alertButtons;
+    Action<int> alertDone;
+    int alertReturn = -1;
+
+    void OpenAlert(string text, string[] buttons, Action<int> done = null)
+    {
+        alertLines = text.Split('\n');
+        alertButtons = buttons;
+        alertDone = done;
+        alertReturn = modal;
+        modal = AlertWin;
+    }
+
+    void CloseAlert(int button)
+    {
+        modal = alertReturn == AlertWin ? -1 : alertReturn;
+        var done = alertDone;
+        alertDone = null;
+        done?.Invoke(button);
+    }
+
+    (int l, int t, int r, int b) AlertRect(out int ch)
+    {
+        ch = ui.Font(0).Height;                                                 // DS:3DDC
+        int w = alertLines.Max(s => s.Length), h = alertLines.Length + 4;
+        if (alertButtons != null) w = Math.Max(w, 2 * alertButtons.Length);  // (sic: the labels' lengths are not added)
+        w += 2;
+        int x = (ScreenW / 8 - w) / 2, y = (ScreenH / ch - h) / 2;            // f_1f9a8
+        return (x * 8, y * ch, (x + w) * 8, (y + h) * ch);
+    }
+
+    List<(int l, int t, int r, int b)> AlertButtons()
+    {
+        var (l, t, r, b) = AlertRect(out int ch);
+        var labels = alertButtons?.Select(s => s[1..]).ToArray() ?? new[] { "Continue" };
+        int total = labels.Sum(s => s.Length + 2) - 2;                         // the cells the row needs
+        int col = alertButtons == null ? (l + (r - l - labels[0].Length * 8) / 2) / 8 : ((r - l) / 8 - total - 2) / 2 + l / 8;
+        int row = b / ch - 2;
+        var rects = new List<(int, int, int, int)>();
+        foreach (var s in labels)
+        {
+            rects.Add((col * 8, row * ch, (col + s.Length) * 8, (row + 1) * ch));
+            col += s.Length + 2;
+        }
+        return rects;
+    }
+
+    void DrawAlert(UiArt.Canvas c)
+    {
+        var f = ui.Font(0);
+        uint four = ui.Palette[4], grey = ui.Palette[12];
+        var (l, t, r, b) = AlertRect(out int ch);
+        c.Fill(l, t, r, b, UiArt.Black);
+        UiArt.ThickFrame(c, l, t, r, b, 4, four);
+        if (alertButtons != null) UiArt.ThickFrame(c, l, t, r, b, 1, UiArt.White);
+        for (int i = 0; i < alertLines.Length; i++)
+            Cells(c, l + (r - l - alertLines[i].Length * 8) / 2, t + (i + 1) * ch, alertLines[i], four);
+        var labels = alertButtons?.Select(s => s[1..]).ToArray() ?? new[] { "Continue" };
+        var rects = AlertButtons();
+        for (int i = 0; i < rects.Count; i++)
+        {
+            var (bl, bt, br, bb) = rects[i];
+            UiArt.ThickFrame(c, bl - 3, bt - 3, br + 3, bb + 3, 1, four);
+            UiArt.ThickFrame(c, bl - 2, bt - 2, br + 2, bb + 2, 2, grey);
+            c.Fill(bl, bt, br, bb, grey);
+            Cells(c, bl, bt, labels[i], four);
+        }
+    }
+
+    /// <summary>f_1fbd0: text in the PC font's 8-px cells.</summary>
+    void Cells(UiArt.Canvas c, int x, int y, string text, uint colour)
+    {
+        var f = ui.Font(0);
+        foreach (char ch in text)
+        {
+            f.Draw(c, x + (8 - f.Width(ch.ToString())) / 2, y, ch.ToString(), colour);
+            x += 8;
+        }
+    }
+
+    void AlertClick(Vector2 p)
+    {
+        var rects = AlertButtons();
+        for (int i = 0; i < rects.Count; i++)
+            if (p.X >= rects[i].l - 3 && p.X < rects[i].r + 3 && p.Y >= rects[i].t - 3 && p.Y < rects[i].b + 3) { CloseAlert(i); return; }
+        if (alertButtons == null) CloseAlert(0);                               // f_1c6f5: any press
+    }
+
+    void AlertKey(InputEventKey k)
+    {
+        char key = k.Keycode is Key.Enter or Key.KpEnter ? '\r' : k.Keycode == Key.Escape ? '\x1b' : char.ToUpperInvariant((char)k.Unicode);
+        if (alertButtons == null)
+        {
+            if (key is 'C' or '\r') CloseAlert(0);
+            return;
+        }
+        for (int i = 0; i < alertButtons.Length; i++)
+            if (alertButtons[i].Length > 1 && (alertButtons[i][0] == key || char.ToUpperInvariant(alertButtons[i][1]) == key)) { CloseAlert(i); return; }
     }
 
     // ------------------------------------------------------------------------------- the file dialog (layout 22)
-    // f_6c566(name, caption, button, save) for Load (f_6c1a0) and Save / Save As (f_6c328): caption 0x1601 "Load
-    // Game" / "Save Game", button 0x1613 "LOAD" / "SAVE", CANCEL 0x1614; the list 0x1609 holds the folder's
-    // sub-folders (first) and *.ant files sorted, "No Files" when empty; in save mode a typed name (0x1604, 8
-    // characters), Enter = the button, Esc = CANCEL. The original's path line, folders and drive buttons A:..H:
-    // (DS:2966) are not modelled: the shell lists Godot's user:// folder.
-    const int FileWin = 22;
-    bool fileSave;
+    // f_6c566(name, caption, button, save), SIM_NOTES "The file dialog". The drive DS:2966 ('A'..'H', set by the
+    // buttons 0x160B..0x1612) and its current folder; the path line 0x1606 shows that folder (f_2094b at the item's
+    // left + 4 after clearing it); the list 0x1609 (f_241f2, scroll bar 0x1608 f_244cc) holds up to 200 16-byte
+    // records: a flag byte '0' (bit 0 = selected) and "<..>" / "<NAME>" for the sub-folders (marker byte 1, sorting
+    // them first, shown as '<') or "%-12s" for the *.ant files, sorted with strncmp; "0No Files" when empty. A click
+    // selects one row (single selection, +24 & 0x20 with +25 & 4: a selected row stays); a double click on the selected
+    // row is the button. The button (or Enter) takes the typed name, else the selected row: a folder is entered
+    // (CHDIR), a file returned. Save mode: a letter or digit starts the name (0x1604, f_6d1c2, 8 characters) at the
+    // name box's left + 4; a list click clears it; the name is first the last file's (G:3862). f_6cecb: spaces and
+    // commas to '_', at most 8 characters before ".ant". The arrows scroll a line per clock tick while held; with a
+    // double click (or Shift / right) to the top / the end; the track does nothing.
+    const int FileWin = 22, FileList = 9, FileScroll = 8, FileNameBox = 3;
+    bool fileSave, fileEditing;
     string fileName = "";
-    string[] fileList = Array.Empty<string>();
-    int fileSel = -1;
+    readonly List<(string text, string name, bool dir)> fileRows = new();
+    int fileSel = -1, fileFirst, fileDirs;
+    char fileDrive;
+    readonly Dictionary<char, string> driveDirs = new();
+    int fileArrow;                                                              // a held arrow: -1 up, 1 down
+    double fileArrowWait;
 
     void OpenFileDialog(bool save)
     {
         fileSave = save;
-        fileSel = -1;
-        fileName = "";
-        var dir = ProjectSettings.GlobalizePath("user://");
-        fileList = System.IO.Directory.GetFiles(dir)
-            .Where(p => p.EndsWith(".ant", StringComparison.OrdinalIgnoreCase))
-            .Select(p => System.IO.Path.GetFileName(p).ToUpperInvariant()).OrderBy(n => n, StringComparer.Ordinal).ToArray();
+        fileEditing = false;
+        var home = ProjectSettings.GlobalizePath("user://");
+        if (fileDrive == 0)
+        {
+            fileDrive = char.ToUpperInvariant(System.IO.Path.GetPathRoot(System.IO.Path.GetFullPath(home))?.FirstOrDefault() ?? 'C');
+            driveDirs[fileDrive] = System.IO.Path.GetFullPath(home);
+        }
+        FileScan(true);
         modal = FileWin;
+    }
+
+    string FileDir() => driveDirs.TryGetValue(fileDrive, out var d) ? d : fileDrive + ":\\";
+
+    void FileScan(bool first)
+    {
+        fileName = "";
+        fileEditing = false;
+        if (first && fileSave && !string.IsNullOrEmpty(gameFile)) fileName = System.IO.Path.GetFileName(gameFile).ToUpperInvariant();
+        fileRows.Clear();
+        fileSel = -1;
+        fileFirst = 0;
+        var dir = FileDir();
+        var rows = new List<(string key, string text, string name, bool dir)>();
+        try
+        {
+            if (System.IO.Directory.GetParent(dir.TrimEnd('\\', '/') + "\\") is { } p && System.IO.Path.GetPathRoot(dir) != System.IO.Path.GetFullPath(dir))
+                rows.Add(("\x01..>", "<..>", "..", true));
+            foreach (var d in System.IO.Directory.GetDirectories(dir))
+            {
+                var n = System.IO.Path.GetFileName(d).ToUpperInvariant();
+                if ((new System.IO.DirectoryInfo(d).Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
+                rows.Add(("\x01" + n + ">", "<" + n + ">", System.IO.Path.GetFileName(d), true));
+            }
+            foreach (var f in System.IO.Directory.GetFiles(dir, "*.ant"))
+            {
+                var n = System.IO.Path.GetFileName(f).ToUpperInvariant();
+                rows.Add((n.PadRight(12), n.PadRight(12), System.IO.Path.GetFileName(f), false));
+            }
+        }
+        catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException) { }
+        rows = rows.Take(200).OrderBy(r => r.key.Length > 14 ? r.key[..14] : r.key, StringComparer.Ordinal).ToList();
+        fileDirs = rows.Count(r => r.dir);
+        foreach (var r in rows) fileRows.Add((r.text.Length > 14 ? r.text[..14] : r.text, r.name, r.dir));
+        if (fileRows.Count == 0) fileRows.Add(("No Files", "No Files", false));
     }
 
     void FileDialogDone(bool ok)
     {
+        if (!ok) { modal = -1; afterSave = null; return; }
+        string name = fileName;
+        if (name.Length == 0)
+        {
+            if (fileSel < 0) return;                                             // the original waits for a choice
+            var row = fileRows[fileSel];
+            if (fileSel < fileDirs)                                              // CHDIR
+            {
+                var dir = FileDir();
+                driveDirs[fileDrive] = row.name == ".." ? System.IO.Directory.GetParent(dir.TrimEnd('\\', '/'))?.FullName ?? dir
+                                                        : System.IO.Path.Combine(dir, row.name);
+                FileScan(false);
+                return;
+            }
+            name = row.name;
+        }
+        // f_6cecb
+        var sb = new System.Text.StringBuilder();
+        foreach (char ch in name)
+        {
+            if (ch == '.' || sb.Length == 8) break;
+            sb.Append(ch is ' ' or ',' ? '_' : ch);
+        }
+        name = sb + ".ant";
         modal = -1;
-        if (!ok) return;
-        string name = fileSave ? fileName : fileSel >= 0 && fileSel < fileList.Length ? fileList[fileSel] : "";
-        if (name.Length == 0) { modal = FileWin; return; }                   // the original waits for a choice
-        if (!name.EndsWith(".ANT", StringComparison.OrdinalIgnoreCase)) name += ".ANT";
-        var path = System.IO.Path.Combine(ProjectSettings.GlobalizePath("user://"), name);
-        if (fileSave) SaveGame(path);
-        else LoadGame(path);
+        var path = System.IO.Path.Combine(FileDir(), name);
+        if (fileSave) SaveTo(path);
+        else LoadFrom(path);
     }
 
-    void FileDialogClick(int index, bool doubleClick, Vector2 at)
+    void FileDialogClick(int index, InputEventMouseButton mb)
     {
         var items = ui.Layouts[FileWin].Items;
+        var at = mb.Position;
         if (index == 19) FileDialogDone(true);                               // 0x1613 LOAD / SAVE
         else if (index == 20) FileDialogDone(false);                         // 0x1614 CANCEL
-        else if (Inside(items[9].Rect, at))                                  // the list 0x1609
+        else if (index >= 11 && index <= 18)                                 // A: .. H: (DS:2966 = item - 0x15CA)
         {
-            int row = ((int)at.Y - items[9].Rect.top - 2) / ui.Font(2).Height;
-            if (row < fileList.Length)
+            char d = (char)('A' + index - 11);
+            if (!System.IO.Directory.Exists(d + ":\\")) { OpenAlert("Can't read disk", null); return; }
+            fileDrive = d;
+            FileScan(false);
+        }
+        else if (index == FileList && mb.ButtonIndex == MouseButton.Left)    // f_248b3
+        {
+            int row = ((int)at.Y - items[FileList].Rect.top) / ui.Font(items[FileList].Style).Height + fileFirst;
+            if (mb.DoubleClick)
             {
-                fileSel = row;
-                if (fileSave) fileName = System.IO.Path.GetFileNameWithoutExtension(fileList[row]);
-                if (doubleClick) FileDialogDone(true);
+                if (row == fileSel) FileDialogDone(true);
+                return;
             }
+            if (row != fileSel) fileSel = row < fileRows.Count ? row : -1;
+            if (fileSave && fileName.Length > 0) { fileName = ""; fileEditing = false; }
+        }
+        else if (index == FileScroll)                                        // f_24971
+        {
+            var (_, t, _, b) = items[FileScroll].Rect;
+            int visible = ui.ListRows(items[FileList]), ah = ui.ArrowHeight;
+            if (fileRows.Count <= visible) return;
+            int dir = at.Y < t + ah ? -1 : at.Y > b - ah ? 1 : 0;
+            if (dir == 0) return;
+            if (mb.DoubleClick || mb.ShiftPressed || mb.ButtonIndex == MouseButton.Right) { fileFirst = dir < 0 ? 0 : fileRows.Count - visible; return; }
+            fileArrow = dir;
+            fileArrowWait = 0;
+            FileArrowStep();
+        }
+    }
+
+    void FileArrowStep()
+    {
+        int visible = ui.ListRows(ui.Layouts[FileWin].Items[FileList]);
+        if (fileArrow < 0 && fileFirst > 0) fileFirst--;                           // f_24736
+        if (fileArrow > 0 && fileFirst + visible < fileRows.Count) fileFirst++;    // f_24602
+    }
+
+    void FilePoll(double delta)
+    {
+        if (fileArrow == 0) return;
+        if (modal != FileWin || !Input.IsMouseButtonPressed(MouseButton.Left)) { fileArrow = 0; return; }
+        fileArrowWait += delta;
+        while (fileArrowWait >= 1 / GameSession.ClockHz)                           // f_1f881(1): a clock tick
+        {
+            fileArrowWait -= 1 / GameSession.ClockHz;
+            FileArrowStep();
         }
     }
 
@@ -1463,36 +1732,53 @@ public partial class Main : Node2D
     {
         if (k.Keycode == Key.Escape) FileDialogDone(false);
         else if (k.Keycode is Key.Enter or Key.KpEnter) FileDialogDone(true);
-        else if (fileSave && k.Keycode == Key.Backspace && fileName.Length > 0) fileName = fileName[..^1];
-        else if (fileSave && fileName.Length < 8 && k.Unicode is >= '0' and <= '9' or >= 'A' and <= 'Z' or >= 'a' and <= 'z' or '_' or '-')
-            fileName += char.ToUpperInvariant((char)k.Unicode);
+        else if (fileSave && fileEditing && k.Keycode == Key.Backspace && fileName.Length > 0) fileName = fileName[..^1];
+        else if (fileSave && k.Unicode is > ' ' and < 127 && !"\\/:*?\"<>|.".Contains((char)k.Unicode))
+        {
+            if (!fileEditing)                                                    // a letter or digit starts the name
+            {
+                if (!char.IsLetterOrDigit((char)k.Unicode)) return;
+                fileEditing = true;
+                fileName = "";
+            }
+            if (fileName.Length < 8) fileName += char.ToUpperInvariant((char)k.Unicode);
+        }
+        else if (fileSave && fileEditing && k.Keycode == Key.Space && fileName.Length < 8) fileName += ' ';
     }
 
     void DrawFileDialog(UiArt.Canvas c)
     {
         ui.DrawWindow(c, FileWin, 0, 0, fileSave ? "Save Game" : "Load Game");
         var items = ui.Layouts[FileWin].Items;
-        var f = ui.Font(2);
-        if (!fileSave)                                                           // load: no name field (f_22e5a / f_2313e)
+        var f0 = ui.Font(0);
+        if (!fileSave)                                                           // load: no name box (f_22e5a / f_2313e)
         {
-            var (bl, bt, br, bb) = items[3].Rect;
+            var (bl, bt, br, bb) = items[FileNameBox].Rect;
             c.Fill(bl, bt, br, bb, UiArt.Grey);
         }
         else
         {
-            ui.ItemText(c, items[4], 0, 0, fileName + "_");
+            var (bl, bt, br, bb) = items[FileNameBox].Rect;
+            var (fg, _) = ui.SchemeOf(items[4]);
+            int y = (bt + bb - f0.Height + 1) / 2;
+            var box = c.Clip(bl, bt, br, bb);
+            f0.Draw(box, bl + 4, y, fileName, fg);
+            if (fileEditing) box.Invert(bl + 4 + f0.Width(fileName), y, bl + 4 + f0.Width(fileName) + 8, y + f0.Height);
         }
-        ui.ItemText(c, items[6], 0, 0, "Path: user://");
-        var (ll, lt, lr, lb) = items[9].Rect;
-        var list = c.Clip(ll, lt, lr, lb);
-        list.Fill(ll, lt, lr, lb, UiArt.White);
-        if (fileList.Length == 0) f.Draw(list, ll + 4, lt + 2, "No Files", UiArt.Black);
-        for (int i = 0; i < fileList.Length; i++)
         {
-            int y = lt + 2 + i * f.Height;
-            f.Draw(list, ll + 4, y, fileList[i], UiArt.Black);
-            if (i == fileSel) list.Invert(ll + 1, y, lr - 1, y + f.Height);
+            // the path line: the field cleared, the folder at its left + 4
+            var it = items[6];
+            var (l, t, r, b) = it.Rect;
+            var (fg, bg) = ui.SchemeOf(it);
+            c.Fill(l, t, r, b, bg);
+            var field = c.Clip(l, t, r, b);
+            var dir = FileDir().ToUpperInvariant();
+            if (!dir.EndsWith('\\')) dir += "\\";
+            ui.Font(it.Style).Draw(field, l + 4, t, dir, fg);
         }
+        var rows = fileRows.Select((r, i) => (i == fileSel, r.text)).ToList();
+        ui.DrawList(c, items[FileList], rows, fileFirst);
+        ui.DrawScrollbar(c, items[FileScroll], ui.ListRows(items[FileList]), fileRows.Count, fileFirst);
         ui.ItemText(c, items[19], 0, 0, fileSave ? "SAVE" : "LOAD");
     }
 
@@ -2478,6 +2764,7 @@ public partial class Main : Node2D
             if (modal == TextWin) DrawTextViewer(canvas);
             if (modal == GameOverWin) DrawGameOver(canvas);
             if (modal == FileWin) DrawFileDialog(canvas);
+            if (modal == AlertWin) DrawAlert(canvas);
             if (modal == TitleWin) canvas.Fill(0, 0, ScreenW, ScreenH, UiArt.Black);
             if (modal is TitleWin or AboutWin) ui.DrawWindow(canvas, modal, 0, 0, null);
             if (modal == 11) ui.DrawWindow(canvas, 11, 245, 200, null);       // "not available in the full game"
@@ -2561,8 +2848,12 @@ public partial class Main : Node2D
             }
             if (modal == FileWin)
             {
-                if (mb.ButtonIndex == MouseButton.Left)
-                    FileDialogClick(ui.HitTest(FileWin, 0, 0, (int)mb.Position.X, (int)mb.Position.Y), mb.DoubleClick, mb.Position);
+                FileDialogClick(ui.HitTest(FileWin, 0, 0, (int)mb.Position.X, (int)mb.Position.Y), mb);
+                return;
+            }
+            if (modal == AlertWin)
+            {
+                AlertClick(mb.Position);
                 return;
             }
             if (modal == TextWin)
@@ -2601,6 +2892,11 @@ public partial class Main : Node2D
             if (modal == FileWin)
             {
                 FileDialogKey(k);
+                return;
+            }
+            if (modal == AlertWin)
+            {
+                AlertKey(k);
                 return;
             }
             if (modal == GameOverWin)                                           // f_71d95: any event closes it
@@ -2733,12 +3029,13 @@ public partial class Main : Node2D
     /// tool palette.</summary>
     void QuickLoad() => LoadGame(ProjectSettings.GlobalizePath("user://quicksave.ANT"));
 
-    void LoadGame(string path)
+    bool LoadGame(string path)
     {
-        if (!System.IO.File.Exists(path)) { lastMessage = "No saved game"; return; }
+        if (!System.IO.File.Exists(path)) { lastMessage = "No saved game"; return false; }
         bool ok = SaveFile.Load(session.St, System.IO.File.ReadAllBytes(path));
         lastMessage = ok ? "Loaded " + path : "Read error, game not loaded";
         SetView(session.Yellow.view);
+        return ok;
     }
 
     void Restart(int mode)

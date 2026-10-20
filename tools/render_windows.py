@@ -15,8 +15,8 @@ from png import write_png                         # noqa: E402
 
 OUTLINE = {'frame': (64, 64, 64), 'frame3d': (64, 64, 64), 'box': (64, 64, 64), 'hotspot': (0, 0, 255),
            'caption': (255, 0, 0), 'text': (255, 0, 0), 'field': (255, 0, 0), 'filled_text': (255, 0, 0),
-           'text_button': (255, 0, 255), 'scrollbar': (0, 160, 0), 'icon': (0, 160, 160),
-           'check': (0, 160, 160), 'toggle_picture': (0, 160, 160)}
+           'text_button': (255, 0, 255), 'list': (0, 160, 0), 'icon': (0, 160, 160),
+           'vscroll': (0, 160, 160), 'toggle_picture': (0, 160, 160)}
 
 
 def render_window(wid, path, pal):

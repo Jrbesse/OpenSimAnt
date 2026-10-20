@@ -1849,6 +1849,76 @@ the command (`f_1ba3f`): Alt+F / W / V / O / S and F2..F6 → 0xFE00..04; ')' 0x
   reads the delay T:07D4 = -1: no wait; at Ultra with a Shift key held the main loop also skips the redraw,
   16196), then `f_6e0e0` (the menus' marks, above).
 
+### The file dialog (window 22, `f_6c566`), saving and loading (`f_6c328`, `f_6c1a0`), alert boxes (decoded 2026-10-20)
+
+`f_6c566(name, caption, button, save)`:
+- The drive DS:2966 (0 at first: the current drive DS:38B6); its folder from `f_1f70f(drive - 0x40, buf)` (getcwd
+  per drive), a '\' appended. A drive that cannot be read shows an error box and falls back to the previous one
+  ("Can't read disk. Aborting" if that is the start-up drive); B: becomes A: with a single floppy (BIOS 0x410).
+- The path line 0x1606: `f_2094b(0x1606, "", 0, 0)` puts the pen at the item's corner, `f_23828` fills from the
+  pen's x to the item's right in the scheme's background (so the "Path:" of the layout disappears), then
+  `f_2094b(0x1606, folder, 4, 0)`: the folder at the item's left + 4, top.
+- The list: a 0xC80-byte buffer ("File list"), up to 200 - DS:2968 records of 16 bytes, from `findfirst("<folder>*.*",
+  0x10)`: a folder (attribute 0x10) gives "0\x01..>" for "..", nothing for ".", else "0\x01<NAME>>" (sprintf "\x01%s>");
+  a file matching "*.ant" (`f_1f68d`) "0%-12s". '0' is the flag byte (bit 0 = selected). Sorted with strncmp over
+  the 16 bytes (a selection sort with `f_2c6fe` / `f_1f597`), so the folders come first; then each marker byte 1
+  becomes '<' and the records are packed as NUL-terminated strings for the list item (`f_240c6`). None: "0No Files".
+  The number of folders is kept (`local_2a`): a chosen row below it is a folder.
+- Save mode: the name box 0x1603 / 0x1604 (`f_22e52` / `f_23136`; load hides it: `f_22e5a` / `f_2313e`). The name
+  is drawn at 0x1603's left + 4, y = (top + bottom - height + 1) / 2, in 0x1604's scheme (8: cyan on white). On the
+  first scan, with a game file name known (G:3862), the name is preset to its last component. A key with ctype & 7
+  (a letter or digit) starts `f_6d1c2` (the line editor, 9 bytes, starting empty with the key typed).
+- Events: Enter or the button 0x1613: with no name, the selected row (`f_23f69` rows, `f_23eff` selected?,
+  `f_23f92` its text): a folder → "CHDIR %s" (`f_2cad3`) and a rescan; a file → its text (from the byte after the
+  flag) is the name. Esc or CANCEL 0x1614: no name, return 0. A drive button 0x160B..0x1612: DS:2966 = id - 0x15CA
+  and a rescan. The list 0x1609: a press (0x200 / 0x800) remembers the selected row (`local_26`) and, in save mode,
+  clears a typed name; a double click (0x2000 / 0x4000) on the remembered row is the button.
+- Return: `f_6cecb(name)`: spaces and commas become '_', at most 8 characters before a '.', then ".ant" (DS:296A);
+  the result is "<folder><name>".
+
+The list item (type 4) and its scroll bar (type 8), in the window library (segment 33e6):
+- `f_241f2` draws a list: the font at +28, rows = (bottom - top) / height (stored at +2A); each row's text at the
+  item's left (no margin) and top + i * height (`f_24edb`: the text, then the rest of the row filled with the
+  background), in scheme +26, or +27 when the row's flag bit 0 is set (`f_2208e`); rows past the end are filled
+  with the background. +2C the row count, +2E the first row shown, +30 its byte offset, +34 / +36 the text handle.
+- `f_248b3` a click: row = (y - top) / height + first. With +24 & 0x20 (single selection): if +25 & 4 and the row is
+  selected nothing changes, else all rows are cleared (`f_23fcb`); then an unselected row is selected (`f_2403c`).
+- `f_244cc` draws a scroll bar (type 8; +28 the list's id; type 7 draws nothing): bitmap 109 (up arrow) at the top,
+  111 (down arrow) at the bottom - G:47DC (the arrows' height, 13), the track between them in the background, then
+  `f_24378` the thumb when the list has more rows than it shows: inside the track less 1 px on each side, height
+  span * shown / rows (at least 10), top first * (span - height) / (rows - shown), in the scheme's foreground
+  (scheme 1 in the file dialog: cyan on dark grey).
+- `f_24971` a click on it (only when the list has more rows than it shows): on an arrow, a plain press scrolls one
+  row (`f_24736` up / `f_24602` down) per clock tick while the button is held (`f_1f881(1)`, `f_20262`); with
+  flags & 0x68 (double click, right, Shift) it jumps (`f_24551`) to the top / to rows - shown. The track does nothing.
+
+`f_6c328(n)`, File > Save (n = 1) and Save As (n = 0); also the save prompt's Save. With n = 1 and a game file name
+G:3862 it opens that file read / write (`f_2b482(name, 0x8002)`): if it exists, the alert "OVERWRITE\n<name>"
+(`f_1ca35(text, 0)`, Yes / No); No → the dialog (`f_6c566(buf, "Save Game", "SAVE", 1)`, cancel ends); the name
+goes to G:3862 and the check repeats. Then the file is created (0x8302) and the block table at 4E4B:0 written; a
+failure shows `f_1c6cc(strerror(errno))` (the MSC table DS:7D12) and empties G:3862.
+
+`f_6c1a0`, File > Load: the save prompt (`f_2f974`) when G:02C2 != 0, the dialog ("Load Game", "LOAD"); the name to
+G:3862; a file that will not open: `f_1c6cc(strerror(errno))`; a read error: "  Read error  \ngame not loaded" and
+G:0EAC = -1 (no game); success clears the timed message (`f_15e2c`).
+
+Alert boxes (the library's, segment 2c62; no layout): sizes in character cells of the PC font (DS:3DDE = 8 px wide,
+DS:3DDC high). `f_1f80c(text)` measures the lines (the longest in DS:8CD8, the count in DS:8CDA); `f_1f9a8(rect, w,
+h)` centres w x h cells on the screen (DS:3DB2 / 8, DS:3DB4 / font height); `f_1d1bb` turns cells into pixels (a
+row's high byte is a fraction in 14ths).
+- `f_1ca35(text, set)`: the button set DS:5570[set] (far string lists, counts DS:5584: 0 Yes / No, 1 Yes / ? / Cancel,
+  2 Retry / Cancel; each label's first byte is its key, \r Enter or \x1b Esc). The box is (max(longest line, 2 x
+  buttons) + 2) x (lines + 4) cells (sic: the labels' lengths are summed but not used). Fill 0xF2F (black), a 4-px
+  frame in colour 4, a 1-px frame in colour 0 (white) on its outer edge; the lines centred (`f_1f977`) from the second
+  row, colour 4 on black (`f_1c926`, `f_1fbd0` draws 8-px cells); the buttons on the row bottom - 2, starting at
+  ((width - total label length - 2) / 2) + left, 2 cells apart. A button (`f_6d620`, thunk 0x2FA5A): its label in
+  colour 4 on light grey (12), a 3-px frame outside it in colour 4 and inside that a 2-px one in light grey
+  (`f_1d018` with negative thicknesses draws outside the rectangle), hotspot id 0x900 + i. It returns the button
+  pressed: a key equal to a label's first byte or its first letter (lower case folded), or a click.
+- `f_1c6f5(text, timeout)` (`f_1c6cc(text)` with no timeout): the same box without the white line, colours from the
+  table DS:550C (fill 0xF0F black, frame 0x404, buttons 0x404 / 0xC0C), one "Continue" button centred on the row
+  bottom - 2; C, Enter, any press or the button close it.
+
 ### The SimAntipedia (window 5, `f_78db9` / `f_78808` / `f_790f0`, overlay 881a; remake: `Formica.Data/Antipedia.cs`)
 
 The Map toolbar's 0x115 "Ant Info Window" → thunk 0x2f9b0 → `f_78db9`: if window 0x500 is not open

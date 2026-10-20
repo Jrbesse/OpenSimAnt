@@ -26,8 +26,8 @@ public static class Layouts
 {
     static readonly Dictionary<int, string> Types = new()
     {
-        [0x00] = "box", [0x01] = "hotspot", [0x02] = "frame", [0x03] = "hotspot", [0x04] = "scrollbar", [0x05] = "text",
-        [0x06] = "picture", [0x07] = "icon", [0x08] = "check", [0x09] = "text", [0x0a] = "hotspot", [0x0b] = "hotspot",
+        [0x00] = "box", [0x01] = "hotspot", [0x02] = "frame", [0x03] = "hotspot", [0x04] = "list", [0x05] = "text",
+        [0x06] = "picture", [0x07] = "icon", [0x08] = "vscroll", [0x09] = "text", [0x0a] = "hotspot", [0x0b] = "hotspot",
         [0x0c] = "text_button", [0x0d] = "toggle_picture", [0x0e] = "hotspot", [0x0f] = "frame3d", [0x10] = "field",
         [0x11] = "filled_text", [0x12] = "caption", [0x13] = "frame", [0x14] = "frame", [0x15] = "frame", [0x16] = "frame",
     };

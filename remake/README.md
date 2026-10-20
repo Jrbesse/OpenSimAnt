@@ -76,7 +76,7 @@ Keys:
 | Backspace, Shift+Backspace | stop the yellow ant's walk (else recentre on it); follow it |
 | Alt+F / W / V / O / S, F2..F6 | open a menu (File, Window, View, Options, Speed); then Up / Down, Left / Right, a letter, Enter / Space, Esc |
 | Shift+0, Shift+1 / 2 / 3 / 4 | pause (G:047E); speed Slow / Normal / Fast / Ultra (T:07CC) |
-| Ctrl+N, Ctrl+L, Ctrl+S / A, Ctrl+Q / X | Select a Game; load, save (the file dialog: Godot's user:// folder, type a name to save, click / double-click a file to load); quit (asks to save first) |
+| Ctrl+N, Ctrl+L, Ctrl+S / A, Ctrl+Q / X | Select a Game; load, save / save as (the original's file dialog: folders, drives A: .. H:, starting in Godot's user:// folder; type a name to save, click / double-click a file to load; Save reuses the last file, asking OVERWRITE); quit (asks to save first) |
 | Ctrl+E, Ctrl+M, Ctrl+B, Ctrl+C, Ctrl+T, Ctrl+Y | Edit window; Map window; Behavior / Caste Control; Efficiency Score; the yard window |
 | Ctrl+H, Ctrl+I | History; Info (the SimAntipedia) |
 | Ctrl+4 / 5 / 6 / 7 | back to the patch; the yard window as House / Strategic / Graphic view |
@@ -102,7 +102,7 @@ Keys:
 
 Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`, `--efficiency`, `--popup`,
 `--map-front`, `--map-content=n` (the Map window shows T:07C8 = n: 4..8 the scent maps), `--series=a,b` (History buttons pressed), `--help-overlay`, `--yard`, `--strat`, `--scent-menu`, `--ant-info`, `--select`, `--report`,
-`--exp-menu`, `--trails`, `--spider-view` (the surface around the spider), `--frames=N` (screenshot after N frames), `--tutorial[=step]` (the Tutorial, at that step), `--silly` (Options > Silly on: speech balloons), `--menu=m[,item]` (a menu open, an item highlighted), `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y), `--game-over`, `--load-dialog`, `--save-dialog` to open those
+`--exp-menu`, `--trails`, `--spider-view` (the surface around the spider), `--frames=N` (screenshot after N frames), `--tutorial[=step]` (the Tutorial, at that step), `--silly` (Options > Silly on: speech balloons), `--menu=m[,item]` (a menu open, an item highlighted), `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y), `--game-over`, `--load-dialog`, `--save-dialog`, `--alert` (an OVERWRITE box), `--error` (a Continue box) to open those
 windows first; `--full` / `--experimental` start that kind of game.
 
 ## Sound

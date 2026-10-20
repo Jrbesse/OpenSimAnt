@@ -250,6 +250,50 @@ public sealed class UiArt
         DrawText(c, font >= 0 ? font : it.Style, Align(it), l + dx, t + dy, r + dx, b + dy, text, fg);
     }
 
+    /// <summary>f_241f2, a list item (type 4): rows of the font at +28 from the item's top, as many as fit ((bottom -
+    /// top) / height); each row's text at the item's left (no margin) in scheme +26, or +27 when the row's flag bit 0
+    /// (selected) is set, the rest of the row filled with the background (f_24edb); rows past the end filled.</summary>
+    public void DrawList(Canvas c, LayoutItem it, IReadOnlyList<(bool selected, string text)> rows, int first)
+    {
+        var f = Font(it.Style) ?? Font(2);
+        var (l, t, r, b) = it.Rect;
+        var clip = c.Clip(l, t, r, b);
+        int n = ListRows(it), y = t;
+        for (int i = 0; i < n; i++, y += f.Height)
+        {
+            var (fg, bg) = Schemes[i + first < rows.Count && rows[i + first].selected ? it.AltScheme : it.Scheme];
+            clip.Fill(l, y, r, y + f.Height, i + first < rows.Count ? bg : SchemeOf(it).bg);
+            if (i + first < rows.Count) f.Draw(clip, l, y, rows[i + first].text, fg);
+        }
+    }
+
+    /// <summary>The rows a list item shows (f_241f2 stores it at +2A).</summary>
+    public int ListRows(LayoutItem it) => (it.Rect.bottom - it.Rect.top) / (Font(it.Style) ?? Font(2)).Height;
+
+    /// <summary>The arrow height G:47DC (bitmap 109's).</summary>
+    public int ArrowHeight => Bitmap(109).h;
+
+    /// <summary>f_244cc, a vertical scroll bar (type 8, its list's id at +28): the up arrow (bitmap 109) at the top,
+    /// the down arrow (111) at the bottom - G:47DC, the track between them in the scheme's background, then the thumb
+    /// (f_24378) when the list holds more rows than it shows: inside the track less a pixel on each side, its height
+    /// span * visible / total (at least 10), its top first * (span - height) / (total - visible), in the foreground.</summary>
+    public void DrawScrollbar(Canvas c, LayoutItem it, int visible, int total, int first)
+    {
+        var (l, t, r, b) = it.Rect;
+        var (fg, bg) = SchemeOf(it);
+        int ah = ArrowHeight;
+        DrawBitmap(c, 109, l, t);
+        DrawBitmap(c, 111, l, b - ah);
+        c.Fill(l, t + ah, r, b - ah, bg);
+        if (total <= visible) return;
+        int x0 = l + 1, x1 = r - 1, y0 = t + ah + 1, y1 = b - (ah + 1), span = y1 - y0;
+        int h = Math.Max(10, span * visible / total);
+        int top = first * (span - h) / (total - visible);
+        if (top > 0) c.Fill(x0, y0, x1, y0 + top, bg);
+        c.Fill(x0, y0 + top, x1, y0 + top + h, fg);
+        if (h + top < span) c.Fill(x0, y0 + top + h, x1, y1, bg);
+    }
+
     /// <summary>The item of window `id` with item id `item`, or null.</summary>
     public LayoutItem Item(int id, int item) =>
         Layouts.TryGetValue(id, out var w) ? w.Items.FirstOrDefault(i => i.Id == item) : null;

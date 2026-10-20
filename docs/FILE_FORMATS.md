@@ -118,10 +118,10 @@ item record
 | 0x00 | 0x29 | box: filled with the scheme's background, then a frame +28 px thick (`f_22226`) |
 | 0x01, 0x03, 0x0A, 0x0B, 0x0E | 0x28 | not drawn: hotspots (buttons over a picture) |
 | 0x02 | 0x29 | a filled rectangle, the scheme's background (`f_22170`; not a frame) |
-| 0x04 | 0x38 | scroll bar? (`f_241f2`) |
+| 0x04 | 0x38 | list (`f_241f2`): rows in the font at +28, scheme +26, a selected row (flag bit 0) +27; +2A.. run-time (rows shown, rows, first row, its offset, the text handle); SIM_NOTES "The file dialog" |
 | 0x05, 0x09 | strlen + 0x2D | text, string at +2A |
 | 0x06 | 0x2A | picture, bitmap id at +28 (`f_25c75`) |
-| 0x07, 0x08 | 0x2A | icon / check control (`f_244cc`) |
+| 0x07, 0x08 | 0x2A | `f_244cc`: 0x08 a vertical scroll bar for the list whose id is at +28 (arrows bitmaps 109 / 111, a thumb); 0x07 draws nothing (no layout uses it) |
 | 0x0C | strlen + 0x2D | text button, string at +2A: fill, a 1-px line in the foreground along the bottom, text |
 | 0x0D | 0x2C | two-state picture: the bitmap word at +28 when +24 has bit 2, else at +2A (`f_223b3` 0x224E0; no layout uses the type) |
 | 0x0F | 0x29 | a frame +28 px thick (`f_22248` → `f_1d018`), no fill; windows' borders are 2 |

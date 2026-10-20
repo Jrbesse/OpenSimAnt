@@ -76,7 +76,11 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 - [ ] Ctrl+H History, Ctrl+I the SimAntipedia; Ctrl+4 back to the patch, Ctrl+5 / 6 / 7 the yard window's House /
   Strategic / Graphic views; Ctrl+8 / 9 / 0 Surface / Black / Red nest; Alt+2 recruits all.
 - [ ] Ctrl+K: sound effects off / on. Tab: Map window front / hide.
-- [ ] Ctrl+S: save dialog, type a name, SAVE (or Enter); Ctrl+L: load dialog, click / double-click the file.
+- [ ] Ctrl+A (Save As): the save dialog: the folder on the path line, sub-folders as <NAME> first, then the .ANT files;
+  type a name (a letter starts it), SAVE (or Enter). Saving over a file asks OVERWRITE (Yes / No, Enter / Esc).
+- [ ] Ctrl+S (Save) after a save or load: saves to that file at once (asking OVERWRITE). Ctrl+L: load dialog, click /
+  double-click a file. Double-click <..> or a folder to change folder; A: .. H: change drive; the scroll arrows
+  scroll while held (a double click jumps to the top / end).
 - [ ] Ctrl+Q: asks to save, then quits.
 - [ ] Shell keys still work: Ctrl+1 / 2 / 3 views, arrows scroll, + / - speed, F8 / F9 (quick save / load).
 
@@ -139,8 +143,7 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 
 ## Known gaps (don't report these)
 
-The help (empty in the DOS version anyway); the file dialog's folders, path line and drive buttons; the
-Edit window's bottom strip; exact frame styles. The balance between the sampled effects and the FM music
+The help (empty in the DOS version anyway); exact frame styles. The balance between the sampled effects and the FM music
 is a guess.
 
 ## Reporting
