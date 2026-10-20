@@ -350,6 +350,8 @@ public partial class Main : Node2D
                 balloonsNow.Add(((int)e.Args[0], (int)e.Args[1], (int)e.Args[2], BalloonText(line.Item1, line.Item2)));
             else if (e.Name == "win_screen") StartWin();
             else if (e.Name == "scene") Present(AntLionScene);                    // f_76707
+            else if (e.Name == "anim" && e.Args.Length > 0 && e.Args[0] is List<(State st, List<object[]> sounds)> frames && frames.Count > 0)
+                Present(() => AnimP(frames));                                          // f_7c149 / f_7c3b1
             else if (e.Name == "spider_strike" && e.Args.Length >= 2)             // f_753e5: from the spider (1/16 cell = px) to the ant
             {
                 PlaySound(0x37);
@@ -445,6 +447,7 @@ public partial class Main : Node2D
             if (present.MoveNext()) return;
             present = null;
             scenePic = -1;
+            animState = null;
             presentKey = presentPress = false;
         }
     }
@@ -645,6 +648,23 @@ public partial class Main : Node2D
         }
     }
 
+    /// <summary>f_7c149 / f_7c3b1's frames: the Edit window drawn from each frame's State (f_03391), its sounds,
+    /// then 6 clock3 units.</summary>
+    State animState;
+
+    IEnumerator<bool> AnimP(List<(State st, List<object[]> sounds)> frames)
+    {
+        foreach (var (fs, sounds) in frames)
+        {
+            animState = fs;
+            foreach (var sd in sounds)
+                if (sd.Length > 0 && sd[0] is int n && n < SoundBank.EffectCount && session.St.U16(Seg.T, 0x7ac) != 0) PlaySound(n);
+            double until = UiTicks * 3 + 6;
+            while (UiTicks * 3 < until) yield return true;
+        }
+        animState = null;
+    }
+
     static IEnumerator<bool> After(Action a)
     {
         a();
@@ -721,7 +741,7 @@ public partial class Main : Node2D
         int w = Cols * Cell, h = Rows * Cell;
         int cols = Math.Min(Cols, MapRenderer.Width(view));
         Array.Fill(mapBuf, 0xff000000u);
-        MapRenderer.Render(st, session.Art, view, originA, originB, originA + cols, originB + Rows, mapBuf, w);
+        MapRenderer.Render(animState ?? st, session.Art, view, originA, originB, originA + cols, originB + Rows, mapBuf, w);
         if (view == 1)
             SpiderRenderer.Draw(st, session.Files, session.Art, mapBuf, w, h, originA * Cell, originB * Cell, SpiderRenderer.FangJitter(st));
         win.Clip(m.l, m.t, m.r, m.b).Blit(mapBuf, w, h, m.l, m.t);

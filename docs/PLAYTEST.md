@@ -69,6 +69,8 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 - [ ] As the spider (Exchange onto it): Chase, Hunt; Alt for lash out.
 - [ ] With Options > Silly on, the spider makes remarks in a balloon now and then (STR# 1210).
 - [ ] Death: the message box text matches the cause (eaten, mower, drowned, ...); you take over another ant.
+- [ ] A fight shows the brief dust cloud at the yellow ant (6 frames); a death by the spider / an ant lion / a foot
+  shows the yellow ant thrashing for a few seconds (the ant lion's pit opening, the ground flickering under a foot).
 - [ ] With Options > Events on: killed by the spider, its picture (jaws moving) then the message; by an ant lion, its
   animated picture; then "Your ant has been killed" and "You have been reborn!" / "You are now a worker!" pictures.
   A nestmate feeding the yellow ant shows its picture and "You feel much better now!". Message boxes close by

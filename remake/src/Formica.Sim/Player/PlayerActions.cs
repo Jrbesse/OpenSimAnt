@@ -127,6 +127,7 @@ public static partial class Player
     /// The original waits on the clock between frames (screen only).</summary>
     public static void FightAnimation(State st, int view, int a, int b, int heading, int t, int mode)
     {
+        st.Hooks.Effect(st, "anim_begin");                                 // the frames are drawn by the UI
         PutYellow(st, G16(st, 0x48c), G16(st, 0x47c), G16(st, 0x48a), G16(st, 0x4c2), st.U16(G, 0x496), 0xff);
         int[] saved = { view, a, b, st.U16(G, 0x4c2) };
         int n;
@@ -156,7 +157,9 @@ public static partial class Player
                 else if (k > 3) k--;
             }
             MoveYellow(st, view, a, b, t, st.Rand8());
+            st.Hooks.Effect(st, "anim_frame");                             // f_03391, then 6 clock3 units
         }
+        st.Hooks.Effect(st, "anim_end");
         if (mode == 10) st.SetGrid(SURFACE, a, b, under);
         TakeYellow(st, view, a, b, t, st.U16(G, 0x496));
         int[] offs = { 0x48c, 0x47c, 0x48a, 0x4c2 };
@@ -190,6 +193,7 @@ public static partial class Player
     /// the game window is active. Its state is restored afterwards.</summary>
     public static void InsaneAnimation(State st, int view, int a, int b, int heading, int t)
     {
+        st.Hooks.Effect(st, "anim_begin");
         PutYellow(st, G16(st, 0x48c), G16(st, 0x47c), G16(st, 0x48a), G16(st, 0x4c2), st.U16(G, 0x496), 0xff);
         int a0 = a, b0 = b, savedT = st.U16(G, 0x4c2);
         int n = AnimFrames(st) ? 0x20 : 8;
@@ -215,7 +219,9 @@ public static partial class Player
             else
                 d = st.Rand8();
             MoveYellow(st, view, a, b, t, d);
+            st.Hooks.Effect(st, "anim_frame");
         }
+        st.Hooks.Effect(st, "anim_end");
         TakeYellow(st, view, a, b, t, st.U16(G, 0x496));
         st.Set16(G, 0x48c, view);
         st.Set16(G, 0x47c, a0);

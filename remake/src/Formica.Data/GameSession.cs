@@ -28,8 +28,27 @@ public class SessionHooks : PlayerHooks
     }
     public override void ChoosePatch(State st) => YardMapWanted = true;
 
+    // f_7c149 / f_7c3b1 (the fight and death animations) redraw the Edit window after every frame and wait 6 clock3
+    // units: between "anim_begin" and "anim_end" each "anim_frame" keeps a copy of the State with the sounds played
+    // since the last frame, and "anim_end" hands them to the UI as one "anim" effect (a list of frames).
+    List<(State st, List<object[]> sounds)> anim;
+    List<object[]> animSounds;
+
     public override void Effect(State st, string name, params object[] args)
     {
+        if (name == "anim_begin") { anim = new(); animSounds = new(); return; }
+        if (anim != null)
+        {
+            if (name == "sound") { animSounds.Add(args); return; }
+            if (name == "anim_frame") { anim.Add((st.Clone(), animSounds)); animSounds = new(); return; }
+            if (name == "anim_end")
+            {
+                if (Effects.Count < 4096) Effects.Enqueue(new SimEffect("anim", new object[] { anim }));
+                anim = null;
+                return;
+            }
+        }
+        else if (name is "anim_frame" or "anim_end") return;
         if (Markers.IsMarker(name) && args.Length == 3) Markers.Record(st, name, (int)args[0], (int)args[1], (int)args[2]);
         if (Effects.Count < 4096) Effects.Enqueue(new SimEffect(name, args));
     }
