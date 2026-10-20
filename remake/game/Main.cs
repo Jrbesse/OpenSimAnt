@@ -47,8 +47,8 @@ public partial class Main : Node2D
     int frames;
 
     // the window stack (last = front) and each window's offset from its layout position
-    readonly List<int> zOrder = new() { MapWin, EditWin };
-    readonly Dictionary<int, (int dx, int dy)> offsets = new() { [EditWin] = (0, 0), [MapWin] = (0, 0), [BehaviorWin] = (0, 0), [CasteWin] = (0, 0), [HistoryWin] = (0, 0), [YardWin] = (0, 0) };
+    readonly List<int> zOrder = new();                                       // f_7256f opens the windows when a game starts
+    readonly Dictionary<int, (int dx, int dy)> offsets = new() { [EditWin] = (0, 0), [MapWin] = (-56, 38), [BehaviorWin] = (0, 0), [CasteWin] = (0, 0), [HistoryWin] = (0, 0), [YardWin] = (0, 0) };
     int dragWin = -1;
     bool mapDrag;
     Vector2 dragFrom;
@@ -1102,7 +1102,7 @@ public partial class Main : Node2D
         var win = c.Clip(wr.l, wr.t, wr.r, wr.b);
         var m = ItemRect(MapWin, MapMapItem);
         var area = win.Clip(m.l, m.t, m.r, m.b);
-        area.Fill(m.l, m.t, m.r, m.b, session.Art.Palette[13]);
+        area.Fill(m.l, m.t, m.r, m.b, session.Art.Palette[15]);                // a nest's margins are black (the original's screen)
         int mv = MapView, mw = MapRenderer.Width(mv);
         var (x0, y0) = MapOrigin();
         bool trails = st.U16(Seg.DS, 0x2994) != 0 && content is >= 1 and <= 3;
@@ -1174,16 +1174,34 @@ public partial class Main : Node2D
         // the population report f_6eea5: counts 0x119 / 0x11A, gauges 0x11B black health (G:10BE / 100), 0x11C red
         // health (G:01FE / 100, 0 without red ants), 0x11D / 0x11E each population / max(1, black, red)
         int black = st.U16(Seg.G, 0x330), red = st.U16(Seg.G, 0x350), most = Math.Max(1, Math.Max(black, red));
-        var r1 = ItemRect(MapWin, 25);
-        var r2 = ItemRect(MapWin, 26);
-        win.Fill(r1.l, r1.t, r1.r, r1.b, UiArt.White);
-        win.Fill(r2.l, r2.t, r2.r, r2.b, UiArt.White);
-        ui.DrawText(win, 0, 0, r1.l, r1.t - 1, r1.r, r1.b + 1, black.ToString());
-        ui.DrawText(win, 0, 0, r2.l, r2.t - 1, r2.r, r2.b + 1, red.ToString());
-        UiArt.Gauge(win, ItemRect(MapWin, 27), st.S16(Seg.G, 0x10be) / 100.0);
-        UiArt.Gauge(win, ItemRect(MapWin, 28), red == 0 ? 0 : st.S16(Seg.G, 0x1fe) / 100.0, session.Art.Palette[3]);
-        UiArt.Gauge(win, ItemRect(MapWin, 29), black / (double)most);
-        UiArt.Gauge(win, ItemRect(MapWin, 30), red / (double)most, session.Art.Palette[3]);
+        // the counts in font 3 (0 at 320 px), centred in the item, their row filled in its scheme (f_23943 → f_20a0f:
+        // black / red on white); the gauges f_23971: the item from its left to left + width x fraction (16.16) in the
+        // scheme's foreground (DS:3DE0), the rest in its background (DS:3DE2), no frame of their own (the original's screen)
+        var items = ui.Layouts[MapWin].Items;
+        void Count(int index, int n)
+        {
+            var (l, t, r, b) = ItemRect(MapWin, index);
+            var (fg, bg) = ui.SchemeOf(items[index]);
+            var f = ui.Font(3);
+            string text = n.ToString();
+            int x = Math.Max(l, (l + r - f.Width(text)) / 2), y = t + (b - t - f.Height) / 2;
+            win.Fill(l, y, r, y + f.Height, bg);
+            f.Draw(win.Clip(l, t, r, b), x, y, text, fg);
+        }
+        void Bar(int index, double fraction)
+        {
+            var (l, t, r, b) = ItemRect(MapWin, index);
+            var (fg, bg) = ui.SchemeOf(items[index]);
+            int split = l + (int)((r - l) * (long)(Math.Clamp(fraction, 0, 1) * 65536) >> 16);
+            if (l < split) win.Fill(l, t, split, b, fg);
+            if (split < r) win.Fill(split, t, r, b, bg);
+        }
+        Count(25, black);
+        Count(26, red);
+        Bar(27, st.S16(Seg.G, 0x10be) / 100.0);
+        Bar(28, red == 0 ? 0 : st.S16(Seg.G, 0x1fe) / 100.0);
+        Bar(29, black / (double)most);
+        Bar(30, red / (double)most);
         if (help)
         {
             var it = ui.Layouts[MapWin].Items.First(x => x.Bitmap == 14001);
