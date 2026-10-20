@@ -529,10 +529,9 @@ public partial class Main : Node2D
             case 9: SetView(2); break;
             case 10: SetView(3); break;
             case 11: session.St.Set16(Seg.G, 0x1074, 1); SetView(session.Yellow.view); follow = true; break;   // follow (f_01c52)
-            case 12:                                                                 // the spider G:0F12 / G:0F34 (1/16 cell)
-                if (st.U16(Seg.G, 0xf0c) == 0) { lastMessage = "There is no spider."; break; }
-                SetView(1);
-                CenterOn(st.S16(Seg.G, 0xf12) >> 4, st.S16(Seg.G, 0xf34) >> 4);
+            case 12:                                                                 // f_01ca5: the spider G:0F12 / G:0F34 (1/16 cell)
+                if (st.U16(Seg.G, 0xf0c) == 0) { PlaySound(1); break; }              // none: f_00ed8(1, 0, 0x7E)
+                GoTo(1, st.S16(Seg.G, 0xf12) >> 4, st.S16(Seg.G, 0xf34) >> 4);
                 break;
             case 13: GotoQueen(2); break;
             case 14: GotoQueen(3); break;
@@ -660,24 +659,23 @@ public partial class Main : Node2D
         session.SetTarget(v, a, b);
     }
 
-    /// <summary>Go to the colony's queen in its nest: the first cell whose occupant has caste 12 (o &amp; 0x78 ==
-    /// 0x60) in that nest's colour.</summary>
+    /// <summary>f_01cee / f_01d0f: the black / red queen's spot T:02B4 / T:02B6 and T:02B8 / T:02BA (where she lays),
+    /// through f_01aa7.</summary>
     void GotoQueen(int nest)
     {
         var st = session.St;
-        var n = nest == 2 ? NestGrid.BLACK : NestGrid.RED;
-        for (int a = 0; a < 64; a++)
-            for (int b = 0; b < 64; b++)
-            {
-                int o = st.Grid(n.Cells, a, b);
-                if (o != 0 && o < 0xfe && (o & 0x78) == 0x60 && ((o & 0x80) != 0) == (nest == 3))
-                {
-                    SetView(nest);
-                    CenterOn(a, b);
-                    return;
-                }
-            }
-        lastMessage = nest == 2 ? "The black colony has no queen." : "The red colony has no queen.";
+        int o = nest == 2 ? 0x2b4 : 0x2b8;
+        GoTo(nest, st.S16(Seg.T, o), st.S16(Seg.T, o + 2));
+    }
+
+    /// <summary>f_01aa7(view, a, b): in that view already, recentre (f_034c4) and G:0AA6 = 0; else switch to it centred
+    /// there (f_01976).</summary>
+    void GoTo(int v, int a, int b)
+    {
+        if (view == v) session.St.Set16(Seg.G, 0xaa6, 0);
+        else SetView(v);
+        CenterOn(a, b);
+        follow = false;
     }
 
     void CycleScent()
@@ -830,8 +828,11 @@ public partial class Main : Node2D
                 break;
             case >= 9 and <= 13:
             {
+                // f_01781(n): the same layer again shows the surface (1); a layer switches the Edit window to the surface
                 int content = ScentButtons[index - 9];
-                st.Set16(Seg.T, 0x7c8, MapContent == content ? view : content);
+                if (MapContent == content) content = 1;
+                if (view != 1) SetView(1);
+                st.Set16(Seg.T, 0x7c8, content);
                 break;
             }
             case 14:                                                                     // Show Trails: DS:2994 ^= 1 (f_6e5c0)
@@ -2515,6 +2516,11 @@ public partial class Main : Node2D
     {
         originA = Math.Clamp(originA, 0, MapRenderer.Width(view) - Cols);
         originB = Math.Clamp(originB, 0, MapRenderer.Height - Rows);
+        if (view is >= 1 and <= 3)                            // 104a:02ad: the view's centre
+        {
+            session.St.Set16(Seg.G, CentreSlots[view], originA + Cols / 2);
+            session.St.Set16(Seg.G, CentreSlots[view] + 2, originB + Rows / 2);
+        }
     }
 
     // ------------------------------------------------------------------------------- the yard window (layout 25)
@@ -3153,10 +3159,22 @@ public partial class Main : Node2D
         SetView(session.Yellow.view);
     }
 
+    // f_01aec(v), the Edit window's view: G:032E = v; each view's centre is kept in G (the surface G:0596 / 0598, the
+    // black nest G:06A6 / 06A8, the red nest G:072E / 0730; saved after every scroll, 104a:02ad: G:0FB6 / 2 + G:0508)
+    // and the window recentres there (f_01976 → f_034c4); the Map window follows (f_01781(v): T:07C8 = v).
+    static readonly int[] CentreSlots = { 0, 0x596, 0x6a6, 0x72e };
+
     void SetView(int v)
     {
+        var st = session.St;
         view = v;
-        session.St.Set16(Seg.G, 0x32e, v);                    // the view on screen
+        st.Set16(Seg.G, 0x32e, v);                            // the view on screen
+        if (v is >= 1 and <= 3)
+        {
+            st.Set16(Seg.T, 0x7c8, v);
+            originA = st.S16(Seg.G, CentreSlots[v]) - Cols / 2;
+            originB = st.S16(Seg.G, CentreSlots[v] + 2) - Rows / 2;
+        }
         follow = session.Yellow.view == v;
         Clamp();
     }

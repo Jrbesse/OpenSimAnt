@@ -1873,6 +1873,20 @@ the item id - 4 (ids 4..0x15; layout 0 repeats ids, the event carries the item's
 - 0x11 / 0x12, the yellow and black health bars → `f_68044` / `f_68002`: G:0FBA (the yellow ant's health warning)
   / G:0FFE (the advisor's hunger level) = (bottom - y) x 100 / (bottom - top) of the click; 0x13 (red) nothing.
 
+The go-to buttons: 0x0C `f_01ca5` the spider: none (G:0F0C == 0) → sound 1 (`f_00ed8(1, 0, 0x7E)`), else
+`f_01aa7(1, G:0F12 >> 4, G:0F34 >> 4)`; 0x0D / 0x0E `f_01cee` / `f_01d0f` the queens: `f_01aa7(2, T:02B4, T:02B6)` /
+`f_01aa7(3, T:02B8, T:02BA)` (the spots where they lay, not a search for the queen). `f_01aa7(v, a, b)`: in view v
+already (and v > 0), `f_034c4(a, b)` and G:0AA6 = 0; else `f_01976(v, a, b)`.
+
+The view switch `f_01aec(v)`: v == 0 keeps the old view in G:0332; else `f_0256e` (redraw); G:032E = v; G:0F36 =
+(v == 1 ? 0x80 : 0x40) - G:0FB6 (the Edit window's width in cells; G:0FFA its height); G:0D70 = T:07C0[v]; the
+view's kept centre (the yard G:07BC / 07BE, the surface G:0596 / 0598, the black nest G:06A6 / 06A8, the red nest
+G:072E / 0730) → `f_01976` → `f_034c4` (recentre there); `f_01781(v)`. After every scroll (`f_031f6` → 104a:02ad)
+the current view's slot = G:0FB6 / 2 + G:0508, G:0FFA / 2 + G:050A. `f_01781(n)` (the Map window's layer T:07C8):
+the same scent layer (4..8) again gives 1 (the surface); 0 → T:07C8 = 0 and `f_01823(G:035C)` (the yard window);
+4..8 switch the Edit window to the surface first (`f_01aec(1)`); then T:07C8 = n. So the Map window shows the Edit
+window's view, or a scent layer while the Edit window shows the surface.
+
 The bars (`f_03a83`): for the yellow ant G:0F78, the black and red colonies G:10BE / G:01FE (items DS:1AA4 =
 0x11..0x13, schemes 4 / 9 / 10: yellow, black, red on light grey), the part bottom - height x v / 100 .. bottom
 filled in the scheme's foreground, the rest in its background; then a 1-px line at top + (100 - G:0FBA) x height /
