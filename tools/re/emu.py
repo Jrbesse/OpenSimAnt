@@ -75,6 +75,9 @@ class SimEmu:
         # (hardware interrupts never fire here), so every read advances it by one tick instead.
         self.game_clock = (0x1b73 + base) * 16 + 0x12
         uc.hook_add(UC_HOOK_MEM_READ, self._on_game_clock_read, None, self.game_clock, self.game_clock + 1)
+        # f_20e20(n) waits for the INT 8 handler to count the word at 1b73:0006 down to 0: count it down per read
+        self.game_delay = (0x1b73 + base) * 16 + 6
+        uc.hook_add(UC_HOOK_MEM_READ, self._on_game_delay_read, None, self.game_delay, self.game_delay + 1)
 
     # ---------------------------------------------------------------- hardware stubs
     vga = None                                    # a vga.VGA takes the port I/O when attached
@@ -119,6 +122,12 @@ class SimEmu:
         self.uc.hook_add(UC_HOOK_CODE, on_msg, None, a, a)
         self.stub(MESSAGE_BOX)
 
+    def _on_game_delay_read(self, uc, access, address, size, value, user):
+        if address == self.game_delay:
+            v = struct.unpack('<H', bytes(uc.mem_read(address, 2)))[0]
+            if v:
+                uc.mem_write(address, struct.pack('<H', v - 1))
+
     def _on_game_clock_read(self, uc, access, address, size, value, user):
         if address == self.game_clock and not getattr(self, 'clock_frozen', False):
             v = struct.unpack('<I', bytes(uc.mem_read(address, 4)))[0] + 1
@@ -147,6 +156,67 @@ class SimEmu:
 
     def _largest(self):
         return max(r[1] - r[0] for r in self.heap)
+
+    mouse_handler = None                          # (segment, offset, event mask) from INT 33h AX=0Ch
+    TRAMP = 0x0600                                # flat address of the handler-call trampoline
+
+    @property
+    def mouse_events(self):
+        if not hasattr(self, '_mouse_events'):
+            self._mouse_events = []
+        return self._mouse_events
+
+    def mouse_event(self, cond, x, y, buttons):
+        """Queue a mouse driver event (cond: 1 move, 2 left press, 4 left release, 8 right press, 16 right
+        release); it is delivered at the game's next keyboard poll."""
+        if not self.mouse_events:
+            self.mouse.update(x=x, y=y)
+        self.mouse_events.append((cond, x, y, buttons))
+
+    def _deliver_mouse(self, uc, zf=True):
+        """Run the game's mouse handler as the driver would: an interrupt-style frame back to the poll (with ZF set:
+        no key), then a trampoline that saves the registers, loads AX = condition, BX = buttons, CX / DX = position,
+        far-calls the handler, restores the registers and IRETs."""
+        import struct as st
+        cond, x, y, buttons = self.mouse_events.pop(0)
+        self.mouse.update(x=x, y=y, buttons=buttons)
+        seg, off, mask = self.mouse_handler
+        cond &= mask
+        code = (b'\x50\x53\x51\x52\x56\x57\x55\x1e\x06'
+                + b'\xb8' + st.pack('<H', cond) + b'\xbb' + st.pack('<H', buttons)
+                + b'\xb9' + st.pack('<H', x) + b'\xba' + st.pack('<H', y)
+                + b'\x31\xf6\x31\xff'
+                + b'\x9a' + st.pack('<HH', off, seg)
+                + b'\x07\x1f\x5d\x5f\x5e\x5a\x59\x5b\x58\xcf')
+        uc.mem_write(self.TRAMP, code)
+        uc.ctl_remove_cache(self.TRAMP, self.TRAMP + len(code))
+        from unicorn.x86_const import UC_X86_REG_SS, UC_X86_REG_CS, UC_X86_REG_IP
+        ss, sp = uc.reg_read(UC_X86_REG_SS), uc.reg_read(UC_X86_REG_SP)
+        flags = uc.reg_read(UC_X86_REG_EFLAGS) | (FLAG_ZF if zf else 0)
+        cs, ip = uc.reg_read(UC_X86_REG_CS), uc.reg_read(UC_X86_REG_IP)
+        sp = (sp - 6) & 0xffff
+        uc.mem_write(ss * 16 + sp, st.pack('<HHH', ip, cs, flags & 0xffff))
+        uc.reg_write(UC_X86_REG_SP, sp)
+        uc.reg_write(UC_X86_REG_CS, self.TRAMP >> 4)
+        uc.reg_write(UC_X86_REG_IP, self.TRAMP & 15)
+
+    def run(self, polls, max_insns=400_000_000, chunk=2_000_000):
+        """Continue from where the emulation stopped until `polls` more input polls (or max_insns), in slices;
+        between slices (an instruction boundary) a queued mouse event is delivered, so a game busy-waiting on its
+        handler's variables still gets it."""
+        from unicorn.x86_const import UC_X86_REG_CS, UC_X86_REG_IP
+        uc = self.uc
+        self.stop_after_polls = polls
+        done = 0
+        try:
+            while done < max_insns and self.stop_after_polls > 0:
+                if self.mouse_events and self.mouse_handler:
+                    self._deliver_mouse(uc, zf=False)
+                cs, ip = uc.reg_read(UC_X86_REG_CS), uc.reg_read(UC_X86_REG_IP)
+                uc.emu_start(cs * 16 + ip, 0xfffff, count=chunk)
+                done += chunk
+        finally:
+            self.stop_after_polls = None
 
     def _poll(self):
         if self.stop_after_polls is not None:
@@ -180,6 +250,9 @@ class SimEmu:
         if intno == 0x16:                         # keyboard
             if ah in (0x01, 0x11):
                 self._poll()
+                if self.mouse_events and self.mouse_handler:
+                    self._deliver_mouse(uc)       # the driver calls the game's handler (INT 33h AX=0Ch)
+                    return
                 if self.keys:
                     w(UC_X86_REG_AX, self.keys[0])
                     self._flags(uc, clear_bits=FLAG_ZF)
@@ -196,9 +269,15 @@ class SimEmu:
                 w(UC_X86_REG_BX, 2)
             elif ax == 3:
                 self._poll()
+                if self.mouse_events and self.mouse_handler:
+                    self.mouse.update(buttons=self.mouse_events[0][3])
                 w(UC_X86_REG_BX, self.mouse['buttons'])
                 w(UC_X86_REG_CX, self.mouse['x'])
                 w(UC_X86_REG_DX, self.mouse['y'])
+                if self.mouse_events and self.mouse_handler:
+                    self._deliver_mouse(uc)       # results set first: the trampoline restores them
+            elif ax == 0x0c:                      # the event handler: CX mask, ES:DX far address
+                self.mouse_handler = (r(UC_X86_REG_ES), dx, cx)
             elif ax in (5, 6):
                 w(UC_X86_REG_AX, self.mouse['buttons'])
                 w(UC_X86_REG_BX, 0)

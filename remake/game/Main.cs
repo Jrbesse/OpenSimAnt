@@ -354,6 +354,13 @@ public partial class Main : Node2D
             else if (e.Name == "balloon" && e.Args.Length >= 5 && e.Args[4] is ValueTuple<int, int> line)
                 balloonsNow.Add(((int)e.Args[0], (int)e.Args[1], (int)e.Args[2], BalloonText(line.Item1, line.Item2)));
             else if (e.Name == "win_screen") StartWin();
+            else if (e.Name == "colony_panel")                                     // f_7256f (a game started or loaded)
+            {
+                Front(CasteWin);                                                    // f_07a95, f_07aab
+                Front(BehaviorWin);
+                if (!zOrder.Contains(MapWin)) Front(MapWin);                        // f_013ff
+                Front(EditWin);                                                     // f_03370
+            }
             else if (e.Name == "scene") Present(AntLionScene);                    // f_76707
             else if (e.Name == "anim" && e.Args.Length > 0 && e.Args[0] is List<(State st, List<object[]> sounds)> frames && frames.Count > 0)
                 Present(() => AnimP(frames));                                          // f_7c149 / f_7c3b1
@@ -1207,8 +1214,8 @@ public partial class Main : Node2D
             case 14:                                                                     // Show Trails: DS:2994 ^= 1 (f_6e5c0)
                 st.Set16(Seg.DS, 0x2994, st.U16(Seg.DS, 0x2994) == 0 ? 1 : 0);
                 break;
-            case 15: ToggleWindow(BehaviorWin); break;
-            case 17: ToggleWindow(CasteWin); break;
+            case 15: Front(BehaviorWin); break;                                          // 0x10F → f_07aab: f_21336(0x1200), opens
+            case 17: Front(CasteWin); break;                                             // 0x111 → f_07a95
             case 16:                                                                     // 0x110 → f_6f733
             {
                 // the BIOS shift flags: no Ctrl f_01c52; Ctrl + Shift add (with Alt kill) surface ants, black in the
@@ -1228,7 +1235,7 @@ public partial class Main : Node2D
             }
             case 18: DebugCommands.RandomAction(st); break;                              // the Mystery Button (f_022bc)
             case >= 24 and <= 30: popReport = true; break;                               // held: the population report
-            case 19: ToggleWindow(HistoryWin); break;
+            case 19: Front(HistoryWin); break;                                           // 0x113 → f_792c7: f_21336(0x1500)
             case 20: OpenEfficiency(); break;
             case 22: st.Set16(Seg.G, 0x1074, 1); help = helpHeld = true; break;         // ?: G:1074 = 1, f_714ab(0x103) while held
             case 23: ExperimentalMenu(); break;                                         // 0x117 → f_2f88e

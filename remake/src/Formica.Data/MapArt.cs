@@ -20,8 +20,11 @@ public sealed class MapArt
     {
         var pal = files.Find(15, 0).Data;
         int n = (pal[0] << 8) | pal[1];
+        // the VGA driver loads the DAC with each component >> 2 (6 bits); shown as 6-bit * 255 / 63, as tools/re/vga.py
+        // renders the original's screens
+        static uint Q(byte c) => (uint)((c >> 2) * 255 / 63);
         for (int i = 0; i < Math.Min(n, 16); i++)
-            Palette[i] = 0xff000000u | ((uint)pal[2 + 3 * i] << 16) | ((uint)pal[3 + 3 * i] << 8) | pal[4 + 3 * i];
+            Palette[i] = 0xff000000u | (Q(pal[2 + 3 * i]) << 16) | (Q(pal[3 + 3 * i]) << 8) | Q(pal[4 + 3 * i]);
         houseTiles = files.Find(9, 9).Data;
         yardTiles = files.Find(9, 10).Data;
         nestSprites = files.Find(9, 13).Data;

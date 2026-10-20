@@ -11,11 +11,11 @@ public sealed class UiArt
     readonly Dictionary<int, (int w, int h, short[] px)> bitmaps = new();
     readonly Dictionary<int, BitmapFont> fonts = new();
 
-    public const uint White = 0xffffffffu, Black = 0xff000000u, Grey = 0xffc0c0c0u, DarkGrey = 0xff808080u;
+    public const uint White = 0xffffffffu, Black = 0xff000000u, Grey = 0xffc2c2c2u, DarkGrey = 0xff818181u;   // palette 0, 15, 12, 13 through the 6-bit DAC
 
     /// <summary>The colour schemes (HCEGANT type 0 id 129, copied to G:46E2 by f_210d0; 6 bytes each): byte 0 the
     /// foreground, byte 2 the background (byte 3 in the video modes with DS:5A97 bit 0; not VGA), as palette indices.
-    /// f_220e4 picks an item's scheme (LayoutItem.ColourScheme). Frames are drawn in DS:3DE0 (15, black).</summary>
+    /// f_220e4 picks an item's scheme (LayoutItem.ColourScheme). Frames are drawn in DS:3DE0, the scheme's foreground.</summary>
     public readonly (uint fg, uint bg)[] Schemes;
 
     public UiArt(OriginalFiles files, MapArt art)
@@ -203,22 +203,23 @@ public sealed class UiArt
             var (fg, bg) = SchemeOf(it);
             // f_223b3 by type: 0 box (fill, frame of thickness +28), 2 fill, 5 fill + text, 9 text, 0x0C fill, a line
             // under it, text; 0x0F frame; 0x10 text; 0x11 fill + text; 0x12 caption (fill, line under, text); 0x13 /
-            // 0x14 left and right / top and bottom lines, 0x15 / 0x16 the same after a fill. Frames are black (DS:3DE0).
+            // 0x14 left and right / top and bottom lines, 0x15 / 0x16 the same after a fill. Frames are drawn in DS:3DE0, the
+            // scheme's foreground (f_220e4 → f_9128), checked on the original's screen (Select a Game: scheme 6, red).
             switch (it.Type)
             {
                 case 0x00:
                     clip.Fill(l, t, r, b, bg);
-                    ThickFrame(clip, l, t, r, b, it.Style, Black);
+                    ThickFrame(clip, l, t, r, b, it.Style, fg);
                     break;
                 case 0x02:
                     clip.Fill(l, t, r, b, bg);
                     break;
                 case 0x0f:
-                    ThickFrame(clip, l, t, r, b, it.Style, Black);
+                    ThickFrame(clip, l, t, r, b, it.Style, fg);
                     break;
                 case 0x13 or 0x14 or 0x15 or 0x16:
                     if (it.Type >= 0x15) clip.Fill(l, t, r, b, bg);
-                    ThickFrame(clip, l, t, r, b, it.Style, Black, it.Type is 0x13 or 0x15 ? 5 : 10);
+                    ThickFrame(clip, l, t, r, b, it.Style, fg, it.Type is 0x13 or 0x15 ? 5 : 10);
                     break;
                 case 0x12:
                     clip.Fill(l, t, r, b, bg);

@@ -93,8 +93,45 @@ class VGA:
         else:
             self._out_byte(port, value)
 
+    ROM_FONT = 0xF8000                            # the stand-in ROM fonts (8x14 at +0, 8x8 at +0x1000), above the emulated DOS heap
+
+    def rom_fonts(self, uc):
+        """The driver's PC font comes from the video BIOS (INT 10h AX=1130h: BH 2 the 8x14 font, 3 the 8x8). The
+        emulator has no ROM, so stand-ins are built from SHARED's PC fonts 0 (15 rows, cut to 14) and 1 (10 rows, cut
+        to 8): good enough to see where text goes and in which colours, not pixel-exact glyphs."""
+        if getattr(self, '_fonts_done', False):
+            return
+        self._fonts_done = True
+        try:
+            from fonts import Font
+        except Exception:
+            return
+        for fid, rows_n, at in ((0, 14, 0), (1, 8, 0x1000)):
+            try:
+                f = Font(fid)
+            except OSError:
+                continue
+            table = bytearray(256 * rows_n)
+            for c in range(256):
+                _, rows = f.glyph(c)
+                for y in range(min(rows_n, len(rows))):
+                    v = 0
+                    for x in range(min(8, len(rows[y]))):
+                        v |= rows[y][x] << (7 - x)
+                    table[c * rows_n + y] = v
+            uc.mem_write(self.ROM_FONT + at, bytes(table))
+
     def int10(self, uc, ax, bx, cx, dx, es):
-        """INT 10h AH=10h, the palette functions; True if handled."""
+        """INT 10h AH=10h, the palette functions, and AX=1130h, the ROM font pointers; True if handled."""
+        if ax == 0x1130:
+            from unicorn.x86_const import UC_X86_REG_ES, UC_X86_REG_BP, UC_X86_REG_CX, UC_X86_REG_DX
+            self.rom_fonts(uc)
+            bh = bx >> 8
+            uc.reg_write(UC_X86_REG_ES, self.ROM_FONT >> 4)
+            uc.reg_write(UC_X86_REG_BP, 0x1000 if bh == 3 else 0)
+            uc.reg_write(UC_X86_REG_CX, 8 if bh == 3 else 14)
+            uc.reg_write(UC_X86_REG_DX, 29 if bh == 3 else 33)
+            return True
         if ax >> 8 != 0x10:
             return False
         al = ax & 0xff
