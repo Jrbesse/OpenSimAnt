@@ -1731,8 +1731,10 @@ string lists, not bitmaps): 1000 → G:046C, 1001 → G:0324, 1010 → G:034C, 1
 1230 → G:0218, 1240 → G:021C, 1250 → G:0234, 1260 → G:023A, 1900 → G:0328, 1800 → G:0368.
 STR# 1000 holds window titles: entries 0..8 name the Map window's contents T:07C8 ("BackYard View",
 "Surface View", "Black Nest View", "Red Nest View", the five pheromone maps), 9..12 the yard window's
-modes G:035C ("Yard View", "House View", "Strategic View", "Graphic View"). Which routine fills the
-captions with them is not traced (matched by their order).
+modes G:035C ("Yard View", "House View", "Strategic View", "Graphic View"). `f_01058` (from `f_01781`) sets the
+Map window's caption 0x101 to entry T:07C8 and the yard window's 0x1901 to entry 9 + G:035C (`f_2318a`), then
+redraws them. The Edit window's caption 0x0001 is set by `f_03bfd` (from `f_725b6`, `f_7256f`, `f_67010`, `f_67a24`):
+"SimAnt" + STR# 1800 [15] (" - ") + STR# 1001 [G:0EAC] (the game mode: "SimAnt - Quick Game").
 
 ### The Edit window's map region (`f_07558`)
 

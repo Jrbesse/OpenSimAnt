@@ -83,6 +83,7 @@ public partial class Main : Node2D
             else if (arg == "--history") Front(HistoryWin);
             else if (arg == "--panels") { Front(BehaviorWin); Front(CasteWin); }
             else if (arg == "--help-overlay") help = true;
+            else if (arg == "--status") showStatus = true;
             else if (arg == "--map-front") Front(MapWin);
         session = new GameSession(dir);
         var args = OS.GetCmdlineUserArgs();
@@ -391,7 +392,11 @@ public partial class Main : Node2D
     {
         var st = session.St;
         var (dx, dy) = Off(EditWin);
-        string title = Title(view) + (st.U16(Seg.T, 0x7be) < 5 ? " (" + Scents[st.U16(Seg.T, 0x7be)] + ")" : "");   // by analogy with the Map window
+        // f_03bfd (from the game's start f_725b6 / f_7256f and the Experimental menu): "SimAnt" + STR# 1800 [15] " - " +
+        // the game mode's name (STR# 1001, G:0324)
+        var modes = session.Files.Strings(1001);
+        int gm = st.U16(Seg.G, 0xeac);
+        string title = "SimAnt" + (session.Files.Strings(1800)?[15] ?? " - ") + (modes != null && gm < modes.Length ? modes[gm] : "");
         ui.DrawWindow(c, EditWin, dx, dy, title, new[] { 15001 });
         var win = c.Clip(WindowRect(EditWin).l, WindowRect(EditWin).t, WindowRect(EditWin).r, WindowRect(EditWin).b);
         var m = ItemRect(EditWin, EditMapItem);
@@ -2815,9 +2820,14 @@ public partial class Main : Node2D
     }
 
     /// <summary>The shell's status lines (a stand-in for the original's message window) in the game's font 2.</summary>
+    // The shell's debug lines (tick, populations, speed, its own messages): not in the original, so off unless F12
+    // (or --status) turns them on.
+    bool showStatus;
+
     void DrawStatus(UiArt.Canvas canvas)
     {
-        if (font == null) return;
+        status.Visible = message.Visible = false;
+        if (font == null || !showStatus) return;
         int y0 = 384;
         canvas.Fill(0, y0, ScreenW, y0 + 2 * font.Height + 6, 0xffc0c0c0u);
         font.Draw(argb, ScreenW, ScreenH, 4, y0 + 2, status.Text, 0xff000000u);
@@ -3062,7 +3072,8 @@ public partial class Main : Node2D
                 case Key.G: ToggleWindow(HistoryWin); break;                                     // the History graph
                 case Key.P: ToggleWindow(BehaviorWin); ToggleWindow(CasteWin); break;                                       // the colony controls
                 case Key.F1: help = !help; break;                                          // the help overlays
-                case Key.F8: QuickSave(); break;                                           // quick save (F5 is the Options menu now)
+                case Key.F8: QuickSave(); break;
+                case Key.F12: showStatus = !showStatus; break;                              // the shell's debug lines                                           // quick save (F5 is the Options menu now)
                 case Key.F9: QuickLoad(); break;                                           // load
                 case Key.V: CycleScent(); break;                                           // the scent views (T:07BE)
                 case Key.O: session.St.Set16(Seg.G, 0x378, session.St.U16(Seg.G, 0x378) == 1 ? 0 : 1); break;   // auto / manual jobs

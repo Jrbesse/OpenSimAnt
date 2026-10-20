@@ -18,7 +18,7 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 ## 1. Start-up and new games
 
 - [ ] The title screen shows; a click brings up Select a Game.
-- [ ] Quick Game, Full Game and Experimental each start the right kind of game (the status line names it).
+- [ ] Quick Game, Full Game and Experimental each start the right kind of game (the Edit window's caption names it: SimAnt - Quick Game ...).
 - [ ] Cancel closes the dialog.
 
 ## 1c. The Tutorial (Select a Game > Tutorial)
@@ -75,7 +75,7 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 - [ ] 1 / 2: recruit 5 / 10 (a queen: dig hole / start brood; the spider: chase / hunt).
 - [ ] 3 / 4: release half / all. X: exchange. 0: alarm trail on / off.
 - [ ] Backspace while walking: stops. Backspace standing still: recentres. Shift+Backspace: follows.
-- [ ] Shift+0: pause. Shift+1 / 2 / 3 / 4: slow / normal / fast / ultra (the status line shows the speed).
+- [ ] Shift+0: pause. Shift+1 / 2 / 3 / 4: slow / normal / fast / ultra (the Speed menu's mark; F12 shows the shell's debug line with the speed).
 - [ ] Ctrl+E / Ctrl+M: Edit / Map window to the front. Ctrl+B / Ctrl+C: Behavior / Caste Control.
 - [ ] Ctrl+T: Efficiency Score. Ctrl+Y: the yard window (Full Game).
 - [ ] Ctrl+H History, Ctrl+I the SimAntipedia; Ctrl+4 back to the patch, Ctrl+5 / 6 / 7 the yard window's House /
@@ -157,7 +157,7 @@ For each issue, one line or a short note:
 
 ```
 [section] what you did → what happened (expected: ...)
-seed / mode / tick (from the status line), F8 quick save attached if it can be reproduced, screenshot if visual
+seed / mode / tick (F12 shows them in the shell's debug line), F8 quick save attached if it can be reproduced, screenshot if visual
 ```
 
 Fidelity notes are as useful as bugs: anything that "feels different" from the original (speed, colours,
