@@ -57,6 +57,11 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 - [ ] Quick click on the yellow ant: the view recentres on it. Press and hold on another ant (or Ctrl+click):
   the Ant Info window (caste, state, carrying).
 - [ ] Food: pick up, carry into the nest, drop; eat when hungry (health bar on the left).
+- [ ] Health bars: the black mark on the yellow bar is the health warning, the inverted one on the black bar the
+  colony's hunger warning; clicking a bar moves its mark there.
+- [ ] MAP button: a quick click brings up the Map window. Press it and release elsewhere: a small whole-map pop-up
+  with the view's frame; click / drag in it to move the Edit view, click outside to close. The game waits meanwhile.
+- [ ] "?" (Edit and Map windows): the help overlay shows while the button is held.
 - [ ] Enter and leave the nest through the hole; the view follows (Surface / Black / Red nest).
 - [ ] Hold the button on the yellow ant: its menu. Recruit 5 / 10, Release 1/2 / All, Exchange (then click an
   ant) all work.

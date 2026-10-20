@@ -59,7 +59,7 @@ Mouse:
 | Menu bar (top) | the original's pull-down menus (SHARED type 6): File, Window, View, Options, Speed. Press on a title and release on an item, or click a title, then an item; ► marks the speed and the Options that are on |
 | Edit window map | as the original's f_74fe0: click: walk there; double click (or right click, or Shift+click): act: pick up / drop / eat on the surface, dig or pick up / drop in a nest, meet or fight the ant clicked; press and hold on an ant: Ant Info (Ctrl+click too) |
 | on the yellow ant | quick click: recentre on it; press and hold: its menu (recruit, release, exchange; a queen: dig hole, start brood; the spider: chase, hunt); release on an entry |
-| Edit tool strip | MAP (show / hide the Map window), ? (help overlays), Surface / Black / Red nest, go to the yellow ant / spider / queens, PAUSE, SCENT (cycle the scent views) |
+| Edit tool strip | MAP (a quick click: the Map window; held / released elsewhere: the whole-map pop-up, click or drag in it to move the view), ? (the help overlay while held), Surface / Black / Red nest, go to the yellow ant / spider / queens, PAUSE, SCENT (the scent menu); a click on the yellow / black health bar sets the yellow ant's health warning / the colony's hunger warning (the marks on the bars) |
 | Map window | press (and drag) on the map to look there, right click to send the yellow ant there to act (f_6726a); toolbar: Yard (Full Game), the views, scent layers, Behavior / Caste Control, Center on Yellow, the Mystery Button, History, Efficiency Score, Ant Info (the SimAntipedia: click a picture's labels or the BACK / PREVIOUS / TOP bar to change cards, hold the button on a bold word for its definition; Escape or a click outside closes it) |
 | Behavior / Caste Control | click or drag in the triangle; Auto / Manual |
 | History window | the series buttons (up to four at once) |
@@ -102,7 +102,7 @@ Keys:
 
 Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`, `--efficiency`, `--popup`,
 `--map-front`, `--map-content=n` (the Map window shows T:07C8 = n: 4..8 the scent maps), `--series=a,b` (History buttons pressed), `--help-overlay`, `--yard`, `--strat`, `--scent-menu`, `--ant-info`, `--select`, `--report`,
-`--exp-menu`, `--trails`, `--spider-view` (the surface around the spider), `--frames=N` (screenshot after N frames), `--tutorial[=step]` (the Tutorial, at that step), `--silly` (Options > Silly on: speech balloons), `--menu=m[,item]` (a menu open, an item highlighted), `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y), `--game-over`, `--load-dialog`, `--save-dialog`, `--alert` (an OVERWRITE box), `--error` (a Continue box) to open those
+`--exp-menu`, `--trails`, `--spider-view` (the surface around the spider), `--frames=N` (screenshot after N frames), `--tutorial[=step]` (the Tutorial, at that step), `--silly` (Options > Silly on: speech balloons), `--menu=m[,item]` (a menu open, an item highlighted), `--message=<STR# id>`, `--antipedia[=card[,x,y]]` (a card, the button held at x, y), `--game-over`, `--load-dialog`, `--save-dialog`, `--mini-map` (the Edit window's MAP pop-up), `--alert` (an OVERWRITE box), `--error` (a Continue box) to open those
 windows first; `--full` / `--experimental` start that kind of game.
 
 ## Sound

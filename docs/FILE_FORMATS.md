@@ -171,7 +171,7 @@ The windows:
 | 6 / 7 / 8 / 9 / 29 / 32 | menus and palettes | 6000, 4500, 4502, 5000, 4510, 4504 |
 | 10..17 | tool option palettes | 5010, 5011, 5001, 5005, 5006, 5002, 5003, 5004 |
 | 18 / 19 | Behavior Control / Caste Control | 4600 / 4601, 4620 / 4621 |
-| 20 | | |
+| 20 | the Edit window's MAP pop-up (`f_6776f`): the Edit view's whole map at 1 px per cell in item 0x1401 (128 x 64) | |
 | 21 | History Window | 16000, 16001 |
 | 22 | file dialog ("Path:", "Select Drive:") | |
 | 23 | | 14002 |
@@ -198,7 +198,8 @@ Main window commands (`f_6e5c0`, command id = item id), names from its help over
 | 0x113 | History Display |
 | 0x114 | Efficiency Score |
 | 0x115 | Ant Info Window |
-| 0x116 / 0x117 | Experimental Menu |
+| 0x116 | the "?" button: G:1074 = 1, the help overlay (item 0x103, 14001) while held (`f_714ab`) |
+| 0x117 | Experimental Menu |
 | 0x118 | population report area |
 
 ## Bitmap format (type 2)

@@ -1849,6 +1849,36 @@ the command (`f_1ba3f`): Alt+F / W / V / O / S and F2..F6 → 0xFE00..04; ')' 0x
   reads the delay T:07D4 = -1: no wait; at Ultra with a Shift key held the main loop also skips the redraw,
   16196), then `f_6e0e0` (the menus' marks, above).
 
+### The Edit window's tool strip (`f_0310f`, decoded 2026-10-20)
+
+Events of window 0 (`f_74140`: event high byte 0) go to `f_0310f(event)`, a jump table at 0x3140 (CS base 0x2500) on
+the item id - 4 (ids 4..0x15; layout 0 repeats ids, the event carries the item's own id):
+- 4 and 0x15 (the map and the strip under it) → `f_2f762` → `f_74fe0` (the map's clicks);
+- 5 MAP → `f_6776f`: window 20 pops up (scale DS:8BD2 / 8BD4 = 1 px per cell in VGA, 2 otherwise), `f_674ee` draws
+  the Edit view's map into item 0x1401: width G:3854 = 0x80, or 0x40 for a nest (G:032E 2..3) at offset G:3852 =
+  32 x scale with the margins filled black (0x0F); a scent layer when T:07C8 is 4..8 (`f_2f8ca`: alarm D09F, the
+  nest markers E09F / F09F, the trails E89F / the red trail map 4DA7:0); the image is kept in two far blocks ("Map
+  window image", "Generated map window", DS:2996). `f_678d8` XORs the Edit window's area (G:0508 / G:050A,
+  G:10E0 x G:10DE cells) as a frame (`f_1d230`, mode 1), `f_6796e` removes it. If the button is still held, it
+  waits for the release: released over the button, the pop-up closes (`f_214b5`) and `f_0148a` opens the Map
+  window (or brings it to the front: it does not toggle). Otherwise, while the pop-up is open, a press in it
+  recentres the Edit window on the cell under the mouse (`f_034c4`) for as long as the button is held. It runs its
+  own event loop, so the game does not advance meanwhile;
+- 6 "?" → `f_2f74e(2)` → `f_714ab(2)`: the help overlay picture (item 2, 15001) is drawn while the button is held
+  (its own loop), then the window is redrawn. The Map window's 0x116 does the same with item 0x103 (14001) after
+  G:1074 = 1;
+- 7 → `f_2f744` (the Experimental menu, 0x67A24); 8 / 9 / 10 → `f_01aec(1 / 2 / 3)`; 0x0B → `f_01c52` (follow);
+  0x0C / 0x0D / 0x0E → `f_01ca5` / `f_01cee` / `f_01d0f` (the spider, the queens); 0x0F → `f_2f73a(G:047E == 0)`
+  (pause); 0x10 → `f_2f730` (`f_679c0`, the scent menu);
+- 0x11 / 0x12, the yellow and black health bars → `f_68044` / `f_68002`: G:0FBA (the yellow ant's health warning)
+  / G:0FFE (the advisor's hunger level) = (bottom - y) x 100 / (bottom - top) of the click; 0x13 (red) nothing.
+
+The bars (`f_03a83`): for the yellow ant G:0F78, the black and red colonies G:10BE / G:01FE (items DS:1AA4 =
+0x11..0x13, schemes 4 / 9 / 10: yellow, black, red on light grey), the part bottom - height x v / 100 .. bottom
+filled in the scheme's foreground, the rest in its background; then a 1-px line at top + (100 - G:0FBA) x height /
+100 on the yellow bar in black (0x0F), and one at the G:0FFE level on the black bar through the driver's XOR fill
+(DS:913C).
+
 ### The file dialog (window 22, `f_6c566`), saving and loading (`f_6c328`, `f_6c1a0`), alert boxes (decoded 2026-10-20)
 
 `f_6c566(name, caption, button, save)`:

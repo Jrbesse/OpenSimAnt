@@ -42,7 +42,7 @@ public partial class Main : Node2D
     byte[] rgba;
     Label status, message;
     int view = 1, originA, originB;
-    bool follow = true, help, antInfoArmed;
+    bool follow = true, help, helpHeld, antInfoArmed;
     string lastMessage = "";
     string screenshot;
     bool tutorialShot, screenshotSpider;
@@ -105,6 +105,7 @@ public partial class Main : Node2D
         if (OS.GetCmdlineUserArgs().Contains("--popup")) OpenPopup(200, 150);
         if (OS.GetCmdlineUserArgs().Contains("--yard")) OpenYard(false);
         if (OS.GetCmdlineUserArgs().Contains("--scent-menu")) OpenScentMenu();
+        if (OS.GetCmdlineUserArgs().Contains("--mini-map")) miniMap = true;
         if (OS.GetCmdlineUserArgs().Contains("--trails")) session.St.Set16(Seg.DS, 0x2994, 1);
         if (OS.GetCmdlineUserArgs().Contains("--report")) popReport = true;
         if (OS.GetCmdlineUserArgs().Contains("--exp-menu")) ExperimentalMenu();
@@ -256,7 +257,7 @@ public partial class Main : Node2D
             session.Hooks.YardMapWanted = false;
             OpenYard(true);
         }
-        if (!session.Over && !yardChoose && modal < 0 && menuOpen < 0 && session.Advance(delta) > 0) balloonsNow.Clear();
+        if (!session.Over && !yardChoose && modal < 0 && menuOpen < 0 && !miniMap && !helpHeld && session.Advance(delta) > 0) balloonsNow.Clear();
         ToolPoll();
         ToolHold(delta);
         PendingClick(delta);
@@ -408,16 +409,105 @@ public partial class Main : Node2D
             var pr = ItemRect(EditWin, 15);
             win.Invert(pr.l, pr.t, pr.r, pr.b);
         }
-        // the health bars: the yellow ant G:0F78, the black colony G:10BE, the red colony G:01FE (out of 100)
-        var colours = new[] { session.Art.Palette[1], session.Art.Palette[15], session.Art.Palette[3] };
+        // f_03a83, the health bars (items 0x11..0x13): the yellow ant G:0F78, the black colony G:10BE, the red colony
+        // G:01FE out of 100; the filled part, bottom - height * v / 100 .. bottom, in the item's scheme foreground, the
+        // rest in its background (schemes 4, 9, 10: yellow, black, red on light grey). Then the warning levels, a 1-px
+        // line at top + (100 - level) * height / 100: the yellow ant's G:0FBA in black, the colony's hunger level
+        // G:0FFE on the black bar through the driver's XOR fill (DS:913C; colour index ^ 15 assumed).
         var values = new[] { st.S16(Seg.G, 0xf78), st.S16(Seg.G, 0x10be), st.S16(Seg.G, 0x1fe) };
         for (int i = 0; i < 3; i++)
-            UiArt.VGauge(win, ItemRect(EditWin, 17 + i), values[i] / 100.0, colours[i]);
+        {
+            var (l, t, r, b) = ItemRect(EditWin, 17 + i);
+            var (fg, bg) = ui.SchemeOf(ui.Layouts[EditWin].Items[17 + i]);
+            int y = b - (int)((long)(b - t) * values[i] / 100);
+            win.Fill(l, t, r, Math.Min(Math.Max(y, t), b), bg);
+            win.Fill(l, Math.Min(Math.Max(y, t), b), r, b, fg);
+        }
+        {
+            var (l, t, r, b) = ItemRect(EditWin, 17);
+            int y = (100 - st.S16(Seg.G, 0xfba)) * (b - t) / 100 + t;
+            win.Fill(l, y, r, y + 1, session.Art.Palette[15]);
+            (l, t, r, b) = ItemRect(EditWin, 18);
+            y = (100 - st.S16(Seg.G, 0xffe)) * (b - t) / 100 + t;
+            for (int x = Math.Max(l, win.L); x < Math.Min(r, win.R); x++)
+                if (y >= win.T && y < win.B)
+                {
+                    int k = Array.IndexOf(session.Art.Palette, win.Px[y * win.Stride + x]);
+                    if (k >= 0) win.Px[y * win.Stride + x] = session.Art.Palette[k ^ 15];
+                }
+        }
         if (help)
         {
             var it = ui.Layouts[EditWin].Items.First(x => x.Bitmap == 15001);
             ui.DrawBitmap(win, 15001, it.Rect.left + dx, it.Rect.top + dy);
         }
+    }
+
+    // f_6776f, the Edit window's MAP button: window 20 (64,44 .. 196,112) pops up with the Edit view's whole map at 1 px
+    // per cell in its item 0x1401 (f_674ee: 128 x 64 cells, a nest 64 wide at offset 32 with black margins; the Map
+    // window's scent layer T:07C8 4..8 drawn instead, f_2f8ca) and the Edit window's area as an XOR frame (f_678d8). A
+    // press released over the MAP button closes it and opens the Map window (f_0148a: open, else to the front);
+    // otherwise it stays: a press in the map (dragging while held) recentres the Edit window there (f_034c4). The game
+    // waits meanwhile (a local event loop). A press outside it closes it (the window library's pop-up; assumed).
+    const int MiniMapWin = 20;
+    bool miniMap, miniMapPress, miniMapDrag;
+
+    (int l, int t, int w, int off) MiniMapArea()
+    {
+        var (l, t, _, _) = ui.Layouts[MiniMapWin].Items[1].Rect;
+        int w = MapRenderer.Width(view);
+        return (l, t, w, w == 0x40 ? 32 : 0);
+    }
+
+    void DrawMiniMap(UiArt.Canvas c)
+    {
+        var st = session.St;
+        ui.DrawWindow(c, MiniMapWin, 0, 0, null);
+        var (l, t, w, off) = MiniMapArea();
+        var item = ui.Layouts[MiniMapWin].Items[1].Rect;
+        c.Fill(item.left, item.top, item.right, item.bottom, session.Art.Palette[15]);
+        int content = MapContent;
+        for (int b = 0; b < MapRenderer.Height; b++)
+            for (int a = 0; a < w; a++)
+            {
+                int k;
+                if (content >= 4 && content <= 8)
+                {
+                    int v = MapRenderer.Scent(st, MapRenderer.ScentMode(content), a, b);
+                    k = MapRenderer.DitherIndex(session.Files.Flat, v == 0 ? 0x0b : 0x10 + (v >> 5), (a >> 2) & 1, a & 3, b);
+                }
+                else k = MapRenderer.MapColour(st, view, a, b);
+                c.Plot(l + off + a, t + b, session.Art.Palette[k]);
+            }
+        int fl = l + off + originA, ft = t + originB, fr = fl + Cols, fb = ft + Rows;
+        c.Clip(item.left, item.top, item.right, item.bottom).Invert(fl, ft, fr, ft + 1);
+        c.Clip(item.left, item.top, item.right, item.bottom).Invert(fl, fb - 1, fr, fb);
+        c.Clip(item.left, item.top, item.right, item.bottom).Invert(fl, ft + 1, fl + 1, fb - 1);
+        c.Clip(item.left, item.top, item.right, item.bottom).Invert(fr - 1, ft + 1, fr, fb - 1);
+    }
+
+    void MiniMapRelease(Vector2 p)
+    {
+        miniMapPress = false;
+        var (l, t, r, b) = ItemRect(EditWin, 5);
+        if (p.X >= l && p.X < r && p.Y >= t && p.Y < b) { miniMap = false; Front(MapWin); }
+    }
+
+    void MiniMapPress(Vector2 p)
+    {
+        var (l, t, r, b) = ui.Layouts[MiniMapWin].Rect;
+        if (p.X < l || p.X >= r || p.Y < t || p.Y >= b) { miniMap = false; return; }
+        miniMapDrag = MiniMapAt(p);
+    }
+
+    bool MiniMapAt(Vector2 p)
+    {
+        var (l, t, w, off) = MiniMapArea();
+        var item = ui.Layouts[MiniMapWin].Items[1].Rect;
+        if (p.X < item.left || p.X >= item.right || p.Y < item.top || p.Y >= item.bottom) return false;
+        int a = (int)p.X - l - off, b = (int)p.Y - t;
+        if (a >= 0 && a < w) { CenterOn(a, b); follow = false; }
+        return true;
     }
 
     void EditWindowClick(int index, InputEventMouseButton mb)
@@ -426,11 +516,14 @@ public partial class Main : Node2D
         switch (index)
         {
             case EditMapItem: EditMapClick(mb); break;
-            case 5:                                                                  // MAP: open / close the Map window
-                if (zOrder.Contains(MapWin)) zOrder.Remove(MapWin);
-                else Front(MapWin);
+            case 5: miniMap = true; miniMapPress = true; break;                      // MAP: f_6776f, window 20
+            case 6: help = helpHeld = true; break;                                   // ?: f_714ab(2), while held
+            case 17: case 18:                                                        // f_68044 / f_68002: the warning levels
+            {
+                var (_, t, _, b) = ItemRect(EditWin, index);
+                st.Set16(Seg.G, index == 17 ? 0xfba : 0xffe, (b - (int)mb.Position.Y) * 100 / (b - t));
                 break;
-            case 6: help = !help; break;
+            }
             case 7: ExperimentalMenu(); break;
             case 8: SetView(1); break;
             case 9: SetView(2); break;
@@ -751,7 +844,8 @@ public partial class Main : Node2D
             case >= 24 and <= 30: popReport = true; break;                               // held: the population report
             case 19: ToggleWindow(HistoryWin); break;
             case 20: OpenEfficiency(); break;
-            case 22: case 23: ExperimentalMenu(); break;
+            case 22: st.Set16(Seg.G, 0x1074, 1); help = helpHeld = true; break;         // ?: G:1074 = 1, f_714ab(0x103) while held
+            case 23: ExperimentalMenu(); break;                                         // 0x117 → f_2f88e
             case 21: OpenAntipedia(); break;                                            // 0x115 → thunk 0x2f9b0 → f_78db9
         }
     }
@@ -2755,6 +2849,7 @@ public partial class Main : Node2D
                 else if (win == YardWin) DrawYardWindow(canvas);
                 else DrawControlWindow(canvas, win);
             if (popReport) DrawPopulationReport(canvas);
+            if (miniMap) DrawMiniMap(canvas);
             DrawMenuBar(canvas);
             if (modal == EfficiencyWin) DrawEfficiency(canvas);
             if (modal == AntInfoWin) DrawAntInfo(canvas);
@@ -2807,6 +2902,11 @@ public partial class Main : Node2D
             ToolMove(dm.Position, dm);                                          // the tool drag loop f_76f4a
             return;
         }
+        if (ev is InputEventMouseMotion mn && miniMapDrag)
+        {
+            MiniMapAt(mn.Position);
+            return;
+        }
         if (ev is InputEventMouseMotion md && mapDrag)
         {
             var (x0, y0) = MapOrigin();
@@ -2823,6 +2923,9 @@ public partial class Main : Node2D
         {
             dragWin = triangleDrag = -1;
             mapDrag = false;
+            if (helpHeld) help = helpHeld = false;
+            if (miniMapPress) MiniMapRelease(up.Position);
+            miniMapDrag = false;
             popReport = false;
             cardPopup = null;                                                   // f_78e1c waits for the release
             toolDrag = false;
@@ -2830,6 +2933,11 @@ public partial class Main : Node2D
         }
         if (ev is InputEventMouseButton mb && mb.Pressed)
         {
+            if (miniMap)
+            {
+                MiniMapPress(mb.Position);
+                return;
+            }
             if (modal == SavePrompt)
             {
                 if (mb.ButtonIndex == MouseButton.Left) SavePromptClick(ui.HitTest(SavePrompt, 0, 0, (int)mb.Position.X, (int)mb.Position.Y));
