@@ -194,6 +194,11 @@ window's tool strip", "The file dialog", the game-flow notes on the win screen a
   global timeout `f_01277` / `f_012c4`); the title closes after 40 s, game over after 100 s;
 - the original's mouse cursor (HCEGANT type 8 + type 7 mask) is drawn into the screen; the shell's debug status lines
   are off unless F12.
+- the fight and death animations (`f_7c149` / `f_7c3b1`) ran invisibly inside one tick: the sim now marks their
+  frames ("anim_begin" / "anim_frame" / "anim_end", trace tests unaffected: 126 passed), `SessionHooks` keeps a
+  State copy per frame with its sounds, and the shell replays them in the Edit window, 6 clock3 units each;
+- no continuous "follow": `f_01c52` recentres once (Options > AutoTrack, T:07A8, makes the walk call it every step);
+  new and loaded games centre on the yellow ant; Load from Select a Game returns to the dialog when nothing loads.
 
 **Performance:** the C# SimStep runs well over 10,000 ticks per second, so the original's "fast" speed is
 bounded only by drawing (`GameSession.FastDelay`).
@@ -506,9 +511,14 @@ c61ae20 Help buttons of the History, Behavior / Caste and yard windows show thei
 293b0fa Edit window caption as f_03bfd (SimAnt - <mode>); the shell's debug lines off unless F12 / --status
 7ad2b8c Edit view switches as f_01aec: per-view centres (G:0596 / 06A6 / 072E), the Map window follows; go-to buttons
 58c35ff Edit window tool strip as f_0310f: the MAP pop-up (window 20), the health bars' warning levels, ? while held
+1d1aa34 No continuous follow: f_01c52 recentres once (AutoTrack makes the walk call it each step)
+a8d77dc Load from Select a Game (or with no game running) returns to the dialog when it loads nothing
+b762da7 Fight and death animations replayed in the Edit window (the sim marks f_7c149 / f_7c3b1's frames)
+414bb64 Handoff: the handler audit (file dialog, tool strip, scenes, win screen, cursor)
 6850492 File dialog as f_6c566 draws it: folders, drives, path line, the list and its scroll bar; Save / Save As, OVERWRITE
 ```
-Usage: this session ran from 3% to about 65% of the 5-hour window (weekly 31% → 38%).
+Usage: this session ran from 3% to about 80% of the 5-hour window (weekly 31% → 41%); a screen piece costs
+3-6% early in a session and more as the context grows.
 
 2026-10-19, later (screen details, all decoded from the VGA driver):
 ```
