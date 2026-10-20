@@ -14,7 +14,11 @@ public sealed record LayoutItem(int Id, (int left, int top, int right, int botto
 }
 
 /// <summary>A window layout: its screen rectangle (640 x 480) and items.</summary>
-public sealed record WindowLayout(int Id, (int left, int top, int right, int bottom) Rect, List<LayoutItem> Items);
+public sealed record WindowLayout(int Id, (int left, int top, int right, int bottom) Rect, List<LayoutItem> Items)
+{
+    /// <summary>The header's flags at +1C (u16): the decorations f_2271d draws (UiArt.DrawDecorations).</summary>
+    public int Flags { get; init; }
+}
 
 /// <summary>Window / dialog layouts (HCEGANT type 0; tools/layouts.py, FILE_FORMATS "Window layouts").
 /// Layout n is window n. Header (0x2C bytes): +00 rect, +0C u16 item count, +0E u16 resource size, +2C item
@@ -68,7 +72,7 @@ public static class Layouts
             int length = U(b, o + 0x22);
             items.Add(DecodeItem(b.Slice(o, Math.Min(length, b.Length - o))));
         }
-        return new WindowLayout(id, (S(b, 0), S(b, 2), S(b, 4), S(b, 6)), items);
+        return new WindowLayout(id, (S(b, 0), S(b, 2), S(b, 4), S(b, 6)), items) { Flags = b[0x1c] | b[0x1d] << 8 };
     }
 
     /// <summary>Every window layout (ids below 128) of the player's HCEGANT archive.</summary>

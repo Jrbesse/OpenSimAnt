@@ -207,6 +207,7 @@ public sealed class UiArt
         var clip = c.Clip(wl + dx, wt + dy, wr + dx, wb + dy);
         clip.Fill(wl + dx, wt + dy, wr + dx, wb + dy, Grey);
         DrawItems(clip, w, dx, dy, title, hidden);
+        DrawDecorations(clip, w, dx, dy);
     }
 
     /// <summary>
@@ -228,7 +229,30 @@ public sealed class UiArt
             int b = a[3] is 4 or 5 ? rect.b + it.Size.h : t + it.Size.h;
             items.Add(it with { Rect = (l, t, r, b) });
         }
-        return new WindowLayout(id, (rect.l, rect.t, rect.r, rect.b), items);
+        return new WindowLayout(id, (rect.l, rect.t, rect.r, rect.b), items) { Flags = w.Flags };
+    }
+
+    /// <summary>f_2271d, the window's decorations by the header flags (+1C / +1D) inside the window less its first
+    /// item's thickness (+28): bit 2 the close box 100 at the top left (the left edge moves past it), bit 4 bitmap 101
+    /// there, bit 3 the grow box 112 at the bottom right; +1D bit 0 the zoom box at the top right (102 with +1C bit 7,
+    /// else 103; the right edge moves left of it), +1D bit 2 bitmap 105 left of that. Checked on the original's
+    /// screen (the Edit window: close, 105, 103 and the grow box).</summary>
+    public void DrawDecorations(Canvas c, WindowLayout w, int dx = 0, int dy = 0)
+    {
+        if (w.Items.Count == 0) return;
+        int th = w.Items[0].Style;
+        int l = w.Rect.left + dx + th, t = w.Rect.top + dy + th, r = w.Rect.right + dx - th, b = w.Rect.bottom + dy - th;
+        int f = w.Flags;
+        if ((f & 4) != 0) { DrawBitmap(c, 100, l, t); l += Bitmap(100).w; }
+        if ((f & 8) != 0) { var (gw, gh, _) = Bitmap(112); DrawBitmap(c, 112, r - gw, b - gh); }
+        if ((f & 0x100) != 0)
+        {
+            int z = (f & 0x80) != 0 ? 102 : 103;
+            r -= Bitmap(z).w;
+            DrawBitmap(c, z, r, t);
+        }
+        if ((f & 0x10) != 0) DrawBitmap(c, 101, l, t);
+        if ((f & 0x400) != 0) { r -= Bitmap(105).w; DrawBitmap(c, 105, r, t); }
     }
 
     /// <summary>Draw a (re-laid) layout's items, no background fill.</summary>
