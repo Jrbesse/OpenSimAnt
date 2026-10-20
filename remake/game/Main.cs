@@ -2617,7 +2617,7 @@ public partial class Main : Node2D
             var lr = ItemRect(win, 9 + i);
             clip.Fill(lr.l, lr.t, lr.r, lr.b, UiArt.White);
             string text = percent ? $"{(100 * w + 0x3fff) / 0xffff}%" : $"{(w * total + 0x3fff) / 0xffff}";
-            ui.DrawText(clip, 2, 0, lr.l, lr.t - 1, lr.r, lr.b + 1, text);
+            ui.DrawText(clip, 4, 0, lr.l, lr.t - 1, lr.r, lr.b + 1, text);              // f_083d9: font 4 (0 at 320 px)
         }
         if (help)
         {
