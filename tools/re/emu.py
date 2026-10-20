@@ -77,14 +77,19 @@ class SimEmu:
         uc.hook_add(UC_HOOK_MEM_READ, self._on_game_clock_read, None, self.game_clock, self.game_clock + 1)
 
     # ---------------------------------------------------------------- hardware stubs
+    vga = None                                    # a vga.VGA takes the port I/O when attached
+
     def _on_in(self, uc, port, size, user):
+        if self.vga:
+            return self.vga._on_in(uc, port, size, user)
         if port == 0x3da:                         # VGA input status: toggle retrace bits
             self.ticks += 1
             return 0x09 if self.ticks & 1 else 0x00
         return 0xff if size == 1 else 0xffff
 
     def _on_out(self, uc, port, size, value, user):
-        pass
+        if self.vga:
+            self.vga._on_out(uc, port, size, value, user)
 
     def _on_bios_timer_read(self, uc, access, address, size, value, user):
         if address == 0x46c:
@@ -158,6 +163,8 @@ class SimEmu:
         if intno == 0x21:
             return self._dos(uc, ah, al, ax, bx, cx, dx, ds)
         if intno == 0x10:                         # video BIOS
+            if self.vga and self.vga.int10(uc, ax, bx, cx, dx, r(UC_X86_REG_ES)):
+                return
             if ah == 0x00:
                 self.video_mode = al
             elif ah == 0x0f:
