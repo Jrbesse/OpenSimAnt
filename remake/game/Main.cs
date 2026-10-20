@@ -107,6 +107,7 @@ public partial class Main : Node2D
         if (OS.GetCmdlineUserArgs().Contains("--yard")) OpenYard(false);
         if (OS.GetCmdlineUserArgs().Contains("--scent-menu")) OpenScentMenu();
         if (OS.GetCmdlineUserArgs().Contains("--mini-map")) miniMap = true;
+        if (OS.GetCmdlineUserArgs().Contains("--win")) { StartWin(); winPhase = 2; winSong = 0x4e25; winFrame = 1; }
         if (OS.GetCmdlineUserArgs().Contains("--trails")) session.St.Set16(Seg.DS, 0x2994, 1);
         if (OS.GetCmdlineUserArgs().Contains("--report")) popReport = true;
         if (OS.GetCmdlineUserArgs().Contains("--exp-menu")) ExperimentalMenu();
@@ -258,12 +259,13 @@ public partial class Main : Node2D
             session.Hooks.YardMapWanted = false;
             OpenYard(true);
         }
-        if (!session.Over && !yardChoose && modal < 0 && menuOpen < 0 && !miniMap && !helpHeld && session.Advance(delta) > 0) balloonsNow.Clear();
+        if (!session.Over && !yardChoose && modal < 0 && menuOpen < 0 && !miniMap && !helpHeld && winPhase == 0 && session.Advance(delta) > 0) balloonsNow.Clear();
         ToolPoll();
         ToolHold(delta);
         PendingClick(delta);
         ScrollPoll(delta);
         FilePoll(delta);
+        WinPoll(delta);
         SongPoll();
         DrainEffects();
         if (follow) CenterOnYellow();
@@ -319,6 +321,7 @@ public partial class Main : Node2D
                 OpenAntInfo((int)e.Args[0], (int)e.Args[1]);
             else if (e.Name == "balloon" && e.Args.Length >= 5 && e.Args[4] is ValueTuple<int, int> line)
                 balloonsNow.Add(((int)e.Args[0], (int)e.Args[1], (int)e.Args[2], BalloonText(line.Item1, line.Item2)));
+            else if (e.Name == "win_screen") StartWin();
             else if (e.Name == "game_over" && e.Args.Length >= 2)
             {
                 // f_71d95's rating window: the rank's title (STR# 1900 = G:0328) and the score (Game.Rating). f_71d95
@@ -2568,6 +2571,69 @@ public partial class Main : Node2D
         Front(YardWin);
     }
 
+    // ------------------------------------------------------------------------------- the win screen (f_2f91a → f_72750)
+    // The Full Game won (and the 'fred' cheat): the yard window opens in its Yard view (f_01447, f_01823(0), the Edit
+    // view the yard, f_01aec(0)); f_011e5(150) waits 150 clock ticks or for any event; then window 26 opens with
+    // bitmap 16200 (f_23557: the human, the cat and the dog; the picture at 153, 85, the frame 2 px around it) and
+    // f_01277(10) starts a 10-second timeout (180 ticks). Until a key (f_01572), the timeout, or 600 clock3 units: the
+    // songs 0x4E23 and 0x4E24 one after the other (f_00ea1 when f_00f28 says the music is idle), and every 8 clock3
+    // units the six eyes, bitmaps 16210 + frame (0, 1, 2 in turn) at DS:2C2C's (x, y) pairs + the picture's corner.
+    // Then f_011e5(300): until 300 ticks, an event or the timeout; the window closes. The game waits meanwhile.
+    const int WinWin = 26;
+    static readonly (int x, int y)[] WinEyes = { (72, 74), (87, 66), (175, 64), (191, 66), (159, 122), (179, 124) };
+    int winPhase, winFrame, winSong;
+    double winTime, winSince, winEyeTime;
+
+    void StartWin()
+    {
+        session.St.Set16(Seg.G, 0x35c, 0);                                     // f_01823(0)
+        OpenYard(false);
+        winPhase = 1;
+        winTime = 0;
+    }
+
+    void WinPoll(double delta)
+    {
+        if (winPhase == 0) return;
+        winTime += delta;
+        double ticks = winTime * GameSession.ClockHz;
+        if (winPhase == 1 && ticks >= 150) WinNext();
+        else if (winPhase == 2)
+        {
+            winSince += delta;
+            if (winSong < 0x4e25 && (!session.Option(1) || !AudioReady() || !mixer.Driver.Playing)) PlaySong(winSong++);
+            winEyeTime += delta;
+            if (winEyeTime * GameSession.ClockHz * 3 >= 8) { winEyeTime = 0; winFrame = (winFrame + 1) % 3; }
+            if (winSince * GameSession.ClockHz >= 180 || ticks * 3 >= 600) WinNext();
+        }
+        else if (winPhase == 3 && (ticks >= 300 || winSince * GameSession.ClockHz >= 180)) WinNext();
+    }
+
+    /// <summary>The next step of the win screen; `key` when a key (f_01572) or any event (f_21cb8) ended the wait.</summary>
+    void WinNext(bool key = false)
+    {
+        winTime = 0;
+        switch (winPhase)
+        {
+            case 1: winPhase = 2; winSince = 0; winEyeTime = 0; winFrame = 0; winSong = 0x4e23; break;
+            case 2: winPhase = 3; break;
+            default: winPhase = 0; break;
+        }
+        if (winPhase == 3 && !key) winPhase = 0;                              // the timeout has passed: f_011e5 returns at once
+    }
+
+    void DrawWin(UiArt.Canvas c)
+    {
+        if (winPhase < 2) return;
+        var (w, h, _) = ui.Bitmap(16200);
+        int x = 153, y = 85;
+        c.Fill(x - 2, y - 2, x + w + 2, y + h + 2, UiArt.Grey);
+        UiArt.ThickFrame(c, x - 2, y - 2, x + w + 2, y + h + 2, 2, UiArt.Black);
+        ui.DrawBitmap(c, 16200, x, y);
+        if (winPhase == 2)
+            foreach (var (ex, ey) in WinEyes) ui.DrawBitmap(c, 16210 + winFrame, x + ex, y + ey);
+    }
+
     void CloseYard()
     {
         if (yardChoose) return;
@@ -2876,6 +2942,7 @@ public partial class Main : Node2D
             if (modal == GameOverWin) DrawGameOver(canvas);
             if (modal == FileWin) DrawFileDialog(canvas);
             if (modal == AlertWin) DrawAlert(canvas);
+            DrawWin(canvas);
             if (modal == TitleWin) canvas.Fill(0, 0, ScreenW, ScreenH, UiArt.Black);
             if (modal is TitleWin or AboutWin) ui.DrawWindow(canvas, modal, 0, 0, null);
             if (modal == 11) ui.DrawWindow(canvas, 11, 245, 200, null);       // "not available in the full game"
@@ -2954,6 +3021,11 @@ public partial class Main : Node2D
                 MiniMapPress(mb.Position);
                 return;
             }
+            if (winPhase != 0)                                                  // f_011e5 ends on any event; f_72750's loop only on a key
+            {
+                if (winPhase != 2) WinNext(true);
+                return;
+            }
             if (modal == SavePrompt)
             {
                 if (mb.ButtonIndex == MouseButton.Left) SavePromptClick(ui.HitTest(SavePrompt, 0, 0, (int)mb.Position.X, (int)mb.Position.Y));
@@ -3021,6 +3093,11 @@ public partial class Main : Node2D
             if (modal == AlertWin)
             {
                 AlertKey(k);
+                return;
+            }
+            if (winPhase != 0)
+            {
+                WinNext(true);
                 return;
             }
             if (modal == GameOverWin)                                           // f_71d95: any event closes it

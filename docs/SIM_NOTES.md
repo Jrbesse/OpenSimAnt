@@ -1057,7 +1057,16 @@ G:0AF6 / G:0B04 += 1, population counters.
   then the new-game dialog `f_725b6`: buttons 0x202 Quick (1), 0x203 Full (2), 0x204 experimental (3),
   0x206 tutorial (0), 0x205 quit, 0x207 load; then G:0EAC = mode, G:0354 = 1, G:07C8 = 0, `f_6b36b`;
   tutorial: T:07A4 = 1, T:07A6 = 0.
-- Win screen `f_2f91a` → `f_72750`: an animation only.
+- Win screen `f_2f91a` → `f_72750` (decoded 2026-10-20; also the 'fred' cheat): the yard window in its Yard view
+  (`f_01447`, `f_01823(0)`, `f_01aec(0)`), `f_011e5(150)` (wait 150 clock ticks, or any event, or the timeout of
+  `f_01277`); window 26 with its picture item set to 16200 (`f_23557(0x1A01, 16200)`: the human, the cat and the
+  dog; layout 26 shrink-wraps a 2-px frame around the picture at 153, 85; 320-px mode moves it); `f_01277(10)`: a
+  10-second timeout (DS:8BAC = 180 ticks). Loop until `f_01572` (a key, or that timeout) or clock3 + 600: when
+  `f_00f28` reports the music idle, songs 0x4E23 then 0x4E24 (`f_00ea1(n, 0x7E)`); every 8 clock3 units the six
+  eyes, bitmaps 16210 + frame (0..2 in turn) at the picture's corner + DS:2C2C's (x, y) pairs (72, 74), (87, 66),
+  (175, 64), (191, 66), (159, 122), (179, 124). Then `f_011e5(300)` and the window closes (`f_214b5(0x1A00)`).
+- `f_011e5(n)`: waits until n clock ticks pass, an event arrives (`f_21cb8`) or `f_01572` is true. `f_01277(s)`:
+  flushes the mouse buttons and starts an s-second timeout that `f_012c4` / `f_01572` report.
 
 ## The tutorial (`f_0e425`, `f_0e4e4`, `f_0e93e`, segment 0e2e; ported: `simant_ref/tutorial.py`, verified by `test_tutorial.py`)
 

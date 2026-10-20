@@ -177,7 +177,7 @@ The windows:
 | 23 | | 14002 |
 | 24 | status ("%d%%" fields) | 13000 |
 | 25 | the yard (`f_702f7`): house 7000 + lawn 7003 (items 0x1903 / 0x190F), toolbar 7010 (0x1904), its help overlay 7011, the yard picture item 0x1902 (7002; G:10D2 / G:10D4 = its corner + (1, 0)), grid area 0x1914 | 7000, 7002, 7003, 7010, 7011 |
-| 26 | | 2100 |
+| 26 | the win screen (`f_72750`): its picture is set to 16200 at run time, the eyes 16210..16212 drawn over it | 2100 (unused) |
 | 27 / 30 | "Click here to continue" boxes | |
 | 28 | DEBUG | |
 | 31 | about box | 3000, 3001 |

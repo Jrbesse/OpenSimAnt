@@ -21,7 +21,11 @@ public class SessionHooks : PlayerHooks
     }
 
     public override int? NewGameDialog(State st) => null;
-    public override void WinScreen(State st) => WinShown = true;
+    public override void WinScreen(State st)
+    {
+        WinShown = true;
+        Effect(st, "win_screen");                                               // the shell plays f_72750
+    }
     public override void ChoosePatch(State st) => YardMapWanted = true;
 
     public override void Effect(State st, string name, params object[] args)

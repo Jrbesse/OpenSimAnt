@@ -146,6 +146,11 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 - [ ] Effects and music together: an effect may briefly take a music voice, as in the original.
 - [ ] Options > Music off stops the song; Ctrl+K turns the effects off and on.
 
+## 9. Winning a Full Game (or the cheat 'fred')
+
+- [ ] The yard window opens (Yard view) for a few seconds, then the picture of the fleeing human, cat and dog with
+  spinning eyes and two songs; a key ends it early, otherwise it closes after about 10 seconds.
+
 ## Known gaps (don't report these)
 
 The help (empty in the DOS version anyway); exact frame styles. The balance between the sampled effects and the FM music
