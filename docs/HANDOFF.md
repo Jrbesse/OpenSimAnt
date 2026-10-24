@@ -1,8 +1,9 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-20 (morning: the original's own screens through a VGA model in the emulator; the night
-before: the handler audit).
+old transcript. Last updated 2026-10-24 (the remake's screens compared with the original's on the same game State: ten
+captures, eight pixel-identical; before that, 2026-10-20: the original's screens through a VGA model in the emulator, and the
+handler audit).
 
 ## Goals (from the owner)
 
@@ -200,6 +201,38 @@ screens (drive the emulator with `e.mouse_event(cond, x, y, buttons)` and `e.run
 each one; for state-independent comparisons, load the same saved game in both (`emu` can serve a file; the shell
 has `--load`-like flags to add).
 
+**2026-10-24: screens compared on the same game State.** `screens.py` now writes, beside each capture, `<name>.state`
+(the State bytes 0x3d570..0x62000 at that moment) and `<name>.msg` (the timed message's text, DS:19C6 points into the far
+heap); the shell's `--state=<file>` loads them and holds the game still (view / origin from G:032E / G:0508 / G:050A), so a
+diff shows only drawing differences. `python tools/re/compare_screens.py [names]` screenshots the remake on every capture
+with the flags that open the same windows in the same order (`--history`, `--map-front`, `--panels`, `--antipedia`,
+`--yard` now front their windows after the start-up ones, in command-line order; `--cursor=x,y`) and diffs it (outputs in
+`build/screens/remake`). Captures (menu commands through the game's mouse handler): quick, surface, rednest, history,
+mapfront, status, closed, panels, info, yard (+ boot / menu / menu_window / menu_view without comparisons). **Result: 8 of
+10 pixel-identical**; surface differs in the Map window's red ants (the original's Map window shows an older frame: it
+is not redrawn every tick, cadence not decoded), yard in 9 sprite pixels (an animation frame). Fixed from the diffs:
+- fonts (`BitmapFont`, `UiArt`): an Apple FONT's height is fRectHeight - 1 (`f_262eb`) and its strike is drawn from y - 1;
+  a negative kernMax (FONT1, FONT4) adds 1 to every advance and draws each glyph at the pen, its offset ignored
+  (`f_2616e`, `f_2632e`); a missing glyph takes the missing-glyph entry; layout text (`f_21fa2`) centres as
+  (t + b - h) / 2, values (`f_23943` → `f_232ae` → `f_20a0f`, `UiArt.DrawValue`) as t + (b - t - h) / 2, clipped to the
+  item; text is clipped on all sides; font 0 is always the BIOS font's 8 x 14 cells (SHARED's font 0 stands in for the
+  ROM glyphs, as in vga.py);
+- the triangles' marker is a sprite of bitmap 1400 (14 x 14, centred; `f_080d1` / `f_08255`); the Edit grow box stays above
+  the map; the population counts fill only their item;
+- the timed message: box = the text's extent, height fRectHeight - 1; the Map window draws the copy too (`f_6efd6`);
+- the Map window frames the Edit window's area with a 2-px XOR frame (`f_6e702`, DS:298E; `f_01024` erases it before
+  the view moves or a window changes, so it is off while a modal window runs);
+- the Status window: the colony fields format their own text (`f_2318a`) in their font (0), the rest are values in font 4;
+- the SimAntipedia is an ordinary window at 640 px (`f_21cc1`'s loop only at 320): the game runs, others come in front;
+  its line height uses the fonts' fRectHeight - 1;
+- the yard window: item 0x1914 is the message strip, not filled in the Yard / House views; the House view shows 7001
+  (`f_01823`: 7000 + mode); the player's patch is XOR-filled in every view and game (`f_6f983` → `f_70a7d`; the shell's
+  yellow Full-Game marker is gone); the view's button from DS:1984; AUTOMATIC / MANUAL keep their own radio selection
+  (layout flag +24 bit 2 = initially selected; clicks; PLACE selects MANUAL), independent of T:02C0; the Edit map shows
+  the surface while the view is the yard (G:032E = 0) and its view buttons keep their selection.
+Open from this: `f_01823` swaps the Map window for the yard window in place (`f_211af(0x100, 0x1900)`) when the Map is
+open; the shell keeps both (the yard covers the Map exactly, so the screens agree). The Map window's redraw cadence.
+
 **2026-10-20 night: an audit of the shell against the original's handlers.** Comparing each window's event
 handler (jump tables) and every sim effect with what the shell did found real gaps, now fixed (SIM_NOTES "The Edit
 window's tool strip", "The file dialog", the game-flow notes on the win screen and window 26):
@@ -236,10 +269,14 @@ fresh window (weekly 5% → 12%): a screen piece costs 5-10%, the tutorial (RE +
 traces + C# + shell) about 15%.
 
 Suggested next session (in order):
-0. Keep comparing screens with the original (`tools/re/screens.py` + `pngdiff.py`, see above): the Map window
-   (nest-view width, the toolbar), the yard window, History, the SimAntipedia, message boxes, the file dialog, the
-   game-over and win screens. Add captures to `screens.py` as needed (clicks through the game's handler). Note the
-   ROM font: font-0 text cannot be compared glyph for glyph.
+0. Keep comparing screens (2026-10-24 workflow: `python tools/re/screens.py` (~3 min), `dotnet build
+   remake/game/Formica.csproj`, `python tools/re/compare_screens.py`; look at `build/screens/remake/<name>_diff.png`).
+   Not yet captured: the menus with a State (menu / menu_window / menu_view are written without one), Strat / Graphic /
+   House yard views, the Map window's scent maps and its surface view in front, a SimAntipedia topic card and a glossary
+   pop-up, the Experimental game and its tool palettes, message boxes (Events), the file dialog (File > Load), the
+   pop-up menu of the yellow ant, Ant Info, the game-over and win screens. Add each to `screens.py` (clicks through the
+   game's handler, `choose(e, x, y)` for menu items) and its flags to `compare_screens.py`'s FLAGS. Note the ROM font:
+   font-0 text cannot be compared glyph for glyph (vga.py's stand-ins are SHARED's font 0, as the shell's are).
 1. Ask the owner for their play-test results (`docs/PLAYTEST.md`, updated tonight); fix what they report first.
    Still not played by a human.
 2. Continue the handler audit where it stopped: the yard window's handler `f_6f7f0` (decoded earlier, re-check against
@@ -530,6 +567,13 @@ downloads need a GitHub login until the owner decides about making it public. Go
   there rather than guess.
 
 ## Commit log since the last summary
+
+2026-10-24 (screens compared on the same State):
+```
+e61a910 SimAntipedia and yard window as on the original's screen; compare_screens.py runs every comparison
+787551a Five more screens identical to the original's: surface / red nest views, History, the Map window in front, Status
+5e669d0 Start screen identical to the original's: the triangles' marker sprite (bitmap 1400, f_080d1 / f_08255), text clipped to its item (f_232ae), the grow box above the map; --state loads the original's memory
+```
 
 2026-10-20 morning (the rest of the audit; the original's screens):
 ```
