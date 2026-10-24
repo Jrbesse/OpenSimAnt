@@ -137,6 +137,7 @@ public partial class Main : Node2D
                 OpenAntipedia();
                 var a = arg.Contains('=') ? arg[(arg.IndexOf('=') + 1)..].Split(',').Select(int.Parse).ToArray() : Array.Empty<int>();
                 if (a.Length > 0) ShowCard(a[0]);
+                else if (frozen) ShowCard(session.St.U16(Seg.DS, 0x2e26));    // --state: the card it shows (DS:2E26)
                 if (a.Length > 2) AntipediaPress(a[1], a[2]);
             }
         if (OS.GetCmdlineUserArgs().Contains("--load-dialog")) OpenFileDialog(false);
@@ -1604,7 +1605,7 @@ public partial class Main : Node2D
         var (fr, _, _) = menus.Box(menuOpen);
         int w = menus.Width(menuOpen);
         int l = fr.l - 8, t = fr.t - 3, r = l + 8 * w + 11, b = fr.b + 3, x = l + 16, y = t + 3;
-        c.Fill(l, t, r, b, MenuText);
+        c.Fill(l + 5, t, r, b, MenuText);                                       // a 2-px frame on every side (the original's screen)
         c.Fill(l + 7, t + 2, r - 2, b - 2, MenuBack);
         for (int i = 0; i < menus.Items[menuOpen].Length; i++)
         {
@@ -3199,8 +3200,8 @@ public partial class Main : Node2D
         var hidden = new List<int> { 7011 };
         if (mode >= 1) hidden.Add(7000);                                   // f_01823: item 0x1903 shows 7000 + mode
         if (mode >= 2) hidden.Add(7003);
-        // item 0x1914 (the strip above the colony views) is not drawn in the Yard / House views (the original's screen)
-        ui.DrawWindow(c, YardWin, dx, dy, Title(9 + Math.Clamp(mode, 0, 3)), hidden, mode < 2 ? new[] { 0x1914 } : null);
+        // item 0x1914 is the message's strip (f_6fbe8 redraws it after the message), never filled (the original's screen)
+        ui.DrawWindow(c, YardWin, dx, dy, Title(9 + Math.Clamp(mode, 0, 3)), hidden, new[] { 0x1914 });
         var wr = WindowRect(YardWin);
         var clip = c.Clip(wr.l, wr.t, wr.r, wr.b);
         if (mode == 1)
@@ -3216,7 +3217,7 @@ public partial class Main : Node2D
                 ui.DrawBitmap(area, rid, x + ox, y + oy);
         else
         {
-            area.Fill(pic.l, pic.t, pic.r, pic.b, session.Art.Palette[12]);
+            area.Fill(pic.l, pic.t, pic.r - 1, pic.b, session.Art.Palette[13]);    // dark grey, the frame's right line kept (the original's screen)
             int y = ItemRect(YardWin, 20).b;
             foreach (int rid in new[] { 7020, 7021, 7022 })
             {
@@ -3224,6 +3225,9 @@ public partial class Main : Node2D
                 y += ui.Bitmap(rid).h;
             }
             YardRenderer.DrawColonies(area, st, session.Art.Palette, ox, oy, mode == 2);
+            // black lines down both sides of the picture, x = 63 and 576 (the original's screen; not traced to code)
+            clip.Fill(pic.l - 1, pic.t, pic.l, pic.b, UiArt.Black);
+            clip.Fill(pic.r - 1, pic.t, pic.r, pic.b, UiArt.Black);
         }
         // the player's patch (G:07CA / G:07CC): f_702f7 ends with f_6f983, which XOR-fills its parallelogram (f_70a7d) in
         // every view and game

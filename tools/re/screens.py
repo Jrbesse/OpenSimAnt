@@ -65,13 +65,13 @@ def main():
     e.mouse_event(1, 20, 8, 0)                    # File held open
     e.mouse_event(2, 20, 8, 1)
     e.run(200, 200_000_000)
-    v.png(os.path.join(out, 'menu.png'))
+    shot(e, v, os.path.join(out, 'menu.png'))
     e.mouse_event(4, 300, 300, 0)
     e.run(200, 200_000_000)
     # menus held open, then commands chosen from them; each screen with its State
     for x, name in ((90, 'menu_window'), (160, 'menu_view')):
         hold_menu(e, x)
-        v.png(os.path.join(out, name + '.png'))
+        shot(e, v, os.path.join(out, name + '.png'))
         e.mouse_event(4, 600, 470, 0)
         run(e, 200)
     for x, y, name in ((160, VIEW_SURFACE, 'surface'), (160, VIEW_RED, 'rednest'), (160, VIEW_BLACK, None),
@@ -93,6 +93,17 @@ def main():
     run(e, 100)
     choose(e, 160, VIEW_YARD)
     shot(e, v, os.path.join(out, 'yard.png'))
+    for x, name in ((127, 'house'), (167, 'strat'), (206, 'graphic')):    # the yard window's view buttons
+        click(e, x, 357)
+        e.mouse_event(1, 600, 470, 0)
+        run(e, 150, 300_000_000)
+        shot(e, v, os.path.join(out, name + '.png'))
+        print('  ', name)
+    choose(e, 90, WINDOW_INFO)                    # the SimAntipedia to the front, then its "Castes" topic
+    click(e, 335, 324)
+    e.mouse_event(1, 600, 470, 0)
+    run(e, 150, 300_000_000)
+    shot(e, v, os.path.join(out, 'card.png'))
     print('wrote', out)
 
 

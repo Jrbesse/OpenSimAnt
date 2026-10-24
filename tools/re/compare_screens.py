@@ -29,6 +29,13 @@ FLAGS = {
     'panels': ['--history', '--map-front', '--panels'],
     'info': ['--history', '--map-front', '--panels', '--antipedia'],
     'yard': ['--history', '--map-front', '--panels', '--antipedia', '--yard'],
+    'house': ['--history', '--map-front', '--panels', '--antipedia', '--yard'],
+    'strat': ['--history', '--map-front', '--panels', '--antipedia', '--yard'],
+    'graphic': ['--history', '--map-front', '--panels', '--antipedia', '--yard'],
+    'card': ['--history', '--map-front', '--panels', '--yard', '--antipedia'],
+    'menu': ['--menu=0', '--cursor=20,8'],
+    'menu_window': ['--menu=1', '--cursor=90,8'],
+    'menu_view': ['--menu=2', '--cursor=160,8'],
 }
 CURSOR = '--cursor=600,470'                       # screens.py parks the mouse there
 
@@ -48,7 +55,9 @@ def main():
             continue
         shot = os.path.join(out, name + '.png')
         cmd = [godot, '--path', os.path.join(ROOT, 'remake', 'game'), '--', '--state=' + state.replace('\\', '/')]
-        cmd += FLAGS.get(name, []) + [CURSOR, '--screenshot=' + shot.replace('\\', '/')]
+        flags = FLAGS.get(name, [])
+        cmd += flags + ([] if any(f.startswith('--cursor') for f in flags) else [CURSOR])
+        cmd += ['--screenshot=' + shot.replace('\\', '/')]
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
         _, _, a = pngdiff.read_png(os.path.join(SCREENS, name + '.png'))
         _, _, b = pngdiff.read_png(shot)

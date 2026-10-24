@@ -111,7 +111,7 @@ public static class YardRenderer
                         int l = accL >> 16, r = accR >> 16;
                         if (l > r) (l, r) = (r, l);
                         for (int xx = l; xx < r; xx++)
-                            c.Plot(xx, yy, pal[(fill == frame || ((xx + yy) & 1) != 0 ? fill : frame) & 15]);
+                            c.Plot(xx, yy, pal[(fill == frame || ((xx + yy) & 1) == 0 ? fill : frame) & 15]);  // fill where x + y is even (the original's screen)
                         accL -= slopeL;
                         accR -= slopeR;
                     }
