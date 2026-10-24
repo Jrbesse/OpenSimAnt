@@ -9,6 +9,7 @@ remake loads with `-- --state=<file>` to draw the same game (the comparison is t
 goes to a git-ignored folder (default tools/re/build/screens).
 """
 import os
+import struct
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -26,6 +27,13 @@ def shot(e, v, path):
     v.png(path)
     with open(path[:-4] + '.state', 'wb') as f:
         f.write(bytes(e.uc.mem_read(e.base * 16 + LO, HI - LO)))
+    # the timed message's text (f_15e2c: a far pointer DS:19C6 into the far heap, outside the State), if one is set
+    off, seg = struct.unpack('<HH', e.read(0x55b3, 0x19c6, 4))
+    msg = b''
+    if seg or off:
+        msg = bytes(e.uc.mem_read(seg * 16 + off, 256)).split(b'\0')[0]
+    with open(path[:-4] + '.msg', 'wb') as f:
+        f.write(msg)
 
 
 def run(e, polls, max_insns=100_000_000):
@@ -60,7 +68,42 @@ def main():
     v.png(os.path.join(out, 'menu.png'))
     e.mouse_event(4, 300, 300, 0)
     e.run(200, 200_000_000)
+    # menus held open, then commands chosen from them; each screen with its State
+    for x, name in ((90, 'menu_window'), (160, 'menu_view')):
+        hold_menu(e, x)
+        v.png(os.path.join(out, name + '.png'))
+        e.mouse_event(4, 600, 470, 0)
+        run(e, 200)
+    for x, y, name in ((160, VIEW_SURFACE, 'surface'), (160, VIEW_RED, 'rednest'), (160, VIEW_BLACK, None),
+                       (90, WINDOW_HISTORY, 'history'), (90, WINDOW_MAP, 'mapfront'), (90, WINDOW_STATUS, 'status')):
+        choose(e, x, y)
+        if name:
+            shot(e, v, os.path.join(out, name + '.png'))
+            print('  ', name)
     print('wrote', out)
+
+
+# the menus' items (8 x 14 cells under the bar): Window (x 72..) and View (x 136..)
+WINDOW_MAP, WINDOW_HISTORY, WINDOW_INFO, WINDOW_STATUS = 43, 85, 99, 113
+VIEW_YARD, VIEW_SURFACE, VIEW_BLACK, VIEW_RED = 29, 99, 113, 127
+
+
+def hold_menu(e, x):
+    """Press on the menu bar at x and keep the button down: the menu stays open."""
+    e.mouse_event(1, x, 8, 0)
+    e.mouse_event(2, x, 8, 1)
+    run(e, 200, 200_000_000)
+
+
+def choose(e, x, y, polls=150):
+    """Pull down the menu at x, release on the item at row y, park the mouse at (600, 470) and let the game run."""
+    hold_menu(e, x)
+    e.mouse_event(1, x, y, 1)
+    run(e, 60)
+    e.mouse_event(4, x, y, 0)
+    run(e, 60)
+    e.mouse_event(1, 600, 470, 0)
+    run(e, polls, 300_000_000)
 
 
 if __name__ == '__main__':

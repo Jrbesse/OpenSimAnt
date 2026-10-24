@@ -158,15 +158,16 @@ public sealed class UiArt
     {
         var f = Font(font) ?? Font(2);
         if (f == null || string.IsNullOrEmpty(text)) return;
-        if (font == 0 && back is { } bk)
+        if (font == 0)
         {
-            // font 0 is the PC font of the BIOS (8 x 14 cells, DS:3DDE / DS:3DDC), drawn opaque in the item's background:
-            // a caption's title sits in a dark box on the checker (the original's screen, tools/re/screens.py)
+            // font 0 is the PC font of the BIOS (8 x 14 cells, DS:3DDE / DS:3DDC: f_24dd9 / f_24dbb measure it so), drawn
+            // opaque in the item's background when given: a caption's title sits in a dark box on the checker (the original's
+            // screen, tools/re/screens.py). The ROM glyphs are not available: SHARED's font 0 stands in for them.
             int cw = 8 * text.Length, ch = 14;
             int cx = Math.Max(l, align switch { 1 => l + 4, 2 => r - cw - 4, _ => (l + r - cw) / 2 });
             int cy = (t + b - ch) / 2;
             var cc = c.Clip(l, t, r, b);
-            cc.Fill(cx, cy, cx + cw, cy + ch, bk);
+            if (back is { } bk) cc.Fill(cx, cy, cx + cw, cy + ch, bk);
             for (int i = 0; i < text.Length; i++)
                 if (text[i] != ' ') f.Draw(cc.Clip(cx + 8 * i, cy, cx + 8 * i + 8, cy + ch), cx + 8 * i, cy, text[i].ToString(), colour);
             return;
@@ -174,9 +175,25 @@ public sealed class UiArt
         int w = f.Width(text);
         int x = align switch { 1 => l + 4, 2 => r - w - 4, _ => (l + r - w) / 2 };
         x = Math.Max(x, l);
-        int y = (t + b - f.Height) / 2;
+        // f_21fa2 / f_20a0f: y = (t + b - the font's height) / 2, the height of an Apple FONT being fRectHeight - 1, its
+        // strike drawn from y - 1
+        int y = f.IsMac ? (t + b - (f.Height - 1)) / 2 - 1 : (t + b - f.Height) / 2;
         var clip = c.Clip(l, t, r, b);
         f.Draw(clip, x, y, text, colour);                                  // clipped to the item on all sides (f_232ae)
+    }
+
+    /// <summary>f_23943 → f_232ae → f_20a0f: a value drawn into item rectangle (l, t, r, b), clipped to it: centred
+    /// (never left of l), y = t + (b - t - height) / 2 (truncated; an Apple FONT's height is fRectHeight - 1, its strike
+    /// drawn from y - 1), its row filled with `back` when given.</summary>
+    public void DrawValue(Canvas c, int font, int l, int t, int r, int b, string text, uint colour = Black, uint? back = null)
+    {
+        var f = Font(font) ?? Font(2);
+        if (f == null) return;
+        int fh = f.IsMac ? f.Height - 1 : f.Height, w = f.Width(text ?? "");
+        int x = Math.Max(l, (l + r - w) / 2), y = t + (b - t - fh) / 2;
+        var clip = c.Clip(l, t, r, b);
+        if (back is { } bk) clip.Fill(l, y, r, y + fh, bk);                   // the row, the text's cells included
+        if (!string.IsNullOrEmpty(text)) f.Draw(clip, x, f.IsMac ? y - 1 : y, text, colour);
     }
 
     /// <summary>A horizontal gauge (f_23971: a 16.16 fraction of the item's width), filled black on white.</summary>

@@ -44,7 +44,9 @@ public partial class Main : Node2D
     string screenshot;
     bool tutorialShot, screenshotSpider;
     int shotFrames = 240;
-    bool frozen;                                                            // --state: the game does not run
+    readonly List<int> frontLater = new();                                 // --history, --panels, --map-front
+    bool frozen;
+    string stateMessage;                                                   // --state: the timed message to show                                                            // --state: the game does not run
     int frames;
 
     // the window stack (last = front) and each window's offset from its layout position
@@ -78,13 +80,13 @@ public partial class Main : Node2D
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--screenshot=")) screenshot = arg["--screenshot=".Length..];
             else if (arg.StartsWith("--frames=")) shotFrames = int.Parse(arg["--frames=".Length..]);
-            else if (arg == "--history") Front(HistoryWin);
-            else if (arg == "--panels") { Front(BehaviorWin); Front(CasteWin); }
+            else if (arg == "--history") frontLater.Add(HistoryWin);
+            else if (arg == "--panels") { frontLater.Add(BehaviorWin); frontLater.Add(CasteWin); }
             else if (arg == "--help-overlay") help = true;
             else if (arg == "--status") showStatus = true;
             else if (arg.StartsWith("--scene="))                                   // the window-26 scenes, for screenshots
                 sceneArg = int.Parse(arg["--scene=".Length..]);
-            else if (arg == "--map-front") Front(MapWin);
+            else if (arg == "--map-front") frontLater.Add(MapWin);
         session = new GameSession(dir);
         var args = OS.GetCmdlineUserArgs();
         session.NewGame(args.Contains("--full") ? 2 : args.Contains("--experimental") ? 3 : 1);
@@ -103,8 +105,12 @@ public partial class Main : Node2D
                 for (int t = int.Parse(arg["--ticks=".Length..]); t > 0 && !session.Over; t--) session.Step();
             else if (arg.StartsWith("--state="))                            // the original's memory (tools/re/screens.py), held still
             {
-                session.LoadState(System.IO.File.ReadAllBytes(arg["--state=".Length..]));
+                var statePath = arg["--state=".Length..];
+                session.LoadState(System.IO.File.ReadAllBytes(statePath));
                 frozen = true;
+                var msgPath = System.IO.Path.ChangeExtension(statePath, ".msg");          // the timed message shown (screens.py)
+                if (System.IO.File.Exists(msgPath) && System.IO.File.ReadAllBytes(msgPath) is { Length: > 0 } msg)
+                    stateMessage = OriginalFiles.MacText(msg);
             }
         ui = new UiArt(session.Files, session.Art);
         if (OS.GetCmdlineUserArgs().Contains("--efficiency")) OpenEfficiency();
@@ -167,7 +173,14 @@ public partial class Main : Node2D
         screen = new Sprite2D { Texture = texture, Centered = false };
         AddChild(screen);
         MoveChild(screen, 0);
+        int heldView = session.St.U16(Seg.G, 0x32e), heldA = session.St.S16(Seg.G, 0x508), heldB = session.St.S16(Seg.G, 0x50a);
         SetView(session.Yellow.view);
+        if (frozen && heldView is >= 1 and <= 3)                                       // --state: the view and origin it holds
+        {
+            SetView(heldView);
+            originA = heldA;
+            originB = heldB;
+        }
         if (screenshotSpider) { SetView(1); CenterOn(session.St.S16(Seg.G, 0xf12) >> 4, session.St.S16(Seg.G, 0xf34) >> 4); follow = false; }
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--map-content="))                           // --map-content=n: the Map window shows T:07C8 = n
@@ -366,6 +379,8 @@ public partial class Main : Node2D
                 Front(BehaviorWin);
                 if (!zOrder.Contains(MapWin)) Front(MapWin);                        // f_013ff
                 Front(EditWin);                                                     // f_03370
+                foreach (int w in frontLater) Front(w);                             // the screenshot flags' windows, in front
+                frontLater.Clear();
             }
             else if (e.Name == "scene") Present(AntLionScene);                    // f_76707
             else if (e.Name == "anim" && e.Args.Length > 0 && e.Args[0] is List<(State st, List<object[]> sounds)> frames && frames.Count > 0)
@@ -395,6 +410,12 @@ public partial class Main : Node2D
                 GD.Print(lastMessage);
                 OpenGameOver(rank, Convert.ToInt64(e.Args[1]));
             }
+        }
+        if (stateMessage != null)                                           // after the replaced game's start effects
+        {
+            statusText = stateMessage;
+            statusUntil = long.MaxValue;
+            stateMessage = null;
         }
     }
 
@@ -1165,10 +1186,19 @@ public partial class Main : Node2D
                 Line(area, x0 + sx0 / 16 * 4 + 1, y0 + sy0 / 16 * 4 + 1, x0 + sx1 / 16 * 4 + 1, y0 + sy1 / 16 * 4 + 1, session.Art.Palette[3]);
                 area.Fill(x0 + sx1 / 16 * 4, y0 + sy1 / 16 * 4, x0 + sx1 / 16 * 4 + 2, y0 + sy1 / 16 * 4 + 2, session.Art.Palette[2]);
             }
-        if (mv == view)                                                                     // the Edit window's view
+        // f_6efd6: the timed message's copy (DS:299A) at the top of this map too, then the Edit window's area (G:0508 /
+        // G:050A, G:10E0 x G:10DE cells) as a 2-px XOR frame inside it (f_6e702, drawn once, DS:298E = 1). f_01024 erases
+        // it (DS:298E = 0) before the Edit view moves or a window changes and marks the map for a redraw; a modal window
+        // (Status, message boxes) runs its own loop, so the frame stays off until it closes. A --state image holds DS:298E.
+        DrawStatusMessage(area, m);
+        bool frame = frozen ? st.U16(Seg.DS, 0x298e) != 0 : modal < 0 && !Presenting;
+        if (mv == view && frame)
         {
-            int l = x0 + originA * 4, t = y0 + originB * 4;
-            area.Frame(l, t, l + Cols * 4, t + Rows * 4, 0xffffff40u);
+            int l = x0 + originA * 4, t = y0 + originB * 4, r = l + Cols * 4, b = t + Rows * 4;
+            area.Invert(l, t, r, t + 2);
+            area.Invert(l, b - 2, r, b);
+            area.Invert(l, t + 2, l + 2, b - 2);
+            area.Invert(r - 2, t + 2, r, b - 2);
         }
         {
             // the Experimental button shows the current tool's icon 5100 + G:104C in every game (the original's screen)
@@ -2381,25 +2411,28 @@ public partial class Main : Node2D
             var l = session.Files.Strings(id);
             return l != null && k < l.Length ? l[k] : "";
         }
-        void Text(int index, string text, int font = -1)
+        void Text(int index, string text, int font)                                 // f_23943
         {
-            ui.ItemText(c, items[index], 0, 0, text, font);
+            var it = items[index];
+            ui.DrawValue(c, font, it.Rect.left, it.Rect.top, it.Rect.right, it.Rect.bottom, text, ui.SchemeOf(it).fg, ui.SchemeOf(it).bg);
         }
         var p = efficiency.parts;
         int mode = st.U16(Seg.G, 0xeac);
-        for (int i = 0; i < 4; i++) Text(2 + i, $"{p[i]}%");
-        for (int i = 0; i < 4; i++) Text(6 + i, mode == 2 ? $"{p[4 + i]}%" : S(1800, 16), 0);
+        // f_71576: the colony's four fields format their own text ("%d%%", f_2318a) and the window draws them in their font;
+        // the universe column and the score lines are values (f_23943) in font 4 (3 / 0 at 320 px)
+        for (int i = 0; i < 4; i++) ui.ItemText(c, items[2 + i], 0, 0, $"{p[i]}%");
+        for (int i = 0; i < 4; i++) Text(6 + i, mode == 2 ? $"{p[4 + i]}%" : S(1800, 16), 4);
         if (mode == 3)
         {
-            Text(10, S(1800, 17), 0);
-            Text(11, S(1800, 18), 0);
+            Text(10, S(1800, 17), 4);
+            Text(11, S(1800, 18), 4);
         }
         else
         {
-            Text(10, S(1800, 13) + S(1001, mode) + S(1800, 14), 0);
-            Text(11, efficiency.score.ToString(), 0);
+            Text(10, S(1800, 13) + S(1001, mode) + S(1800, 14), 4);
+            Text(11, efficiency.score.ToString(), 4);
         }
-        Text(12, S(1010, 14));
+        ui.ItemText(c, items[12], 0, 0, S(1010, 14));
     }
 
     // ------------------------------------------------------------------------------- the population report (layout 23)
@@ -2648,7 +2681,7 @@ public partial class Main : Node2D
             var lr = ItemRect(win, 9 + i);
             clip.Fill(lr.l, lr.t, lr.r, lr.b, UiArt.White);
             string text = percent ? $"{(100 * w + 0x3fff) / 0xffff}%" : $"{(w * total + 0x3fff) / 0xffff}";
-            ui.DrawText(clip.Clip(lr.l, lr.t, lr.r, lr.b), 4, 0, lr.l, lr.t - 1, lr.r, lr.b + 1, text);  // f_083d9: font 4 (0 at 320 px), clipped to the item (f_232ae)
+            ui.DrawValue(clip, 4, lr.l, lr.t, lr.r, lr.b, text);                     // f_083d9 → f_23943: font 4 (0 at 320 px)
         }
         if (help)
         {
@@ -2813,17 +2846,19 @@ public partial class Main : Node2D
         }
     }
 
-    void DrawStatusMessage(UiArt.Canvas c)
+    void DrawStatusMessage(UiArt.Canvas c) => DrawStatusMessage(c, ItemRect(EditWin, EditMapItem));
+
+    void DrawStatusMessage(UiArt.Canvas c, (int l, int t, int r, int b) m)
     {
         if (statusText == null) return;
         if (session.St.Clock > statusUntil) { statusText = null; return; }
         var f = ui.Font(2);
-        var m = ItemRect(EditWin, EditMapItem);
         string text = statusText.Replace("\n", " ");
         int w = f.Width(text), x = (m.l + m.r - w) / 2, y = m.t + 4;
         var clip = c.Clip(m.l, m.t, m.r, m.b);
-        clip.Fill(x - 2, y, x + w + 2, y + f.Height, UiArt.White);
-        f.Draw(clip, x, y, text, UiArt.Black);
+        // the original's font height is fRectHeight - 1 (f_262eb), its strike drawn from one row higher
+        clip.Fill(x, y, x + w, y + f.Height - 1, UiArt.White);                          // the text's own extent (f_22bfa)
+        f.Draw(clip, x, y - 1, text, UiArt.Black);
     }
 
     // ------------------------------------------------------------------------------- speech balloons

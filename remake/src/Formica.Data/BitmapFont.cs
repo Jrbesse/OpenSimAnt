@@ -17,6 +17,10 @@ public sealed class BitmapFont
     readonly int[] loc, ow, offs, adv;
     public readonly int Height, Ascent;
 
+    /// <summary>An Apple FONT (fonts 2..5): the original counts its height as fRectHeight - 1 (f_262eb) and draws its
+    /// strike from one row above the text's y.</summary>
+    public bool IsMac => mac;
+
     public BitmapFont(byte[] data)
     {
         d = data;
@@ -62,10 +66,16 @@ public sealed class BitmapFont
         }
     }
 
+    /// <summary>A character's advance as the original measures it (f_2616e): the width table's width (a missing glyph
+    /// takes the missing-glyph entry, font +0x28), plus 1 in a font with a negative kernMax (font +8: FONT1 and FONT4).</summary>
     public int Advance(int c)
     {
         int k = c - first;
-        if (mac) return k < 0 || k > last - first || ow[k] == 0xffff ? 0 : ow[k] & 0xff;
+        if (mac)
+        {
+            if (k < 0 || k > last - first || ow[k] == 0xffff) k = last - first + 1;
+            return (ow[k] == 0xffff ? 0 : ow[k] & 0xff) + (kernMax < 0 ? 1 : 0);
+        }
         return k >= 0 && k < 255 ? adv[k] : 0;
     }
 
