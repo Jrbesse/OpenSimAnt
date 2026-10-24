@@ -31,6 +31,38 @@ public sealed class UiArt
         var t = files.Hcegant.FirstOrDefault(r => r.Type == 0 && r.Id == 129)?.Data ?? Array.Empty<byte>();
         Schemes = Enumerable.Range(0, t.Length / 6).Select(i => (Palette[t[6 * i] & 15], Palette[t[6 * i + 2] & 15])).ToArray();
         Checkers = Enumerable.Range(0, t.Length / 6).Select(i => (t[6 * i + 2] & 15) != (t[6 * i + 3] & 15) ? Palette[t[6 * i + 3] & 15] : (uint?)null).ToArray();
+        SchemeBytes = Enumerable.Range(0, t.Length / 6).Select(i => t.AsSpan(6 * i, 6).ToArray()).ToArray();
+    }
+
+    /// <summary>The colour schemes' six bytes (HCEGANT type 0 id 129): foreground, a second foreground, background, a
+    /// second background, two undecoded.</summary>
+    public readonly byte[][] SchemeBytes;
+
+    /// <summary>f_222b5, a type-5 button's bevel, from its scheme byte +26 (whatever the selection): unselected, for th =
+    /// 3, 2, 1 the left and right bands th px wide over the full height in byte 3 (f_1d098), then the top and bottom bands
+    /// between them th px tall, a checker of byte 3 where x + y is even and byte 2 where odd (f_1d802), which leaves
+    /// diagonal corners; selected (+24 bit 2), a 3-px frame in byte 0, then a 2-px one in byte 3 over it (f_1d26d; the
+    /// second only while DS:5A97 bit 0 is clear, as on the original's screen).</summary>
+    void Bevel(Canvas c, LayoutItem it, int l, int t, int r, int b)
+    {
+        if (it.Scheme >= SchemeBytes.Length) return;
+        var sb = SchemeBytes[it.Scheme];
+        uint c0 = Palette[sb[0] & 15], c2 = Palette[sb[2] & 15], c3 = Palette[sb[3] & 15];
+        if ((it.Flags & 4) != 0)
+        {
+            ThickFrame(c, l, t, r, b, 3, c0);
+            ThickFrame(c, l, t, r, b, 2, c3);
+            return;
+        }
+        for (int th = 3; th > 0; th--)
+        {
+            c.Fill(l, t, l + th, b, c3);
+            c.Fill(r - th, t, r, b, c3);
+            foreach (int y0 in new[] { t, b - th })
+                for (int y = Math.Max(y0, c.T); y < Math.Min(y0 + th, c.B); y++)
+                    for (int x = Math.Max(l + th, c.L); x < Math.Min(r - th, c.R); x++)
+                        c.Px[y * c.Stride + x] = ((x + y) & 1) == 0 ? c3 : c2;
+        }
     }
 
     /// <summary>f_22170, the fill of an item's background: when a scheme's bytes 2 and 3 differ, a 50% checker (the
@@ -314,8 +346,13 @@ public sealed class UiArt
                 case 0x0d:
                     DrawBitmap(clip, it.Bitmaps[0], l, t);
                     break;
-                case 0x05 or 0x09 or 0x0c or 0x10 or 0x11:
-                    if (it.Type is 0x05 or 0x0c or 0x11) FillScheme(clip, l, t, r, b, it);
+                case 0x05:                                                       // f_223b3: a solid fill of byte 2, the bevel, text
+                    clip.Fill(l, t, r, b, bg);
+                    Bevel(clip, it, l, t, r, b);
+                    if (it.Text != null && !it.Text.Contains('%')) DrawText(clip, it.Style, Align(it), l, t, r, b, it.Text, fg);
+                    break;
+                case 0x09 or 0x0c or 0x10 or 0x11:
+                    if (it.Type is 0x0c or 0x11) FillScheme(clip, l, t, r, b, it);
                     if (it.Type == 0x0c) clip.Fill(l, b - 1, r, b, fg);
                     if (it.Text != null && !it.Text.Contains('%')) DrawText(clip, it.Style, Align(it), l, t, r, b, it.Text, fg);
                     break;

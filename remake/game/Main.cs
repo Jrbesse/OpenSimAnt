@@ -2059,11 +2059,6 @@ public partial class Main : Node2D
     {
         ui.DrawWindow(c, SavePrompt, 0, 0, null);
         var items = ui.Layouts[SavePrompt].Items;
-        for (int i = 3; i <= 5; i++)
-        {
-            var (l, t, r, b) = items[i].Rect;
-            c.Frame(l, t, r, b, UiArt.Black);
-        }
         // f_72429(n): SHARED text (0x41 - n) * 2 (130 before loading or a new game, 128 before quitting) as a text box
         // (f_25cfa) in item 0x2101 in font 4 (2 at 320 px), its scheme's foreground: words wrapped to the width, lines of
         // the font's height (fRectHeight - 1) from the item's top, left-aligned at its left; the wrap width is the item's less
