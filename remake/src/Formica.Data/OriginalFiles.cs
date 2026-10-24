@@ -169,6 +169,15 @@ public sealed class OriginalFiles
         return res;
     }
 
+    /// <summary>A SHARED type-10 text (the SimAntipedia's, the save prompts' 128 / 130), up to its NUL. Null if none.</summary>
+    public string Text(int id)
+    {
+        var r = Shared.FirstOrDefault(x => x.Type == 10 && x.Id == id);
+        if (r == null) return null;
+        int n = Array.IndexOf(r.Data, (byte)0);
+        return MacText(r.Data.AsSpan(0, n < 0 ? r.Data.Length : n));
+    }
+
     /// <summary>Mac Roman text (the characters the game uses; others as '?').</summary>
     public static string MacText(ReadOnlySpan<byte> b)
     {

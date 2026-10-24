@@ -148,7 +148,22 @@ public partial class Main : Node2D
             var (score, _) = Formica.Sim.Game.Rating(session.St);
             OpenGameOver(Formica.Sim.Game.Rank(session.St, score), score);
         }
-        if (OS.GetCmdlineUserArgs().Contains("--save-prompt")) { selectMidGame = true; Replace(1); }
+        foreach (var arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--save-prompt"))                            // --save-prompt[=n]: before n (1 Quick Game, 4 Load, ...)
+            {
+                selectMidGame = true;
+                Replace(arg.Contains('=') ? int.Parse(arg[(arg.IndexOf('=') + 1)..]) : 1);
+            }
+        foreach (var arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--about"))                                  // File > About; --about=line,pixel: the roll there
+            {
+                OpenAbout();
+                if (arg.Contains('=') && arg[(arg.IndexOf('=') + 1)..].Split(',').Select(int.Parse).ToArray() is { Length: 2 } ab)
+                {
+                    (aboutLine, aboutPixel, aboutRolling) = (ab[0], ab[1], true);
+                    aboutNext = double.MaxValue;
+                }
+            }
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--message=") && session.Files.Strings(int.Parse(arg["--message=".Length..])) is { } box)
                 OpenMessageBox(box);                                        // --message=<STR# id>: show a message box
@@ -1643,7 +1658,7 @@ public partial class Main : Node2D
         int n = cmd & 0xff;
         switch (n)
         {
-            case 0x01: modal = AboutWin; break;                                          // About: f_72931, window 0x1F00
+            case 0x01: OpenAbout(); break;                                               // About: f_72931, window 0x1F00
             case 0x03: PlaySong(0x2711); modal = SelectWin; selectMidGame = true; break; // New: music 0x2711, f_2f848
             case 0x04: selectMidGame = st.U16(Seg.G, 0x2c2) != 0; Replace(4); break;   // Load: f_6c1a0 asks to save first
             case 0x05 or 0x06: SaveCommand(n == 5); break;                               // Save, Save As: f_6c328(1 / 0)
@@ -1944,6 +1959,55 @@ public partial class Main : Node2D
     // ported: World.Advisor's tutorial f_0e425), 0x207 Load Game. Shown at start-up and on F2.
     const int SelectWin = 2, TitleWin = 3, AboutWin = 31;               // the title (2000 / 2001), the about box (3000 / 3001)
 
+    // f_72931, the about box (window 0x1F00): the logo (item 0x1F02, 3001) for 90 clock ticks, then the credits STR# 1700
+    // roll up through that item, one pixel per tick, centred in font 4 (lines of its height, fRectHeight - 1) on the
+    // item's background, with a 54-tick pause after the first pixel; at the end the logo again, and so on. A key or a
+    // press counts as the end of a wait: on the logo it starts the roll while fewer than two waits have passed, during
+    // the roll it closes the box once more than three have (f_1ccfc / f_01572 / f_21cb8 and the counter [bp - 0xA]).
+    bool aboutRolling;
+    int aboutLine, aboutPixel, aboutWaits;
+    double aboutNext;
+
+    void OpenAbout()
+    {
+        modal = AboutWin;
+        aboutRolling = false;
+        aboutWaits = 0;
+        aboutNext = UiTicks + 0x5a;
+    }
+
+    void AboutStep()
+    {
+        aboutWaits++;
+        if (!aboutRolling) { aboutRolling = true; aboutLine = aboutPixel = 0; aboutNext = UiTicks + 1; return; }
+        var f = ui.Font(4);
+        int fh = f.Height - 1;
+        if (++aboutPixel == fh) { aboutPixel = 0; aboutLine++; }
+        if (aboutLine >= (session.Files.Strings(1700)?.Length ?? 0)) { aboutRolling = false; aboutNext = UiTicks + 0x5a; return; }
+        aboutNext = UiTicks + (aboutLine == 0 && aboutPixel == 1 ? 0x36 : 1);
+    }
+
+    void AboutEvent()
+    {
+        if (aboutWaits > (aboutRolling ? 3 : 1)) { modal = -1; return; }
+        AboutStep();
+    }
+
+    void DrawAbout(UiArt.Canvas c)
+    {
+        while (UiTicks >= aboutNext) AboutStep();
+        ui.DrawWindow(c, AboutWin, 0, 0, null, aboutRolling ? new[] { 3001 } : null);
+        if (!aboutRolling) return;
+        var it = ui.Layouts[AboutWin].Items[2];
+        var (l, t, r, b) = it.Rect;
+        var clip = c.Clip(l, t, r, b);
+        clip.Fill(l, t, r, b, ui.SchemeOf(it).bg);
+        var lines = session.Files.Strings(1700) ?? Array.Empty<string>();
+        int fh = ui.Font(4).Height - 1;
+        for (int k = aboutLine, y = t - aboutPixel; y < b && k < lines.Length; k++, y += fh)
+            if (!string.IsNullOrEmpty(lines[k])) ui.DrawText(clip, 4, 0, l, y, r, y + fh, lines[k], ui.SchemeOf(it).fg);
+    }
+
     bool selectMidGame;                                                      // F2: a game is running, so ask to save first
 
     void SelectClick(int index)
@@ -2000,13 +2064,39 @@ public partial class Main : Node2D
             var (l, t, r, b) = items[i].Rect;
             c.Frame(l, t, r, b, UiArt.Black);
         }
-        var lines = session.Files.Strings(1800);
-        var (_, bt, _, _) = items[1].Rect;
-        var (bl, _, br, _) = items[2].Rect;                                  // the wider of the two text items
-        var f = ui.Font(0);
-        for (int k = 0; k < 3; k++)
-            ui.DrawText(c, 0, 0, bl, bt + 12 + k * (f.Height + 4), br, bt + 12 + k * (f.Height + 4) + f.Height,
-                        lines?[8 + k + (k == 2 && pendingGame == 5 ? 1 : 0)] ?? "");   // [11] "before quitting SimAnt™?"
+        // f_72429(n): SHARED text (0x41 - n) * 2 (130 before loading or a new game, 128 before quitting) as a text box
+        // (f_25cfa) in item 0x2101 in font 4 (2 at 320 px), its scheme's foreground: words wrapped to the width, lines of
+        // the font's height (fRectHeight - 1) from the item's top, left-aligned at its left; the wrap width is the item's less
+        // 8 (measured on the original's screen: lines of 243 px kept, 262 wrapped; f_25cfa not decoded)
+        var text = session.Files.Text(pendingGame == 5 ? 128 : 130) ?? "";
+        var (tl, tt, tr, tb) = items[1].Rect;
+        var f = ui.Font(4);
+        int fh = f.Height - 1, y = tt;
+        var fg = ui.SchemeOf(items[1]).fg;
+        var clip = c.Clip(tl, tt, tr, tb);
+        foreach (var line in WrapText(f, text, tr - tl - 8))
+        {
+            f.Draw(clip, tl, y - 1, line, fg);
+            y += fh;
+        }
+    }
+
+    /// <summary>Words wrapped greedily to `width` px (line breaks kept), as a text box lays them out.</summary>
+    static List<string> WrapText(Formica.Data.BitmapFont f, string text, int width)
+    {
+        var lines = new List<string>();
+        foreach (var para in text.Split('\n'))
+        {
+            string line = "";
+            foreach (var word in para.Split(' '))
+            {
+                string next = line.Length == 0 ? word : line + " " + word;
+                if (line.Length > 0 && f.Width(next) > width) { lines.Add(line); line = word; }
+                else line = next;
+            }
+            lines.Add(line);
+        }
+        return lines;
     }
 
     void SavePromptClick(int index)
@@ -3545,7 +3635,8 @@ public partial class Main : Node2D
             if (modal == AlertWin) DrawAlert(canvas);
             DrawWin(canvas);
             if (modal == TitleWin) canvas.Fill(0, 0, ScreenW, ScreenH, UiArt.Black);
-            if (modal is TitleWin or AboutWin) ui.DrawWindow(canvas, modal, 0, 0, null);
+            if (modal == TitleWin) ui.DrawWindow(canvas, modal, 0, 0, null);
+            if (modal == AboutWin) DrawAbout(canvas);
             if (modal == 11) ui.DrawWindow(canvas, 11, 245, 200, null);       // "not available in the full game"
             if (popup >= 0) DrawPopup(canvas);
             if (menuOpen >= 0) DrawMenu(canvas);
@@ -3660,6 +3751,11 @@ public partial class Main : Node2D
             if (modal == AlertWin)
             {
                 AlertClick(mb.Position);
+                return;
+            }
+            if (modal == AboutWin)
+            {
+                AboutEvent();
                 return;
             }
             if (modal >= 0)                                                     // a click closes the modal window

@@ -38,6 +38,8 @@ FLAGS = {
     'scent1': ['--history', '--panels', '--antipedia', '--map-front'],
     'scent3': ['--history', '--panels', '--antipedia', '--map-front'],
     'mapnest': ['--history', '--panels', '--antipedia', '--map-front'],
+    'about': ['--history', '--panels', '--antipedia', '--map-front', '--about=0,0'],
+    'load': ['--history', '--panels', '--antipedia', '--map-front', '--save-prompt=4'],
     'menu': ['--menu=0', '--cursor=20,8'],
     'menu_window': ['--menu=1', '--cursor=90,8'],
     'menu_view': ['--menu=2', '--cursor=160,8'],

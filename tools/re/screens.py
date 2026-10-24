@@ -119,10 +119,18 @@ def main():
         run(e, 150, 300_000_000)
         shot(e, v, os.path.join(out, name + '.png'))
         print('  ', name)
+    choose(e, 20, FILE_ABOUT)                     # the about box, closed by a click
+    shot(e, v, os.path.join(out, 'about.png'))
+    click(e, 320, 240)
+    e.mouse_event(1, 600, 470, 0)
+    run(e, 100)
+    choose(e, 20, FILE_LOAD)                      # File > Load (asks to save the running game first?)
+    shot(e, v, os.path.join(out, 'load.png'))
     print('wrote', out)
 
 
-# the menus' items (8 x 14 cells under the bar): Window (x 72..) and View (x 136..)
+# the menus' items (8 x 14 cells under the bar): File (x 0..), Window (x 72..) and View (x 136..)
+FILE_ABOUT, FILE_NEW, FILE_LOAD, FILE_SAVE, FILE_SAVE_AS, FILE_QUIT = 29, 57, 71, 85, 99, 127
 WINDOW_MAP, WINDOW_BEHAVIOR, WINDOW_CASTE, WINDOW_HISTORY, WINDOW_INFO, WINDOW_STATUS = 43, 57, 71, 85, 99, 113
 VIEW_YARD, VIEW_SURFACE, VIEW_BLACK, VIEW_RED = 29, 99, 113, 127
 
