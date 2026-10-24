@@ -176,7 +176,7 @@ public sealed class UiArt
         x = Math.Max(x, l);
         int y = (t + b - f.Height) / 2;
         var clip = c.Clip(l, t, r, b);
-        f.Draw(clip.Px, clip.Stride, clip.B, x, y, text, colour);
+        f.Draw(clip, x, y, text, colour);                                  // clipped to the item on all sides (f_232ae)
     }
 
     /// <summary>A horizontal gauge (f_23971: a 16.16 fraction of the item's width), filled black on white.</summary>

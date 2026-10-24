@@ -191,6 +191,15 @@ public sealed class GameSession
 
     public bool Over => St != null && St.U16(G, 0x376) != 0;
 
+    /// <summary>Replace the game's memory with a State image (the original's own, dumped from the emulator by
+    /// tools/re/screens.py), keeping the hooks and the clock: for drawing the same game as a captured screen.</summary>
+    public void LoadState(byte[] mem)
+    {
+        long clock = St.Clock;
+        St = new State((byte[])mem.Clone()) { Hooks = Hooks, Clock = clock };
+        nextTick = St.Clock3();
+    }
+
     /// <summary>Send the yellow ant towards (view, a, b) (1 surface, 2 black nest, 3 red nest): a walk (mode 0),
     /// or with dig a tunnel dug on the way (mode 2). What a click on the map does in the original.</summary>
     public void WalkTo(int view, int a, int b, bool dig = false)

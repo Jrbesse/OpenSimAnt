@@ -44,6 +44,7 @@ public partial class Main : Node2D
     string screenshot;
     bool tutorialShot, screenshotSpider;
     int shotFrames = 240;
+    bool frozen;                                                            // --state: the game does not run
     int frames;
 
     // the window stack (last = front) and each window's offset from its layout position
@@ -100,6 +101,11 @@ public partial class Main : Node2D
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--ticks="))                                 // run the game ahead (for checking a build)
                 for (int t = int.Parse(arg["--ticks=".Length..]); t > 0 && !session.Over; t--) session.Step();
+            else if (arg.StartsWith("--state="))                            // the original's memory (tools/re/screens.py), held still
+            {
+                session.LoadState(System.IO.File.ReadAllBytes(arg["--state=".Length..]));
+                frozen = true;
+            }
         ui = new UiArt(session.Files, session.Art);
         if (OS.GetCmdlineUserArgs().Contains("--efficiency")) OpenEfficiency();
         if (OS.GetCmdlineUserArgs().Contains("--popup")) OpenPopup(200, 150);
@@ -267,7 +273,7 @@ public partial class Main : Node2D
             session.Hooks.YardMapWanted = false;
             OpenYard(true);
         }
-        if (!session.Over && !yardChoose && modal < 0 && menuOpen < 0 && !miniMap && !helpHeld && winPhase == 0 && !Presenting && session.Advance(delta) > 0)
+        if (!frozen && !session.Over && !yardChoose && modal < 0 && menuOpen < 0 && !miniMap && !helpHeld && winPhase == 0 && !Presenting && session.Advance(delta) > 0)
         {
             balloonsNow.Clear();
             // f_701a5 (the yard window's mower, drawn each tick while the window is open): sound 0x24 while mowing
@@ -425,9 +431,12 @@ public partial class Main : Node2D
     void DrawCursor(UiArt.Canvas c)
     {
         cursorArt ??= LoadCursor(0);
-        bool shot = OS.GetCmdlineUserArgs().Contains("--cursor");             // screenshots: at (300, 200)
+        // screenshots: --cursor at (300, 200), --cursor=x,y there
+        var arg = OS.GetCmdlineUserArgs().FirstOrDefault(x => x == "--cursor" || x.StartsWith("--cursor="));
+        bool shot = arg != null;
         if (cursorArt is not { } a || screenshot != null && !shot) return;
-        var p = shot ? new Vector2(300, 200) : GetViewport().GetMousePosition();
+        var at = arg?.Contains('=') == true ? arg[(arg.IndexOf('=') + 1)..].Split(',').Select(int.Parse).ToArray() : new[] { 300, 200 };
+        var p = shot ? new Vector2(at[0], at[1]) : GetViewport().GetMousePosition();
         for (int y = 0; y < a.h; y++)
             for (int x = 0; x < a.w; x++)
                 if (a.px[y * a.w + x] != 0) c.Plot((int)p.X + x, (int)p.Y + y, a.px[y * a.w + x]);
@@ -759,6 +768,7 @@ public partial class Main : Node2D
         win.Clip(m.l, m.t, m.r, m.b).Blit(mapBuf, w, h, m.l, m.t);
         var strip = ItemRect(EditWin, EditMapStrip);
         win.Clip(strip.l, strip.t, strip.r, strip.b).Blit(mapBuf, w, h, m.l, m.t);
+        ui.DrawDecorations(win, ui.Layouts[EditWin], dx, dy);                         // the grow box stays above the map's last row
         {
             var ti = ItemRect(EditWin, 7);                                             // the Experimental button's tool icon
             ui.DrawBitmap(win, (st.U16(Seg.G, 0xeac) == 3 ? 5100 + Math.Clamp(st.U16(Seg.G, 0x104c), 0, 7) : 5107), ti.l, ti.t);
@@ -1185,8 +1195,9 @@ public partial class Main : Node2D
             var f = ui.Font(3);
             string text = n.ToString();
             int x = Math.Max(l, (l + r - f.Width(text)) / 2), y = t + (b - t - f.Height) / 2;
-            win.Fill(l, y, r, y + f.Height, bg);
-            f.Draw(win.Clip(l, t, r, b), x, y, text, fg);
+            var ic = win.Clip(l, t, r, b);                                         // f_232ae clips to the item (f_1ece3)
+            ic.Fill(l, y, r, y + f.Height, bg);
+            f.Draw(ic, x, y, text, fg);
         }
         void Bar(int index, double fraction)
         {
@@ -2605,8 +2616,10 @@ public partial class Main : Node2D
         Panels.Triangle(st, ItemRect(win, TriangleItem), tri);
         Panels.ToPoint(st, values, tri, point);                      // f_087c7: where the marker sits
         int mx = st.U16(Seg.G, point), my = st.U16(Seg.G, point + 2);
-        clip.Fill(mx - 3, my - 3, mx + 4, my + 4, UiArt.Black);
-        clip.Fill(mx - 1, my - 1, mx + 2, my + 2, UiArt.White);
+        // f_080d1 / f_08255: the marker is a sprite (f_26968) of bitmap 1400 centred on the point (G:3832 / G:3834 hold
+        // its size, 14 x 14)
+        var (mw, mh, _) = ui.Bitmap(1400);
+        ui.DrawBitmap(clip, 1400, mx - mw / 2, my - mh / 2);
         // f_083d9 (from f_080d1 / f_08255): bar i spans a fifth of item 0x0C's width at 2 i fifths, from the item's
         // bottom up by w * height / 65535 (an ldiv by -65535: truncated); a bar of 2 px or more is filled with the
         // colour DS:1B4A[i] (Caste DS:1B46[i]) and framed in 15, the rest of the column up to top - 1 is cleared
@@ -2635,7 +2648,7 @@ public partial class Main : Node2D
             var lr = ItemRect(win, 9 + i);
             clip.Fill(lr.l, lr.t, lr.r, lr.b, UiArt.White);
             string text = percent ? $"{(100 * w + 0x3fff) / 0xffff}%" : $"{(w * total + 0x3fff) / 0xffff}";
-            ui.DrawText(clip, 4, 0, lr.l, lr.t - 1, lr.r, lr.b + 1, text);              // f_083d9: font 4 (0 at 320 px)
+            ui.DrawText(clip.Clip(lr.l, lr.t, lr.r, lr.b), 4, 0, lr.l, lr.t - 1, lr.r, lr.b + 1, text);  // f_083d9: font 4 (0 at 320 px), clipped to the item (f_232ae)
         }
         if (help)
         {
