@@ -217,13 +217,13 @@ public sealed class UiArt
 
     /// <summary>Draw window `id`'s frame, caption, pictures, frames and static text, moved by (dx, dy). Pictures
     /// listed in `hidden` (help overlays) are skipped.</summary>
-    public void DrawWindow(Canvas c, int id, int dx, int dy, string title, ICollection<int> hidden = null)
+    public void DrawWindow(Canvas c, int id, int dx, int dy, string title, ICollection<int> hidden = null, ICollection<int> skipItems = null)
     {
         if (!Layouts.TryGetValue(id, out var w)) return;
         var (wl, wt, wr, wb) = w.Rect;
         var clip = c.Clip(wl + dx, wt + dy, wr + dx, wb + dy);
         clip.Fill(wl + dx, wt + dy, wr + dx, wb + dy, Grey);
-        DrawItems(clip, w, dx, dy, title, hidden);
+        DrawItems(clip, w, dx, dy, title, hidden, skipItems);
         DrawDecorations(clip, w, dx, dy);
     }
 
@@ -275,10 +275,11 @@ public sealed class UiArt
     /// <summary>Draw a (re-laid) layout's items, no background fill.</summary>
     public void DrawLayout(Canvas c, WindowLayout w, string title = null) => DrawItems(c, w, 0, 0, title, null);
 
-    void DrawItems(Canvas clip, WindowLayout w, int dx, int dy, string title, ICollection<int> hidden)
+    void DrawItems(Canvas clip, WindowLayout w, int dx, int dy, string title, ICollection<int> hidden, ICollection<int> skipItems = null)
     {
         foreach (var it in w.Items)
         {
+            if (skipItems != null && skipItems.Contains(it.Id)) continue;
             var (l, t, r, b) = it.Rect;
             l += dx; t += dy; r += dx; b += dy;
             var (fg, bg) = SchemeOf(it);

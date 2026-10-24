@@ -146,6 +146,9 @@ public sealed class Antipedia
 
     int Advance(int f, byte c) => font(f)?.Advance(c) ?? 0;
 
+    /// <summary>A font's height as the original counts it (f_24dbb: an Apple FONT's fRectHeight - 1).</summary>
+    int LineHeight(int f) => font(f) is { } bf ? (bf.IsMac ? bf.Height - 1 : bf.Height) : 0;
+
     static byte At(byte[] t, int i) => i < t.Length ? t[i] : (byte)0;
 
     /// <summary>f_78232 / f_78641's break rule for character c at i: -1 none, else the break position.</summary>
@@ -162,7 +165,7 @@ public sealed class Antipedia
     /// become a link (when `links` is given).</summary>
     public void Layout(byte[] text, List<(int start, int face)> runs, int l, int t, int r, int b, List<Element> draw, List<Hotspot> links)
     {
-        int lh = Math.Max(font(NormalFont)?.Height ?? 0, font(LinkFont)?.Height ?? 0);
+        int lh = Math.Max(LineHeight(NormalFont), LineHeight(LinkFont));
         if (lh <= 0) return;
         int width = r - l, lines = (b - t) / lh, y = t + 4, run = 0, i = 0;
         int cur = FontFor(runs, 0);
@@ -215,7 +218,7 @@ public sealed class Antipedia
     /// <summary>f_78641: the height of a text laid out `width` wide (lines x the line height).</summary>
     public int Measure(byte[] text, List<(int start, int face)> runs, int width)
     {
-        int lh = Math.Max(font(NormalFont)?.Height ?? 0, font(LinkFont)?.Height ?? 0);
+        int lh = Math.Max(LineHeight(NormalFont), LineHeight(LinkFont));
         int lines = 0, run = 0, i = 0, cur = FontFor(runs, 0);
         while (i < text.Length)
         {

@@ -44,7 +44,7 @@ public partial class Main : Node2D
     string screenshot;
     bool tutorialShot, screenshotSpider;
     int shotFrames = 240;
-    readonly List<int> frontLater = new();                                 // --history, --panels, --map-front
+    readonly List<string> frontArgs = new(OS.GetCmdlineUserArgs());        // --history, --panels, --map-front, --antipedia, --yard
     bool frozen;
     string stateMessage;                                                   // --state: the timed message to show                                                            // --state: the game does not run
     int frames;
@@ -80,13 +80,13 @@ public partial class Main : Node2D
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--screenshot=")) screenshot = arg["--screenshot=".Length..];
             else if (arg.StartsWith("--frames=")) shotFrames = int.Parse(arg["--frames=".Length..]);
-            else if (arg == "--history") frontLater.Add(HistoryWin);
-            else if (arg == "--panels") { frontLater.Add(BehaviorWin); frontLater.Add(CasteWin); }
+            else if (arg == "--history") { }
+            else if (arg == "--panels") { }
             else if (arg == "--help-overlay") help = true;
             else if (arg == "--status") showStatus = true;
             else if (arg.StartsWith("--scene="))                                   // the window-26 scenes, for screenshots
                 sceneArg = int.Parse(arg["--scene=".Length..]);
-            else if (arg == "--map-front") frontLater.Add(MapWin);
+            else if (arg == "--map-front") { }
         session = new GameSession(dir);
         var args = OS.GetCmdlineUserArgs();
         session.NewGame(args.Contains("--full") ? 2 : args.Contains("--experimental") ? 3 : 1);
@@ -175,9 +175,10 @@ public partial class Main : Node2D
         MoveChild(screen, 0);
         int heldView = session.St.U16(Seg.G, 0x32e), heldA = session.St.S16(Seg.G, 0x508), heldB = session.St.S16(Seg.G, 0x50a);
         SetView(session.Yellow.view);
-        if (frozen && heldView is >= 1 and <= 3)                                       // --state: the view and origin it holds
+        if (frozen && heldView is >= 0 and <= 3)                                       // --state: the view and origin it holds
         {
-            SetView(heldView);
+            if (heldView != 0) SetView(heldView);                                      // the yard: the buttons keep the last view
+            session.St.Set16(Seg.G, 0x32e, heldView);
             originA = heldA;
             originB = heldB;
         }
@@ -379,8 +380,15 @@ public partial class Main : Node2D
                 Front(BehaviorWin);
                 if (!zOrder.Contains(MapWin)) Front(MapWin);                        // f_013ff
                 Front(EditWin);                                                     // f_03370
-                foreach (int w in frontLater) Front(w);                             // the screenshot flags' windows, in front
-                frontLater.Clear();
+                foreach (var arg in frontArgs)                                      // the screenshot flags' windows, in their order
+                    foreach (int w in arg switch
+                             {
+                                 "--history" => new[] { HistoryWin }, "--panels" => new[] { BehaviorWin, CasteWin },
+                                 "--map-front" => new[] { MapWin }, "--yard" => new[] { YardWin },
+                                 _ when arg.StartsWith("--antipedia") => new[] { TextWin }, _ => Array.Empty<int>(),
+                             })
+                        if (w != YardWin || zOrder.Contains(YardWin)) Front(w);
+                frontArgs.Clear();
             }
             else if (e.Name == "scene") Present(AntLionScene);                    // f_76707
             else if (e.Name == "anim" && e.Args.Length > 0 && e.Args[0] is List<(State st, List<object[]> sounds)> frames && frames.Count > 0)
@@ -781,10 +789,12 @@ public partial class Main : Node2D
         var win = c.Clip(WindowRect(EditWin).l, WindowRect(EditWin).t, WindowRect(EditWin).r, WindowRect(EditWin).b);
         var m = ItemRect(EditWin, EditMapItem);
         int w = Cols * Cell, h = Rows * Cell;
-        int cols = Math.Min(Cols, MapRenderer.Width(view));
+        // in the yard (G:032E = 0) the map shows view 0, the surface; the view buttons keep their selection (f_01976)
+        int shown = st.U16(Seg.G, 0x32e) == 0 ? 1 : view;
+        int cols = Math.Min(Cols, MapRenderer.Width(shown));
         Array.Fill(mapBuf, 0xff000000u);
-        MapRenderer.Render(animState ?? st, session.Art, view, originA, originB, originA + cols, originB + Rows, mapBuf, w);
-        if (view == 1)
+        MapRenderer.Render(animState ?? st, session.Art, shown, originA, originB, originA + cols, originB + Rows, mapBuf, w);
+        if (shown == 1)
             SpiderRenderer.Draw(st, session.Files, session.Art, mapBuf, w, h, originA * Cell, originB * Cell, SpiderRenderer.FangJitter(st));
         win.Clip(m.l, m.t, m.r, m.b).Blit(mapBuf, w, h, m.l, m.t);
         var strip = ItemRect(EditWin, EditMapStrip);
@@ -1838,7 +1848,7 @@ public partial class Main : Node2D
         antipedia ??= new Antipedia(session.Files, ui.Font);
         antipedia.Open();
         ShowCard(Antipedia.TopCard);
-        modal = TextWin;
+        Front(TextWin);                                                       // at 640 px an ordinary window (f_21cc1 only at 320)
     }
 
     void ShowCard(int id)
@@ -1884,7 +1894,7 @@ public partial class Main : Node2D
     {
         foreach (var e in elements)
             if (e.Pict >= 0) ui.DrawBitmap(c, e.Pict, e.X, e.Y);
-            else ui.Font(e.Font)?.Draw(c, e.X, e.Y, e.Text, UiArt.Black);
+            else if (ui.Font(e.Font) is { } f) f.Draw(c, e.X, f.IsMac ? e.Y - 1 : e.Y, e.Text, UiArt.Black);  // f_24e3d: the strike from y - 1
     }
 
     // ------------------------------------------------------------------------------- the game-over window (layout 4)
@@ -3173,16 +3183,31 @@ public partial class Main : Node2D
         SetView(1);
     }
 
+    /// <summary>f_70a7d: a patch's parallelogram (DS:2A42: (169, 67) (193, 67) (186, 74) (162, 74) from (col * 28 - row * 10,
+    /// row * 10) past G:10D2 / G:10D4), XOR-filled.</summary>
+    static void InvertPatch(UiArt.Canvas area, int ox, int oy, int col, int row)
+    {
+        int bx = col * 28 - row * 10 + ox, by = row * 10 + oy;
+        for (int y = 0; y < 7; y++) area.Invert(bx + 169 - y, by + 67 + y, bx + 193 - y, by + 68 + y);
+    }
+
     void DrawYardWindow(UiArt.Canvas c)
     {
         var st = session.St;
         var (dx, dy) = Off(YardWin);
         int mode = st.S16(Seg.G, 0x35c);
         var hidden = new List<int> { 7011 };
-        if (mode >= 2) { hidden.Add(7000); hidden.Add(7003); }
-        ui.DrawWindow(c, YardWin, dx, dy, Title(9 + Math.Clamp(mode, 0, 3)), hidden);
+        if (mode >= 1) hidden.Add(7000);                                   // f_01823: item 0x1903 shows 7000 + mode
+        if (mode >= 2) hidden.Add(7003);
+        // item 0x1914 (the strip above the colony views) is not drawn in the Yard / House views (the original's screen)
+        ui.DrawWindow(c, YardWin, dx, dy, Title(9 + Math.Clamp(mode, 0, 3)), hidden, mode < 2 ? new[] { 0x1914 } : null);
         var wr = WindowRect(YardWin);
         var clip = c.Clip(wr.l, wr.t, wr.r, wr.b);
+        if (mode == 1)
+        {
+            var hp = ItemRect(YardWin, 3);
+            ui.DrawBitmap(clip, 7001, hp.l, hp.t);                         // the house's inside
+        }
         var (ox, oy) = YardOrigin();
         var pic = ItemRect(YardWin, 2);
         var area = clip.Clip(pic.l, pic.t, pic.r, pic.b);
@@ -3200,17 +3225,10 @@ public partial class Main : Node2D
             }
             YardRenderer.DrawColonies(area, st, session.Art.Palette, ox, oy, mode == 2);
         }
-        // the player's patch
+        // the player's patch (G:07CA / G:07CC): f_702f7 ends with f_6f983, which XOR-fills its parallelogram (f_70a7d) in
+        // every view and game
         int pc = st.U16(Seg.G, 0x7ca), pr = st.U16(Seg.G, 0x7cc);
-        if (st.U16(Seg.G, 0xeac) == 2 && pc < 12 && pr < 16)
-        {
-            int x = ox + 28 * pc - 10 * pr + 169, y = oy + 10 * pr + 67;
-            for (int k = 0; k < 8; k++)
-            {
-                area.Plot(x - k - 1, y + k, 0xffffff40u);
-                area.Plot(x + 25 - k, y + k, 0xffffff40u);
-            }
-        }
+        if (pc < 12 && pr < 16) InvertPatch(area, ox, oy, pc, pr);
         int black = 0, red = 0;
         for (int i = 0; i < 192; i++)
         {
@@ -3223,8 +3241,19 @@ public partial class Main : Node2D
             clip.Fill(r.l, r.t, r.r, r.b, UiArt.White);
             ui.DrawText(clip, 3, 0, r.l, r.t, r.r, r.b, n.ToString());
         }
-        var am = ItemRect(YardWin, st.U16(Seg.T, 0x2c0) == 1 ? 13 : 14);    // AUTOMATIC / MANUAL (T:02C0)
-        clip.Invert(am.l, am.t, am.r, am.b);
+        // the radio buttons' own selection (item flag +24 bit 2): AUTOMATIC / MANUAL start as the layout has them
+        // (AUTOMATIC), follow clicks and PLACE (which selects MANUAL), not T:02C0; the view's button is DS:1984[G:035C]
+        // (f_01823 → f_22fae: House for the Yard and House views, Strat, Graphic); PLACE while it runs
+        foreach (int index in new[] { yardManual ? 14 : 13, 8 + Math.Clamp(mode - 1, 0, 2) })
+        {
+            var hr = ItemRect(YardWin, index);
+            clip.Invert(hr.l, hr.t, hr.r, hr.b);
+        }
+        if (placing)
+        {
+            var plr = ItemRect(YardWin, 16);
+            clip.Invert(plr.l, plr.t, plr.r, plr.b);
+        }
         var q = ItemRect(YardWin, 12);                                     // the swarm's black queens G:07C8
         clip.Fill(q.l, q.t, q.r, q.b, UiArt.White);
         ui.DrawText(clip, 3, 0, q.l, q.t, q.r, q.b, Math.Max(0, (int)st.S16(Seg.G, 0x7c8)).ToString());
@@ -3241,8 +3270,7 @@ public partial class Main : Node2D
                 st.Set16(Seg.G, 0x7be, row);
                 if (col != st.S16(Seg.G, 0x7ca) || row != st.S16(Seg.G, 0x7cc))
                 {
-                    int bx = col * 28 - row * 10 + ox, by = row * 10 + oy;
-                    for (int y = 0; y < 7; y++) area.Invert(bx + 169 - y, by + 67 + y, bx + 193 - y, by + 68 + y);
+                    InvertPatch(area, ox, oy, col, row);
                 }
             }
         }
@@ -3252,8 +3280,8 @@ public partial class Main : Node2D
             var f = ui.Font(2);
             string text = statusText.Replace("\n", " ");
             int w = f.Width(text), x = (pic.l + pic.r - w) / 2;
-            area.Fill(x - 2, pic.t + 4, x + w + 2, pic.t + 4 + f.Height, UiArt.White);
-            f.Draw(area, x, pic.t + 4, text, UiArt.Black);
+            area.Fill(x, pic.t + 4, x + w, pic.t + 4 + f.Height - 1, UiArt.White);  // f_15d96 as over the Edit map
+            f.Draw(area, x, pic.t + 3, text, UiArt.Black);
         }
         if (help)
         {
@@ -3294,6 +3322,7 @@ public partial class Main : Node2D
     // (not ported), a redraw and [9] "You have started a new colony"; out of range: [10] and sound 1. With Shift
     // held (and queens left) it goes on placing. A click outside the yard ends it.
     bool placing;
+    bool yardManual;                                                       // the yard window's MANUAL selected (else AUTOMATIC)
 
     void StartPlacing()
     {
@@ -3359,9 +3388,9 @@ public partial class Main : Node2D
             case 10: st.Set16(Seg.G, 0x35c, 3); return;
             case 17: help = helpHeld = true; return;                                 // f_2f74e(0x1906), while held
             case 11: Mate(); return;
-            case 13: st.Set16(Seg.T, 0x2c0, 1); return;                     // AUTOMATIC: the sim settles the swarm's queens
-            case 14: st.Set16(Seg.T, 0x2c0, 0); return;                     // MANUAL
-            case 16: StartPlacing(); return;
+            case 13: st.Set16(Seg.T, 0x2c0, 1); yardManual = false; return;  // AUTOMATIC: the sim settles the swarm's queens
+            case 14: st.Set16(Seg.T, 0x2c0, 0); yardManual = true; return;   // MANUAL
+            case 16: yardManual = true; StartPlacing(); return;              // f_22fae(0x190E), f_22fae(0x1910), f_01efa
         }
         var pic = ItemRect(YardWin, 2);
         var (ox, oy) = YardOrigin();
@@ -3453,6 +3482,7 @@ public partial class Main : Node2D
                 else if (win == MapWin) DrawMapWindow(canvas);
                 else if (win == HistoryWin) DrawHistoryWindow(canvas);
                 else if (win == YardWin) DrawYardWindow(canvas);
+                else if (win == TextWin) DrawTextViewer(canvas);
                 else DrawControlWindow(canvas, win);
             if (popReport) DrawPopulationReport(canvas);
             if (miniMap) DrawMiniMap(canvas);
@@ -3463,7 +3493,6 @@ public partial class Main : Node2D
             DrawScene(canvas);
             if (modal is 27 or 30) DrawMessageBox(canvas);
             if (modal == SavePrompt) DrawSavePrompt(canvas);
-            if (modal == TextWin) DrawTextViewer(canvas);
             if (modal == GameOverWin) DrawGameOver(canvas);
             if (modal == FileWin) DrawFileDialog(canvas);
             if (modal == AlertWin) DrawAlert(canvas);
@@ -3586,11 +3615,6 @@ public partial class Main : Node2D
                 AlertClick(mb.Position);
                 return;
             }
-            if (modal == TextWin)
-            {
-                if (mb.ButtonIndex == MouseButton.Left) AntipediaPress((int)mb.Position.X, (int)mb.Position.Y);
-                return;
-            }
             if (modal >= 0)                                                     // a click closes the modal window
             {
                 modal = -1;
@@ -3599,6 +3623,11 @@ public partial class Main : Node2D
             int win = WindowAt(mb.Position);
             if (win < 0) return;
             Front(win);
+            if (win == TextWin)                                                 // the SimAntipedia (f_790f0); not dragged
+            {
+                if (mb.ButtonIndex == MouseButton.Left) AntipediaPress((int)mb.Position.X, (int)mb.Position.Y);
+                return;
+            }
             if (Inside(CaptionRect(win), mb.Position) && mb.ButtonIndex == MouseButton.Left)
             {
                 dragWin = win;                                                  // drag the window by its caption
@@ -3668,7 +3697,7 @@ public partial class Main : Node2D
                 case Key.Equal or Key.KpAdd: session.Speed++; break;
                 case Key.Minus or Key.KpSubtract: session.Speed--; break;
                 case Key.Escape:
-                    if (modal == TextWin) modal = -1;
+                    if (zOrder.Contains(TextWin)) zOrder.Remove(TextWin);
                     else if (zOrder.Contains(YardWin)) CloseYard();
                     break;
                 case Key.Tab:                                                              // the Map window: front / close

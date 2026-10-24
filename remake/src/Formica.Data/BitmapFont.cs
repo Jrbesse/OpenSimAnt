@@ -105,7 +105,9 @@ public sealed class BitmapFont
             {
                 if (k >= 0 && k <= last - first && ow[k] != 0xffff)
                 {
-                    int x0 = loc[k], x1 = loc[k + 1], gx = x + (ow[k] >> 8) + kernMax;
+                    int x0 = loc[k], x1 = loc[k + 1];
+                    // f_2632e: with a negative kernMax the glyph goes at the pen (its offset ignored), else at pen + kernMax + offset
+                    int gx = kernMax < 0 ? x : x + (ow[k] >> 8) + kernMax;
                     for (int row = 0; row < Height; row++)
                         for (int px = x0; px < x1; px++)
                             if (((d[26 + row * rowBytes + (px >> 3)] >> (7 - (px & 7))) & 1) != 0)

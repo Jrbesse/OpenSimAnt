@@ -80,11 +80,24 @@ def main():
         if name:
             shot(e, v, os.path.join(out, name + '.png'))
             print('  ', name)
+    click(e, 300, 300)                            # the Status window closes on a click
+    e.mouse_event(1, 600, 470, 0)
+    run(e, 100)
+    shot(e, v, os.path.join(out, 'closed.png'))
+    for x, y, name in ((90, WINDOW_BEHAVIOR, None), (90, WINDOW_CASTE, 'panels'), (90, WINDOW_INFO, 'info')):
+        choose(e, x, y)
+        if name:
+            shot(e, v, os.path.join(out, name + '.png'))
+            print('  ', name)
+    click(e, 600, 470)                            # leave the SimAntipedia (a click outside it)
+    run(e, 100)
+    choose(e, 160, VIEW_YARD)
+    shot(e, v, os.path.join(out, 'yard.png'))
     print('wrote', out)
 
 
 # the menus' items (8 x 14 cells under the bar): Window (x 72..) and View (x 136..)
-WINDOW_MAP, WINDOW_HISTORY, WINDOW_INFO, WINDOW_STATUS = 43, 85, 99, 113
+WINDOW_MAP, WINDOW_BEHAVIOR, WINDOW_CASTE, WINDOW_HISTORY, WINDOW_INFO, WINDOW_STATUS = 43, 57, 71, 85, 99, 113
 VIEW_YARD, VIEW_SURFACE, VIEW_BLACK, VIEW_RED = 29, 99, 113, 127
 
 
