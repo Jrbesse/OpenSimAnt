@@ -115,7 +115,6 @@ public partial class Main : Node2D
         ui = new UiArt(session.Files, session.Art);
         if (OS.GetCmdlineUserArgs().Contains("--efficiency")) OpenEfficiency();
         if (OS.GetCmdlineUserArgs().Contains("--popup")) OpenPopup(200, 150);
-        if (OS.GetCmdlineUserArgs().Contains("--yard")) OpenYard(false);
         if (OS.GetCmdlineUserArgs().Contains("--scent-menu")) OpenScentMenu();
         if (OS.GetCmdlineUserArgs().Contains("--mini-map")) miniMap = true;
         if (sceneArg != 0) ArmTimeout(15);                                       // as after a message box
@@ -175,11 +174,13 @@ public partial class Main : Node2D
         AddChild(screen);
         MoveChild(screen, 0);
         int heldView = session.St.U16(Seg.G, 0x32e), heldA = session.St.S16(Seg.G, 0x508), heldB = session.St.S16(Seg.G, 0x50a);
+        int heldContent = session.St.U16(Seg.T, 0x7c8);                                 // the Map window's content
         SetView(session.Yellow.view);
         if (frozen && heldView is >= 0 and <= 3)                                       // --state: the view and origin it holds
         {
             if (heldView != 0) SetView(heldView);                                      // the yard: the buttons keep the last view
             session.St.Set16(Seg.G, 0x32e, heldView);
+            session.St.Set16(Seg.T, 0x7c8, heldContent);
             originA = heldA;
             originB = heldB;
         }
@@ -379,7 +380,7 @@ public partial class Main : Node2D
             {
                 Front(CasteWin);                                                    // f_07a95, f_07aab
                 Front(BehaviorWin);
-                if (!zOrder.Contains(MapWin)) Front(MapWin);                        // f_013ff
+                OpenMapSlot();                                                      // f_013ff
                 Front(EditWin);                                                     // f_03370
                 foreach (var arg in frontArgs)                                      // the screenshot flags' windows, in their order
                     foreach (int w in arg switch
@@ -388,7 +389,8 @@ public partial class Main : Node2D
                                  "--map-front" => new[] { MapWin }, "--yard" => new[] { YardWin },
                                  _ when arg.StartsWith("--antipedia") => new[] { TextWin }, _ => Array.Empty<int>(),
                              })
-                        if (w != YardWin || zOrder.Contains(YardWin)) Front(w);
+                        if (w == YardWin) OpenYard(false);                             // in the Map window's place
+                        else Front(w);
                 frontArgs.Clear();
             }
             else if (e.Name == "scene") Present(AntLionScene);                    // f_76707
@@ -910,7 +912,7 @@ public partial class Main : Node2D
     {
         miniMapPress = false;
         var (l, t, r, b) = ItemRect(EditWin, 5);
-        if (p.X >= l && p.X < r && p.Y >= t && p.Y < b) { miniMap = false; Front(MapWin); }
+        if (p.X >= l && p.X < r && p.Y >= t && p.Y < b) { miniMap = false; ShowMap(); }
     }
 
     void MiniMapPress(Vector2 p)
@@ -1178,17 +1180,21 @@ public partial class Main : Node2D
                 else col = session.Art.Palette[MapRenderer.MapColour(st, mv, a, b)];
                 area.Fill(x0 + a * 4, y0 + b * 4, x0 + a * 4 + 4, y0 + b * 4 + 4, col);
             }
-        if (mv == 1 && content == 1 && !trails)
+        // f_6efd6: the spider (in its row loop) and f_6f5e1 while the view is the surface (G:032E = 1) and Show Trails is
+        // off (DS:2994 = 0), over any content (a scent map too; the original's screen)
+        if (st.U16(Seg.G, 0x32e) == 1 && st.U16(Seg.DS, 0x2994) == 0)
         {
             // f_6f505: the small spider, bitmap 1100 + G:1004 at its cell x 4 - 3, while G:0F0C != 0; f_6f5e1: while
-            // T:0C3E the human's sneaker 1200 + T:0C30 at (G:03E0, G:046A) x 4, and while mowing (T:0C28 3 or 4) the
+            // T:0C3E (the human on the patch) the sneaker 1200 + T:0C30 at (G:03E0, G:046A) x 4, and then while mowing (T:0C28 3 or 4) the
             // mower 1210 + (T:0C30 & 1) at (G:0470, G:047A) x 4
             if (st.U16(Seg.G, 0xf0c) != 0)
                 ui.DrawBitmap(area, 1100 + st.U16(Seg.G, 0x1004), x0 + (st.S16(Seg.G, 0xf12) >> 4) * 4 - 3, y0 + (st.S16(Seg.G, 0xf34) >> 4) * 4 - 3);
-            if (st.U16(Seg.T, 0xc3e) != 0)
+            if (st.U16(Seg.T, 0xc3e) != 0)                                                  // both only while the human is here
+            {
                 ui.DrawBitmap(area, 1200 + st.U16(Seg.T, 0xc30), x0 + st.S16(Seg.G, 0x3e0) * 4, y0 + st.S16(Seg.G, 0x46a) * 4);
-            if (st.U16(Seg.T, 0xc28) is 3 or 4)
-                ui.DrawBitmap(area, 1210 + (st.U16(Seg.T, 0xc30) & 1), x0 + st.S16(Seg.G, 0x470) * 4, y0 + st.S16(Seg.G, 0x47a) * 4);
+                if (st.U16(Seg.T, 0xc28) is 3 or 4)
+                    ui.DrawBitmap(area, 1210 + (st.U16(Seg.T, 0xc30) & 1), x0 + st.S16(Seg.G, 0x470) * 4, y0 + st.S16(Seg.G, 0x47a) * 4);
+            }
         }
         if (mv == 1 && content == 1)                                                        // f_753e5 in the Map window, 4 px per cell
             foreach (var (sx0, sy0, sx1, sy1) in strikes)
@@ -1215,11 +1221,19 @@ public partial class Main : Node2D
             // the Experimental button shows the current tool's icon 5100 + G:104C in every game (the original's screen)
             var ti = ItemRect(MapWin, 23);
             ui.DrawBitmap(win, (st.U16(Seg.G, 0xeac) == 3 ? 5100 + Math.Clamp(st.U16(Seg.G, 0x104c), 0, 7) : 5107), ti.l, ti.t);
-            // f_01976: the button of the view shown (0x105 + G:032E) highlighted (f_22fae, the XOR)
-            if (view is >= 0 and <= 3 && MapContent == view)
+            // f_01976: the button of the view shown (0x105 + G:032E) highlighted (f_22fae, the XOR), and with a scent map
+            // shown (f_01781: T:07C8 4 / 5 / 8 / 6 / 7 from 0x109..0x10D) its button too (the original's screen)
+            int gv = st.U16(Seg.G, 0x32e);
+            if (gv <= 3)
             {
-                var vb = ItemRect(MapWin, 5 + view);
+                var vb = ItemRect(MapWin, 5 + gv);
                 win.Invert(vb.l, vb.t, vb.r, vb.b);
+            }
+            int scentItem = MapContent switch { 4 => 9, 5 => 10, 8 => 11, 6 => 12, 7 => 13, _ => -1 };
+            if (scentItem > 0)
+            {
+                var sb = ItemRect(MapWin, scentItem);
+                win.Invert(sb.l, sb.t, sb.r, sb.b);
             }
         }
         // the population report f_6eea5: counts 0x119 / 0x11A, gauges 0x11B black health (G:10BE / 100), 0x11C red
@@ -1635,7 +1649,7 @@ public partial class Main : Node2D
             case 0x05 or 0x06: SaveCommand(n == 5); break;                               // Save, Save As: f_6c328(1 / 0)
             case 0x08: pendingGame = 5; modal = SavePrompt; break;                       // Quit (save first?)
             case 0x11: Front(EditWin); break;                                            // f_03370
-            case 0x12: Front(MapWin); break;                                             // f_0148a
+            case 0x12: ShowMap(); break;                                                 // f_0148a
             case 0x13: Front(BehaviorWin); break;                                        // f_07aab
             case 0x14: Front(CasteWin); break;                                           // f_07a95
             case 0x15: Front(HistoryWin); break;                                         // f_2f9ba
@@ -3100,7 +3114,37 @@ public partial class Main : Node2D
             session.St.Set16(Seg.G, 0x35c, 2);
             ShowStatus(session.Files.Strings(1010)?[20] ?? "Click on a black colony to continue.", -1, true);
         }
-        Front(YardWin);
+        if (!zOrder.Contains(YardWin) && zOrder.Contains(MapWin)) Swap(MapWin, YardWin);  // f_01823: f_211af(0x100, 0x1900)
+        else Front(YardWin);
+    }
+
+    // The Map window and the yard window share one place: f_01823 swaps the Map for the yard (f_211af: the new one in the
+    // old one's place, in front; the original's screen), f_013ff the yard back for the Map (with the surface view, f_01aec(1)), and Window > Map (f_0148a)
+    // fronts whichever of the two is open, or opens the Map (f_013ff).
+    void Swap(int from, int to)
+    {
+        zOrder.Remove(from);
+        Front(to);
+    }
+
+    void ShowMap()
+    {
+        if (zOrder.Contains(MapWin)) Front(MapWin);
+        else if (zOrder.Contains(YardWin)) Front(YardWin);
+        else OpenMapSlot();
+    }
+
+    void OpenMapSlot()
+    {
+        if (zOrder.Contains(MapWin)) return;
+        if (zOrder.Contains(YardWin) && !yardChoose)
+        {
+            placing = false;
+            Swap(YardWin, MapWin);
+            session.St.Set16(Seg.T, 0x7c8, 1);
+            SetView(1);
+        }
+        else Front(MapWin);
     }
 
     // ------------------------------------------------------------------------------- the win screen (f_2f91a → f_72750)
@@ -3170,7 +3214,8 @@ public partial class Main : Node2D
     {
         if (yardChoose) return;
         placing = false;
-        zOrder.Remove(YardWin);
+        if (zOrder.Contains(MapWin)) zOrder.Remove(YardWin);
+        else Swap(YardWin, MapWin);                                           // the Map back in its place
         session.St.Set16(Seg.T, 0x7c8, view);
         session.St.Set16(Seg.G, 0x32e, view);
     }
@@ -3179,9 +3224,7 @@ public partial class Main : Node2D
     void BackToPatch()
     {
         if (yardChoose) return;
-        CloseYard();
-        session.St.Set16(Seg.T, 0x7c8, 1);
-        SetView(1);
+        OpenMapSlot();
     }
 
     /// <summary>f_70a7d: a patch's parallelogram (DS:2A42: (169, 67) (193, 67) (186, 74) (162, 74) from (col * 28 - row * 10,
@@ -3626,7 +3669,11 @@ public partial class Main : Node2D
             }
             int win = WindowAt(mb.Position);
             if (win < 0) return;
+            bool behind = zOrder[^1] != win;
             Front(win);
+            // a click on a window behind the front one only brings it to the front (the original's screen: the yard
+            // window's Patch under the SimAntipedia took two clicks); its caption can still be dragged
+            if (behind && !Inside(CaptionRect(win), mb.Position)) return;
             if (win == TextWin)                                                 // the SimAntipedia (f_790f0); not dragged
             {
                 if (mb.ButtonIndex == MouseButton.Left) AntipediaPress((int)mb.Position.X, (int)mb.Position.Y);

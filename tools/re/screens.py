@@ -104,6 +104,21 @@ def main():
     e.mouse_event(1, 600, 470, 0)
     run(e, 150, 300_000_000)
     shot(e, v, os.path.join(out, 'card.png'))
+    click(e, 87, 357)                             # a click on a window behind only brings it to the front:
+    e.mouse_event(1, 600, 470, 0)
+    run(e, 150, 300_000_000)
+    shot(e, v, os.path.join(out, 'yardfront.png'))
+    click(e, 87, 357)                             # now the yard's Patch: the Map window back in its place, on the surface
+    e.mouse_event(1, 600, 470, 0)
+    run(e, 150, 300_000_000)
+    shot(e, v, os.path.join(out, 'mapback.png'))
+    # its toolbar (layout 1 moved to (62, 62): + (-56, 38)): the scent buttons 0x109 / 0x10B, the black nest 0x107
+    for x, y, name in ((236, 350, 'scent1'), (277, 361, 'scent3'), (166, 356, 'mapnest')):
+        click(e, x, y)
+        e.mouse_event(1, 600, 470, 0)
+        run(e, 150, 300_000_000)
+        shot(e, v, os.path.join(out, name + '.png'))
+        print('  ', name)
     print('wrote', out)
 
 
