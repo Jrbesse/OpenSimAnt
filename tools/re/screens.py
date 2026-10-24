@@ -126,6 +126,10 @@ def main():
     run(e, 100)
     choose(e, 20, FILE_LOAD)                      # File > Load (asks to save the running game first?)
     shot(e, v, os.path.join(out, 'load.png'))
+    click(e, 185, 216)                            # DON'T SAVE: the file dialog (f_6c566)
+    e.mouse_event(1, 600, 470, 0)
+    run(e, 150, 300_000_000)
+    shot(e, v, os.path.join(out, 'filedlg.png'))
     print('wrote', out)
 
 

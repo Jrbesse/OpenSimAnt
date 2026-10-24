@@ -289,9 +289,13 @@ traces + C# + shell) about 15%.
 Suggested next session (in order):
 0. Keep comparing screens (2026-10-24 workflow: `python tools/re/screens.py` (~3 min), `dotnet build
    remake/game/Formica.csproj`, `python tools/re/compare_screens.py`; look at `build/screens/remake/<name>_diff.png`).
-   **Where this stopped (2026-10-24):** the capture run ends with File > Load's save prompt open (`load.png`). Next
-   captures, appended to `screens.py` after it: click DON'T SAVE (item 0x2103 at about (185, 216)) for the file dialog
-   (`--load-dialog`), Cancel it; then the Options / Speed menus; a SimAntipedia glossary pop-up (a bold word on a card);
+   **Where this stopped (2026-10-24):** the capture run ends with the file dialog after File > Load > DON'T SAVE
+   (`filedlg.png`, compared with `--load-dialog`: 32,000 pixels differ). Found but not fixed: in Load mode the original
+   opens window 22 about 36 px shorter (to y ≈ 330 instead of 366) with everything below the name field (items 2..4,
+   y 88..123) moved up, i.e. `f_6c566` hides the name field and re-lays the window (find how: `f_21336` / `f_211af` with
+   a rectangle, or attach modes), and it frames the current drive's button (C:). The emulator's DOS serves no directory
+   entries, so the list is empty and the path "C:\" there: compare the chrome only (or make `emu.py` serve a folder).
+   Next captures after it: Cancel (item at about (330, 307)); then the Options / Speed menus; a SimAntipedia glossary pop-up (a bold word on a card);
    the yellow ant's pop-up menu (press and hold on it in the Edit window: find its screen spot from G:047C / G:048A and
    the Edit origin G:0508 / G:050A, 16 px cells from (64, 41)); Ant Info; the Experimental game (Select a Game) and its
    tool palettes; a message box (Events); the game-over and win screens. Each needs its flags in `compare_screens.py`'s
