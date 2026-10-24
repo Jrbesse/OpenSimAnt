@@ -120,7 +120,7 @@ item record
 | 0x01, 0x03, 0x0A, 0x0B, 0x0E | 0x28 | not drawn: hotspots (buttons over a picture) |
 | 0x02 | 0x29 | a filled rectangle, the scheme's background (`f_22170`; not a frame) |
 | 0x04 | 0x38 | list (`f_241f2`): rows in the font at +28, scheme +26, a selected row (flag bit 0) +27; +2A.. run-time (rows shown, rows, first row, its offset, the text handle); SIM_NOTES "The file dialog" |
-| 0x05, 0x09 | strlen + 0x2D | text, string at +2A |
+| 0x05, 0x09 | strlen + 0x2D | text, string at +2A; 0x05 is a button: a solid fill of the scheme's byte 2 (`f_1d28d`, never a checker), the bevel `f_222b5`, then the text (decoded 2026-10-24, below) |
 | 0x06 | 0x2A | picture, bitmap id at +28 (`f_25c75`) |
 | 0x07, 0x08 | 0x2A | `f_244cc`: 0x08 a vertical scroll bar for the list whose id is at +28 (arrows bitmaps 109 / 111, a thumb); 0x07 draws nothing (no layout uses it) |
 | 0x0C | strlen + 0x2D | text button, string at +2A: fill, a 1-px line in the foreground along the bottom, text |
@@ -140,8 +140,14 @@ grey, scheme 1); else byte 2 solid (checked on the original's screen, `tools/re/
 The colours are palette indices: e.g. scheme 1 (captions) cyan on dark grey, 3 black on white (fields, lists), 4
 yellow on light grey (dialogs), 6 red on black (CANCEL), 9 black on light grey. Frames and lines are drawn in
 DS:3DE0, which `f_220e4` sets to the scheme's foreground (checked on the original's screen rendered by
-`tools/re/screens.py`: Select a Game's frame is scheme 6's red). Texts of types 5 and 0x11 are filled with the background first, 9 and
+`tools/re/screens.py`: Select a Game's frame is scheme 6's red). Texts of type 0x11 are filled with the background first (type 5 solid, see below), 9 and
 0x10 are not. Records of length 0x29 hold +28 as a single byte (the thickness or the font).
+
+The button bevel `f_222b5` uses the scheme at +26 whatever the selection. Unselected: for th = 3, 2, 1 the left and right
+bands th px wide over the full height in byte 3 (`f_1d098`, sides 5), then the top and bottom bands between them th px
+tall as a checker, byte 3 where x + y is even and byte 2 where odd (`f_1d802`, sides 10); the shrinking bands leave
+diagonal corners. Selected (+24 bit 2, the default button): a 3-px frame in byte 0, then a 2-px frame in byte 3 over it
+(`f_1d26d`; the second only while DS:5A97 bit 0 is clear), leaving a 1-px byte-0 line. Checked on the save prompt.
 
 Text items (types 0x05, 0x09, 0x0C, 0x10..0x12) are drawn by `f_21fa2`:
 - Font: the byte at +28 (`f_24d5d`). Ids 2..5 are the slots DS:4A1A.. that start-up (`f_34ab_047d`) loads from
@@ -157,7 +163,12 @@ Text items (types 0x05, 0x09, 0x0C, 0x10..0x12) are drawn by `f_21fa2`:
   - 1: left + 4.
   - 2: right - width - 4.
   - x is never less than left.
-- Vertical position: y = (top + bottom - font height) / 2.
+- Vertical position: y = (top + bottom - font height) / 2, where an Apple FONT's height is fRectHeight - 1 (`f_262eb`,
+  `f_24dbb`) and its strike is drawn from y - 1 (`f_2632e`). Values drawn through `f_23943` → `f_232ae` → `f_20a0f`
+  centre as top + (bottom - top - height) / 2 instead, clipped to the item; the two differ by a row when the text is
+  taller than the item. Advances (`f_2616e`): the width table's width, plus 1 in a font with a negative kernMax (+8:
+  FONT1, FONT4), whose glyphs are then drawn at the pen with their offsets ignored; a missing glyph takes the
+  missing-glyph entry (+0x28). Font 0 (no font record) measures strlen x DS:3DDE (8) by DS:3DDC (14).
 - Type 0x10's string can come from a far pointer at +2A / +2C at run time. Strings with % are printf
   formats ("%s" captions are the window titles).
 - The text colour (+26?) is not decoded.
