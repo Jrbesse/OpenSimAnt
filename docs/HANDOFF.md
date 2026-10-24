@@ -292,8 +292,12 @@ Suggested next session (in order):
    **Where this stopped (2026-10-24):** the capture run ends with the file dialog after File > Load > DON'T SAVE
    (`filedlg.png`, compared with `--load-dialog`: 32,000 pixels differ). Found but not fixed: in Load mode the original
    opens window 22 about 36 px shorter (to y ≈ 330 instead of 366) with everything below the name field (items 2..4,
-   y 88..123) moved up, i.e. `f_6c566` hides the name field and re-lays the window (find how: `f_21336` / `f_211af` with
-   a rectangle, or attach modes), and it frames the current drive's button (C:). The emulator's DOS serves no directory
+   y 88..123) moved up. Decoded: in Load mode (`[bp+0x12] != 1`) `f_6c566` calls `f_22e5a(0x1600, 5)` and
+   `f_2313e(0x1600, 5)` (the state-5 items, 0x1602..0x1604, hidden / disabled; Save mode shows them with `f_22e52` /
+   `f_23136`), then sets item 0x1602's rectangle to zero height (`f_22ccd` with the bottom word 0) before `f_21336` lays
+   the window out, so the items attached below it (layout parent ids, "parent 1600/1601" in `layouts.py`) move up and
+   the window shrinks. The shell's `UiArt.Relayout` handles attachment to the window only, not to parent items: that
+   is the piece to add. It also frames the current drive's button (C:). The emulator's DOS serves no directory
    entries, so the list is empty and the path "C:\" there: compare the chrome only (or make `emu.py` serve a folder).
    Next captures after it: Cancel (item at about (330, 307)); then the Options / Speed menus; a SimAntipedia glossary pop-up (a bold word on a card);
    the yellow ant's pop-up menu (press and hold on it in the Edit window: find its screen spot from G:047C / G:048A and
