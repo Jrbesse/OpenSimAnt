@@ -3209,7 +3209,7 @@ public partial class Main : Node2D
     // it. The yard is 12 x 16 patches (col = G:07BC / G:07CA 0..11, row = G:07BE / G:07CC 0..15); colony strengths
     // T:00A4[col * 16 + row] (black) and T:0164[...] (red). G:035C picks the view: 0 / 1 the yard (the house 7000,
     // the lawn 7003 and the actors), 2 Strat, 3 Graphic (the colony views over the grid strips 7020..7022).
-    // Toolbar items (indices): 7 Patch (back to the patch), 8 House (G:035C 0 / 1), 9 Strat, 10 Graphic, 11 MATE,
+    // Toolbar items (indices): 7 Patch (back to the patch), 8 House (G:035C 0 ↔ 1; from 2 / 3 back to 0), 9 Strat, 10 Graphic, 11 MATE,
     // 13 / 14 automatic / manual queen placement, 16 PLACE, 17 help (overlay 7011), 18 / 19 the black / red colony
     // counts. A click on a patch moves there in a Full Game (f_01d48); when the yellow ant dies in a Full Game the
     // window opens and the game waits for a black colony to be picked (STR# 1010 [20]).
@@ -3557,7 +3557,9 @@ public partial class Main : Node2D
         switch (index)
         {
             case 7: BackToPatch(); return;
-            case 8: st.Set16(Seg.G, 0x35c, st.S16(Seg.G, 0x35c) == 0 ? 1 : 0); return;
+            case 8:                                                          // f_6f7f0 0x1908: Strat / Graphic → Yard, else Yard ↔ House
+                st.Set16(Seg.G, 0x35c, st.S16(Seg.G, 0x35c) >= 2 ? 0 : st.S16(Seg.G, 0x35c) ^ 1);
+                return;
             case 9: st.Set16(Seg.G, 0x35c, 2); return;
             case 10: st.Set16(Seg.G, 0x35c, 3); return;
             case 17: help = helpHeld = true; return;                                 // f_2f74e(0x1906), while held
