@@ -130,7 +130,44 @@ def main():
     e.mouse_event(1, 600, 470, 0)
     run(e, 150, 300_000_000)
     shot(e, v, os.path.join(out, 'filedlg.png'))
+    click(e, 332, 308)                            # CANCEL: back to the game
+    e.mouse_event(1, 600, 470, 0)
+    run(e, 150, 300_000_000)
+    shot(e, v, os.path.join(out, 'cancel.png'))
+    for x, name in ((240, 'menu_options'), (322, 'menu_speed')):
+        hold_menu(e, x)
+        shot(e, v, os.path.join(out, name + '.png'))
+        e.mouse_event(4, 600, 470, 0)
+        run(e, 200)
+    # the yellow ant's pop-up menu: press and hold on it in the Edit window (its map at (64, 41), 16-px cells, the
+    # view's origin G:0508 / G:050A); first show the yellow ant's view
+    yv = e.w16(0x50f6, 0x48c)
+    choose(e, 160, {1: VIEW_SURFACE, 2: VIEW_BLACK, 3: VIEW_RED}.get(yv, VIEW_BLACK))
+    click(e, 300, 33)                             # the Edit window's caption: it comes to the front (the Map window
+    e.mouse_event(1, 600, 470, 0)                 # covers the middle of its map)
+    run(e, 150, 300_000_000)
+    shot(e, v, os.path.join(out, 'editfront.png'))
+    a, b = s16(e.w16(0x50f6, 0x47c)), s16(e.w16(0x50f6, 0x48a))
+    ox, oy = s16(e.w16(0x50f6, 0x508)), s16(e.w16(0x50f6, 0x50a))
+    x, y = 64 + (a - ox) * 16 + 8, 41 + (b - oy) * 16 + 8
+    print(f'   the yellow ant: view {yv} cell ({a}, {b}), origin ({ox}, {oy}) → screen ({x}, {y})')
+    if 64 <= x < 64 + 22 * 16 and 41 <= y < 41 + 21 * 16:
+        e.mouse_event(1, x, y, 0)
+        e.mouse_event(2, x, y, 1)
+        run(e, 200, 300_000_000)
+        shot(e, v, os.path.join(out, 'popup.png'))
+        with open(os.path.join(out, 'popup.at'), 'w') as f:
+            f.write(f'{x},{y}')
+        e.mouse_event(1, 600, 470, 1)                 # released outside the menu: it closes
+        e.mouse_event(4, 600, 470, 0)
+        run(e, 100)
+    else:
+        print('   (the yellow ant is not in the Edit window: no popup capture)')
     print('wrote', out)
+
+
+def s16(v):
+    return v - 0x10000 if v & 0x8000 else v
 
 
 # the menus' items (8 x 14 cells under the bar): File (x 0..), Window (x 72..) and View (x 136..)

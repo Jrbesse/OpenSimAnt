@@ -329,6 +329,23 @@ public sealed class UiArt
         return new WindowLayout(id, box, items) { Flags = w.Flags };
     }
 
+    /// <summary>f_21336 opening window `id` at `rect` (Relayout), then, for a window whose header has +1D bit 4 (flags
+    /// 0x1000: the pop-up menus), keeping it on the screen: below the bottom (480) it moves up by the overshoot, else
+    /// with its top at or above G:3942 (17, under the menu bar) down to it; left of 0 it moves right, else with its
+    /// right at or past 640 left by the overshoot. The shift goes into item 0's offsets and the layout is solved again.
+    /// Checked on the original's screen (the yellow ant's menu, layout 7: (16, 8) from the press point).</summary>
+    public WindowLayout Open(int id, (int l, int t, int r, int b) rect, int top = 17, int width = 640, int height = 480)
+    {
+        var w = Relayout(id, rect);
+        if ((Layouts[id].Flags & 0x1000) == 0 || w.Items.Count == 0) return w;
+        var (l, t, r, b) = w.Rect;
+        int dy = b > height ? height - b : top >= t ? top - t : 0;
+        int dx = l < 0 ? -l : r >= width ? width - r : 0;
+        if (dx == 0 && dy == 0) return w;
+        var it = Layouts[id].Items[0];
+        return Relayout(id, rect, new Dictionary<int, (int x, int y, int w, int h)> { [0] = (it.Pos.x + dx, it.Pos.y + dy, it.Size.w, it.Size.h) });
+    }
+
     /// <summary>f_2271d, the window's decorations by the header flags (+1C / +1D) inside the window less its first
     /// item's thickness (+28): bit 2 the close box 100 at the top left (the left edge moves past it), bit 4 bitmap 101
     /// there, bit 3 the grow box 112 at the bottom right; +1D bit 0 the zoom box at the top right (102 with +1C bit 7,

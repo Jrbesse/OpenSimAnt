@@ -115,6 +115,9 @@ public partial class Main : Node2D
         ui = new UiArt(session.Files, session.Art);
         if (OS.GetCmdlineUserArgs().Contains("--efficiency")) OpenEfficiency();
         if (OS.GetCmdlineUserArgs().Contains("--popup")) OpenPopup(200, 150);
+        foreach (var arg in OS.GetCmdlineUserArgs())                            // --popup=x,y: held at (x, y), as a press does
+            if (arg.StartsWith("--popup=") && arg["--popup=".Length..].Split(',') is { Length: 2 } pp)
+                OpenPopup(int.Parse(pp[0]), int.Parse(pp[1]));
         if (OS.GetCmdlineUserArgs().Contains("--scent-menu")) OpenScentMenu();
         if (OS.GetCmdlineUserArgs().Contains("--mini-map")) miniMap = true;
         if (sceneArg != 0) ArmTimeout(15);                                       // as after a message box
@@ -402,6 +405,7 @@ public partial class Main : Node2D
                              {
                                  "--history" => new[] { HistoryWin }, "--panels" => new[] { BehaviorWin, CasteWin },
                                  "--map-front" => new[] { MapWin }, "--yard" => new[] { YardWin },
+                                 "--edit-front" => new[] { EditWin },
                                  _ when arg.StartsWith("--antipedia") => new[] { TextWin }, _ => Array.Empty<int>(),
                              })
                         if (w == YardWin) OpenYard(false);                             // in the Map window's place
@@ -1378,8 +1382,11 @@ public partial class Main : Node2D
     {
         var st = session.St;
         popup = st.U16(Seg.G, 0xa06) == 1 ? 32 : st.U16(Seg.G, 0x4c2) == 0x40 && st.U16(Seg.T, 0xc24) == 0 ? 8 : 7;
-        var (l, t, r, b) = ui.Layouts[popup].Rect;
-        popupOff = (Math.Clamp(x, 0, ScreenW - (r - l)) - l, Math.Clamp(y, 0, ScreenH - (b - t)) - t);
+        // f_67e93 → f_2379b → f_21336(window, x, y): the press point is the requested rectangle's corner; the layout's
+        // item 0 sits at an offset from it (7: (16, 8), 8: (0, 0), 32: (4, 8)), kept on the screen (UiArt.Open)
+        var at = ui.Open(popup, (x, y, x, y), st.S16(Seg.G, 0x3942) is > 0 and var top ? top : 17);
+        var (l, t, _, _) = ui.Layouts[popup].Rect;
+        popupOff = (at.Rect.left - l, at.Rect.top - t);
         popupHover = -1;
     }
 

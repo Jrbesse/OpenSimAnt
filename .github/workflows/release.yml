@@ -103,19 +103,19 @@ jobs:
           tar -C stage/linux -czf "dist/Formica-${VERSION}-linux.tar.gz" Formica
           ls -l dist
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: Formica-${{ steps.version.outputs.version }}-windows
           path: dist/Formica-${{ steps.version.outputs.version }}-windows.zip
           retention-days: 30
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: Formica-${{ steps.version.outputs.version }}-macos
           path: dist/Formica-${{ steps.version.outputs.version }}-macos.zip
           retention-days: 30
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: Formica-${{ steps.version.outputs.version }}-linux
           path: dist/Formica-${{ steps.version.outputs.version }}-linux.tar.gz

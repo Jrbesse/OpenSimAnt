@@ -41,6 +41,11 @@ FLAGS = {
     'about': ['--history', '--panels', '--antipedia', '--map-front', '--about=0,0'],
     'load': ['--history', '--panels', '--antipedia', '--map-front', '--save-prompt=4'],
     'filedlg': ['--history', '--panels', '--antipedia', '--map-front', '--load-dialog'],
+    'cancel': ['--history', '--panels', '--antipedia', '--map-front'],
+    'menu_options': ['--history', '--panels', '--antipedia', '--map-front', '--menu=3', '--cursor=240,8'],
+    'menu_speed': ['--history', '--panels', '--antipedia', '--map-front', '--menu=4', '--cursor=322,8'],
+    'editfront': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front'],
+    'popup': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--popup=@'],  # @: popup.at
     'menu': ['--menu=0', '--cursor=20,8'],
     'menu_window': ['--menu=1', '--cursor=90,8'],
     'menu_view': ['--menu=2', '--cursor=160,8'],
@@ -64,6 +69,10 @@ def main():
         shot = os.path.join(out, name + '.png')
         cmd = [godot, '--path', os.path.join(ROOT, 'remake', 'game'), '--', '--state=' + state.replace('\\', '/')]
         flags = FLAGS.get(name, [])
+        at = os.path.join(SCREENS, name + '.at')
+        if os.path.exists(at):                    # a press point saved by screens.py: the flag's '@' and the cursor
+            xy = open(at).read().strip()
+            flags = [f.replace('@', xy) for f in flags] + ['--cursor=' + xy]
         cmd += flags + ([] if any(f.startswith('--cursor') for f in flags) else [CURSOR])
         cmd += ['--screenshot=' + shot.replace('\\', '/')]
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
