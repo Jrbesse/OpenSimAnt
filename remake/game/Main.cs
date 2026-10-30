@@ -171,6 +171,9 @@ public partial class Main : Node2D
             if (arg.StartsWith("--message=") && session.Files.Strings(int.Parse(arg["--message=".Length..])) is { } box)
                 OpenMessageBox(box);                                        // --message=<STR# id>: show a message box
         if (OS.GetCmdlineUserArgs().Contains("--ant-info")) { var (_, ya, yb) = session.Yellow; SetView(session.Yellow.view); CenterOnYellow(); OpenAntInfo(ya, yb); }
+        foreach (var arg in OS.GetCmdlineUserArgs())                            // --ant-info=a,b: held on the ant in cell (a, b)
+            if (arg.StartsWith("--ant-info=") && arg["--ant-info=".Length..].Split(',') is { Length: 2 } ai)
+                OpenAntInfo(int.Parse(ai[0]), int.Parse(ai[1]));
         if (OS.GetCmdlineUserArgs().Contains("--strat")) session.St.Set16(Seg.G, 0x35c, 2);
         font = ui.Font(2);
         menus = new Menus(session.Files, ScreenW);
@@ -401,6 +404,15 @@ public partial class Main : Node2D
                 OpenMapSlot();                                                      // f_013ff
                 Front(EditWin);                                                     // f_03370
                 foreach (var arg in frontArgs)                                      // the screenshot flags' windows, in their order
+                {
+                    if (arg == "--start-windows")                                   // a new game over these windows: f_7256f again
+                    {
+                        Front(CasteWin);
+                        Front(BehaviorWin);
+                        OpenMapSlot();
+                        Front(EditWin);
+                        continue;
+                    }
                     foreach (int w in arg switch
                              {
                                  "--history" => new[] { HistoryWin }, "--panels" => new[] { BehaviorWin, CasteWin },
@@ -410,6 +422,7 @@ public partial class Main : Node2D
                              })
                         if (w == YardWin) OpenYard(false);                             // in the Map window's place
                         else Front(w);
+                }
                 frontArgs.Clear();
             }
             else if (e.Name == "scene") Present(AntLionScene);                    // f_76707

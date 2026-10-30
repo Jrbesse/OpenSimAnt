@@ -46,6 +46,9 @@ FLAGS = {
     'menu_speed': ['--history', '--panels', '--antipedia', '--map-front', '--menu=4', '--cursor=322,8'],
     'editfront': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front'],
     'popup': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--popup=@'],  # @: popup.at
+    'antinfo': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--ant-info=#'],  # #: .cell
+    'newselect': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--select'],
+    'exp': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--start-windows'],
     'menu': ['--menu=0', '--cursor=20,8'],
     'menu_window': ['--menu=1', '--cursor=90,8'],
     'menu_view': ['--menu=2', '--cursor=160,8'],
@@ -73,6 +76,9 @@ def main():
         if os.path.exists(at):                    # a press point saved by screens.py: the flag's '@' and the cursor
             xy = open(at).read().strip()
             flags = [f.replace('@', xy) for f in flags] + ['--cursor=' + xy]
+        cell = os.path.join(SCREENS, name + '.cell')
+        if os.path.exists(cell):                  # the map cell pressed on: the flag's '#'
+            flags = [f.replace('#', open(cell).read().strip()) for f in flags]
         cmd += flags + ([] if any(f.startswith('--cursor') for f in flags) else [CURSOR])
         cmd += ['--screenshot=' + shot.replace('\\', '/')]
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
