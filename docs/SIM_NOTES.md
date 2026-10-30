@@ -1862,8 +1862,11 @@ an item; f_6d7e3 moves between menus on the scan codes 'K' / 'M' (Left / Right),
 each Options flag that is on, and `f_1fe55(0x41, " Unpause" / " Pause")` relabels the Pause item (DS:297E /
 DS:2987).
 
-`f_74386` (a typed key; it also feeds the cheats, `f_6a920`): with Ctrl (`f_1c160(0x1d)`) Alt+F 0x817 /
-0x820 / 0x821 / 0x82F are debug keys. Then the table DS:2CBE (u16 key, u16 command; 0-terminated) posts
+`f_74386` (a typed key; it also feeds the cheats, `f_6a920`): with Ctrl (`f_1c160(0x1d)`) the Alt keys 0x817 /
+0x820 / 0x821 / 0x82F are debug keys (decoded 2026-10-29: Ctrl+Alt+I `f_74460` an alert with the free memory,
+Ctrl+Alt+D `f_174cc("User Request")` the fatal-error exit, Ctrl+Alt+F `f_190ba` flushes the resource cache ("FLUSH"),
+Ctrl+Alt+V an alert `f_1c6e0` with the far pointer DS:0064: "Ver 1.00 Fri Dec 06 14:51:14 1991"; the shell keeps only V).
+A key 0x8nn is scan code nn without a character (Alt + letter): 0x824 is Alt+J. Then the table DS:2CBE (u16 key, u16 command; 0-terminated) posts
 the command (`f_1ba3f`): Alt+F / W / V / O / S and F2..F6 → 0xFE00..04; ')' 0xFD41, '!' 0xFD43, '@'
 0xFD44, '#' 0xFD45, '$' 0xFD46; ^N 0xFD03, ^S 0xFD05, ^A 0xFD06, ^L 0xFD04, ^E 0xFD11, ^M 0xFD12, ^B
 0xFD13, ^C 0xFD14, ^T 0xFD17, ^G 0xFD31, ^J 0xFD32, ^K 0xFD33, ^X / ^Q 0xFD08, ^Y 0xFD21. Other keys go to

@@ -83,6 +83,8 @@ Keys:
 | Ctrl+4 / 5 / 6 / 7 | back to the patch; the yard window as House / Strategic / Graphic view |
 | Ctrl+8 / 9 / 0 | Surface / Black Nest / Red Nest |
 | Alt+2 | recruit all |
+| Alt+J | the spider: hunt (as Alt + Hunt, command 0x0C; f_76aeb's key 0x824) |
+| Ctrl+Alt+V | the original's version line (a debug key of f_74386) |
 | Home | go to the yellow ant, with a chirp (f_76aeb's key 0x847) |
 | Space or Insert, Delete | the left / right mouse button at the pointer (the original's keyboard mouse, f_2024b); pause with the PAUSE button or Speed > Pause |
 | Ctrl + arrows / keypad (Home / PgUp / End / PgDn diagonals), the mouse at the screen's edge | scroll the Edit window while held (f_74140, f_0113e) |

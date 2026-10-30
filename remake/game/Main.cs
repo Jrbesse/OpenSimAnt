@@ -3904,6 +3904,19 @@ public partial class Main : Node2D
     {
         var st = session.St;
         bool spider = st.U16(Seg.G, 0xa06) != 0, queen = st.U16(Seg.G, 0x4c2) == 0x40 && st.U16(Seg.G, 0xc24) == 0;
+        if (k.CtrlPressed && k.AltPressed)
+        {
+            // f_74386's debug keys (Ctrl held, f_1c160(0x1D)): Alt+V 0x82F shows the version line (the far pointer
+            // DS:0064, "Ver 1.00 ...", f_1c6e0). Not kept: Alt+I 0x817 (free memory), Alt+D 0x820 (the fatal-error
+            // exit "User Request", f_174cc), Alt+F 0x821 (flush the resource cache).
+            if (k.Keycode != Key.V) return false;
+            var flat = session.Files.Flat;
+            int p = Seg.DS * 16 + 0x64, at = (flat[p + 2] | flat[p + 3] << 8) * 16 + (flat[p] | flat[p + 1] << 8), end = at;
+            while (end < flat.Length && flat[end] != 0) end++;
+            OpenAlert(System.Text.Encoding.ASCII.GetString(flat, at, end - at), null);
+            return true;
+        }
+        if (k.AltPressed && k.Keycode == Key.J && spider) { Commands.Command(st, 0xc); return true; }   // f_76aeb 0x824
         if (k.CtrlPressed)
         {
             // f_74386's table DS:2CBE, then the scan codes of 8414:0383 (Ctrl+4 the patch, f_013ff; Ctrl+5..0, H, I)
