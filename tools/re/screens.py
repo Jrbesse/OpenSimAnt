@@ -150,7 +150,11 @@ def main():
     e.mouse_event(1, 600, 470, 0)
     run(e, 150, 300_000_000)
     shot(e, v, os.path.join(out, 'overwrite.png'))
-    e.keys.append(0x011b)                         # Esc: No
+    e.keys.append(0x1c0d)                         # Enter: Yes; it saves over the served file (emu accepts the writes)
+    run(e, 150, 300_000_000)
+    shot(e, v, os.path.join(out, 'saved.png'))     # f_1c6e0: "<path>\nSaved correctly", the green notice
+    click(e, 312, 245)                            # Continue
+    e.mouse_event(1, 600, 470, 0)
     run(e, 150, 300_000_000)
     click(e, 332, 343)                            # CANCEL (Save mode: not moved up)
     e.mouse_event(1, 600, 470, 0)

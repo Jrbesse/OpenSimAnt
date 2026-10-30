@@ -342,6 +342,9 @@ class SimEmu:
         elif ah == 0x3d:                          # open (read-only)
             name = self._str(ds, dx).replace('/', chr(92)).split(chr(92))[-1].split(':')[-1]
             path = os.path.join(self.game_dir, name.upper())
+            served = getattr(self, 'find_dir', None)
+            if name and served and not os.path.isfile(path) and os.path.isfile(os.path.join(served, name.upper())):
+                path = os.path.join(served, name.upper())     # a file of the served folder (the file dialog's)
             if name and (name.upper() in self.overrides or os.path.isfile(path)):
                 h = 5                             # DOS hands out the lowest free handle (MSC caps at 20)
                 while h in self.files:

@@ -143,7 +143,8 @@ public partial class Main : Node2D
                 if (a.Length > 2) AntipediaPress(a[1], a[2]);
             }
         if (OS.GetCmdlineUserArgs().Contains("--load-dialog")) OpenFileDialog(false);
-        if (OS.GetCmdlineUserArgs().Contains("--alert")) OpenAlert("OVERWRITE\nC:\\SIMANT\\MYCOLONY.ANT", new[] { "\rYes", "\x1bNo" });
+        if (OS.GetCmdlineUserArgs().Contains("--alert")) OpenAlert("OVERWRITE\nC:\\MYCOLONY.ant", new[] { "\rYes", "\x1bNo" });
+        if (OS.GetCmdlineUserArgs().Contains("--saved")) OpenAlert("C:\\MYCOLONY.ant\nSaved correctly", null, null, true);
         if (OS.GetCmdlineUserArgs().Contains("--error")) OpenAlert("  Read error  \ngame not loaded", null);
         foreach (var arg in OS.GetCmdlineUserArgs())                            // --alert-text=line|line: an alert with OK
             if (arg.StartsWith("--alert-text=")) OpenAlert(arg["--alert-text=".Length..].Replace('|', '\n'), null);
@@ -2215,11 +2216,22 @@ public partial class Main : Node2D
             if (!SaveGame(path)) { gameFile = null; return; }
             var then = afterSave;
             afterSave = null;
-            then?.Invoke();
+            OpenAlert(ShownPath(path) + "\nSaved correctly", null, _ => then?.Invoke(), info: true);   // f_6c328: f_1c6e0
         }
         if (System.IO.File.Exists(path))
-            OpenAlert("OVERWRITE\n" + path.ToUpperInvariant(), new[] { "\rYes", "\x1bNo" }, b => { if (b == 0) Write(); else OpenFileDialog(true); });
+            OpenAlert("OVERWRITE\n" + ShownPath(path), new[] { "\rYes", "\x1bNo" }, b => { if (b == 0) Write(); else OpenFileDialog(true); });
         else Write();
+    }
+
+    /// <summary>A saved game's path as the original shows it: the folder (in capitals, as DOS gives it) with its '\',
+    /// then the name as f_6cecb made it (NAME.ant: the extension DS:296A in lower case).</summary>
+    string ShownPath(string path)
+    {
+        var dir = System.IO.Path.GetDirectoryName(path) ?? "";
+        string shown = fileDirShown != null && fileDrive == 'C' && dir == System.IO.Path.GetFullPath(fileDirRoot ?? "")
+            ? fileDirShown : dir.ToUpperInvariant();
+        if (!shown.EndsWith('\\')) shown += "\\";
+        return shown + System.IO.Path.GetFileName(path);
     }
 
     // f_6c1a0, File > Load: the dialog ("Load Game", "LOAD"), the name to G:3862; a file that will not open shows the
@@ -2251,8 +2263,14 @@ public partial class Main : Node2D
     Action<int> alertDone;
     int alertReturn = -1;
 
-    void OpenAlert(string text, string[] buttons, Action<int> done = null)
+    /// <summary>f_1c6f5(text, kind): kind 0 an error (f_1c6cc), 1 a notice (f_1c6e0, "Saved correctly"); the colours
+    /// are DS:550C[kind] (box fill, frame and button text, button fill): 0 = 15, 4, 12 (black, magenta, grey), 1 = 15,
+    /// 9, 11 (black, green, olive). The message itself is always colour 4.</summary>
+    bool alertInfo;
+
+    void OpenAlert(string text, string[] buttons, Action<int> done = null, bool info = false)
     {
+        alertInfo = info;
         alertLines = text.Split('\n');
         alertButtons = buttons;
         alertDone = done;
@@ -2297,10 +2315,10 @@ public partial class Main : Node2D
     void DrawAlert(UiArt.Canvas c)
     {
         var f = ui.Font(0);
-        uint four = ui.Palette[4], grey = ui.Palette[12];
+        uint four = ui.Palette[4], frame = ui.Palette[alertInfo ? 9 : 4], grey = ui.Palette[alertInfo ? 11 : 12];
         var (l, t, r, b) = AlertRect(out int ch);
         c.Fill(l, t, r, b, UiArt.Black);
-        UiArt.ThickFrame(c, l, t, r, b, 4, four);
+        UiArt.ThickFrame(c, l, t, r, b, 4, frame);
         if (alertButtons != null) UiArt.ThickFrame(c, l, t, r, b, 1, UiArt.White);
         for (int i = 0; i < alertLines.Length; i++)
             Cells(c, l + (r - l - alertLines[i].Length * 8) / 2, t + (i + 1) * ch, alertLines[i], four);
@@ -2310,10 +2328,10 @@ public partial class Main : Node2D
         {
             var (bl, bt, br, bb) = rects[i];
             // the button's frames end one pixel short at the right and bottom (the original's screen, "Permission denied")
-            UiArt.ThickFrame(c, bl - 3, bt - 3, br + 2, bb + 2, 1, four);
+            UiArt.ThickFrame(c, bl - 3, bt - 3, br + 2, bb + 2, 1, frame);
             UiArt.ThickFrame(c, bl - 2, bt - 2, br + 1, bb + 1, 2, grey);
             c.Fill(bl, bt, br, bb, grey);
-            Cells(c, bl, bt, labels[i], four);
+            Cells(c, bl, bt, labels[i], frame);
         }
     }
 
