@@ -56,11 +56,11 @@ public static class ResourceArchive
         return n == outLen ? res : res[..n];
     }
 
-    /// <summary>Read NAME.NDX / NAME.DAT (basePath without the extension).</summary>
-    public static List<Resource> Read(string basePath)
+    /// <summary>Read NAME.NDX / NAME.DAT in `dir` (either case on disk).</summary>
+    public static List<Resource> Read(string dir, string name)
     {
-        var ndx = File.ReadAllBytes(basePath + ".NDX");
-        var dat = File.ReadAllBytes(basePath + ".DAT");
+        var ndx = File.ReadAllBytes(OriginalFiles.FilePath(dir, name + ".NDX"));
+        var dat = File.ReadAllBytes(OriginalFiles.FilePath(dir, name + ".DAT"));
         int count = BinaryPrimitives.ReadUInt16LittleEndian(ndx);
         var res = new List<Resource>(count);
         for (int i = 0; i < count; i++)
@@ -71,7 +71,7 @@ public static class ResourceArchive
             int type = ndx[e + 6], flags = ndx[e + 7];
             int h = 0x0e + off;
             if (BinaryPrimitives.ReadUInt32LittleEndian(dat.AsSpan(h)) != MAGIC)
-                throw new InvalidDataException($"{basePath}: bad record {i}");
+                throw new InvalidDataException($"{name}.DAT: bad record {i}");
             int size = (int)BinaryPrimitives.ReadUInt32LittleEndian(dat.AsSpan(h + 6));
             var raw = dat.AsSpan(h + 10, size);
             byte[] data = (flags & 1) != 0
@@ -132,10 +132,10 @@ public sealed class OriginalFiles
     public OriginalFiles(string dir)
     {
         Dir = dir;
-        Flat = ExeImage.BuildFlat(File.ReadAllBytes(Path.Combine(dir, "SIMANT.EXE")));
-        Hcegant = ResourceArchive.Read(Path.Combine(dir, "HCEGANT"));
-        Shared = File.Exists(Path.Combine(dir, "SHARED.DAT")) ? ResourceArchive.Read(Path.Combine(dir, "SHARED")) : new List<Resource>();
-        Sound = File.Exists(Path.Combine(dir, "SOUND.DAT")) ? ResourceArchive.Read(Path.Combine(dir, "SOUND")) : new List<Resource>();
+        Flat = ExeImage.BuildFlat(File.ReadAllBytes(FilePath(dir, "SIMANT.EXE")));
+        Hcegant = ResourceArchive.Read(dir, "HCEGANT");
+        Shared = File.Exists(FilePath(dir, "SHARED.DAT")) ? ResourceArchive.Read(dir, "SHARED") : new List<Resource>();
+        Sound = File.Exists(FilePath(dir, "SOUND.DAT")) ? ResourceArchive.Read(dir, "SOUND") : new List<Resource>();
     }
 
     public readonly List<Resource> Sound;
@@ -201,8 +201,24 @@ public sealed class OriginalFiles
 
     /// <summary>Is there a copy of the game in this folder?</summary>
     public static bool Present(string dir) =>
-        File.Exists(Path.Combine(dir, "SIMANT.EXE")) && File.Exists(Path.Combine(dir, "HCEGANT.DAT"))
-        && File.Exists(Path.Combine(dir, "HCEGANT.NDX"));
+        File.Exists(FilePath(dir, "SIMANT.EXE")) && File.Exists(FilePath(dir, "HCEGANT.DAT"))
+        && File.Exists(FilePath(dir, "HCEGANT.NDX"));
+
+    /// <summary>The path of the game's file `name` in `dir`, whatever the case of its name on disk (copies of DOS games
+    /// often have lower-case names, and Linux and some macOS volumes tell the cases apart); the upper-case path if
+    /// there is no such file.</summary>
+    public static string FilePath(string dir, string name)
+    {
+        var exact = Path.Combine(dir, name);
+        if (File.Exists(exact) || !Directory.Exists(dir)) return exact;
+        try
+        {
+            foreach (var f in Directory.EnumerateFiles(dir))
+                if (string.Equals(Path.GetFileName(f), name, StringComparison.OrdinalIgnoreCase)) return f;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        return exact;
+    }
 
     public Resource Find(int type, int id) => Hcegant.First(r => r.Type == type && r.Id == id);
 }

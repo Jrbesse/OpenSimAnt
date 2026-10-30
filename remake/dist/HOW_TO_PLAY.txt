@@ -5,10 +5,11 @@ This is a test build. Thanks for trying it!
 
 WHAT YOU NEED
 
-  * A Windows 10 or 11 PC (64-bit).
+  * Windows 10 or 11 (64-bit), macOS 12 or newer (Apple Silicon or Intel), or a 64-bit
+    Linux desktop (x86_64).
   * Your own copy of the original DOS version of SimAnt. The remake does not include
     any of the original game: it reads the art, sounds and rules from your copy.
-    The folder you need has these files in it:
+    The folder you need has these files in it (upper or lower case names both work):
 
         SIMANT.EXE   HCEGANT.DAT   HCEGANT.NDX   SHARED.DAT   SHARED.NDX   SOUND.DAT   SOUND.NDX
 
@@ -16,20 +17,37 @@ WHAT YOU NEED
 
 STARTING THE GAME
 
-  1. Right-click the zip you downloaded and choose "Extract All...", then open the
-     extracted folder. (Running it straight from inside the zip won't work.)
+  Windows
+    1. Right-click the zip you downloaded and choose "Extract All...", then open the
+       extracted folder. (Running it straight from inside the zip won't work.)
+    2. Double-click Formica.exe.
+       Windows may show a blue box saying "Windows protected your PC". That happens because
+       this test build isn't signed. Click "More info", then "Run anyway".
 
-  2. Double-click Formica.exe.
+  macOS
+    1. Double-click the zip you downloaded; it unpacks into a "Formica" folder. Move
+       Formica.app wherever you like (Applications, or leave it there).
+    2. The build isn't signed by an Apple developer, so the first time macOS refuses to open it.
+       Right-click (or Control-click) Formica.app and choose "Open", then "Open" again.
+       On macOS 15 and newer: double-click it once, close the warning, then open System Settings >
+       Privacy & Security, scroll down and click "Open Anyway" next to Formica.
+       (If macOS says the app "is damaged", open Terminal and run:
+            xattr -dr com.apple.quarantine /path/to/Formica.app
+        dragging the app into the Terminal window types its path for you.)
 
-     Windows may show a blue box saying "Windows protected your PC". That happens because
-     this test build isn't signed. Click "More info", then "Run anyway".
+  Linux
+    1. Unpack the archive:   tar xzf Formica-*-linux.tar.gz
+    2. Run it:               ./Formica/Formica.x86_64
+       (Keep the "data_..." folder next to it: the game needs it.)
 
-  3. The first time, the game asks where your SimAnt files are. Click
-     "Find my game folder..." and pick the folder with SIMANT.EXE in it (picking the folder
-     just above it works too). The game remembers it, so you only do this once.
+  Then, on every system:
+    3. The first time, the game asks where your SimAnt files are. Click
+       "Find my game folder..." and pick the folder with SIMANT.EXE in it (picking the folder
+       just above it works too). The game remembers it, so you only do this once.
 
-     Shortcut: if you copy your SimAnt files into the same folder as Formica.exe (or into a
-     folder next to it), the game finds them by itself and skips this step.
+       Shortcut: if you copy your SimAnt files into the same folder as the game (or into a
+       folder next to it; on macOS, next to Formica.app), the game finds them by itself and
+       skips this step.
 
 PLAYING
 
@@ -41,8 +59,12 @@ PLAYING
   pause with the PAUSE button or the Speed menu. Also: + and - change the speed, arrow keys scroll,
   F follows the yellow ant.
 
-  Saved games are kept in:  %APPDATA%\Godot\app_userdata\Formica
-  (Paste that into the address bar of a File Explorer window to open it.)
+  Saved games are kept in:
+    Windows:  %APPDATA%\Godot\app_userdata\Formica
+              (paste that into the address bar of a File Explorer window to open it)
+    macOS:    ~/Library/Application Support/Godot/app_userdata/Formica
+              (in Finder: Go > Go to Folder..., then paste it)
+    Linux:    ~/.local/share/godot/app_userdata/Formica
 
 IF SOMETHING GOES WRONG
 
@@ -54,5 +76,5 @@ IF SOMETHING GOES WRONG
     above and start the game again.
 
   * Anything else (a crash, something that looks wrong, something that doesn't work like
-    the original): tell whoever sent you this, and say what you were doing when it happened.
-    A screenshot helps a lot.
+    the original): tell whoever sent you this, and say which system you're on and what you
+    were doing when it happened. A screenshot helps a lot.

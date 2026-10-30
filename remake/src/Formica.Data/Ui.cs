@@ -113,7 +113,7 @@ public sealed class UiArt
         // f_24d5d: fonts 2..5 are the slots DS:4A1A.. that start-up (f_34ab_047d) fills from the files FONT1..FONT4
         // (Mac FONTs; 1 and 2 have the glyph widths of SHARED 2 and 3, 3 is 15 px tall, 4 is the bold the
         // SimAntipedia's links use). Without them, and for 0 / 1, the SHARED type-11 fonts.
-        string file = Path.Combine(Files.Dir, $"FONT{id - 1}");
+        string file = OriginalFiles.FilePath(Files.Dir, $"FONT{id - 1}");
         var r = Files.Shared.FirstOrDefault(x => x.Type == 11 && x.Id == id);
         f = id is >= 2 and <= 5 && File.Exists(file) ? new BitmapFont(File.ReadAllBytes(file))
             : r == null ? null : new BitmapFont(r.Data);
