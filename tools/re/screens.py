@@ -187,6 +187,8 @@ def main():
                 f.write(f'{a},{b}')
             click(e, 600, 470)                        # a click closes it
             break
+    # (tried 2026-10-29: the yellow ant starved (G:0F78 = T:0C16 = 0) dies and takes over a worker within 400 polls, but
+    # its death box / scene was not on screen at 400 / 800 / 1600 polls: they run on the clock and time out)
     # the Experimental game: File > New, DON'T SAVE, then Experimental in Select a Game
     choose(e, 20, FILE_NEW)
     click(e, 185, 216)
