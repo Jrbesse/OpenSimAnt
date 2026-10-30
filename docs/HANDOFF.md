@@ -26,7 +26,8 @@ pins it; `seg_of` gives the overlay's first segment.
 macOS (universal, built-in ad-hoc signing, bundle id io.github.jrbesse.formica; needs `import_etc2_astc` in project.godot)
 presets beside Windows; `.github/workflows/release.yml` exports all three from one Ubuntu runner (Godot cross-exports C#)
 and packs Formica-<v>-windows.zip, -macos.zip (Formica.app, repacked with `zip -y`) and -linux.tar.gz (exec bit), each with
-HOW_TO_PLAY.txt (now for all three systems). Run by hand (run 40999832583: all three built, artifacts checked) or with a
+HOW_TO_PLAY.txt (now for all three systems). Run by hand (run 40999832583: all three built, artifacts checked; the
+latest, with the night's fixes: run 41019086870, Formica-build-fbb36d4-*) or with a
 `v*` tag (pre-release). The game finds its files whatever the case of their names (`OriginalFiles.FilePath`). **The owner
 is testing the builds on all three systems**: ask for the results.
 
@@ -355,7 +356,10 @@ Suggested next session (in order):
    keys decoded); the **SimAntipedia** handler f_790f0 matches; the **yard window** f_6f7f0: House from Strat / Graphic
    goes to the Yard (fixed); the XOR highlight (index ^ 15) is confirmed by expmenu. **38 captures, all identical but
    for animation / Map-lag timing in whatever state a run catches** (surface, yard, yardfront, exp, gameover; they
-   vary from run to run). Ant Info's capture was taken out (see above).
+   vary from run to run). Ant Info's capture was taken out (see above). The save captures (savedlg, overwrite, saved,
+   savecancel) are opt-in (`SCREENS_SAVE=1 python tools/re/screens.py`): after the save, File > New opened nothing in
+   the emulator, which spoiled the captures after it (not investigated). Gotcha: the yellow ant's pop-up can stay open
+   after a release outside it; screens.py clicks once more to close it, or later menus do nothing.
    Older list: Cancel (its centre at about (332, 308) in Load mode); then the Options / Speed menus; a SimAntipedia glossary pop-up (a bold word on a card);
    the yellow ant's pop-up menu (press and hold on it in the Edit window: find its screen spot from G:047C / G:048A and
    the Edit origin G:0508 / G:050A, 16 px cells from (64, 41)); Ant Info; the Experimental game (Select a Game) and its

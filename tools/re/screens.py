@@ -142,21 +142,8 @@ def main():
     e.mouse_event(1, 600, 470, 0)
     run(e, 150, 300_000_000)
     shot(e, v, os.path.join(out, 'cancel.png'))
-    # File > Save As: the dialog in Save mode; pick MYCOLONY.ANT (list row 2: y = 144 + 2 * 14 + 7) and SAVE: OVERWRITE?
-    choose(e, 20, FILE_SAVE_AS)
-    shot(e, v, os.path.join(out, 'savedlg.png'))
-    click(e, 220, 179)
-    click(e, 210, 343)
-    e.mouse_event(1, 600, 470, 0)
-    run(e, 150, 300_000_000)
-    shot(e, v, os.path.join(out, 'overwrite.png'))
-    e.keys.append(0x1c0d)                         # Enter: Yes; it saves over the served file (emu accepts the writes)
-    run(e, 150, 300_000_000)
-    shot(e, v, os.path.join(out, 'saved.png'))     # f_1c6e0: "<path>\nSaved correctly", the green notice
-    click(e, 312, 245)                            # Continue (the dialog closed with the save)
-    e.mouse_event(1, 600, 470, 0)
-    run(e, 150, 300_000_000)
-    shot(e, v, os.path.join(out, 'savecancel.png'))
+    if os.environ.get('SCREENS_SAVE'):            # opt-in: after these, File > New opens nothing (see save_captures)
+        save_captures(e, v, out)
     for x, name in ((240, 'menu_options'), (322, 'menu_speed')):
         hold_menu(e, x)
         shot(e, v, os.path.join(out, name + '.png'))
@@ -181,9 +168,10 @@ def main():
         shot(e, v, os.path.join(out, 'popup.png'))
         with open(os.path.join(out, 'popup.at'), 'w') as f:
             f.write(f'{x},{y}')
-        e.mouse_event(1, 600, 470, 1)                 # released outside the menu: it closes
+        e.mouse_event(1, 600, 470, 1)                 # released outside the menu
         e.mouse_event(4, 600, 470, 0)
         run(e, 100)
+        click(e, 600, 470)                            # (the menu can stay open after the release: a click closes it)
     else:
         print('   (the yellow ant is not in the Edit window: no popup capture)')
     # (Ant Info, tried 2026-10-29 and taken out: holds on brood, the queen, a walking worker and a worker made to rest
@@ -192,12 +180,10 @@ def main():
     # (tried 2026-10-29: the yellow ant starved (G:0F78 = T:0C16 = 0) dies and takes over a worker within 400 polls, but
     # its death box / scene was not on screen at 400 / 800 / 1600 polls: they run on the clock and time out)
     # the Experimental game: File > New, DON'T SAVE, then Experimental in Select a Game
-    unsaved = e.w16(0x3d57, 0x2c2)                # T:02C2: changes since the last save (the save above cleared it)
     choose(e, 20, FILE_NEW)
-    if unsaved:
-        click(e, 185, 216)                        # the save prompt: DON'T SAVE
-        e.mouse_event(1, 600, 470, 0)
-        run(e, 150, 300_000_000)
+    click(e, 185, 216)                            # the save prompt: DON'T SAVE
+    e.mouse_event(1, 600, 470, 0)
+    run(e, 150, 300_000_000)
     shot(e, v, os.path.join(out, 'newselect.png'))
     click(e, 200, 300)
     e.mouse_event(1, 600, 470, 0)
@@ -224,6 +210,28 @@ def main():
     run(e, 300, 600_000_000)
     shot(e, v, os.path.join(out, 'gameover.png'))
     print('wrote', out)
+
+
+def save_captures(e, v, out):
+    """File > Save As: the dialog in Save mode; MYCOLONY.ANT (list row 2: y = 144 + 2 * 14 + 7) and SAVE: OVERWRITE;
+    Yes: the green "Saved correctly" (all identical to the remake's on 2026-10-29). Opt-in (SCREENS_SAVE=1): after
+    the save, File > New opened nothing in the emulator (neither prompt nor Select a Game, even with T:02C2 set again
+    and 800 more polls; not investigated), which spoils the captures that follow (newselect, exp, expmenu, gameover)."""
+    choose(e, 20, FILE_SAVE_AS)
+    shot(e, v, os.path.join(out, 'savedlg.png'))
+    click(e, 220, 179)
+    click(e, 210, 343)
+    e.mouse_event(1, 600, 470, 0)
+    run(e, 150, 300_000_000)
+    shot(e, v, os.path.join(out, 'overwrite.png'))
+    e.keys.append(0x1c0d)                         # Enter: Yes; it saves over the served file (emu accepts the writes)
+    run(e, 150, 300_000_000)
+    shot(e, v, os.path.join(out, 'saved.png'))     # f_1c6e0: "<path>\nSaved correctly", the green notice
+    click(e, 312, 245)                            # Continue (the dialog closed with the save)
+    e.mouse_event(1, 600, 470, 0)
+    run(e, 150, 300_000_000)
+    shot(e, v, os.path.join(out, 'savecancel.png'))
+    e.set16(0x3d57, 0x2c2, 1)
 
 
 def s16(v):
