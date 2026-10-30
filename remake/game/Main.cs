@@ -145,6 +145,8 @@ public partial class Main : Node2D
         if (OS.GetCmdlineUserArgs().Contains("--load-dialog")) OpenFileDialog(false);
         if (OS.GetCmdlineUserArgs().Contains("--alert")) OpenAlert("OVERWRITE\nC:\\SIMANT\\MYCOLONY.ANT", new[] { "\rYes", "\x1bNo" });
         if (OS.GetCmdlineUserArgs().Contains("--error")) OpenAlert("  Read error  \ngame not loaded", null);
+        foreach (var arg in OS.GetCmdlineUserArgs())                            // --alert-text=line|line: an alert with OK
+            if (arg.StartsWith("--alert-text=")) OpenAlert(arg["--alert-text=".Length..].Replace('|', '\n'), null);
         if (OS.GetCmdlineUserArgs().Contains("--save-dialog")) { gameFile = "MYCOLONY.ANT"; OpenFileDialog(true); }
         if (OS.GetCmdlineUserArgs().Contains("--game-over"))
         {

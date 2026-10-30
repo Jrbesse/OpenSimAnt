@@ -130,6 +130,7 @@ def main():
     e.mouse_event(1, 600, 470, 0)
     run(e, 150, 300_000_000)
     shot(e, v, os.path.join(out, 'filedlg.png'))
+    # (a click on A: does not give the disk error box here: the emulator's DOS serves every drive, "A:\" selected)
     click(e, 332, 308)                            # CANCEL: back to the game
     e.mouse_event(1, 600, 470, 0)
     run(e, 150, 300_000_000)
