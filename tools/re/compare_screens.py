@@ -49,6 +49,10 @@ FLAGS = {
     'antinfo': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--ant-info=#'],  # #: .cell
     'newselect': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--select'],
     'exp': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--start-windows'],
+    'expmenu': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--start-windows', '--map-front',
+                '--exp-menu'],
+    'gameover': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--start-windows', '--map-front',
+                 '--game-over'],
     'menu': ['--menu=0', '--cursor=20,8'],
     'menu_window': ['--menu=1', '--cursor=90,8'],
     'menu_view': ['--menu=2', '--cursor=160,8'],

@@ -195,6 +195,25 @@ def main():
     e.run(1500, 2_000_000_000)
     shot(e, v, os.path.join(out, 'exp.png'))
     print('   exp: mode', e.w16(0x50f6, 0xeac))
+    # the Experimental menu (f_67010): front the Map window (its caption), then press and hold its button 0x117
+    # (layout 1 item 23 moved by (-56, 38): centre (444, 350)); in the Experimental game it is the tool palette
+    click(e, 500, 70)
+    e.mouse_event(1, 600, 470, 0)
+    run(e, 150, 300_000_000)
+    e.mouse_event(1, 444, 350, 0)
+    e.mouse_event(2, 444, 350, 1)
+    run(e, 200, 300_000_000)
+    shot(e, v, os.path.join(out, 'expmenu.png'))
+    with open(os.path.join(out, 'expmenu.at'), 'w') as f:
+        f.write('444,350')
+    e.mouse_event(1, 600, 470, 1)
+    e.mouse_event(4, 600, 470, 0)
+    run(e, 100)
+    # the game-over window (f_71d95): the main loop shows it once G:0376 is set (G:0366 = 0: lost)
+    e.set16(0x50f6, 0x366, 0)
+    e.set16(0x50f6, 0x376, 1)
+    run(e, 300, 600_000_000)
+    shot(e, v, os.path.join(out, 'gameover.png'))
     print('wrote', out)
 
 

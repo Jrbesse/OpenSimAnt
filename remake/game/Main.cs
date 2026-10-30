@@ -1966,10 +1966,11 @@ public partial class Main : Node2D
     {
         ui.DrawWindow(c, GameOverWin, 0, 0, null);
         var items = ui.Layouts[GameOverWin].Items;
-        for (int k = 0; k < 3; k++)
+        for (int k = 0; k < 3; k++)                                          // f_23943: values in the items' schemes
         {
-            var (l, t, r, b) = items[2 + k].Rect;
-            ui.DrawText(c, 4, 0, l, t, r, b, gameOverText[k]);
+            var it = items[2 + k];
+            var (l, t, r, b) = it.Rect;
+            ui.DrawValue(c, 4, l, t, r, b, gameOverText[k], ui.SchemeOf(it).fg, ui.SchemeOf(it).bg);
         }
     }
 
