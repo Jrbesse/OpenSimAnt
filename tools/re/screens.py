@@ -142,6 +142,20 @@ def main():
     e.mouse_event(1, 600, 470, 0)
     run(e, 150, 300_000_000)
     shot(e, v, os.path.join(out, 'cancel.png'))
+    # File > Save As: the dialog in Save mode; pick MYCOLONY.ANT (list row 2: y = 144 + 2 * 14 + 7) and SAVE: OVERWRITE?
+    choose(e, 20, FILE_SAVE_AS)
+    shot(e, v, os.path.join(out, 'savedlg.png'))
+    click(e, 220, 179)
+    click(e, 210, 343)
+    e.mouse_event(1, 600, 470, 0)
+    run(e, 150, 300_000_000)
+    shot(e, v, os.path.join(out, 'overwrite.png'))
+    e.keys.append(0x011b)                         # Esc: No
+    run(e, 150, 300_000_000)
+    click(e, 332, 343)                            # CANCEL (Save mode: not moved up)
+    e.mouse_event(1, 600, 470, 0)
+    run(e, 150, 300_000_000)
+    shot(e, v, os.path.join(out, 'savecancel.png'))
     for x, name in ((240, 'menu_options'), (322, 'menu_speed')):
         hold_menu(e, x)
         shot(e, v, os.path.join(out, name + '.png'))

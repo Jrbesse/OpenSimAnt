@@ -148,6 +148,8 @@ public partial class Main : Node2D
         foreach (var arg in OS.GetCmdlineUserArgs())                            // --alert-text=line|line: an alert with OK
             if (arg.StartsWith("--alert-text=")) OpenAlert(arg["--alert-text=".Length..].Replace('|', '\n'), null);
         if (OS.GetCmdlineUserArgs().Contains("--save-dialog")) { gameFile = "MYCOLONY.ANT"; OpenFileDialog(true); }
+        foreach (var arg in OS.GetCmdlineUserArgs())                            // --save-dialog=NAME: the last file's name (may be empty)
+            if (arg.StartsWith("--save-dialog=")) { gameFile = arg["--save-dialog=".Length..]; OpenFileDialog(true); }
         if (OS.GetCmdlineUserArgs().Contains("--game-over"))
         {
             var (score, _) = Formica.Sim.Game.Rating(session.St);
@@ -2268,7 +2270,7 @@ public partial class Main : Node2D
 
     (int l, int t, int r, int b) AlertRect(out int ch)
     {
-        ch = ui.Font(0).Height;                                                 // DS:3DDC
+        ch = 14;                                                                // DS:3DDC: the BIOS font's 8 x 14 cells
         int w = alertLines.Max(s => s.Length), h = alertLines.Length + 4;
         if (alertButtons != null) w = Math.Max(w, 2 * alertButtons.Length);  // (sic: the labels' lengths are not added)
         w += 2;
@@ -2307,8 +2309,9 @@ public partial class Main : Node2D
         for (int i = 0; i < rects.Count; i++)
         {
             var (bl, bt, br, bb) = rects[i];
-            UiArt.ThickFrame(c, bl - 3, bt - 3, br + 3, bb + 3, 1, four);
-            UiArt.ThickFrame(c, bl - 2, bt - 2, br + 2, bb + 2, 2, grey);
+            // the button's frames end one pixel short at the right and bottom (the original's screen, "Permission denied")
+            UiArt.ThickFrame(c, bl - 3, bt - 3, br + 2, bb + 2, 1, four);
+            UiArt.ThickFrame(c, bl - 2, bt - 2, br + 1, bb + 1, 2, grey);
             c.Fill(bl, bt, br, bb, grey);
             Cells(c, bl, bt, labels[i], four);
         }
