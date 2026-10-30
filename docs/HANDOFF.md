@@ -1,9 +1,14 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-24, end of session (the remake's screens compared with the original's on the same game
-State: 24 captures, 21 pixel-identical, the other 3 off by redraw timing; before that, 2026-10-20: the original's screens
-through a VGA model in the emulator, and the handler audit).
+old transcript. Last updated 2026-10-29 (the window layout solver f_25595 decoded; the file dialog's chrome identical to
+the original's; the owner's first play-test: it plays like the original). Before that, 2026-10-24: the remake's screens
+compared with the original's on the same game State (24 captures, 21 pixel-identical, the other 3 off by redraw timing);
+2026-10-20: the original's screens through a VGA model in the emulator, and the handler audit.
+
+**2026-10-29: the owner play-tested** (start-up, Quick Game, basic play): "so far it seems to play identical to the
+original". Bugs left would be the kind long play finds. Suggested follow-up: a long-run differential check (the C# sim
+against the emulated original over 50,000+ ticks with player actions; today's checks are about 3,000 ticks per game).
 
 ## Goals (from the owner)
 
@@ -289,24 +294,24 @@ traces + C# + shell) about 15%.
 Suggested next session (in order):
 0. Keep comparing screens (2026-10-24 workflow: `python tools/re/screens.py` (~3 min), `dotnet build
    remake/game/Formica.csproj`, `python tools/re/compare_screens.py`; look at `build/screens/remake/<name>_diff.png`).
-   **Where this stopped (2026-10-24):** the capture run ends with the file dialog after File > Load > DON'T SAVE
-   (`filedlg.png`, compared with `--load-dialog`: 32,000 pixels differ). Found but not fixed: in Load mode the original
-   opens window 22 about 36 px shorter (to y ≈ 330 instead of 366) with everything below the name field (items 2..4,
-   y 88..123) moved up. Decoded: in Load mode (`[bp+0x12] != 1`) `f_6c566` calls `f_22e5a(0x1600, 5)` and
-   `f_2313e(0x1600, 5)` (the state-5 items, 0x1602..0x1604, hidden / disabled; Save mode shows them with `f_22e52` /
-   `f_23136`), then sets item 0x1602's rectangle to zero height (`f_22ccd` with the bottom word 0) before `f_21336` lays
-   the window out, so the items attached below it (layout parent ids, "parent 1600/1601" in `layouts.py`) move up and
-   the window shrinks. The shell's `UiArt.Relayout` handles attachment to the window only, not to parent items: that
-   is the piece to add. It also frames the current drive's button (C:). The emulator's DOS serves no directory
-   entries, so the list is empty and the path "C:\" there: compare the chrome only (or make `emu.py` serve a folder).
-   Next captures after it: Cancel (item at about (330, 307)); then the Options / Speed menus; a SimAntipedia glossary pop-up (a bold word on a card);
+   **Where this stopped (2026-10-29):** the file dialog (`filedlg`) is done: its chrome is identical to the original's;
+   the 2,898 pixels left are the folder's contents (the emulator's DOS serves no directory entries, so the original
+   shows "C:\" and an empty list; make `emu.py` serve a folder, or give the shell a flag for an empty "C:\", to make
+   it 0). Fixed tonight: **the layout solver** `f_25595` (FILE_FORMATS "Window layouts": per-edge references and modes
+   0..5, references into other windows, solved until stable; `UiArt.Relayout` reproduces every layout's stored
+   rectangles, `LayoutTests`), the Load mode's zero-height 0x1602 (the window shrinks 35 px), the hidden state-5
+   items, the selected drive button (`f_22fae`), type 0x11 drawn as a type-5 button (LOAD / SAVE), and text clipped to
+   its item only with flags bit 0x200 ("Select Drive:" overflows). All other captures unchanged (21 identical).
+   `LayoutItem.Id` is really the right edge's reference (+14): usually the item itself; the original's item names are
+   window << 8 | index (the shell still matches on `Id` in a few places; they work, but prefer indices).
+   Next captures: Cancel (its centre at about (332, 308) in Load mode); then the Options / Speed menus; a SimAntipedia glossary pop-up (a bold word on a card);
    the yellow ant's pop-up menu (press and hold on it in the Edit window: find its screen spot from G:047C / G:048A and
    the Edit origin G:0508 / G:050A, 16 px cells from (64, 41)); Ant Info; the Experimental game (Select a Game) and its
    tool palettes; a message box (Events); the game-over and win screens. Each needs its flags in `compare_screens.py`'s
    FLAGS (and, if the remake lacks one, a new screenshot flag). Note the ROM font: font-0 text cannot be compared glyph
    for glyph (vga.py's stand-ins are SHARED's font 0, as the shell's are).
-1. Ask the owner for their play-test results (`docs/PLAYTEST.md`, updated tonight); fix what they report first.
-   Still not played by a human.
+1. Play-testing: the owner played it on 2026-10-29 and found it plays like the original (no bugs reported). Ask
+   about longer games; fix what they report first. A long-run differential check would find what short play does not.
 2. Continue the handler audit where it stopped: the yard window's handler `f_6f7f0` (decoded earlier, re-check against
    the shell), the History window `f_792d2` (0x150E redraw), the SimAntipedia `f_790f0`, the Experimental menu
    `f_67010` / tools `f_76f4a`, the Ant Info window, and the keys `f_74386` against `OriginalKey`. Method: dump the
@@ -595,6 +600,8 @@ downloads need a GitHub login until the owner decides about making it public. Go
   there rather than guess.
 
 ## Commit log since the last summary
+
+2026-10-29 (the layout solver; the file dialog): see `git log`. 161 C# tests pass (35 new layout checks).
 
 2026-10-24 (screens compared on the same State):
 ```

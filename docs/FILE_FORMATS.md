@@ -101,13 +101,15 @@ window header (0x2C bytes)
   +08 2 x u16 (0)
   +0C u16 item count
   +0E u16 resource size
-  +10 ... (4 x 0x14, then flags; not decoded)
+  +10 4 x i16: the rectangle the window was last opened at (f_21336 stores it; mode-5 edges use it)
+  +1C u16 flags (decorations, f_2271d)
   +2C item table: 4 bytes per item (offset into the resource + a placeholder segment); the loader
       f_25098 rebuilds it by walking the records (next = item + its length)
 item record
-  +00 rect (absolute)      +08 x, y relative to the window      +0C width, height
-  +10 u16 parent id, +12 u16 container id, +14 u16 link id, +16 u16 own id
-  +18 4 x u16 (1, 2, 1, 2 mostly; attachment modes?)
+  +00 rect (absolute, the layout as last solved)
+  +08 4 x i16: the offsets of the left, top, right and bottom edges ("x, y, width, height")
+  +10 4 x u16: each edge's reference, window << 8 | item index (often the item itself, or item 0)
+  +18 4 x u16: each edge's mode (layout below)
   +20 u8 state (0, 1, 2, 3 seen)
   +21 u8 type
   +22 u16 record length (by type, f_2512d)
@@ -127,7 +129,7 @@ item record
 | 0x0D | 0x2C | two-state picture: the bitmap word at +28 when +24 has bit 2, else at +2A (`f_223b3` 0x224E0; no layout uses the type) |
 | 0x0F | 0x29 | a frame +28 px thick (`f_22248` → `f_1d018`), no fill; windows' borders are 2 |
 | 0x10 | strlen + 0x31 | formatted field: +2C, printf format at +2E ("%d", "%d%%") |
-| 0x11 | strlen + 0x31 | filled text, string at +2E |
+| 0x11 | strlen + 0x31 | a button with run-time text (string at +2E, or the far pointer at +2A set by `f_2318a`): drawn as type 5, solid fill of byte 2 and the bevel (`f_223b3` 0x2250D); only the file dialog's LOAD / SAVE |
 | 0x12 | strlen + 0x31 | caption, string at +2E ("%s": the window's title): fill, a 1-px foreground line along the bottom, text |
 | 0x13 / 0x14 | 0x29 | left and right / top and bottom lines +28 px thick (`f_22289` / `f_2225d` → `f_1d802` sides 5 / 10) |
 | 0x15 / 0x16 | 0x29 | the same after a fill |
@@ -140,8 +142,8 @@ grey, scheme 1); else byte 2 solid (checked on the original's screen, `tools/re/
 The colours are palette indices: e.g. scheme 1 (captions) cyan on dark grey, 3 black on white (fields, lists), 4
 yellow on light grey (dialogs), 6 red on black (CANCEL), 9 black on light grey. Frames and lines are drawn in
 DS:3DE0, which `f_220e4` sets to the scheme's foreground (checked on the original's screen rendered by
-`tools/re/screens.py`: Select a Game's frame is scheme 6's red). Texts of type 0x11 are filled with the background first (type 5 solid, see below), 9 and
-0x10 are not. Records of length 0x29 hold +28 as a single byte (the thickness or the font).
+`tools/re/screens.py`: Select a Game's frame is scheme 6's red). Texts of types 5 and 0x11 are buttons (solid fill
+and bevel, see below), 9 and 0x10 are not filled. Records of length 0x29 hold +28 as a single byte (the thickness or the font).
 
 The button bevel `f_222b5` uses the scheme at +26 whatever the selection. Unselected: for th = 3, 2, 1 the left and right
 bands th px wide over the full height in byte 3 (`f_1d098`, sides 5), then the top and bottom bands between them th px
@@ -154,10 +156,18 @@ Text items (types 0x05, 0x09, 0x0C, 0x10..0x12) are drawn by `f_21fa2`:
   the files FONT1..FONT4 (FONT1 / FONT2 have the glyph widths of SHARED 2 / 3; FONT3 is 15 rows, FONT4 an
   11-row bold); 0 / 1 are the PC fonts (SHARED 0 / 1). Captions and the status numbers use font
   0, "Click here to continue" font 2 in layout 27 and font 3 in layout 30, the yard counters font 3.
-- Re-layout (`f_21336` opening a window at a new rectangle; `UiArt.Relayout`): the 4 words at +18 are attach
-  modes for the left, top, right and bottom edges. Left / top: 0 = +08 as stored, 1 / 2 = the window's left /
-  top + it, 3 / 4 = the window's right / bottom + it, 5 = the same edge + it. Right / bottom: 1 / 2 = the item's
-  own left / top + the size at +0C, 3 / 4 and 5 = the window's right / bottom + it. Checked on layouts 27, 30, 33.
+- Layout (decoded 2026-10-29; `f_21336` opening a window stores the requested rectangle at header +10 and calls
+  `f_25595`; `UiArt.Relayout`): every edge of every item starts unknown (0x8000), then passes over all items repeat
+  until no edge changes. Edge e (0 left, 1 top, 2 right, 3 bottom) by its mode +18 + 2e (`f_25409`): 0 = its offset
+  (+08 + 2e); 1..4 = edge (mode - 1) of the item its reference names (+10 + 2e, `f_254a3`: that window's item by
+  index, any window: the pop-ups 6 and 20 hang off items of the Edit window, 23 off the Map window's) + its offset; 5
+  = edge (reference) of the requested rectangle + its offset (`f_25527`). An unknown reference stays unknown. Then
+  `f_25561` swaps reversed edges, and the window's rectangle is item 0's. Items with +24 bit 6 first get their size
+  from their content (`f_251c1`, not used by any layout). Every layout re-solved at its header's rectangle gives its
+  stored rectangles back (`LayoutTests`). The file dialog's Load mode zeroes item 0x1602's height (`f_22ccd` writes an
+  item's four offsets) so the items attached to its bottom move up and the window shrinks.
+- Clipping: `f_223b3` clips an item's drawing to its rectangle only when the word at +24 has bit 0x200 (`f_1f31a` /
+  `f_1ece3`); `f_21fa2` itself does not clip ("Select Drive:" overflows its item on the original's screen).
 - Alignment: (word +24 & 0x180) >> 7.
   - 0 / 3: centred, x = (left + right - width) / 2 (3 also underlines).
   - 1: left + 4.

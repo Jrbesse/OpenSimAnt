@@ -2295,9 +2295,29 @@ public partial class Main : Node2D
     int fileArrow;                                                              // a held arrow: -1 up, 1 down
     double fileArrowWait;
 
+    WindowLayout fileLayoutStored;
+
+    /// <summary>f_6c566's set-up of window 22: in Save mode the state-5 items (0x1602..0x1604, the name box) are shown
+    /// (f_22e52 / f_23136); in Load mode they are hidden and disabled (f_22e5a / f_2313e) and item 0x1602's offsets get
+    /// a zero height (f_22ccd) before f_21336 lays the window out, so everything attached below it moves up and the
+    /// window shrinks (UiArt.Relayout). Hidden items get an empty rectangle: not drawn, never hit.</summary>
+    void FileLayout()
+    {
+        fileLayoutStored ??= ui.Layouts[FileWin];
+        var w = fileLayoutStored;
+        var offsets = new Dictionary<int, (int, int, int, int)>();
+        if (!fileSave) offsets[2] = (w.Items[2].Pos.x, w.Items[2].Pos.y, w.Items[2].Size.w, 0);
+        var lay = ui.Relayout(FileWin, w.Requested, offsets);
+        if (!fileSave)
+            for (int i = 0; i < lay.Items.Count; i++)
+                if (lay.Items[i].State == 5) lay.Items[i] = lay.Items[i] with { Rect = (0, 0, 0, 0) };
+        ui.Layouts[FileWin] = lay;
+    }
+
     void OpenFileDialog(bool save)
     {
         fileSave = save;
+        FileLayout();
         fileEditing = false;
         var home = ProjectSettings.GlobalizePath("user://");
         if (fileDrive == 0)
@@ -2459,15 +2479,16 @@ public partial class Main : Node2D
 
     void DrawFileDialog(UiArt.Canvas c)
     {
-        ui.DrawWindow(c, FileWin, 0, 0, fileSave ? "Save Game" : "Load Game");
         var items = ui.Layouts[FileWin].Items;
-        var f0 = ui.Font(0);
-        if (!fileSave)                                                           // load: no name box (f_22e5a / f_2313e)
+        for (int i = 11; i <= 18; i++)                                           // f_22fae(DS:2966 + 0x15CA): the drive's radio button
         {
-            var (bl, bt, br, bb) = items[FileNameBox].Rect;
-            c.Fill(bl, bt, br, bb, UiArt.Grey);
+            bool sel = fileDrive == 'A' + i - 11;
+            items[i] = items[i] with { Flags = sel ? items[i].Flags | 4 : items[i].Flags & ~4 };
         }
-        else
+        ui.DrawWindow(c, FileWin, 0, 0, fileSave ? "Save Game" : "Load Game",
+                      skipItems: fileSave ? null : items.Where(i => i.State == 5).Select(i => i.Id).ToHashSet());
+        var f0 = ui.Font(0);
+        if (fileSave)                                                            // load: no name box (f_22e5a / f_2313e)
         {
             var (bl, bt, br, bb) = items[FileNameBox].Rect;
             var (fg, _) = ui.SchemeOf(items[4]);

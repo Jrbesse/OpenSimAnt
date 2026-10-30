@@ -15,9 +15,9 @@ Window header (0x2C bytes):
   +2C item table: per item 4 bytes (offset into the resource, placeholder segment); the loader f_25098
       rebuilds it by walking the records (next = this + its length at +0x22)
 Item record:
-  +00 rect (absolute), +08 x, y (relative to the window), +0C width, height
-  +10 u16 parent id, +12 u16 parent id (the container), +14 u16 own id, +16 u16 own id
-  +18 4 x u16 (1, 2, 1, 2 mostly: attachment / resize modes?)
+  +00 rect (absolute), +08 4 x i16 the edges' offsets (x, y, width, height)
+  +10 4 x u16 the edges' references (window << 8 | item index; 'parent' = the first two, 'id' / 'id2' the last two)
+  +18 4 x u16 the edges' modes ('attach'; FILE_FORMATS "Window layouts", the layout f_25595)
   +20 u8 state (0 normal; other values seen 1, 2, 3)
   +21 u8 type (below), +22 u16 record length (f_2512d: by type)
   +24.. by type; +28 the type's parameter (bitmap id, style); strings NUL-terminated

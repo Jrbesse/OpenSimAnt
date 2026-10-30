@@ -7,8 +7,13 @@ namespace Formica.Data;
 /// +27 (UiArt.Schemes), Style the byte at +28 (a frame's thickness, a text's font).</summary>
 public sealed record LayoutItem(int Id, (int left, int top, int right, int bottom) Rect, (int x, int y) Pos, (int w, int h) Size,
                                 int Parent, int State, int Type, string Kind, int Param, string Text, int Bitmap, int[] Bitmaps,
-                                int Flags = 0, int Scheme = 0, int AltScheme = 0, int Style = 0, int[] Attach = null)
+                                int Flags = 0, int Scheme = 0, int AltScheme = 0, int Style = 0, int[] Attach = null,
+                                int[] Refs = null)
 {
+    // Attach: each edge's mode (+18, left / top / right / bottom); Refs: the item each edge refers to (+10, window << 8 |
+    // item index; for mode 5 an edge of the window's requested rectangle). UiArt.Relayout (f_25595) uses both.
+    // Id is the right edge's reference (+14): usually the item itself, which is why some "ids" repeat (window 22's list
+    // has 0x1607, its frame's); the original names an item window << 8 | its index.
     /// <summary>f_220e4: the colour scheme the item is drawn in.</summary>
     public int ColourScheme => (Flags & 4) != 0 ? AltScheme : Scheme;
 }
@@ -18,12 +23,16 @@ public sealed record WindowLayout(int Id, (int left, int top, int right, int bot
 {
     /// <summary>The header's flags at +1C (u16): the decorations f_2271d draws (UiArt.DrawDecorations).</summary>
     public int Flags { get; init; }
+
+    /// <summary>The header's +10..+16: the rectangle the window was last opened at (f_21336), which mode-5 edges use.</summary>
+    public (int l, int t, int r, int b) Requested { get; init; }
 }
 
 /// <summary>Window / dialog layouts (HCEGANT type 0; tools/layouts.py, FILE_FORMATS "Window layouts").
 /// Layout n is window n. Header (0x2C bytes): +00 rect, +0C u16 item count, +0E u16 resource size, +2C item
-/// table (4 bytes per item: the offset into the resource). Item record: +00 rect (absolute), +08 x, y (relative
-/// to the window), +0C width, height, +10 parent id, +14 own id, +18 4 x u16, +20 u8 state, +21 u8 type, +22 u16
+/// table (4 bytes per item: the offset into the resource). Item record: +00 rect (absolute), +08 x, y, +0C width,
+/// height (the edges' offsets), +10 4 x u16 the edges' references (window &lt;&lt; 8 | item index), +18 4 x u16 the
+/// edges' modes (UiArt.Relayout), +20 u8 state, +21 u8 type, +22 u16
 /// record length, +28 the type's parameter (bitmap id, style), strings NUL-terminated at +2A (types 5, 9, 0x0C)
 /// or +2E (0x10..0x12). Resources 128 / 129 / 131 are UI tables, not windows.</summary>
 public static class Layouts
@@ -58,7 +67,8 @@ public static class Layouts
                               U(b, 0x10), b[0x20], type, Types.GetValueOrDefault(type, $"type{type:x2}"), param, text,
                               type == 0x06 ? param : -1, type == 0x0d ? new[] { U(b, 0x26), U(b, 0x28) } : null,
                               b.Length > 0x25 ? U(b, 0x24) : 0, b.Length > 0x26 ? b[0x26] : 0, b.Length > 0x27 ? b[0x27] : 0,
-                              b.Length > 0x28 ? b[0x28] : 0, new int[] { S(b, 0x18), S(b, 0x1a), S(b, 0x1c), S(b, 0x1e) });
+                              b.Length > 0x28 ? b[0x28] : 0, new int[] { S(b, 0x18), S(b, 0x1a), S(b, 0x1c), S(b, 0x1e) },
+                              new int[] { U(b, 0x10), U(b, 0x12), U(b, 0x14), U(b, 0x16) });
     }
 
     public static WindowLayout Decode(int id, byte[] data)
@@ -72,7 +82,11 @@ public static class Layouts
             int length = U(b, o + 0x22);
             items.Add(DecodeItem(b.Slice(o, Math.Min(length, b.Length - o))));
         }
-        return new WindowLayout(id, (S(b, 0), S(b, 2), S(b, 4), S(b, 6)), items) { Flags = b[0x1c] | b[0x1d] << 8 };
+        return new WindowLayout(id, (S(b, 0), S(b, 2), S(b, 4), S(b, 6)), items)
+        {
+            Flags = b[0x1c] | b[0x1d] << 8,
+            Requested = (S(b, 0x10), S(b, 0x12), S(b, 0x14), S(b, 0x16)),
+        };
     }
 
     /// <summary>Every window layout (ids below 128) of the player's HCEGANT archive.</summary>

@@ -1957,6 +1957,13 @@ filled in the scheme's foreground, the rest in its background; then a 1-px line 
   the 16 bytes (a selection sort with `f_2c6fe` / `f_1f597`), so the folders come first; then each marker byte 1
   becomes '<' and the records are packed as NUL-terminated strings for the list item (`f_240c6`). None: "0No Files".
   The number of folders is kept (`local_2a`): a chosen row below it is a folder.
+- Set-up: `f_2318a(0x1613, button)` and `(0x1601, caption)` set the run-time texts. Save mode shows the state-5 items
+  0x1602..0x1604 (`f_22e52` / `f_23136`); Load mode hides and disables them (`f_22e5a` / `f_2313e`), reads 0x1602's
+  offsets (`f_22c9a`) and writes them back with a zero height (`f_22ccd`). Then `f_21336(0x1600)` lays the window out
+  (FILE_FORMATS "Window layouts"): 0x1605 hangs off 0x1602's bottom, so in Load mode everything below moves up 35 px
+  and the window ends at y = 331 instead of 366 (the original's screen). After the drive is settled, `f_22fae(DS:2966 +
+  0x15CA)` → `f_22f65(item, 1)` selects the drive's button (+24 bit 2; the radio group, +24 bit 5, cleared first by
+  `f_22fbd`): the selected bevel.
 - Save mode: the name box 0x1603 / 0x1604 (`f_22e52` / `f_23136`; load hides it: `f_22e5a` / `f_2313e`). The name
   is drawn at 0x1603's left + 4, y = (top + bottom - height + 1) / 2, in 0x1604's scheme (8: cyan on white). On the
   first scan, with a game file name known (G:3862), the name is preset to its last component. A key with ctype & 7

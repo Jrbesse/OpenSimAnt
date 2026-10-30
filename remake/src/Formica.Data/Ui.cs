@@ -185,8 +185,15 @@ public sealed class UiArt
     }
 
     /// <summary>f_21fa2: text in item rectangle (l, t, r, b), font `font`, alignment 0 / 3 centred, 1 left + 4,
-    /// 2 right - width - 4, never left of `l`; vertically centred.</summary>
-    public void DrawText(Canvas c, int font, int align, int l, int t, int r, int b, string text, uint colour = Black, uint? back = null)
+    /// 2 right - width - 4, never left of `l`; vertically centred. `clip`: clipped to the rectangle (f_223b3 does that
+    /// only for items whose flags have bit 0x200, +25 bit 1: f_1ece3; f_21fa2 itself does not clip).</summary>
+    public void DrawText(Canvas c, int font, int align, int l, int t, int r, int b, string text, uint colour = Black, uint? back = null, bool clip = true)
+    {
+        if (!clip) { DrawText(c, font, align, l, t, r, b, text, colour, back, c); return; }
+        DrawText(c, font, align, l, t, r, b, text, colour, back, c.Clip(l, t, r, b));
+    }
+
+    void DrawText(Canvas c, int font, int align, int l, int t, int r, int b, string text, uint colour, uint? back, Canvas cc)
     {
         var f = Font(font) ?? Font(2);
         if (f == null || string.IsNullOrEmpty(text)) return;
@@ -198,7 +205,6 @@ public sealed class UiArt
             int cw = 8 * text.Length, ch = 14;
             int cx = Math.Max(l, align switch { 1 => l + 4, 2 => r - cw - 4, _ => (l + r - cw) / 2 });
             int cy = (t + b - ch) / 2;
-            var cc = c.Clip(l, t, r, b);
             if (back is { } bk) cc.Fill(cx, cy, cx + cw, cy + ch, bk);
             for (int i = 0; i < text.Length; i++)
                 if (text[i] != ' ') f.Draw(cc.Clip(cx + 8 * i, cy, cx + 8 * i + 8, cy + ch), cx + 8 * i, cy, text[i].ToString(), colour);
@@ -210,8 +216,7 @@ public sealed class UiArt
         // f_21fa2 / f_20a0f: y = (t + b - the font's height) / 2, the height of an Apple FONT being fRectHeight - 1, its
         // strike drawn from y - 1
         int y = f.IsMac ? (t + b - (f.Height - 1)) / 2 - 1 : (t + b - f.Height) / 2;
-        var clip = c.Clip(l, t, r, b);
-        f.Draw(clip, x, y, text, colour);                                  // clipped to the item on all sides (f_232ae)
+        f.Draw(cc, x, y, text, colour);
     }
 
     /// <summary>f_23943 → f_232ae → f_20a0f: a value drawn into item rectangle (l, t, r, b), clipped to it: centred
@@ -260,25 +265,68 @@ public sealed class UiArt
     }
 
     /// <summary>
-    /// f_21336 opening window `id` at rectangle `rect`: each item edge follows its attach mode (+18: left, top,
-    /// right, bottom) against the new rectangle: left / top 0 = pos as stored, 1 / 2 = the window's left / top +
-    /// pos, 3 / 4 = the window's right / bottom + pos, 5 = the same edge + pos; right / bottom 1 / 2 = the item's own
-    /// left / top + size, 3 / 4 and 5 = the window's right / bottom + size. Checked on layouts 27, 30 and 33.
+    /// f_21336 opening window `id` at rectangle `rect` (stored in the header's +10..+16), then f_25595 laying out its
+    /// items. Each edge e (left, top, right, bottom) of an item has a mode (+18 + 2e), a reference (+10 + 2e: window
+    /// &lt;&lt; 8 | item index) and an offset (+08 + 2e: x, y, w, h); f_25409 computes it: mode 0 = the offset, 1..4 =
+    /// edge (mode - 1) of the referenced item + the offset (f_254a3), 5 = edge (reference) of `rect` + the offset
+    /// (f_25527). Every edge starts unknown (0x8000) and the passes repeat until nothing changes; then f_25561 swaps
+    /// reversed edges, and the window's rectangle is item 0's. `offsets` replaces items' offsets first (f_22ccd, by
+    /// index; the file dialog's Load mode). A reference into another window (pop-ups 6, 20, 23 hang off an item of
+    /// window 0 or 1) reads that window's item through `foreign` (reference → its rectangle, or null), by default the
+    /// stored layout. Checked on every layout (LayoutTests: each gives its stored rectangles back).
     /// </summary>
-    public WindowLayout Relayout(int id, (int l, int t, int r, int b) rect)
+    public WindowLayout Relayout(int id, (int l, int t, int r, int b) rect, IReadOnlyDictionary<int, (int x, int y, int w, int h)> offsets = null,
+                                 Func<int, (int l, int t, int r, int b)?> foreign = null)
     {
+        foreign ??= rf => Layouts.TryGetValue(rf >> 8, out var fw) && (rf & 0xff) < fw.Items.Count ? fw.Items[rf & 0xff].Rect : null;
         var w = Layouts[id];
-        var items = new List<LayoutItem>();
-        foreach (var it in w.Items)
+        const int Unknown = -0x8000;
+        int n = w.Items.Count;
+        var off = new int[n][];
+        var mode = new int[n][];
+        var refs = new int[n][];
+        var e = new int[n][];
+        for (int i = 0; i < n; i++)
         {
-            var a = it.Attach ?? new[] { 1, 2, 1, 2 };
-            int l = a[0] switch { 0 => it.Pos.x, 3 => rect.r + it.Pos.x, _ => rect.l + it.Pos.x };
-            int t = a[1] switch { 0 => it.Pos.y, 4 => rect.b + it.Pos.y, _ => rect.t + it.Pos.y };
-            int r = a[2] is 3 or 5 ? rect.r + it.Size.w : l + it.Size.w;
-            int b = a[3] is 4 or 5 ? rect.b + it.Size.h : t + it.Size.h;
-            items.Add(it with { Rect = (l, t, r, b) });
+            var it = w.Items[i];
+            var o = offsets != null && offsets.TryGetValue(i, out var ov) ? ov : (it.Pos.x, it.Pos.y, it.Size.w, it.Size.h);
+            off[i] = new[] { o.x, o.y, o.w, o.h };
+            mode[i] = it.Attach ?? new[] { 1, 2, 1, 2 };
+            refs[i] = it.Refs ?? new[] { 0, 0, i, i };
+            e[i] = new[] { Unknown, Unknown, Unknown, Unknown };
         }
-        return new WindowLayout(id, (rect.l, rect.t, rect.r, rect.b), items) { Flags = w.Flags };
+        int[] req = { rect.l, rect.t, rect.r, rect.b };
+        for (int pass = 0, changed = 1; changed != 0 && pass < 4 * n + 4; pass++)    // the original loops until stable
+        {
+            changed = 0;
+            for (int i = 0; i < n; i++)
+                for (int k = 0; k < 4; k++)
+                {
+                    int m = mode[i][k], v;
+                    if (m == 0) v = off[i][k];
+                    else if (m <= 4)
+                    {
+                        int rf = refs[i][k], j = rf & 0xff, bv;
+                        if (rf >> 8 == id) bv = j < n ? e[j][m - 1] : Unknown;
+                        else if (foreign(rf) is { } fr) bv = (m - 1) switch { 0 => fr.l, 1 => fr.t, 2 => fr.r, _ => fr.b };
+                        else bv = Unknown;
+                        v = bv == Unknown ? Unknown : bv + off[i][k];
+                    }
+                    else if (m == 5 && (uint)refs[i][k] < 4) v = req[refs[i][k]] + off[i][k];
+                    else v = Unknown;
+                    if (v != e[i][k]) { e[i][k] = v; changed = 1; }
+                }
+        }
+        var items = new List<LayoutItem>(n);
+        for (int i = 0; i < n; i++)
+        {
+            int l = Math.Min(e[i][0], e[i][2]), r = Math.Max(e[i][0], e[i][2]);
+            int t = Math.Min(e[i][1], e[i][3]), b = Math.Max(e[i][1], e[i][3]);
+            var o = off[i];
+            items.Add(w.Items[i] with { Rect = (l, t, r, b), Pos = (o[0], o[1]), Size = (o[2], o[3]) });
+        }
+        var box = n > 0 ? items[0].Rect : (rect.l, rect.t, rect.r, rect.b);
+        return new WindowLayout(id, box, items) { Flags = w.Flags };
     }
 
     /// <summary>f_2271d, the window's decorations by the header flags (+1C / +1D) inside the window less its first
@@ -338,7 +386,7 @@ public sealed class UiArt
                 case 0x12:
                     FillScheme(clip, l, t, r, b, it);
                     clip.Fill(l, b - 1, r, b, fg);
-                    DrawText(clip, it.Style, Align(it), l, t, r, b, it.Text != null && !it.Text.Contains('%') ? it.Text : title ?? "", fg, bg);
+                    DrawText(clip, it.Style, Align(it), l, t, r, b, it.Text != null && !it.Text.Contains('%') ? it.Text : title ?? "", fg, bg, ClipsText(it));
                     break;
                 case 0x06:
                     if (hidden == null || !hidden.Contains(it.Bitmap)) DrawBitmap(clip, it.Bitmap, l, t);
@@ -346,15 +394,15 @@ public sealed class UiArt
                 case 0x0d:
                     DrawBitmap(clip, it.Bitmaps[0], l, t);
                     break;
-                case 0x05:                                                       // f_223b3: a solid fill of byte 2, the bevel, text
+                case 0x05 or 0x11:                                               // f_223b3: a solid fill of byte 2, the bevel, text
                     clip.Fill(l, t, r, b, bg);
                     Bevel(clip, it, l, t, r, b);
-                    if (it.Text != null && !it.Text.Contains('%')) DrawText(clip, it.Style, Align(it), l, t, r, b, it.Text, fg);
+                    if (it.Text != null && !it.Text.Contains('%')) DrawText(clip, it.Style, Align(it), l, t, r, b, it.Text, fg, null, ClipsText(it));
                     break;
-                case 0x09 or 0x0c or 0x10 or 0x11:
-                    if (it.Type is 0x0c or 0x11) FillScheme(clip, l, t, r, b, it);
+                case 0x09 or 0x0c or 0x10:
+                    if (it.Type == 0x0c) FillScheme(clip, l, t, r, b, it);
                     if (it.Type == 0x0c) clip.Fill(l, b - 1, r, b, fg);
-                    if (it.Text != null && !it.Text.Contains('%')) DrawText(clip, it.Style, Align(it), l, t, r, b, it.Text, fg);
+                    if (it.Text != null && !it.Text.Contains('%')) DrawText(clip, it.Style, Align(it), l, t, r, b, it.Text, fg, null, ClipsText(it));
                     break;
             }
         }
@@ -366,9 +414,17 @@ public sealed class UiArt
     {
         var (l, t, r, b) = it.Rect;
         var (fg, bg) = SchemeOf(it);
-        if (it.Type is 0x05 or 0x0c or 0x11) FillScheme(c, l + dx, t + dy, r + dx, b + dy, it);
-        DrawText(c, font >= 0 ? font : it.Style, Align(it), l + dx, t + dy, r + dx, b + dy, text, fg);
+        if (it.Type is 0x05 or 0x11)
+        {
+            c.Fill(l + dx, t + dy, r + dx, b + dy, bg);
+            Bevel(c, it, l + dx, t + dy, r + dx, b + dy);
+        }
+        else if (it.Type == 0x0c) FillScheme(c, l + dx, t + dy, r + dx, b + dy, it);
+        DrawText(c, font >= 0 ? font : it.Style, Align(it), l + dx, t + dy, r + dx, b + dy, text, fg, null, ClipsText(it));
     }
+
+    /// <summary>f_223b3 clips an item's drawing to its rectangle only with flags bit 0x200 (+25 bit 1: f_1f31a / f_1ece3).</summary>
+    static bool ClipsText(LayoutItem it) => (it.Flags & 0x200) != 0;
 
     /// <summary>f_241f2, a list item (type 4): rows of the font at +28 from the item's top, as many as fit ((bottom -
     /// top) / height); each row's text at the item's left (no margin) in scheme +26, or +27 when the row's flag bit 0
