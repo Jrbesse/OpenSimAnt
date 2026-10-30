@@ -1,8 +1,9 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-29 (the window layout solver f_25595 decoded; the file dialog's chrome identical to
-the original's; the owner's first play-test: it plays like the original). Before that, 2026-10-24: the remake's screens
+old transcript. Last updated 2026-10-30, end of the 10-29 night session (the window layout solver f_25595; the long-run
+check: no divergence in 200,000 ticks; test builds for Windows / macOS / Linux; 38 screen captures identical but for
+timing; the owner's first play-test: it plays like the original). Before that, 2026-10-24: the remake's screens
 compared with the original's on the same game State (24 captures, 21 pixel-identical, the other 3 off by redraw timing);
 2026-10-20: the original's screens through a VGA model in the emulator, and the handler audit.
 
@@ -339,6 +340,22 @@ Suggested next session (in order):
    loads it, not at its flat address, so code hooks at flat addresses never fire: find the overlay's load segment first
    (the 90 90 90 EA thunks' targets after loading) to trace it. The shell opens Ant Info on such a hold; whether the
    original does is still open.
+   **Later the same night:** `emu.py` serves a folder to the game's find first / next and opens (`e.find_dir`, the DTA
+   from AH=1A; screens.py lists build/screens/files: three empty .ANT, a .TXT, a sub-folder; the remake's `--file-dir=`
+   lists the same folder as C:\), so the file dialog is compared with files: **identical** after lists and the path
+   line in font 0 got the BIOS font's 8 x 14 cells (`UiArt.ListRowHeight`). File > Save As → the Save dialog
+   (savedlg, identical), MYCOLONY.ANT + SAVE → **OVERWRITE** (f_1ca35, Yes / No; identical), Yes → **"C:\MYCOLONY.ant
+   / Saved correctly"** (f_6c328 → f_1c6e0: the alert's green kind; the shell did not show it: added, identical). The
+   library alert f_1c6f5(text, kind): colours DS:550C[kind] (0 error: black, magenta 4, grey 12; 1 notice: black,
+   green 9, olive 11; the message always 4), rows of the BIOS font's 14 px (the shell had 15), the button's frames one
+   pixel short at the right / bottom. Paths are shown as the original builds them: the folder in capitals, NAME.ant.
+   Also tonight: the **Map window's redraw cadence** (f_15f84's main loop, SIM_NOTES "The main loop and game speed":
+   every other loop, every loop with the button down, every 4th at Ultra; `Main.MapLoops` keeps the State it drew);
+   the **key audit** (f_74386 / f_76aeb: Alt+J for the spider's Alt-hunt, Ctrl+Alt+V the version line; the other debug
+   keys decoded); the **SimAntipedia** handler f_790f0 matches; the **yard window** f_6f7f0: House from Strat / Graphic
+   goes to the Yard (fixed); the XOR highlight (index ^ 15) is confirmed by expmenu. **38 captures, all identical but
+   for animation / Map-lag timing in whatever state a run catches** (surface, yard, yardfront, exp, gameover; they
+   vary from run to run). Ant Info's capture was taken out (see above).
    Older list: Cancel (its centre at about (332, 308) in Load mode); then the Options / Speed menus; a SimAntipedia glossary pop-up (a bold word on a card);
    the yellow ant's pop-up menu (press and hold on it in the Edit window: find its screen spot from G:047C / G:048A and
    the Edit origin G:0508 / G:050A, 16 px cells from (64, 41)); Ant Info; the Experimental game (Select a Game) and its
@@ -348,16 +365,19 @@ Suggested next session (in order):
 1. Play-testing: the owner played it on 2026-10-29 and found it plays like the original (no bugs reported); the
    long-run check (above) found no divergence in 200,000 ticks. Ask for their results with the Windows / macOS / Linux
    builds and longer games; fix what they report first.
-2. Continue the handler audit where it stopped: the yard window's handler `f_6f7f0` (decoded earlier, re-check against
-   the shell), the History window `f_792d2` (0x150E redraw), the SimAntipedia `f_790f0`, the Experimental menu
-   `f_67010` / tools `f_76f4a`, the Ant Info window, and the keys `f_74386` against `OriginalKey`. Method: dump the
+2. Continue the handler audit where it stopped (2026-10-29: the keys, the SimAntipedia `f_790f0` and the yard window
+   `f_6f7f0` are done; History `f_792d2` was matched on 10-19): the Experimental menu `f_67010` / tools `f_76f4a`, the
+   Ant Info window (and why a hold showed no window in the emulator, above). Shell extras kept on purpose: Escape closes
+   the SimAntipedia / yard window, + / - speed, Tab fronts / closes the Map window (the original's Tab calls f_2f8f2,
+   the Map window: compare when convenient). Method: dump the
    jump table (`adis.py` on the `jmp cs:[bx + n]`, table right after it), decompile each case, compare with the
    shell's switch. Effects the sim emits that the shell still ignores on purpose: redraws, "anim_timer", "music" 0 / 1
    (`f_00ed0` is empty), "joke" (`f_0125f` is empty), "yard_map" (a Map redraw), "scroll" (the spider player: follow).
 3. Tutorial: walk all 56 steps by hand or by script (message boxes now close after 15 s, as in the original).
-4. Open screen details: the hourglass cursor (id 1) is never shown (the shell has no slow operations); the driver's
-   XOR fill DS:913C is assumed to be index ^ 15; the alert boxes' and scenes' colours are from the code's arguments,
-   not traced on a real screen; the two undecoded bytes of each colour scheme.
+4. Open screen details: the hourglass cursor (id 1) is never shown (the shell has no slow operations); the scenes'
+   (window 26) and message boxes' (f_71b1a) colours are not checked on a real screen (the yellow ant's death box was
+   not on screen at the polls tried: they run on the clock); the two undecoded bytes of each colour scheme. (Done: the
+   XOR fill, index ^ 15; the library alerts' colours and geometry.)
 5. **Audio fidelity** (unchanged): listen to `Formica.Replay --songs` against DOSBox; the DAC / FM balance
    (`SoundMixer.SampleGain`). Not modelled: AdLib mode.
 6. The clean-room art pack (ART_PLAN) once the owner has played it.
@@ -637,7 +657,10 @@ downloads need a GitHub login until the owner decides about making it public. Go
 
 ## Commit log since the last summary
 
-2026-10-29 (the layout solver; the file dialog): see `git log`. 161 C# tests pass (35 new layout checks).
+2026-10-29 / 30 (the layout solver; the file dialog; the long-run check; the three-platform builds; more captures; the
+key / SimAntipedia / yard audits; the Map cadence; the alerts): see `git log` (b0ff5f4 .. HEAD). 161 C# tests pass (35
+new layout checks). Usage: the session ran from 3% to about 90% of one 5-hour window (weekly 2% → 12%); a capture-and-fix
+cycle costs 2-4%, the long-run check (tool + runs) about 10%, the builds about 8%.
 
 2026-10-24 (screens compared on the same State):
 ```
