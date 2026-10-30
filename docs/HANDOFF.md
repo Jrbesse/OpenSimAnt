@@ -332,8 +332,13 @@ Suggested next session (in order):
    (G:0376 poked: its lines are f_23943 values in the items' schemes, the rating blue; fixed). Ant Info (antinfo) does
    not show yet: a hold on a cell calls f_2f8fc only when f_0122c says held (f_74fe0 0x7518D), and the window waits for a
    click, so capture after the release; brood is not in the occupancy grid (no window on either side) and workers walk
-   off during the hold; Speed > Pause and the PAUSE button did not set G:047E in the emulator (not investigated). Next
-   time: hold on a resting adult (state from ANTS[2]['state']), or find how the emulator can pause the game.
+   off during the hold; Speed > Pause and the PAUSE button did not set G:047E in the emulator (not investigated). Also
+   tried: a worker forced to rest (state 13) and captured while held and after release: still no window. f_74fe0's path
+   (0x75125 → f_134b8 not the yellow ant → 0x7518D f_0122c held → f_2f8fc(a, b, G:032E)) looks right, so something
+   before it differs; note that in screens.py's real boot overlay code (f_74fe0, f_67c1c) runs where the overlay manager
+   loads it, not at its flat address, so code hooks at flat addresses never fire: find the overlay's load segment first
+   (the 90 90 90 EA thunks' targets after loading) to trace it. The shell opens Ant Info on such a hold; whether the
+   original does is still open.
    Older list: Cancel (its centre at about (332, 308) in Load mode); then the Options / Speed menus; a SimAntipedia glossary pop-up (a bold word on a card);
    the yellow ant's pop-up menu (press and hold on it in the Edit window: find its screen spot from G:047C / G:048A and
    the Edit origin G:0508 / G:050A, 16 px cells from (64, 41)); Ant Info; the Experimental game (Select a Game) and its

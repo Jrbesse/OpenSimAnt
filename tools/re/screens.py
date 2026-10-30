@@ -163,21 +163,23 @@ def main():
         run(e, 100)
     else:
         print('   (the yellow ant is not in the Edit window: no popup capture)')
-    # Ant Info: press and hold on brood in the black nest (types 1..7 in the ant lists, simant_ref.player.ANTS[2]):
-    # it does not move away during the hold
+    # Ant Info: press and hold on a resting adult in the black nest (the ant lists: simant_ref.player.ANTS[2]); brood
+    # is not in the occupancy grid (no window) and walking workers leave their cell during the hold
     xs, ys, ts, n = 0xb50d, 0xb702, 0xbaec, s16(e.w16(0x50f6, 0xda8))
     ox, oy = s16(e.w16(0x50f6, 0x508)), s16(e.w16(0x50f6, 0x50a))
     for j in range(n):
         a, b, t = e.read(0x3e1d, xs + j, 1)[0], e.read(0x3e1d, ys + j, 1)[0], e.read(0x3e1d, ts + j, 1)[0]
-        if 1 <= t <= 7 and ox + 1 <= a < ox + 20 and oy + 2 <= b < oy + 19 and (a, b) != (s16(e.w16(0x50f6, 0x47c)), s16(e.w16(0x50f6, 0x48a))):
+        if 0x10 <= t < 0x60 and ox + 1 <= a < ox + 20 and oy + 2 <= b < oy + 19 and (a, b) != (s16(e.w16(0x50f6, 0x47c)), s16(e.w16(0x50f6, 0x48a))):
             x, y = 64 + (a - ox) * 16 + 8, 41 + (b - oy) * 16 + 8
             print(f'   Ant Info: ant {j} type {t:#x} in cell ({a}, {b}) → screen ({x}, {y})')
-            e.mouse_event(1, x, y, 0)                 # held (f_0122c) → f_2f8fc; the window then waits for a click,
-            e.mouse_event(2, x, y, 1)                 # so it is captured after the release
+            e.write(0x3e1d, 0xb8f7 + j, bytes([13]))      # made to rest (state 13: leaves with 1/20 per tick)
+            e.mouse_event(1, x, y, 0)                 # held (f_0122c) → f_2f8fc: captured while held
+            e.mouse_event(2, x, y, 1)
             run(e, 200, 300_000_000)
+            shot(e, v, os.path.join(out, 'antinfo.png'))
             e.mouse_event(4, x, y, 0)
             run(e, 100, 300_000_000)
-            shot(e, v, os.path.join(out, 'antinfo.png'))
+            shot(e, v, os.path.join(out, 'antinfo_up.png'))
             with open(os.path.join(out, 'antinfo.at'), 'w') as f:
                 f.write(f'{x},{y}')
             with open(os.path.join(out, 'antinfo.cell'), 'w') as f:
