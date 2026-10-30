@@ -312,8 +312,13 @@ public partial class Main : Node2D
             session.Hooks.YardMapWanted = false;
             OpenYard(true);
         }
-        if (!frozen && !session.Over && !yardChoose && modal < 0 && menuOpen < 0 && !miniMap && !helpHeld && winPhase == 0 && !Presenting && session.Advance(delta) > 0)
+        int ran = 0;
+        bool running = !frozen && !session.Over && !yardChoose && modal < 0 && menuOpen < 0 && !miniMap && !helpHeld && winPhase == 0
+                       && !Presenting;
+        if (!running || session.Paused) mapLive = true;                   // the Map window follows the game while it stands
+        if (running && (ran = session.Advance(delta)) > 0)
         {
+            MapLoops(ran);
             balloonsNow.Clear();
             // f_701a5 (the yard window's mower, drawn each tick while the window is open): sound 0x24 while mowing
             // (T:0C28 3 or 4) and not paused
@@ -1169,9 +1174,53 @@ public partial class Main : Node2D
         return (m.l + (128 - MapRenderer.Width(MapView)) * 2, m.t);
     }
 
-    void DrawMapWindow(UiArt.Canvas c)
+    // f_15f84's main loop draws the screen after each SimStep, but at Ultra (T:07CC = 3) only when its frame counter
+    // G:0A9C & 3 is 0 (the counter goes + 1 & 63 every loop). The Map window (f_2f6e0 → f_6f46a: f_6efd6 and the
+    // population report f_6eea5) is drawn every such loop while G:0AA6 < 0, the mouse button is down (f_23612) or at
+    // Ultra (G:0AA6 = 0 then); otherwise, while G:04C0 == 0, on every other loop (G:0AA6 bit 0, toggled each loop). So
+    // the Map window lags the game by up to a tick. The shell keeps the State the Map window last drew (mapSt) and its
+    // own counter and toggle (the sim never reads G:0A9C / G:0AA6); while the game does not advance it follows the game.
+    State mapSt;
+    bool mapLive = true;
+    int mapFrame, mapToggle;
+
+    void MapLoops(int ticks)
     {
         var st = session.St;
+        bool due = false;
+        for (int i = 0; i < ticks; i++)
+        {
+            bool ultra = st.U16(Seg.T, 0x7cc) == 3;
+            if (!ultra || (mapFrame & 3) == 0)
+            {
+                if ((short)mapToggle < 0 || Input.IsMouseButtonPressed(MouseButton.Left) || ultra) { due = true; mapToggle = 0; }
+                else if (st.U16(Seg.G, 0x4c0) == 0)
+                {
+                    due |= (mapToggle & 1) != 0;
+                    mapToggle ^= 1;
+                }
+            }
+            mapFrame = (mapFrame + 1) & 0x3f;
+        }
+        mapLive = false;
+        if (due || mapSt == null) SnapMap();
+    }
+
+    void SnapMap()
+    {
+        var st = session.St;
+        mapSt ??= new State(new byte[State.Size]);
+        Array.Copy(st.Mem, mapSt.Mem, State.Size);
+        mapSt.Clock = st.Clock;
+        mapSt.BiosKbd = st.BiosKbd;
+    }
+
+    /// <summary>The State the Map window shows: the one it last drew while the game runs, else the game's.</summary>
+    State MapState => mapLive || mapSt == null ? session.St : mapSt;
+
+    void DrawMapWindow(UiArt.Canvas c)
+    {
+        var st = MapState;
         var (dx, dy) = Off(MapWin);
         int content = MapContent;
         string title = Title(content <= 8 ? content : MapView);
