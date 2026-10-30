@@ -124,6 +124,13 @@ def main():
     click(e, 320, 240)
     e.mouse_event(1, 600, 470, 0)
     run(e, 100)
+    # the file dialog lists a served folder as C:\ (emu.find_dir): three empty saved games, a text file the dialog
+    # leaves out, a sub-folder (the remake gets the same folder with --file-dir)
+    files = os.path.join(out, 'files')
+    os.makedirs(os.path.join(files, 'SAVES'), exist_ok=True)
+    for n in ('MYCOLONY.ANT', 'ZEBRA.ANT', 'GAME1.ANT', 'README.TXT'):
+        open(os.path.join(files, n), 'wb').close()
+    e.find_dir = files
     choose(e, 20, FILE_LOAD)                      # File > Load (asks to save the running game first?)
     shot(e, v, os.path.join(out, 'load.png'))
     click(e, 185, 216)                            # DON'T SAVE: the file dialog (f_6c566)

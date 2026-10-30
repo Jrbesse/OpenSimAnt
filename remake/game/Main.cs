@@ -2396,12 +2396,22 @@ public partial class Main : Node2D
         {
             fileDrive = char.ToUpperInvariant(System.IO.Path.GetPathRoot(System.IO.Path.GetFullPath(home))?.FirstOrDefault() ?? 'C');
             driveDirs[fileDrive] = System.IO.Path.GetFullPath(home);
+            foreach (var arg in OS.GetCmdlineUserArgs())
+                if (arg.StartsWith("--file-dir="))
+                {
+                    fileDrive = 'C';
+                    driveDirs['C'] = fileDirRoot = arg["--file-dir=".Length..];
+                    fileDirShown = "C:\\";
+                }
         }
         FileScan(true);
         modal = FileWin;
     }
 
     string FileDir() => driveDirs.TryGetValue(fileDrive, out var d) ? d : fileDrive + ":\\";
+
+    /// <summary>--file-dir=path (screenshots): the dialog lists that folder as the root of drive C:.</summary>
+    string fileDirShown, fileDirRoot;
 
     void FileScan(bool first)
     {
@@ -2415,7 +2425,8 @@ public partial class Main : Node2D
         var rows = new List<(string key, string text, string name, bool dir)>();
         try
         {
-            if (System.IO.Directory.GetParent(dir.TrimEnd('\\', '/') + "\\") is { } p && System.IO.Path.GetPathRoot(dir) != System.IO.Path.GetFullPath(dir))
+            bool shownRoot = fileDirShown != null && fileDrive == 'C' && dir == fileDirRoot;
+            if (!shownRoot && System.IO.Directory.GetParent(dir.TrimEnd('\\', '/') + "\\") is { } p && System.IO.Path.GetPathRoot(dir) != System.IO.Path.GetFullPath(dir))
                 rows.Add(("\x01..>", "<..>", "..", true));
             foreach (var d in System.IO.Directory.GetDirectories(dir))
             {
@@ -2489,7 +2500,7 @@ public partial class Main : Node2D
         }
         else if (index == FileList && mb.ButtonIndex == MouseButton.Left)    // f_248b3
         {
-            int row = ((int)at.Y - items[FileList].Rect.top) / ui.Font(items[FileList].Style).Height + fileFirst;
+            int row = ((int)at.Y - items[FileList].Rect.top) / ui.ListRowHeight(items[FileList]) + fileFirst;
             if (mb.DoubleClick)
             {
                 if (row == fileSel) FileDialogDone(true);
@@ -2576,9 +2587,12 @@ public partial class Main : Node2D
             var (fg, bg) = ui.SchemeOf(it);
             c.Fill(l, t, r, b, bg);
             var field = c.Clip(l, t, r, b);
-            var dir = FileDir().ToUpperInvariant();
+            var dir = fileDirShown != null && fileDrive == 'C' ? fileDirShown : FileDir().ToUpperInvariant();
             if (!dir.EndsWith('\\')) dir += "\\";
-            ui.Font(it.Style).Draw(field, l + 4, t, dir, fg);
+            var pf = ui.Font(it.Style);
+            if (it.Style == 0)                                                   // the BIOS font: 8-px cells
+                for (int k = 0; k < dir.Length; k++) pf.Draw(field.Clip(l + 4 + 8 * k, t, l + 12 + 8 * k, t + 14), l + 4 + 8 * k, t, dir[k].ToString(), fg);
+            else pf.Draw(field, l + 4, t, dir, fg);
         }
         var rows = fileRows.Select((r, i) => (i == fileSel, r.text)).ToList();
         ui.DrawList(c, items[FileList], rows, fileFirst);

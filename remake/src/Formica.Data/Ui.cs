@@ -451,17 +451,27 @@ public sealed class UiArt
         var f = Font(it.Style) ?? Font(2);
         var (l, t, r, b) = it.Rect;
         var clip = c.Clip(l, t, r, b);
-        int n = ListRows(it), y = t;
-        for (int i = 0; i < n; i++, y += f.Height)
+        int n = ListRows(it), y = t, h = ListRowHeight(it);
+        for (int i = 0; i < n; i++, y += h)
         {
             var (fg, bg) = Schemes[i + first < rows.Count && rows[i + first].selected ? it.AltScheme : it.Scheme];
-            clip.Fill(l, y, r, y + f.Height, i + first < rows.Count ? bg : SchemeOf(it).bg);
-            if (i + first < rows.Count) f.Draw(clip, l, y, rows[i + first].text, fg);
+            clip.Fill(l, y, r, y + h, i + first < rows.Count ? bg : SchemeOf(it).bg);
+            if (i + first >= rows.Count) continue;
+            var text = rows[i + first].text;
+            if (it.Style == 0)                                                   // the BIOS font: 8 x 14 cells
+            {
+                for (int k = 0; k < text.Length; k++)
+                    if (text[k] != ' ') f.Draw(clip.Clip(l + 8 * k, y, l + 8 * k + 8, y + 14), l + 8 * k, y, text[k].ToString(), fg);
+            }
+            else f.Draw(clip, l, y, text, fg);
         }
     }
 
+    /// <summary>A list row's height: the font's (f_24dbb), 14 for font 0 (the BIOS font's cells, as for item text).</summary>
+    public int ListRowHeight(LayoutItem it) => it.Style == 0 ? 14 : (Font(it.Style) ?? Font(2)).Height;
+
     /// <summary>The rows a list item shows (f_241f2 stores it at +2A).</summary>
-    public int ListRows(LayoutItem it) => (it.Rect.bottom - it.Rect.top) / (Font(it.Style) ?? Font(2)).Height;
+    public int ListRows(LayoutItem it) => (it.Rect.bottom - it.Rect.top) / ListRowHeight(it);
 
     /// <summary>The arrow height G:47DC (bitmap 109's).</summary>
     public int ArrowHeight => Bitmap(109).h;

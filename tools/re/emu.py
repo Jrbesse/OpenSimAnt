@@ -316,7 +316,9 @@ class SimEmu:
         elif ah == 0x30:
             w(UC_X86_REG_AX, 0x0005)
             w(UC_X86_REG_BX, 0)
-        elif ah in (0x25, 0x1a, 0x0e, 0x3b, 0x0b, 0x0d):
+        elif ah == 0x1a:                          # set the DTA (find first / next write there)
+            self.dta = ds * 16 + dx
+        elif ah in (0x25, 0x0e, 0x3b, 0x0b, 0x0d):
             if ah == 0x0e:
                 w(UC_X86_REG_AX, (ax & 0xff00) | 26)
         elif ah == 0x35:
@@ -393,8 +395,27 @@ class SimEmu:
         elif ah == 0x2a:
             w(UC_X86_REG_CX, 1991)
             w(UC_X86_REG_DX, 0x0c06)
-        elif ah in (0x4e, 0x4f):                  # find first/next: nothing
-            fail(18)
+        elif ah in (0x4e, 0x4f):                  # find first / next: the served folder's entries (find_dir), else none
+            find_dir = getattr(self, 'find_dir', None)
+            dta = getattr(self, 'dta', None)
+            if not find_dir or dta is None:
+                return fail(18)
+            if ah == 0x4e:                        # every entry (the game filters "*.ant" itself); folders with CX bit 4
+                names = []
+                for n in sorted(os.listdir(find_dir)):
+                    p = os.path.join(find_dir, n)
+                    if os.path.isdir(p) and not (cx & 0x10):
+                        continue
+                    names.append((n.upper()[:12], 0x10 if os.path.isdir(p) else 0x20, 0 if os.path.isdir(p) else os.path.getsize(p)))
+                self.finds = names
+            if not getattr(self, 'finds', None):
+                return fail(18)
+            name, attr, size = self.finds.pop(0)
+            rec = bytearray(43)
+            rec[0x15] = attr
+            struct.pack_into('<HHI', rec, 0x16, 0, ((1991 - 1980) << 9) | (12 << 5) | 6, size)
+            rec[0x1e:0x1e + len(name)] = name.encode('ascii')
+            uc.mem_write(dta, bytes(rec))
         elif ah == 0x36:                          # disk free
             w(UC_X86_REG_AX, 64)
             w(UC_X86_REG_BX, 4096)
