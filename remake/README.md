@@ -30,6 +30,7 @@ dotnet run --project tests/Formica.Replay -c Release -- --quiet
 dotnet test tests/Formica.Sim.Tests -c Release
 dotnet run --project tests/Formica.Replay -c Release -- --smoke
 dotnet run --project tests/Formica.Replay -c Release -- --songs   # every song and effect as WAV in build/songs (to listen)
+dotnet run --project tests/Formica.Replay -c Release -- --longrun # replays tools/ref/longrun.py's recording (long games)
 python tools/re/opl_capture.py record           # (from the repo root) the original driver's OPL2 streams → build/traces/opl
 ```
 

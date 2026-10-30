@@ -7,8 +7,27 @@ compared with the original's on the same game State (24 captures, 21 pixel-ident
 2026-10-20: the original's screens through a VGA model in the emulator, and the handler audit.
 
 **2026-10-29: the owner play-tested** (start-up, Quick Game, basic play): "so far it seems to play identical to the
-original". Bugs left would be the kind long play finds. Suggested follow-up: a long-run differential check (the C# sim
-against the emulated original over 50,000+ ticks with player actions; today's checks are about 3,000 ticks per game).
+original". Bugs left would be the kind long play finds.
+
+**2026-10-29 night: the long-run check — no divergence.** `tools/ref/longrun.py [ticks] [quick:<crt hex> | full:<crt hex>
+...] [--out[=file]] [--every=n]` plays long games on the original (emulator) and the Python port side by side and compares
+memory (minus test_sim / test_newgame's SCREEN ranges) after every tick and every action: a new game whenever one ends, the
+clock moving 1..7 units per tick, and a seeded scripted player (walks, digs, menu commands f_76cb9, the map tools f_770f6:
+food, insecticide, rocks, workers into both nests so colonies grow; the Full Game's patch moves f_01d48). `--out` records
+actions, steps and the Python State every n ticks (remake/build/longrun/longrun.jsonl, game data: git-ignored);
+`Formica.Replay --longrun [file]` replays it on the C# port. **Result: 4 runs x 50,000 ticks (37 games, ~8,000 actions,
+games up to 41,281 ticks, wins and losses): Python = original after every tick, C# = Python at all 204 checkpoints** (a
+recording with one tick removed fails, so the check bites). ~4-6 min per 50k ticks in Python, ~1 s in C#. Gotcha found:
+`f_770f6` must run with CS = 0x76F4 (overlay 24 has several code segments; its jump table is CS-relative), as test_tools
+pins it; `seg_of` gives the overlay's first segment.
+
+**2026-10-29 night: test builds for Windows, macOS and Linux.** `remake/game/export_presets.cfg` has Linux (x86_64) and
+macOS (universal, built-in ad-hoc signing, bundle id io.github.jrbesse.formica; needs `import_etc2_astc` in project.godot)
+presets beside Windows; `.github/workflows/release.yml` exports all three from one Ubuntu runner (Godot cross-exports C#)
+and packs Formica-<v>-windows.zip, -macos.zip (Formica.app, repacked with `zip -y`) and -linux.tar.gz (exec bit), each with
+HOW_TO_PLAY.txt (now for all three systems). Run by hand (run 40999832583: all three built, artifacts checked) or with a
+`v*` tag (pre-release). The game finds its files whatever the case of their names (`OriginalFiles.FilePath`). **The owner
+is testing the builds on all three systems**: ask for the results.
 
 ## Goals (from the owner)
 
@@ -65,6 +84,7 @@ cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
 python test_yard.py; python test_player.py; python test_sim.py 3000
+python longrun.py 50000 --out    # long games, scripted player (then: Formica.Replay --longrun)
 python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py; python test_debug.py; python test_markers.py; python test_balloons.py; python test_panels.py; python test_commands.py; python test_tutorial.py
 ```
 
@@ -304,14 +324,25 @@ Suggested next session (in order):
    its item only with flags bit 0x200 ("Select Drive:" overflows). All other captures unchanged (21 identical).
    `LayoutItem.Id` is really the right edge's reference (+14): usually the item itself; the original's item names are
    window << 8 | index (the shell still matches on `Id` in a few places; they work, but prefer indices).
-   Next captures: Cancel (its centre at about (332, 308) in Load mode); then the Options / Speed menus; a SimAntipedia glossary pop-up (a bold word on a card);
+   **2026-10-29 night, more captures** (now 36; all identical but for animation / redraw timing and filedlg's folder):
+   cancel, menu_options, menu_speed, editfront (the Edit window fronted by a click on its caption), popup (the yellow
+   ant's menu: f_67e93 → f_2379b → f_21336(0x700, press x, y); layout 7's item 0 is mode 5 at (16, 8) from that point,
+   and a header with +1D bit 4 keeps the window on screen: `UiArt.Open`), newselect (Select a Game over a game), exp
+   (File > New > Experimental: the open windows stay, `--start-windows`), expmenu (the tool palette: identical), gameover
+   (G:0376 poked: its lines are f_23943 values in the items' schemes, the rating blue; fixed). Ant Info (antinfo) does
+   not show yet: a hold on a cell calls f_2f8fc only when f_0122c says held (f_74fe0 0x7518D), and the window waits for a
+   click, so capture after the release; brood is not in the occupancy grid (no window on either side) and workers walk
+   off during the hold; Speed > Pause and the PAUSE button did not set G:047E in the emulator (not investigated). Next
+   time: hold on a resting adult (state from ANTS[2]['state']), or find how the emulator can pause the game.
+   Older list: Cancel (its centre at about (332, 308) in Load mode); then the Options / Speed menus; a SimAntipedia glossary pop-up (a bold word on a card);
    the yellow ant's pop-up menu (press and hold on it in the Edit window: find its screen spot from G:047C / G:048A and
    the Edit origin G:0508 / G:050A, 16 px cells from (64, 41)); Ant Info; the Experimental game (Select a Game) and its
    tool palettes; a message box (Events); the game-over and win screens. Each needs its flags in `compare_screens.py`'s
    FLAGS (and, if the remake lacks one, a new screenshot flag). Note the ROM font: font-0 text cannot be compared glyph
    for glyph (vga.py's stand-ins are SHARED's font 0, as the shell's are).
-1. Play-testing: the owner played it on 2026-10-29 and found it plays like the original (no bugs reported). Ask
-   about longer games; fix what they report first. A long-run differential check would find what short play does not.
+1. Play-testing: the owner played it on 2026-10-29 and found it plays like the original (no bugs reported); the
+   long-run check (above) found no divergence in 200,000 ticks. Ask for their results with the Windows / macOS / Linux
+   builds and longer games; fix what they report first.
 2. Continue the handler audit where it stopped: the yard window's handler `f_6f7f0` (decoded earlier, re-check against
    the shell), the History window `f_792d2` (0x150E redraw), the SimAntipedia `f_790f0`, the Experimental menu
    `f_67010` / tools `f_76f4a`, the Ant Info window, and the keys `f_74386` against `OriginalKey`. Method: dump the
