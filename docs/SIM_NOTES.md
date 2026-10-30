@@ -2395,3 +2395,11 @@ the windows are redrawn, and the loop waits until `clock3() >= next`. T:07CC is 
 the loop starts): T:07CE = 21, 7, 0 clock3 units (about 0.38 s, 0.13 s, and no wait) for slow, medium and
 fast; fast runs as fast as the machine draws. The remake's `GameSession.Advance` follows this, with a
 minimum period for fast.
+
+The redraw (decoded 2026-10-29): at Ultra (T:07CC = 3) only when the frame counter G:0A9C & 3 is 0, else every loop;
+G:0A9C = (G:0A9C + 1) & 0x3F at the end of each loop. Then, if the Map window is open (f_235a0): with G:0AA6 < 0, the
+mouse button down (f_23612) or at Ultra, f_01325(0) and the Map window (thunk 0x2F6E0 → f_6f46a: f_6efd6, the population
+report f_6eea5) and G:0AA6 = 0; else, while G:04C0 == 0, the Map window when G:0AA6 bit 0 is set, then G:0AA6 ^= 1:
+every other loop, so it lags the game by up to a tick (the 'surface' capture). Then the yard window's colony views
+(G:035C > 2 and f_1ccfc: thunk 0x2F83E, else 0x2F6FE), the Edit window (f_0339d, f_033d2), and the wait. The sim never
+reads G:0A9C / G:0AA6 / G:04C0; the shell keeps the cadence with its own counters (`Main.MapLoops`).
