@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>OpenSimAnt.Replay</RootNamespace>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OpenSimAnt.Sim\OpenSimAnt.Sim.csproj" />
+    <ProjectReference Include="..\..\src\OpenSimAnt.Data\OpenSimAnt.Data.csproj" />
+  </ItemGroup>
+</Project>

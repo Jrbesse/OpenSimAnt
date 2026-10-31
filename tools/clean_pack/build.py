@@ -6,7 +6,7 @@
 Sources: remake/game/assets/clean/src/<category>/ (written by the makers, docs/clean_pack/*.md). Output:
 - without --fallback: remake/game/assets/clean/clean_pack.zip, only when nothing is missing (else the list and exit 1;
   --partial writes what exists to remake/build/partial_pack.zip);
-- with --fallback (for example remake/build/original_pack.zip from `Formica.Replay --export-pack`, the player's own
+- with --fallback (for example remake/build/original_pack.zip from `OpenSimAnt.Replay --export-pack`, the player's own
   files): remake/build/dev_pack.zip (git-ignored: it holds original data). Run the game on it with
   `-- --clean --pack=remake/build/dev_pack.zip` to see each new category in place before the pack is complete.
 

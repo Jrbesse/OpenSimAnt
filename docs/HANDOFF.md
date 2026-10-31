@@ -12,16 +12,16 @@ what is left before version 1 is now **`docs/ROADMAP.md`** (Track A: the clean p
 C: release); keep it ticked off. `docs/ART_PLAN.md` sections 8 / 9 list everything the game reads from the originals and
 how the pack is made: **the owner chose isolated agents** (this side writes specs in words only, under
 `docs/clean_pack/`; fresh agents with only a spec make the assets with scripts, provenance in
-`remake/game/assets/clean/PROVENANCE.md`). Measured with the new `Formica.Replay --deps [dir] [games] [ticks] [out]`
+`remake/game/assets/clean/PROVENANCE.md`). Measured with the new `OpenSimAnt.Replay --deps [dir] [games] [ticks] [out]`
 (`State.Touch`, analysis only: marks bytes read before any write): the simulation needs only ~1,200 non-zero bytes of
 SIMANT.EXE's data (list in `remake/build/deps.txt`), so ROADMAP A2 puts them in source. **A2 is done** (same day):
-`Formica.Sim/GameTables.cs`, the default start (remake/README "The game tables"; the shell's reads via
+`OpenSimAnt.Sim/GameTables.cs`, the default start (remake/README "The game tables"; the shell's reads via
 `tools/ref/deps_ui.py` + `--deps=`). On the way the `--deps` runs found a **hang in the original too**: a patch seed of
 0 (1 in 32,767) freezes the LFSR and f_0ad9c loops forever; the port seeds such a patch with 0x3751 (DIVERGENCE in
 `NewGame.SetupPatch`, SIM_NOTES "New game"). New shell flags: `--seed=N`, `--exe-state`, `--deps=<file>`. Later the same day: **A1 mostly done** (resources
 through `OriginalFiles.Get` / `Of`; `Flat` = tables + `EmbeddedAssets`; the pack loader, proven pixel-identical with
-`Formica.Replay --export-pack` + `--clean --pack=`), **A3 started** (`docs/clean_pack/`: README with the process and
-the makers' brief, `data/*.json` from `Formica.Replay --measure`, the pilot spec `cursors.md`), the builder
+`OpenSimAnt.Replay --export-pack` + `--clean --pack=`), **A3 started** (`docs/clean_pack/`: README with the process and
+the makers' brief, `data/*.json` from `OpenSimAnt.Replay --measure`, the pilot spec `cursors.md`), the builder
 `tools/clean_pack/build.py`, and the first isolated maker (the cursors). Python: Pillow and numpy are installed for
 the user (the owner OK'd useful libraries; `python -I` hides user site-packages, so run makers' scripts without `-I`).
 Gotchas from today: Godot's `--path` moves the working folder (pass absolute paths to flags); the GODOT environment
@@ -50,18 +50,18 @@ memory (minus test_sim / test_newgame's SCREEN ranges) after every tick and ever
 clock moving 1..7 units per tick, and a seeded scripted player (walks, digs, menu commands f_76cb9, the map tools f_770f6:
 food, insecticide, rocks, workers into both nests so colonies grow; the Full Game's patch moves f_01d48). `--out` records
 actions, steps and the Python State every n ticks (remake/build/longrun/longrun.jsonl, game data: git-ignored);
-`Formica.Replay --longrun [file]` replays it on the C# port. **Result: 4 runs x 50,000 ticks (37 games, ~8,000 actions,
+`OpenSimAnt.Replay --longrun [file]` replays it on the C# port. **Result: 4 runs x 50,000 ticks (37 games, ~8,000 actions,
 games up to 41,281 ticks, wins and losses): Python = original after every tick, C# = Python at all 204 checkpoints** (a
 recording with one tick removed fails, so the check bites). ~4-6 min per 50k ticks in Python, ~1 s in C#. Gotcha found:
 `f_770f6` must run with CS = 0x76F4 (overlay 24 has several code segments; its jump table is CS-relative), as test_tools
 pins it; `seg_of` gives the overlay's first segment.
 
 **2026-10-29 night: test builds for Windows, macOS and Linux.** `remake/game/export_presets.cfg` has Linux (x86_64) and
-macOS (universal, built-in ad-hoc signing, bundle id io.github.jrbesse.formica; needs `import_etc2_astc` in project.godot)
+macOS (universal, built-in ad-hoc signing, bundle id io.github.jrbesse.opensimant; needs `import_etc2_astc` in project.godot)
 presets beside Windows; `.github/workflows/release.yml` exports all three from one Ubuntu runner (Godot cross-exports C#)
-and packs Formica-<v>-windows.zip, -macos.zip (Formica.app, repacked with `zip -y`) and -linux.tar.gz (exec bit), each with
+and packs OpenSimAnt-<v>-windows.zip, -macos.zip (OpenSimAnt.app, repacked with `zip -y`) and -linux.tar.gz (exec bit), each with
 HOW_TO_PLAY.txt (now for all three systems). Run by hand (run 40999832583: all three built, artifacts checked; the
-latest, with the night's fixes: run 41019086870, Formica-build-fbb36d4-*) or with a
+latest, with the night's fixes: run 41019086870, OpenSimAnt-build-fbb36d4-*) or with a
 `v*` tag (pre-release). The game finds its files whatever the case of their names (`OriginalFiles.FilePath`). **The owner
 is testing the builds on all three systems**: ask for the results.
 
@@ -69,7 +69,9 @@ is testing the builds on all three systems**: ask for the results.
 
 1. A faithful 1:1 modern remake of SimAnt (Maxis, 1991, DOS), graphics kept as close as possible, published
    on GitHub. **Reverse engineering comes first.**
-2. Later: "SimAnt: Evolved", a new game built around the original's core loop.
+2. Later: **Formica**, a fully modern game built around the original's core loop, after OpenSimAnt is completely
+   finished. (Names decided 2026-10-30: **OpenSimAnt** is the 1:1 version, the code formerly called "Formica";
+   "Formica" now names the modern game, formerly "SimAnt: Evolved".)
 
 Constraints:
 - **Never commit original Maxis files or anything extracted from them.** The tools read the user's own copy
@@ -97,7 +99,7 @@ Constraints:
 | `tools/ref/record_traces.py`, `record_all.sh` | Record the reference's calls during its tests as traces for the C# port. |
 | `docs/PLAYTEST.md` | The play-test checklist for the owner (sections, known gaps, how to report). |
 | `.github/workflows/build.yml` | CI on pushes / PRs to main or master: restore, build (Release), test the remake solution, compile the Python tools. No original files on CI, so the trace tests pass vacuously (one "(no traces)" row). |
-| `remake/` | **The Godot remake (C#)**: `src/Formica.Sim` (the sim), `src/Formica.Data` (files, art, session), `game/` (Godot project), `tests/` (trace replay, xUnit). See `remake/README.md`. |
+| `remake/` | **The Godot remake (C#)**: `src/OpenSimAnt.Sim` (the sim), `src/OpenSimAnt.Data` (files, art, session), `game/` (Godot project), `tests/` (trace replay, xUnit). See `remake/README.md`. |
 
 ## How verification works
 
@@ -124,7 +126,7 @@ cd tools/ref
 python test_terrain.py; python test_pheromones.py; python test_colony.py; python test_movement.py
 python test_surface.py; python test_nest.py; python test_nest.py --red; python test_world.py
 python test_yard.py; python test_player.py; python test_sim.py 3000
-python longrun.py 50000 --out    # long games, scripted player (then: Formica.Replay --longrun)
+python longrun.py 50000 --out    # long games, scripted player (then: OpenSimAnt.Replay --longrun)
 python test_newgame.py; python test_newgame.py play; python test_events.py; python test_game.py; python test_savefile.py; python test_cheats.py; python test_tools.py; python test_debug.py; python test_markers.py; python test_balloons.py; python test_panels.py; python test_commands.py; python test_tutorial.py
 ```
 
@@ -167,11 +169,11 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 **The Godot remake is under way, in C#** (the owner works in C# / Godot 4.6 .NET; see their other
 project's CLAUDE.md). Everything is under `remake/`; read `remake/README.md` first (layout, controls,
 screenshot flags).
-- `remake/src/Formica.Sim`: **the whole of `simant_ref` is ported to C#** and checked against the Python
+- `remake/src/OpenSimAnt.Sim`: **the whole of `simant_ref` is ported to C#** and checked against the Python
   reference: every recorded call of every reference test (26 trace files, ~236,000 calls, 67,200 SimStep
-  ticks; the tutorial added 2026-10-18 night) replays byte for byte (`dotnet test remake/tests/Formica.Sim.Tests`). Marked DIVERGENCEs (grep
+  ticks; the tutorial added 2026-10-18 night) replays byte for byte (`dotnet test remake/tests/OpenSimAnt.Sim.Tests`). Marked DIVERGENCEs (grep
   them): an unset local in the original, and UI randomness (spider fangs, raindrops) on its own generator.
-- `remake/src/Formica.Data`: archives + LZSS, the starting State from SIMANT.EXE plus the start-up values
+- `remake/src/OpenSimAnt.Data`: archives + LZSS, the starting State from SIMANT.EXE plus the start-up values
   the sim reads, map art and renderer, the spider, STR# strings (Mac Roman), sound effects, the bitmap
   fonts, the window layouts (`Layouts.cs`), **`Ui.cs`** (`UiArt`: draws any layout as f_223b3 does, in
   the colour schemes of HCEGANT 0/129; hit tests by item index), **`YardRenderer.cs`** (the yard window),
@@ -193,7 +195,7 @@ screenshot flags).
     option palettes 12..17, the map tools' drag loop; Start Game returns to a Quick Game);
   - the title (3), Select a Game (2), the save prompt (33), the about box (31, F3), message boxes (27 /
     30), **the SimAntipedia** (5: all 53 cards, links, PREVIOUS history, glossary pop-ups;
-    `Formica.Data/Antipedia.cs`), **the game-over window** (4), help overlays (F1 / ?), window titles
+    `OpenSimAnt.Data/Antipedia.cs`), **the game-over window** (4), help overlays (F1 / ?), window titles
     from STR# 1000, quick save / load (F8 / F9), sound effects, speech balloons as the original's bitmaps
     (Options > Silly, off at start-up as in SIMANT.EXE).
   - **The menu bar** (2026-10-18 night): File / Window / View / Options / Speed from SHARED type 6 (the
@@ -201,8 +203,8 @@ screenshot flags).
     every command through `MenuCommand` (f_6e26d); Alt+F/W/V/O/S and F2..F6 open them.
   - **Music and effects** through the original's driver on an emulated OPL2 (one `AudioStreamGenerator`):
     `voice` / `music` / `sound` >= 10000 effects, the title and File > New play songs (Options > Music);
-    `Formica.Replay --songs` writes every song and effect as WAV to `remake/build/songs` (for listening).
-  - **The tutorial** (Select a Game > Tutorial): `Formica.Sim/Tutorial.cs` (verified, see SIM_NOTES "The
+    `OpenSimAnt.Replay --songs` writes every song and effect as WAV to `remake/build/songs` (for listening).
+  - **The tutorial** (Select a Game > Tutorial): `OpenSimAnt.Sim/Tutorial.cs` (verified, see SIM_NOTES "The
     tutorial"), message boxes as f_71bb6 sizes them with the tutorial pictures; DS:5702 follows the active
     window; the yard window sets G:032E like f_01aec.
   - **The timed message** (f_15e2c) over the Edit map and in the yard window; message boxes follow Options >
@@ -226,7 +228,7 @@ screenshot flags).
   - The status lines under the windows are the shell's own (tick, populations, speed): the game's own
     messages are drawn where the original draws them.
   - Checked with screenshot runs (`-- --ticks=N --screenshot=out.png` plus the flags in the README) and
-    `Formica.Replay --smoke`; **not yet played by a human**.
+    `OpenSimAnt.Replay --smoke`; **not yet played by a human**.
 - Decoded this evening (SIM_NOTES "Keys and menu commands", "The SimAntipedia", "Game flow"): the card
   format (FILE_FORMATS), f_78808 / f_78232 / f_790f0 / f_78e1c, the glossary 4EE5:0520, the key table and
   the 0xFDmn command switch, DS:2CBC (load / save / quit), f_71d95's window. The help (f_76eb5, window
@@ -236,8 +238,8 @@ screenshot flags).
   Layout 0 is the Edit window and 1 the Map window (FILE_FORMATS had them the other way round). T:07C8
   matters to the sim (yard sounds draw from the RNG only while it is 0): the shell sets it only where the
   original's Map window does.
-- "Formica" is a placeholder code name (the public name is still open, ART_PLAN). The repository has a
-  top-level README for GitHub.
+- The 1:1 remake is named OpenSimAnt (the owner's decision, 2026-10-30; until then the code name was "Formica",
+  which now names the later modern game). The repository has a top-level README for GitHub.
 
 **2026-10-20 morning: the original's own screens.** `tools/re/vga.py` is a planar VGA (mode 12h) for the Unicorn
 emulator: sequencer / graphics controller write and read modes, latches, the DAC and INT 10h palette calls, and
@@ -355,7 +357,7 @@ Suggested next session: **follow `docs/ROADMAP.md` Track A** (A1 the asset layer
 A4 the pack), with Track B items as the owner reports. The older list below is kept for its details; its open items
 are all in the roadmap.
 0. Keep comparing screens (2026-10-24 workflow: `python tools/re/screens.py` (~3 min), `dotnet build
-   remake/game/Formica.csproj`, `python tools/re/compare_screens.py`; look at `build/screens/remake/<name>_diff.png`).
+   remake/game/OpenSimAnt.csproj`, `python tools/re/compare_screens.py`; look at `build/screens/remake/<name>_diff.png`).
    **Where this stopped (2026-10-29):** the file dialog (`filedlg`) is done: its chrome is identical to the original's;
    the 2,898 pixels left are the folder's contents (the emulator's DOS serves no directory entries, so the original
    shows "C:\" and an empty list; make `emu.py` serve a folder, or give the shell a flag for an empty "C:\", to make
@@ -422,11 +424,11 @@ are all in the roadmap.
    (window 26) and message boxes' (f_71b1a) colours are not checked on a real screen (the yellow ant's death box was
    not on screen at the polls tried: they run on the clock); the two undecoded bytes of each colour scheme. (Done: the
    XOR fill, index ^ 15; the library alerts' colours and geometry.)
-5. **Audio fidelity** (unchanged): listen to `Formica.Replay --songs` against DOSBox; the DAC / FM balance
+5. **Audio fidelity** (unchanged): listen to `OpenSimAnt.Replay --songs` against DOSBox; the DAC / FM balance
    (`SoundMixer.SampleGain`). Not modelled: AdLib mode.
 6. The clean-room art pack (ART_PLAN) once the owner has played it.
 
-**Workflow tips for the shell:** build with `dotnet build remake/game/Formica.csproj`, then run Godot
+**Workflow tips for the shell:** build with `dotnet build remake/game/OpenSimAnt.csproj`, then run Godot
 (path in the user's memory notes) with `--path remake/game -- <flags> --screenshot=<png>` and look at the
 PNG; disassemble with `tools/re/adis.py <hex addr> <count>` and `decomp.py <hex>`; overlay routines are
 reached through `90 90 90 EA off seg` thunks (scan flat.bin for the target), and jump tables sit right
@@ -434,7 +436,7 @@ after the `jmp cs:[bx + n]`, which gives the CS base. Write C# with the Write / 
 heredocs in bash turn `'\n'` into real line breaks (it happened twice more this session).
 
 **Test builds for friends (2026-10-19):** `remake/game/export_presets.cfg` (Windows Desktop) and
-`.github/workflows/release.yml` (a `v*` tag → a pre-release with `Formica-<tag>-windows.zip`, the export plus
+`.github/workflows/release.yml` (a `v*` tag → a pre-release with `OpenSimAnt-<tag>-windows.zip`, the export plus
 `remake/dist/HOW_TO_PLAY.txt`). `project.godot` sets `dotnet/project/solution_directory="../"` (the export
 fails with "no solution file exists" without it). With no game files found, the game shows a setup screen
 (`ShowSetup`): a native folder picker; the pick is searched two levels down and kept in
@@ -629,7 +631,7 @@ downloads need a GitHub login until the owner decides about making it public. Go
     +1) and UI / far-heap data, start-up sets what the sim reads: G:0480 = 0x50 (highest passable tile;
     with 0, surface ants are blocked everywhere), G:0FBA = G:0FFE = 0x1E (the yellow ant's health warning,
     the advisor's hunger level), DS:1A2E = 0 (tile-set cache), G:10DE / G:10E0 = 0x15 / 0x16 (map window
-    size, used by the event markers). `GameSession.ApplyBootDefaults` sets them; `Formica.Replay --smoke`
+    size, used by the event markers). `GameSession.ApplyBootDefaults` sets them; `OpenSimAnt.Replay --smoke`
     checks that games from SIMANT.EXE + defaults and from the booted memory stay identical (2000 ticks,
     Quick and Full Game, the yellow ant walking): they do. Still open: where the init code takes the 0x1E
     values from (SIMANT.CFG? a resource?), and the far-heap string lists (balloon lines, G:020A..).)
@@ -642,14 +644,14 @@ downloads need a GitHub login until the owner decides about making it public. Go
     (`render_view.render_map`), the yard window and yard map (patch choice → `NewGame.MoveToPatch`),
     the History window, the tool palette (`MapTools.ApplyTool`), the game-over / rating screen
     (`Game.Rating`), save / load (`SaveFile`), cheats (`Cheats.Cheat` per key). Port `fonts.py`,
-    `layouts.py`, `bitmaps.py` to `Formica.Data` as each screen needs them.
-14. (spider done 2026-10-18: `Formica.Data/Spider.cs` (type-2 bitmap decoder, body frames, Bresenham legs),
+    `layouts.py`, `bitmaps.py` to `OpenSimAnt.Data` as each screen needs them.
+14. (spider done 2026-10-18: `OpenSimAnt.Data/Spider.cs` (type-2 bitmap decoder, body frames, Bresenham legs),
     `SpiderLegs.cs` generated by `tools/ref/gen_spider_legs_cs.py` from `polylines.py`'s analysis; the fangs'
     jitter uses its own Random, not the game's LFSR, so drawing never shifts the simulation: a known
     divergence from the original's redraw, see step 8.) **Still missing in the renderer**: speech balloons and markers (effects `balloon`, the marker globals), the yard window
     actors. Sound effects: done 2026-10-18 as a hypothesis: f_00ed8(n) → f_29927 plays entry n of the
     DS:0A80 table (8 bytes each, filled from the SOUND archive at start-up, only with sound hardware DS:1926
-    and sound on T:07AC); the shell plays SOUND type 5 id n (`Formica.Data/Sounds.cs`, 11025 Hz guessed).
+    and sound on T:07AC); the shell plays SOUND type 5 id n (`OpenSimAnt.Data/Sounds.cs`, 11025 Hz guessed).
     (Corrected 2026-10-19: the table DS:0A82 is static and names an instrument per effect; samples play at
     5575.6 Hz; some effects are FM notes. SIM_NOTES "The sound driver", next-session step 5a.) Music: effect ids 10000+ (0x2713.., 0x4e20..) are
     the MIDI songs (SOUND types 18 / 20); not played yet (needs a synth or pre-rendered OGG, RECREATION_PLAN).
@@ -662,9 +664,9 @@ downloads need a GitHub login until the owner decides about making it public. Go
     effects, the Map window overview (Tab), speech balloons as text (STR# 1220..1260 by list handle; the
     shell writes the map window's origin and size G:0508 / G:050A / G:10E0 / G:10DE so the event markers
     record spots in view; the strings hold literal backslash-n line breaks), Ant Info (Ctrl+click), scent
-    views (V), quick save / load (F5 / F9), the status lines drawn in the game's font 2 (`Formica.Data/BitmapFont.cs`,
+    views (V), quick save / load (F5 / F9), the status lines drawn in the game's font 2 (`OpenSimAnt.Data/BitmapFont.cs`,
     a port of `tools/fonts.py`: both the game's own and the Mac FONT formats). The rating line's title: f_71d95 shows entry `rank` of the
-    G:0328 list (STR# 1900) below the mode's name from G:0324 (decoded). `Formica.Replay --fuzz [dir] [games] [ticks]` plays random games
+    G:0328 list (STR# 1900) below the mode's name from G:0324 (decoded). `OpenSimAnt.Replay --fuzz [dir] [games] [ticks]` plays random games
     (clicks, commands, tools, cheats): 150 x 5000 ticks run clean. The one crash path it found (f_75d01 with
     no ant left in mode 3 reads an unset local) is a marked DIVERGENCE in `PlayerActions.cs` (grep
     DIVERGENCE for all deliberate departures from the original).
@@ -871,7 +873,7 @@ f6df340 Remake: data layer (archives, state image from SIMANT.EXE, map art and r
 331eacc Remake: port cheats, debug commands, map tools, markers, speech balloons, panels and menu commands
 b81f195 Remake: port the yellow ant, SimStep, new game, terrain, game flow and saved games
 7438c61 Remake: port the nests, world (lions, caterpillar, spider, weather) and yard layer; all traces match
-e642345 Remake: C# simulation library (Formica.Sim) and a trace replayer checked against the Python reference
+e642345 Remake: C# simulation library (OpenSimAnt.Sim) and a trace replayer checked against the Python reference
 ```
 
 Earlier:

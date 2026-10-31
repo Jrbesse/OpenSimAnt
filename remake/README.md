@@ -1,6 +1,6 @@
-# Formica: the Godot remake
+# OpenSimAnt: the Godot remake
 
-"Formica" is a working code name (the public release needs its own name; see `docs/ART_PLAN.md`). It is a
+OpenSimAnt (the name decided 2026-10-30) is the 1:1 version: a
 fan remake of a 1991 ant-colony simulator, built on a byte-exact port of the original's simulation. It ships
 no original data: it reads the player's own copy of the game (SIMANT.EXE and the HCEGANT archives) at runtime.
 
@@ -8,11 +8,11 @@ no original data: it reads the player's own copy of the game (SIMANT.EXE and the
 
 | Path | What |
 |---|---|
-| `src/Formica.Sim/` | The simulation, a C# port of `tools/ref/simant_ref` (plain .NET 8, no Godot). Same memory-mirroring `State`, same function names (PascalCase), one class per reference module. |
-| `src/Formica.Data/` | Reading the player's files: the resource archives (LZSS), the starting State built from SIMANT.EXE, the map art (palette, tiles, sprites, recolouring) and the map renderer; `GameSession` (a game: new game, ticks, clock, effects queue). |
-| `game/` | The Godot 4.6 C# project (`Formica.csproj`, `Main.tscn`, `Main.cs`). |
-| `tests/Formica.Replay/` | Replays traces recorded from the Python reference on the C# port and compares memory byte for byte; `--smoke` plays games from SIMANT.EXE and writes PNGs. |
-| `tests/Formica.Sim.Tests/` | xUnit: one test per trace file. |
+| `src/OpenSimAnt.Sim/` | The simulation, a C# port of `tools/ref/simant_ref` (plain .NET 8, no Godot). Same memory-mirroring `State`, same function names (PascalCase), one class per reference module. |
+| `src/OpenSimAnt.Data/` | Reading the player's files: the resource archives (LZSS), the starting State built from SIMANT.EXE, the map art (palette, tiles, sprites, recolouring) and the map renderer; `GameSession` (a game: new game, ticks, clock, effects queue). |
+| `game/` | The Godot 4.6 C# project (`OpenSimAnt.csproj`, `Main.tscn`, `Main.cs`). |
+| `tests/OpenSimAnt.Replay/` | Replays traces recorded from the Python reference on the C# port and compares memory byte for byte; `--smoke` plays games from SIMANT.EXE and writes PNGs. |
+| `tests/OpenSimAnt.Sim.Tests/` | xUnit: one test per trace file. |
 | `build/` | Git-ignored: traces (`build/traces`), smoke PNGs. They hold game memory: never commit them. |
 
 ## How the port is checked
@@ -26,11 +26,11 @@ on its port (found by reflection: `surface.s_bored` → `Surface.SBored`) and co
 ```
 sh tools/ref/record_all.sh                      # record every test's traces (minutes; needs the emulator setup)
 cd remake
-dotnet run --project tests/Formica.Replay -c Release -- --quiet
-dotnet test tests/Formica.Sim.Tests -c Release
-dotnet run --project tests/Formica.Replay -c Release -- --smoke
-dotnet run --project tests/Formica.Replay -c Release -- --songs   # every song and effect as WAV in build/songs (to listen)
-dotnet run --project tests/Formica.Replay -c Release -- --longrun # replays tools/ref/longrun.py's recording (long games)
+dotnet run --project tests/OpenSimAnt.Replay -c Release -- --quiet
+dotnet test tests/OpenSimAnt.Sim.Tests -c Release
+dotnet run --project tests/OpenSimAnt.Replay -c Release -- --smoke
+dotnet run --project tests/OpenSimAnt.Replay -c Release -- --songs   # every song and effect as WAV in build/songs (to listen)
+dotnet run --project tests/OpenSimAnt.Replay -c Release -- --longrun # replays tools/ref/longrun.py's recording (long games)
 python tools/re/opl_capture.py record           # (from the repo root) the original driver's OPL2 streams → build/traces/opl
 ```
 
@@ -38,14 +38,18 @@ At this commit all 25 trace files (about 225,000 calls, including 67,200 SimStep
 
 ## Running the game
 
-Open `remake/game` in Godot 4.6 (.NET), or build with `dotnet build remake/game/Formica.csproj` and run
+Open `remake/game` in Godot 4.6 (.NET), or build with `dotnet build remake/game/OpenSimAnt.csproj` and run
 Godot with `--path remake/game`. The game looks for the original files in `--game-dir=<path>` (a user arg after
-`--`), `FORMICA_GAME_DIR`, the folder picked on the setup screen (kept in `user://settings.cfg`), the
+`--`), `OPENSIMANT_GAME_DIR`, the folder picked on the launcher (kept in `user://settings.cfg`), the
 executable's folder and up to two levels inside it, or the folders above the project / the executable. With
-none of those it shows the setup screen: a button opening the system's folder picker. `-- --screenshot=out.png` saves the screen after
+**The launcher** (every start) asks which assets to use: "Original look" (the player's copy; "Change folder..." or, with
+none found, the system's folder picker) or "Open assets" (the clean pack `res://assets/clean/clean_pack.zip`, greyed out
+until it exists); the choice is kept in `user://settings.cfg` (`[launch] assets`) and has the focus next time.
+`--original` / `--clean` skip it, `--pack=<zip>` names a pack, `--launcher` shows it in a screenshot run (which
+otherwise skips it, taking the original if there is one). `-- --screenshot=out.png` saves the screen after
 240 frames and quits; `--ticks=N` runs the game N ticks ahead first, `--history` opens the History graph.
 
-The screen is built from the original's window layouts (`Formica.Data/Ui.cs` draws them with the player's own
+The screen is built from the original's window layouts (`OpenSimAnt.Data/Ui.cs` draws them with the player's own
 bitmaps and fonts): the **Edit window** (the close-up map with its tool strip and health bars) and the **Map
 window** (the whole map, the toolbar and the population report), plus the Behavior / Caste Control, History
 and Efficiency Score windows and the yellow ant's pop-up menu. Drag a window by its caption; a click brings it
@@ -110,21 +114,21 @@ a State image and holds the game still: `tools/re/screens.py` writes one beside 
 `-- --state=.../quick.state --cursor=600,470 --screenshot=out.png` draws the same game as `quick.png` (compare with
 `tools/re/pngdiff.py`; the Quick Game start screen matches it in every pixel).
 `--seed=N` (hex) makes new games repeatable; `--exe-state` starts games from SIMANT.EXE's image instead of the game
-tables in source (`Formica.Sim/GameTables.cs`, the default since 2026-10-30); `--deps=<file>` (analysis) merges the
+tables in source (`OpenSimAnt.Sim/GameTables.cs`, the default since 2026-10-30); `--deps=<file>` (analysis) merges the
 image bytes the screens read into `<file>` (`tools/ref/deps_ui.py` runs it over every window).
 
 ### The game tables (no SIMANT.EXE needed for the simulation)
 
-`Formica.Sim/GameTables.cs` holds the ~7.3 KB of numbers the game reads from the original's data (directions, caste
+`OpenSimAnt.Sim/GameTables.cs` holds the ~7.3 KB of numbers the game reads from the original's data (directions, caste
 odds, terrain and rock shapes, the Map window's colours, the yard actors' tables, the save layout ...), named and
 described, generated by `tools/ref/gen_game_tables.py` (docs/ROADMAP.md A2; numbers only, the owner's decision). Games
 start from them. How they were found and checked:
 
 ```
 python tools/ref/deps_ui.py                                                   # the screens' reads (Godot, ~8 min)
-dotnet run --project tests/Formica.Replay -c Release -- --deps .. 400 40000   # + the simulation's: build/deps.txt
+dotnet run --project tests/OpenSimAnt.Replay -c Release -- --deps .. 400 40000   # + the simulation's: build/deps.txt
 python tools/ref/gen_game_tables.py                                           # fails if a read byte has no table
-dotnet run --project tests/Formica.Replay -c Release -- --tables .. 200 20000 # games from the tables = from the EXE
+dotnet run --project tests/OpenSimAnt.Replay -c Release -- --tables .. 200 20000 # games from the tables = from the EXE
 ```
 
 `--tables` plays each game twice (from the EXE and from the tables, the same random player) and compares the State after
@@ -139,20 +143,20 @@ The original's own sound, in its Sound Blaster mode (docs/SIM_NOTES.md "The soun
 
 | File | What |
 |---|---|
-| `Formica.Data/SoundBank.cs` | The driver's tables from SIMANT.EXE: 56 instruments (FM records or pitched samples), the effect table, the mixing and tick rates. |
-| `Formica.Data/SoundDriver.cs` | A port of the driver: the MIDI sequencer, the static channel map, the voices (priority, stealing), FM note on / off / patch as OPL2 register writes, the sample device behind an interface. `OplTraceTests` replays the original's register streams (`tools/re/opl_capture.py record`: 33 songs, 56 effects, effects in a row, a song with effects): every write and every wait match. |
-| `Formica.Data/Opl2.cs` | The YM3812 parts of ymfm (Aaron Giles, BSD-3-Clause, licence in the file and in `dist/THIRD_PARTY_NOTICES.txt`). |
-| `Formica.Data/SoundMixer.cs` | The driver's 5575.6 Hz handler (two sample voices through its volume tables into the DAC, a music tick every 16th), the OPL2 resampled. `OplTraceTests.DacMatches` replays the original handler's DAC bytes tick by tick. The shell renders it into one `AudioStreamGenerator`. |
+| `OpenSimAnt.Data/SoundBank.cs` | The driver's tables from SIMANT.EXE: 56 instruments (FM records or pitched samples), the effect table, the mixing and tick rates. |
+| `OpenSimAnt.Data/SoundDriver.cs` | A port of the driver: the MIDI sequencer, the static channel map, the voices (priority, stealing), FM note on / off / patch as OPL2 register writes, the sample device behind an interface. `OplTraceTests` replays the original's register streams (`tools/re/opl_capture.py record`: 33 songs, 56 effects, effects in a row, a song with effects): every write and every wait match. |
+| `OpenSimAnt.Data/Opl2.cs` | The YM3812 parts of ymfm (Aaron Giles, BSD-3-Clause, licence in the file and in `dist/THIRD_PARTY_NOTICES.txt`). |
+| `OpenSimAnt.Data/SoundMixer.cs` | The driver's 5575.6 Hz handler (two sample voices through its volume tables into the DAC, a music tick every 16th), the OPL2 resampled. `OplTraceTests.DacMatches` replays the original handler's DAC bytes tick by tick. The shell renders it into one `AudioStreamGenerator`. |
 
 Guessed, not measured: the balance between the Sound Blaster's DAC and its FM (`SoundMixer.SampleGain`).
 
 ## Test builds for players
 
 `game/export_presets.cfg` has a "Windows Desktop" preset (x86_64, the PCK embedded in the exe; the .NET
-runtime goes in `data_Formica_windows_x86_64/`, so players install nothing). Export locally with
+runtime goes in `data_OpenSimAnt_windows_x86_64/`, so players install nothing). Export locally with
 
 ```
-Godot_v4.6.2-stable_mono_win64_console.exe --headless --path remake/game --export-release "Windows Desktop" ../build/export/windows/Formica.exe
+Godot_v4.6.2-stable_mono_win64_console.exe --headless --path remake/game --export-release "Windows Desktop" ../build/export/windows/OpenSimAnt.exe
 ```
 
 `.github/workflows/release.yml` does the same on GitHub: pushing a tag `v*` exports, zips the build with

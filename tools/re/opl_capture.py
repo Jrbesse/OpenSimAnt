@@ -160,7 +160,7 @@ class Trace:
 
 def record(outdir, mode=6):
     """Every song (SOUND type 18 ids) and every effect from a fresh boot, all effects in a row, and a song
-    with effects in between (voice stealing), as traces for Formica.Data's driver port."""
+    with effects in between (voice stealing), as traces for OpenSimAnt.Data's driver port."""
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
     import simres
     game_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')

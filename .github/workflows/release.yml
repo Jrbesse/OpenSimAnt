@@ -72,12 +72,12 @@ jobs:
           godot=~/godot/Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64/Godot_v${GODOT_VERSION}-stable_mono_linux.x86_64
           mkdir -p remake/build/export/windows remake/build/export/linux remake/build/export/macos
           "$godot" --headless --path remake/game --import
-          "$godot" --headless --path remake/game --export-release "Windows Desktop" ../build/export/windows/Formica.exe
-          "$godot" --headless --path remake/game --export-release "Linux" ../build/export/linux/Formica.x86_64
-          "$godot" --headless --path remake/game --export-release "macOS" ../build/export/macos/Formica.zip
-          test -f remake/build/export/windows/Formica.exe
-          test -f remake/build/export/linux/Formica.x86_64
-          test -f remake/build/export/macos/Formica.zip
+          "$godot" --headless --path remake/game --export-release "Windows Desktop" ../build/export/windows/OpenSimAnt.exe
+          "$godot" --headless --path remake/game --export-release "Linux" ../build/export/linux/OpenSimAnt.x86_64
+          "$godot" --headless --path remake/game --export-release "macOS" ../build/export/macos/OpenSimAnt.zip
+          test -f remake/build/export/windows/OpenSimAnt.exe
+          test -f remake/build/export/linux/OpenSimAnt.x86_64
+          test -f remake/build/export/macos/OpenSimAnt.zip
 
       - name: Package
         env:
@@ -85,40 +85,40 @@ jobs:
         run: |
           docs="remake/dist/HOW_TO_PLAY.txt remake/dist/THIRD_PARTY_NOTICES.txt"
           mkdir -p dist
-          # Windows: a zip of the Formica folder
-          mkdir -p stage/windows/Formica
-          cp -r remake/build/export/windows/. stage/windows/Formica/
-          cp $docs stage/windows/Formica/
-          (cd stage/windows && zip -qr "../../dist/Formica-${VERSION}-windows.zip" Formica)
-          # macOS: the signed Formica.app (unzipped with its permissions and links, packed again with --symlinks)
-          mkdir -p stage/macos/Formica
-          unzip -q remake/build/export/macos/Formica.zip -d stage/macos/Formica
-          cp $docs stage/macos/Formica/
-          (cd stage/macos && zip -qry "../../dist/Formica-${VERSION}-macos.zip" Formica)
+          # Windows: a zip of the OpenSimAnt folder
+          mkdir -p stage/windows/OpenSimAnt
+          cp -r remake/build/export/windows/. stage/windows/OpenSimAnt/
+          cp $docs stage/windows/OpenSimAnt/
+          (cd stage/windows && zip -qr "../../dist/OpenSimAnt-${VERSION}-windows.zip" OpenSimAnt)
+          # macOS: the signed OpenSimAnt.app (unzipped with its permissions and links, packed again with --symlinks)
+          mkdir -p stage/macos/OpenSimAnt
+          unzip -q remake/build/export/macos/OpenSimAnt.zip -d stage/macos/OpenSimAnt
+          cp $docs stage/macos/OpenSimAnt/
+          (cd stage/macos && zip -qry "../../dist/OpenSimAnt-${VERSION}-macos.zip" OpenSimAnt)
           # Linux: a tarball, so the executable bit survives
-          mkdir -p stage/linux/Formica
-          cp -r remake/build/export/linux/. stage/linux/Formica/
-          cp $docs stage/linux/Formica/
-          chmod +x stage/linux/Formica/Formica.x86_64
-          tar -C stage/linux -czf "dist/Formica-${VERSION}-linux.tar.gz" Formica
+          mkdir -p stage/linux/OpenSimAnt
+          cp -r remake/build/export/linux/. stage/linux/OpenSimAnt/
+          cp $docs stage/linux/OpenSimAnt/
+          chmod +x stage/linux/OpenSimAnt/OpenSimAnt.x86_64
+          tar -C stage/linux -czf "dist/OpenSimAnt-${VERSION}-linux.tar.gz" OpenSimAnt
           ls -l dist
 
       - uses: actions/upload-artifact@v6
         with:
-          name: Formica-${{ steps.version.outputs.version }}-windows
-          path: dist/Formica-${{ steps.version.outputs.version }}-windows.zip
+          name: OpenSimAnt-${{ steps.version.outputs.version }}-windows
+          path: dist/OpenSimAnt-${{ steps.version.outputs.version }}-windows.zip
           retention-days: 30
 
       - uses: actions/upload-artifact@v6
         with:
-          name: Formica-${{ steps.version.outputs.version }}-macos
-          path: dist/Formica-${{ steps.version.outputs.version }}-macos.zip
+          name: OpenSimAnt-${{ steps.version.outputs.version }}-macos
+          path: dist/OpenSimAnt-${{ steps.version.outputs.version }}-macos.zip
           retention-days: 30
 
       - uses: actions/upload-artifact@v6
         with:
-          name: Formica-${{ steps.version.outputs.version }}-linux
-          path: dist/Formica-${{ steps.version.outputs.version }}-linux.tar.gz
+          name: OpenSimAnt-${{ steps.version.outputs.version }}-linux
+          path: dist/OpenSimAnt-${{ steps.version.outputs.version }}-linux.tar.gz
           retention-days: 30
 
       - name: Release
@@ -129,23 +129,23 @@ jobs:
           cat > notes.md <<'EOF'
           A test build of the remake for Windows, macOS and Linux. Download the one for your system:
 
-          - **Windows 10 / 11 (64-bit)**: Formica-...-windows.zip. Right-click it, choose **Extract All...**, then
-            double-click **Formica.exe** in the extracted folder. If Windows says "Windows protected your PC",
+          - **Windows 10 / 11 (64-bit)**: OpenSimAnt-...-windows.zip. Right-click it, choose **Extract All...**, then
+            double-click **OpenSimAnt.exe** in the extracted folder. If Windows says "Windows protected your PC",
             click **More info**, then **Run anyway** (the build isn't signed).
-          - **macOS 12 or newer (Apple Silicon or Intel)**: Formica-...-macos.zip. Double-click it, then right-click
-            **Formica.app** and choose **Open** (on macOS 15 and newer: try to open it once, then System Settings >
+          - **macOS 12 or newer (Apple Silicon or Intel)**: OpenSimAnt-...-macos.zip. Double-click it, then right-click
+            **OpenSimAnt.app** and choose **Open** (on macOS 15 and newer: try to open it once, then System Settings >
             Privacy & Security > **Open Anyway**). The app is signed ad hoc, not by an Apple developer.
-          - **Linux (x86_64)**: Formica-...-linux.tar.gz. `tar xzf` it and run `Formica/Formica.x86_64`.
+          - **Linux (x86_64)**: OpenSimAnt-...-linux.tar.gz. `tar xzf` it and run `OpenSimAnt/OpenSimAnt.x86_64`.
 
           The first time, click **Find my game folder...** and pick the folder from your own copy of the original DOS
           game (the one with SIMANT.EXE in it). HOW_TO_PLAY.txt in each package has the details. No original game
           data is included.
           EOF
-          files="dist/Formica-${GITHUB_REF_NAME}-windows.zip dist/Formica-${GITHUB_REF_NAME}-macos.zip dist/Formica-${GITHUB_REF_NAME}-linux.tar.gz"
+          files="dist/OpenSimAnt-${GITHUB_REF_NAME}-windows.zip dist/OpenSimAnt-${GITHUB_REF_NAME}-macos.zip dist/OpenSimAnt-${GITHUB_REF_NAME}-linux.tar.gz"
           # A release made on GitHub's web page creates the tag (and so starts this run) itself: add the files to it.
           if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" $files --clobber
           else
             gh release create "$GITHUB_REF_NAME" $files \
-              --title "Formica $GITHUB_REF_NAME (test build)" --notes-file notes.md --prerelease
+              --title "OpenSimAnt $GITHUB_REF_NAME (test build)" --notes-file notes.md --prerelease
           fi

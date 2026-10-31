@@ -4,7 +4,7 @@
 
 Runs the Godot shell with screenshot flags that open every window in fresh games (no --state: a loaded State hides
 what comes from the image), each with --deps=remake/build/deps_ui.bin, which ORs the bytes read before any write
-into that file. Then `Formica.Replay --deps` adds the simulation's own reads and writes remake/build/deps.txt.
+into that file. Then `OpenSimAnt.Replay --deps` adds the simulation's own reads and writes remake/build/deps.txt.
 """
 import os, subprocess, sys, tempfile
 
@@ -31,7 +31,7 @@ def main():
     godot = opts.get('godot') or next((g for g in (GODOT, os.environ.get('GODOT')) if g and os.path.isfile(g)), GODOT)
     if os.path.exists(OUT):
         os.remove(OUT)
-    shot = os.path.join(tempfile.gettempdir(), 'formica_deps.png')
+    shot = os.path.join(tempfile.gettempdir(), 'opensimant_deps.png')
     for flags in RUNS:
         cmd = [godot, '--path', os.path.join(ROOT, 'remake', 'game'), '--',
                *flags, '--screenshot=' + shot.replace('\\', '/'), '--deps=' + OUT.replace('\\', '/')]

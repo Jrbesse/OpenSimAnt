@@ -1,8 +1,8 @@
 using Godot;
-using Formica.Data;
-using Formica.Sim;
+using OpenSimAnt.Data;
+using OpenSimAnt.Sim;
 
-namespace Formica.Game;
+namespace OpenSimAnt.Game;
 
 /// <summary>
 /// The playable shell, laid out like the original's 640 x 480 screen from its window layouts (UiArt, Layouts):
@@ -71,13 +71,22 @@ public partial class Main : Node2D
             depsFile = System.IO.Path.GetFullPath(depsFile);   // a relative path is from the project folder (--path)
             State.Touch = new byte[State.Size];
         }
-        // the player's copy of the original if there is one (--clean: ignore it), else the clean pack (ROADMAP A1)
-        // --pack=<path>: a pack file instead of the built-in one (tests: Formica.Replay --export-pack)
-        var dir = OS.GetCmdlineUserArgs().Contains("--clean") ? null : FindGameDir();
-        var packArg = OS.GetCmdlineUserArgs().FirstOrDefault(x => x.StartsWith("--pack="))?["--pack=".Length..];
-        OriginalFiles files = dir != null ? new OriginalFiles(dir)
-            : packArg != null ? new OriginalFiles(System.IO.File.ReadAllBytes(System.IO.Path.GetFullPath(packArg)))
-            : Godot.FileAccess.FileExists(CleanPackPath) ? new OriginalFiles(Godot.FileAccess.GetFileAsBytes(CleanPackPath)) : null;
+        // Which assets: the player's copy of the original ("original") or OpenSimAnt's open assets, the clean pack
+        // ("open", ROADMAP A1). The launcher asks at every start; --original / --clean choose on the command line, and
+        // screenshot runs take the original if there is one. --pack=<path>: a pack file instead of the built-in one
+        // (tests: OpenSimAnt.Replay --export-pack).
+        var userArgs = OS.GetCmdlineUserArgs();
+        var dir = FindGameDir();
+        var packArg = userArgs.FirstOrDefault(x => x.StartsWith("--pack="))?["--pack=".Length..];
+        bool packOk = packArg != null || Godot.FileAccess.FileExists(CleanPackPath);
+        string choice = launchChoice
+            ?? (userArgs.Contains("--clean") ? "open" : userArgs.Contains("--original") ? "original" : null);
+        if (choice == null && userArgs.Any(x => x.StartsWith("--screenshot=")) && !userArgs.Contains("--launcher"))
+            choice = dir != null ? "original" : packOk ? "open" : null;
+        OriginalFiles files = choice == "original" && dir != null ? new OriginalFiles(dir)
+            : choice == "open" && packArg != null ? new OriginalFiles(System.IO.File.ReadAllBytes(System.IO.Path.GetFullPath(packArg)))
+            : choice == "open" && packOk ? new OriginalFiles(Godot.FileAccess.GetFileAsBytes(CleanPackPath)) : null;
+        if (files == null || choice != "original") dir = null;
         var layer = new CanvasLayer();
         AddChild(layer);
         status = new Label { Position = new Vector2(4, 384), Size = new Vector2(632, 16) };
@@ -89,12 +98,12 @@ public partial class Main : Node2D
         }
         if (files == null)
         {
-            GD.PrintErr("Formica: no SIMANT.EXE / HCEGANT found, and no clean pack at " + CleanPackPath);
+            if (choice != null) GD.PrintErr($"OpenSimAnt: the {(choice == "open" ? "open assets are" : "original files are")} not available");
             screenshot = OS.GetCmdlineUserArgs().FirstOrDefault(x => x.StartsWith("--screenshot="))?["--screenshot=".Length..];
-            ShowSetup(layer);
+            ShowLauncher(layer, FindGameDir(), packOk);
             return;
         }
-        GD.Print(dir != null ? "Formica: game files in " + dir : "Formica: the clean pack " + CleanPackPath);
+        GD.Print(dir != null ? "OpenSimAnt: game files in " + dir : "OpenSimAnt: the clean pack " + CleanPackPath);
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--screenshot=")) screenshot = arg["--screenshot=".Length..];
             else if (arg.StartsWith("--frames=")) shotFrames = int.Parse(arg["--frames=".Length..]);
@@ -175,8 +184,8 @@ public partial class Main : Node2D
             if (arg.StartsWith("--save-dialog=")) { gameFile = arg["--save-dialog=".Length..]; OpenFileDialog(true); }
         if (OS.GetCmdlineUserArgs().Contains("--game-over"))
         {
-            var (score, _) = Formica.Sim.Game.Rating(session.St);
-            OpenGameOver(Formica.Sim.Game.Rank(session.St, score), score);
+            var (score, _) = OpenSimAnt.Sim.Game.Rating(session.St);
+            OpenGameOver(OpenSimAnt.Sim.Game.Rank(session.St, score), score);
         }
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--save-prompt"))                            // --save-prompt[=n]: before n (1 Quick Game, 4 Load, ...)
@@ -243,13 +252,13 @@ public partial class Main : Node2D
 
     const string SettingsPath = "user://settings.cfg";
 
-    /// <summary>--game-dir=..., FORMICA_GAME_DIR, the folder picked on the setup screen (settings.cfg), the
+    /// <summary>--game-dir=..., OPENSIMANT_GAME_DIR, the folder picked on the setup screen (settings.cfg), the
     /// executable's folder and the ones just inside it, or the folders above the project / the executable.</summary>
     static string FindGameDir()
     {
         foreach (var arg in OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs()))
             if (arg.StartsWith("--game-dir=")) return arg["--game-dir=".Length..];
-        var env = System.Environment.GetEnvironmentVariable("FORMICA_GAME_DIR");
+        var env = System.Environment.GetEnvironmentVariable("OPENSIMANT_GAME_DIR");
         if (!string.IsNullOrEmpty(env) && OriginalFiles.Present(env)) return env;
         var settings = new ConfigFile();
         if (settings.Load(SettingsPath) == Error.Ok)
@@ -291,17 +300,62 @@ public partial class Main : Node2D
     /// The game's own text is the original's bitmap font, which is not there yet, so this screen uses Godot's
     /// font, drawn at the window's resolution (canvas_items stretch) instead of doubled from 640 x 480.
     /// </summary>
-    void ShowSetup(CanvasLayer layer)
+    /// <summary>The asset choice made on the launcher; it survives the scene reload that starts the game.</summary>
+    static string launchChoice;
+
+    /// <summary>The launcher, at every start: play with the original's look (the player's own copy of SimAnt) or with
+    /// OpenSimAnt's open assets (the clean pack, no original files needed). The last choice has the focus (Enter).</summary>
+    void ShowLauncher(CanvasLayer layer, string origDir, bool packOk)
     {
         var root = GetTree().Root;
         root.ContentScaleMode = Window.ContentScaleModeEnum.CanvasItems;
-        status.Text = "Formica needs the files from your own copy of the original DOS game.";
-        message.Text = "Click the button below and choose the folder that has SIMANT.EXE in it.";
-        status.Position = new Vector2(16, 170);
-        message.Position = new Vector2(16, 190);
-        var button = new Button { Text = "Find my game folder...", Position = new Vector2(16, 224) };
-        button.AddThemeFontSizeOverride("font_size", 12);
-        foreach (var c in new Control[] { status, message, button }) c.TextureFilter = CanvasItem.TextureFilterEnum.Linear;
+        status.Text = message.Text = "";
+        var settings = new ConfigFile();
+        settings.Load(SettingsPath);
+        string last = (string)settings.GetValue("launch", "assets", "original");
+
+        void Start(string choice)
+        {
+            var s = new ConfigFile();
+            s.Load(SettingsPath);
+            s.SetValue("launch", "assets", choice);
+            s.Save(SettingsPath);
+            launchChoice = choice;
+            root.ContentScaleMode = Window.ContentScaleModeEnum.Viewport;         // back to the game's pixel scaling
+            GetTree().ReloadCurrentScene();
+        }
+        Label Text(string text, int x, int y, int size, Color? colour = null)
+        {
+            var l = new Label { Text = text, Position = new Vector2(x, y), TextureFilter = CanvasItem.TextureFilterEnum.Linear };
+            l.AddThemeFontSizeOverride("font_size", size);
+            if (colour != null) l.AddThemeColorOverride("font_color", colour.Value);
+            layer.AddChild(l);
+            return l;
+        }
+        Button Btn(string text, int x, int y, int w)
+        {
+            var b = new Button { Text = text, Position = new Vector2(x, y), Size = new Vector2(w, 34), TextureFilter = CanvasItem.TextureFilterEnum.Linear };
+            b.AddThemeFontSizeOverride("font_size", 13);
+            layer.AddChild(b);
+            return b;
+        }
+        var dim = new Color(0.7f, 0.7f, 0.7f);
+        Text("OpenSimAnt", 24, 28, 28);
+        Text("A faithful remake of the 1991 ant-colony simulator. Not affiliated with Maxis or Electronic Arts.", 26, 70, 10, dim);
+        Text("How do you want to play?", 24, 108, 14);
+
+        var original = Btn("Original look: use my copy of SimAnt", 24, 140, 330);
+        var originalNote = Text(origDir != null ? "Your copy: " + origDir : "No copy found yet: choose the folder with SIMANT.EXE in it.", 30, 178, 10, dim);
+        var change = Btn("Change folder...", 366, 140, 140);
+        change.Visible = origDir != null;
+
+        var open = Btn("Open assets: no original files needed", 24, 216, 330);
+        open.Disabled = !packOk;
+        Text(packOk ? "New art, text, sound and music made for OpenSimAnt."
+                    : "Not ready yet: OpenSimAnt's open assets are still being made.", 30, 254, 10, dim);
+
+        Text("Tip: start with --original or --clean to skip this screen.", 24, 440, 10, dim);
+
         var dialog = new FileDialog
         {
             FileMode = FileDialog.FileModeEnum.OpenDir,
@@ -314,19 +368,20 @@ public partial class Main : Node2D
             var found = SearchGameDir(picked, 2);
             if (found == null)
             {
-                message.Text = "SIMANT.EXE, HCEGANT.DAT and HCEGANT.NDX are not in that folder. Try another one.";
+                originalNote.Text = "SIMANT.EXE, HCEGANT.DAT and HCEGANT.NDX are not in that folder. Try another one.";
                 return;
             }
-            var settings = new ConfigFile();
-            settings.Load(SettingsPath);
-            settings.SetValue("files", "game_dir", found);
-            settings.Save(SettingsPath);
-            root.ContentScaleMode = Window.ContentScaleModeEnum.Viewport;     // back to the game's pixel scaling
-            GetTree().ReloadCurrentScene();
+            var s = new ConfigFile();
+            s.Load(SettingsPath);
+            s.SetValue("files", "game_dir", found);
+            s.Save(SettingsPath);
+            Start("original");
         };
-        button.Pressed += () => dialog.PopupCentered(new Vector2I(600, 420));
-        layer.AddChild(button);
+        original.Pressed += () => { if (origDir != null) Start("original"); else dialog.PopupCentered(new Vector2I(600, 420)); };
+        change.Pressed += () => dialog.PopupCentered(new Vector2I(600, 420));
+        open.Pressed += () => Start("open");
         layer.AddChild(dialog);
+        (last == "open" && packOk ? open : original).CallDeferred(Control.MethodName.GrabFocus);
     }
 
     public override void _Process(double delta)
@@ -1560,7 +1615,7 @@ public partial class Main : Node2D
     }
 
     // ------------------------------------------------------------------------------- the pull-down menus
-    // SHARED type 6 (Formica.Data.Menus): File, Window, View, Options, Speed across the top of the screen in font 1.
+    // SHARED type 6 (OpenSimAnt.Data.Menus): File, Window, View, Options, Speed across the top of the screen in font 1.
     // f_6d7e3 (event 0xFE00 + m: a press on a title, Alt+F / W / V / O / S or F2..F6) shows the title inverted and
     // runs the menu f_6d9a4: while the button is held, releasing on an item picks it; after a click the menu stays
     // open until the next one. Keys: Down / + and Up / - move past separators, Left / Right the next menu (scan codes
@@ -1966,7 +2021,7 @@ public partial class Main : Node2D
 
     // ------------------------------------------------------------------------------- the SimAntipedia (layout 5)
     // The Map toolbar's "Ant Info Window" (0x115 → thunk 0x2f9b0 → f_78db9) opens window 5 on card 128 (Top Card).
-    // f_78808 draws the card (Formica.Data.Antipedia) into item 0x502 and its name into the caption 0x501;
+    // f_78808 draws the card (OpenSimAnt.Data.Antipedia) into item 0x502 and its name into the caption 0x501;
     // f_790f0 follows the pictures' links (BACK / PREVIOUS / TOP, topics) and pops up a glossary definition while
     // the button is held on a bold word or a picture's ≤ 0 hotspot (f_78e1c). The window has no close box: here
     // Escape or a click outside it closes it.
@@ -2121,7 +2176,7 @@ public partial class Main : Node2D
             case 3: Replace(2); break;
             case 4: Replace(3); break;
             case 5: modal = -1; break;
-            case 6: Replace(0); break;                                      // the Tutorial (G:0EAC = 0, Formica.Sim.Tutorial)
+            case 6: Replace(0); break;                                      // the Tutorial (G:0EAC = 0, OpenSimAnt.Sim.Tutorial)
             case 7: loadFromSelect = true; Replace(4); break;
         }
     }
@@ -2180,7 +2235,7 @@ public partial class Main : Node2D
     }
 
     /// <summary>Words wrapped greedily to `width` px (line breaks kept), as a text box lays them out.</summary>
-    static List<string> WrapText(Formica.Data.BitmapFont f, string text, int width)
+    static List<string> WrapText(OpenSimAnt.Data.BitmapFont f, string text, int width)
     {
         var lines = new List<string>();
         foreach (var para in text.Split('\n'))
@@ -2662,7 +2717,7 @@ public partial class Main : Node2D
     void OpenEfficiency()
     {
         var st = session.St;
-        efficiency = Formica.Sim.Game.Rating(st);
+        efficiency = OpenSimAnt.Sim.Game.Rating(st);
         st.Set32(Seg.G, 0xada, efficiency.score);
         modal = EfficiencyWin;
     }
@@ -3133,7 +3188,7 @@ public partial class Main : Node2D
     // fighters), G:0218 1230 (red fighters), G:021C 1240 (brood), G:0234 1250 (queen), G:023A 1260 (resting).
     // f_0696a queues up to 6 (G:1092: the cell centre in pixels a * 16 + 8, b * 16 + 8, view, style, the text) when
     // the spot is in the Edit window (f_06725); f_07134 then draws the first queued one that is in view, built by
-    // f_1629c (Formica.Data.Balloon), with its top-left at (x + 4, y - height - 4) so the tail points at the ant,
+    // f_1629c (OpenSimAnt.Data.Balloon), with its top-left at (x + 4, y - height - 4) so the tail points at the ant,
     // and empties the queue. The cells under it are marked for redrawing (DS:15C4), so it lasts one frame unless
     // queued again.
     static readonly Dictionary<int, int> BalloonLists = new() { [0x20a] = 1220, [0x218] = 1230, [0x21c] = 1240, [0x234] = 1250, [0x23a] = 1260 };
@@ -3205,7 +3260,7 @@ public partial class Main : Node2D
     }
 
     // ------------------------------------------------------------------------------- sound
-    // The original's own sound: its driver (Formica.Data.SoundDriver, verified on its OPL2 register streams) on an
+    // The original's own sound: its driver (OpenSimAnt.Data.SoundDriver, verified on its OPL2 register streams) on an
     // emulated OPL2 plus its two sample voices (SoundMixer), rendered each frame into one AudioStreamGenerator.
     // Songs: f_00ea1(id) → f_284b3, only while Options > Music (T:07AA) is on; a new song stops the one playing
     // (f_285aa). The sim reports songs as "voice", "music" (f_00ed0, an empty stub, for ids below 10000) and "sound"

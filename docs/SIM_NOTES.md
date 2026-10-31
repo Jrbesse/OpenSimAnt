@@ -1756,7 +1756,7 @@ brood, queen, rest:
 The fight timers are checked one after the other, then both balloons are drawn. The clock is read again
 for the new value (`f_1bc34` twice).
 
-**Drawing** (decoded 2026-10-18 night; remake `Formica.Data/Balloon.cs`). `f_0696a(a, b, view, style, text)` only
+**Drawing** (decoded 2026-10-18 night; remake `OpenSimAnt.Data/Balloon.cs`). `f_0696a(a, b, view, style, text)` only
 queues: up to 6 (count G:1092) when the spot is in the Edit window (`f_06725`), with the cell centre in pixels a *
 16 + 8, b * 16 + 8 (style 10 means a, b are pixels already: the spider's remarks) at G:04C8, the view G:04F6, the
 style G:04E6 and the text G:04A6. `f_07134` sets font 2 and draws the first queued balloon still in view (one per
@@ -2022,7 +2022,7 @@ row's high byte is a fraction in 14ths).
   table DS:550C (fill 0xF0F black, frame 0x404, buttons 0x404 / 0xC0C), one "Continue" button centred on the row
   bottom - 2; C, Enter, any press or the button close it.
 
-### The SimAntipedia (window 5, `f_78db9` / `f_78808` / `f_790f0`, overlay 881a; remake: `Formica.Data/Antipedia.cs`)
+### The SimAntipedia (window 5, `f_78db9` / `f_78808` / `f_790f0`, overlay 881a; remake: `OpenSimAnt.Data/Antipedia.cs`)
 
 The Map toolbar's 0x115 "Ant Info Window" → thunk 0x2f9b0 → `f_78db9`: if window 0x500 is not open
 (`f_235a0`), the card DS:2E26 = 128 (Top Card), the history DS:2E04[0] = 128, its index DS:2E24 = 0; then
@@ -2163,7 +2163,7 @@ bytes have no effect on an OPL2), 0x04 = 0x80, 0x08 = 0, 0xBD = 0xC0 (deep tremo
 no rhythm mode), 0xB0..0xB7 = 0. AdLib mode first runs the detection (`f_28415`: timers, then a tone on
 channel 0).
 
-**The sequencer** (ported: `remake/src/Formica.Data/SoundDriver.cs`, verified by `OplTraceTests` on 91
+**The sequencer** (ported: `remake/src/OpenSimAnt.Data/SoundDriver.cs`, verified by `OplTraceTests` on 91
 traces from `opl_capture.py record`). `f_286f6` reads the header (DS:7566 = tracks, G:4B2E = PPQ), finds
 the track chunks (read positions DS:8DD8), reads each track's first delta into G:4B42 (32-bit absolute
 times) and peeks its first byte into G:4B30 (running status). `f_28784`: last time DS:7568 = 0, current
@@ -2264,7 +2264,7 @@ SetupPatch(seed, n_black, n_red, row, col):        # f_6ae20
     SeedLfsr(seed) (f_009bf); f_0cdb0 (per-patch globals: spider at G:0F12 = 0x400, G:0F34 = 0x200, ...)
     **A bug in the original:** a seed is 0 when crt_rand() % 0x7FFF == 0x4000 (1 patch in 32,767); the LFSR then
     stays 0 forever (0 << 1 never carries), every Rand returns 0, and a yard patch hangs in f_0ad9c (the two bugs
-    wait for a free cell at (0, 0)). Found 2026-10-30 by `Formica.Replay --deps` (a load's new game). The C# port
+    wait for a free cell at (0, 0)). Found 2026-10-30 by `OpenSimAnt.Replay --deps` (a load's new game). The C# port
     seeds such a patch with 0x3751 (a marked DIVERGENCE in NewGame.SetupPatch); the Python reference keeps the hang.
     f_73020(row, col): surface terrain (below)
     n_black += n_black >> 2; n_red += n_red >> 2

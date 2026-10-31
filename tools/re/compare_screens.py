@@ -6,7 +6,7 @@ For each capture <name>.png in build/screens that has a <name>.state, runs the r
 (the original's memory, held still; the timed message from <name>.msg) plus the flags that open the same windows in
 the same order, screenshots it and prints pngdiff's count. The remake's screenshots and the diff images (differing
 pixels in magenta) go to --out (default build/screens/remake). Godot: --godot, else the path in the handoff, else
-$GODOT. The game must be built first (dotnet build remake/game/Formica.csproj).
+$GODOT. The game must be built first (dotnet build remake/game/OpenSimAnt.csproj).
 """
 import os
 import subprocess

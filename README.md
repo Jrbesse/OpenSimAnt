@@ -1,15 +1,16 @@
-# An ant-colony simulator, reverse engineered and remade
+# OpenSimAnt: an ant-colony simulator, reverse engineered and remade
 
 [![Build](https://github.com/Jrbesse/SimAnt-Evolved/actions/workflows/build.yml/badge.svg)](https://github.com/Jrbesse/SimAnt-Evolved/actions/workflows/build.yml)
 
 A fan project around a 1991 DOS ant-colony simulation game: its rules are reverse engineered from the
 original executable, ported to a readable reference implementation, verified byte for byte against the
-original running in an emulator, and rebuilt as a modern game in Godot.
+original running in an emulator, and rebuilt in Godot as **OpenSimAnt**, a faithful 1:1 remake. A modern game built
+around the same core, **Formica**, comes after OpenSimAnt is finished.
 
 This repository contains **no original game data**. Every tool and the remake read the player's own copy
 of the game (SIMANT.EXE and its .DAT / .NDX archives) at runtime. Nothing extracted from those files is
 committed. This is an unofficial fan project; it is not affiliated with or endorsed by the original
-publisher, and the remake's public name is still to be chosen.
+publisher.
 
 ## What is here
 
@@ -19,7 +20,7 @@ publisher, and the remake's public name is still to be chosen.
 | `tools/` | Python tools that read the original files: archive extraction, bitmaps, tiles, fonts, window layouts. |
 | `tools/re/` | Reverse-engineering tooling: a flat memory image of the executable, an annotated disassembler, a Ghidra wrapper, and a Unicorn-based emulator of the game. |
 | `tools/ref/` | `simant_ref`, the Python reference port of the whole simulation, and its differential tests against the emulator. |
-| `remake/` | The remake: a C# (.NET 8) port of the reference (`Formica.Sim`), the data layer (`Formica.Data`), a Godot 4.6 project (`game/`) and the tests that replay the reference's recorded calls on the port. See `remake/README.md`. |
+| `remake/` | The remake: a C# (.NET 8) port of the reference (`OpenSimAnt.Sim`), the data layer (`OpenSimAnt.Data`), a Godot 4.6 project (`game/`) and the tests that replay the reference's recorded calls on the port. See `remake/README.md`. |
 
 ## Status
 
@@ -40,7 +41,7 @@ git-ignored), then:
 
 ```
 python -I tools/extract.py                          # optional: browse the art, text and sounds in extracted/
-cd remake && dotnet build game/Formica.csproj       # then open remake/game in Godot 4.6 (.NET) and run
+cd remake && dotnet build game/OpenSimAnt.csproj       # then open remake/game in Godot 4.6 (.NET) and run
 ```
 
 Test builds for Windows, macOS and Linux (no Godot or .NET needed) come from tagged releases; see "Test builds for players"

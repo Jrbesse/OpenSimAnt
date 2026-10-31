@@ -49,9 +49,10 @@ the same keys at the same sizes.
     messages (write new wording with the same function and length);
   - the music compositions (new pieces in the same spirit);
   - recorded or sampled sounds.
-- **Project name:** "SimAnt" is a trademark. A public release needs its own name and must not suggest
-  it is official, while describing it accurately (for example "a fan remake of a 1991 ant-colony
-  simulator").
+- **Project name:** "SimAnt" is a trademark. A public release must not suggest it is official, while
+  describing it accurately (for example "a fan remake of a 1991 ant-colony simulator"). The owner named the
+  1:1 version **OpenSimAnt** (2026-10-30), in the style of OpenRCT2 / OpenTTD; the legal review (ROADMAP Track C)
+  covers the name. The clean pack itself carries no "SimAnt" or "Maxis" marks.
 - **What is generally fine to match:** the rules and mechanics, grid dimensions, screen and window
   geometry, colour counts and palette roles, sprite and tile dimensions, frame counts, animation timing,
   the general art style (16-colour pixel art, top-down ants, an isometric yard), and functional
@@ -143,11 +144,11 @@ copy.
 ## 8. Everything the game reads from the original files (2026-10-30)
 
 Not only art: to run with no original files, the clean pack (or the source code) has to supply all of this.
-Where it is read today, in `remake/src/Formica.Data` and `remake/game/Main.cs`:
+Where it is read today, in `remake/src/OpenSimAnt.Data` and `remake/game/Main.cs`:
 
 | Source | What | Read by | Clean replacement |
 |---|---|---|---|
-| SIMANT.EXE, the sim's tables | ~6,300 bytes read before written, ~1,200 non-zero (`Formica.Replay --deps`): direction / offset tables, terrain generator tables, cell and sprite tables, wall shapes DS:2DF4, cheat codes T:067E, start-up values | `ExeImage.NewState`, `GameSession.NewGame` | named tables in source (ROADMAP A2) |
+| SIMANT.EXE, the sim's tables | ~6,300 bytes read before written, ~1,200 non-zero (`OpenSimAnt.Replay --deps`): direction / offset tables, terrain generator tables, cell and sprite tables, wall shapes DS:2DF4, cheat codes T:067E, start-up values | `ExeImage.NewState`, `GameSession.NewGame` | named tables in source (ROADMAP A2) |
 | SIMANT.EXE, the saved game's block table 4E4B:0000 | the .ANT file layout | `SaveFile.Blocks` (`GameData.Flat`) | a table in source (it is the file format, FILE_FORMATS "Saved games") |
 | SIMANT.EXE, UI tables | map dither patterns DS:1F9E, colour modes DS:1A58, menu colours DS:5FEA, alert colours DS:550C, key table DS:2CBE, balloon shapes (`Balloon.Make`), SimAntipedia glossary 4EE5:0520 | `MapRenderer`, `Balloon`, `Antipedia`, `Main` | tables in source; the glossary's words are new text |
 | SIMANT.EXE, the sound driver's data | the effect table DS:0A82, volume tables, FM instrument patches | `SoundBank`, `SoundDriver` | tables in source; new instrument patches |

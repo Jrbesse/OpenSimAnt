@@ -7,7 +7,7 @@ The game's art, fonts, text, sound effects and music, made new so the game runs 
 
 1. **Specs** (this folder). One file per category, written by the side that studied the original. Words and
    measurements only: what each asset is for, its size, frames, palette roles, timing. Never images, the original's
-   text, waveforms or melodies. `data/*.json` holds the measurements (`Formica.Replay --measure`).
+   text, waveforms or melodies. `data/*.json` holds the measurements (`OpenSimAnt.Replay --measure`).
 2. **Makers.** A fresh agent (or a person) per batch, given **only one spec file** and an output folder
    (`remake/game/assets/clean/src/<category>/`). Makers never open the original files, `extracted/`,
    `tools/re/build/`, the rest of `docs/`, or the engine's source, and never look for them. They make the assets with
@@ -15,7 +15,7 @@ The game's art, fonts, text, sound effects and music, made new so the game runs 
 3. **Provenance.** Each batch adds an entry to `remake/game/assets/clean/PROVENANCE.md`: date, maker, spec file and
    commit, files made, scripts.
 4. **Build.** `python tools/clean_pack/build.py` encodes the sources into the game's formats and checks them against
-   the measurements. `--fallback=remake/build/original_pack.zip` (from `Formica.Replay --export-pack`, local only)
+   the measurements. `--fallback=remake/build/original_pack.zip` (from `OpenSimAnt.Replay --export-pack`, local only)
    builds a dev pack with the missing parts taken from the player's files; run it with
    `-- --clean --pack=remake/build/dev_pack.zip`. Without `--fallback` it lists what is still missing, and writes
    `remake/game/assets/clean/clean_pack.zip` once nothing is.

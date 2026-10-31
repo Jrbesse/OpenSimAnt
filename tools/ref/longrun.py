@@ -12,7 +12,7 @@ The scripted player (one random.Random per game, so the run repeats exactly) wal
 nest, gives its menu commands (f_76cb9), drops food, sprays insecticide and places rocks with the map tools
 (f_770f6), and in the Full Game moves to other patches (f_01d48).
 
---out writes a recording for the C# port (`Formica.Replay --longrun <file>`): JSON lines of the actions, the
+--out writes a recording for the C# port (`OpenSimAnt.Replay --longrun <file>`): JSON lines of the actions, the
 steps with their clock and the Python State every `--every` ticks (default 1000), zlib + base64. The recording
 holds game data from the player's own files: it goes to remake/build/longrun (git-ignored), never into the repo.
 """

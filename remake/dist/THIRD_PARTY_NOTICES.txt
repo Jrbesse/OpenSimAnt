@@ -1,7 +1,7 @@
 Third-party software in this build
 ==================================
 
-ymfm (the OPL2 / AdLib emulation, ported to C# in Formica.Data/Opl2.cs)
+ymfm (the OPL2 / AdLib emulation, ported to C# in OpenSimAnt.Data/Opl2.cs)
 https://github.com/aaronsgiles/ymfm
 
   BSD 3-Clause License
@@ -63,7 +63,7 @@ https://godotengine.org/license
   https://godotengine.org/license
 
 
-.NET runtime (in data_Formica_windows_x86_64)
+.NET runtime (in data_OpenSimAnt_windows_x86_64)
 https://github.com/dotnet/runtime
 
   Copyright (c) .NET Foundation and Contributors. Licensed under the MIT License.

@@ -38,13 +38,13 @@ jobs:
 
       # The solution includes the Godot project (Godot.NET.Sdk comes from NuGet; no Godot install needed).
       - name: Restore
-        run: dotnet restore remake/Formica.sln
+        run: dotnet restore remake/OpenSimAnt.sln
 
       - name: Build
-        run: dotnet build remake/Formica.sln --configuration Release --no-restore
+        run: dotnet build remake/OpenSimAnt.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test remake/Formica.sln --configuration Release --no-build --verbosity normal
+        run: dotnet test remake/OpenSimAnt.sln --configuration Release --no-build --verbosity normal
 
       - uses: actions/setup-python@v7
         with:

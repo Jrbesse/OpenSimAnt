@@ -1,4 +1,4 @@
-# Play-test profile: the Formica shell
+# Play-test profile: the OpenSimAnt shell
 
 A checklist for playing the remake by hand. Every screen below was built from the original's code and checked
 only with screenshot flags. Nobody has played it yet. Work through the sections in order, tick what behaves,
@@ -7,11 +7,11 @@ end). Sections 1-4 make a good first sitting (~30 min); the rest can come later.
 
 ## 0. Setup
 
-- Build: `dotnet build remake/game/Formica.csproj`, then open `remake/game` in Godot 4.6 (.NET) and press
+- Build: `dotnet build remake/game/OpenSimAnt.csproj`, then open `remake/game` in Godot 4.6 (.NET) and press
   Play, or run Godot with `--path remake/game`.
 - The original files (SIMANT.EXE, HCEGANT / SHARED / SOUND .DAT + .NDX, FONT1..4) must be in the repository
   root (or pass `-- --game-dir=<path>`).
-- Saves go to `%APPDATA%\Godot\app_userdata\Formica\` (quick save: `quicksave.ANT`).
+- Saves go to `%APPDATA%\Godot\app_userdata\OpenSimAnt\` (quick save: `quicksave.ANT`).
 - Keep the Godot output panel / console visible: messages and errors print there.
 - Full key list: `remake/README.md` ("Keys"). The original's keys are listed first.
 

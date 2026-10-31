@@ -4,7 +4,7 @@ config_version=5
 
 [application]
 
-config/name="Formica"
+config/name="OpenSimAnt"
 config/description="A fan remake of a 1991 ant-colony simulator, built on a byte-exact port of its simulation. Requires your own copy of the original game's files."
 run/main_scene="res://Main.tscn"
 config/features=PackedStringArray("4.6", "C#")
@@ -20,7 +20,7 @@ window/stretch/scale_mode="integer"
 
 [dotnet]
 
-project/assembly_name="Formica"
+project/assembly_name="OpenSimAnt"
 project/solution_directory="../"
 
 [rendering]
