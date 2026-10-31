@@ -20,6 +20,18 @@ Source formats so far:
 - sprites/surface.pix, nest.pix (256 x 128: sprite n at column n % 16, row n // 16, 16 x 16 each; 0-9 a-f = the
   yellow ant's colour, '.' = transparent) with surface_recolour.pix, nest_recolour.pix (same size: 1 = recoloured for
   the black and red ants, 0 or '.' = not).
+- fonts/font<n>.pix + font<n>.json (n = the game's font number 0..5; docs/clean_pack/fonts.md): the .pix is the glyph
+  grid, 16 cells across, character c in column c % 16, row c // 16 (so character 65 is the second cell of row 4); a
+  cell is (picture width / 16) x (picture height / rows) pixels, rows = ceil(characters / 16), the cell's left edge
+  is the pen position and its top row the font's row 0; 'f' = ink, '.' = none. The .json holds what the picture
+  cannot: {"advances": [pen advance per character 0 .. N-1], "ascent": rows above the baseline (fonts 2..5),
+  "missing_advance": the advance of every character the font does not draw, N-1 and later included (fonts 2..5),
+  "first_index": the number the game's own format counts its first character as (font 0 only: 1; default 0)}.
+  Everything else is derived: the height from the picture, a glyph's width and offset from where its ink lies, the
+  header fields, the tables. font0 -> SHARED/11/0, font1 -> SHARED/11/1 (the game's own format: a bitmap of
+  ceil(cell width / 8) bytes per row for each character that has ink or an advance), font2..font5 -> FONT/1..4
+  (Apple FONT: the strike is the ink columns of all glyphs side by side, kernMax 0, fontType 0x9000; the optional
+  tables behind the offset / width table are not written, the game never reads them).
 """
 import json, os, struct, sys, zipfile
 
@@ -197,7 +209,135 @@ def cat_sprites(errors):
         yield 'HCEGANT/9/%d.bin' % ident, enc_sprites(rows, rec)
 
 
-CATEGORIES = [cat_bitmaps, cat_cursors, cat_tiles, cat_sprites]
+def enc_font_own(cells, advances, first_index, h, cw):
+    """SHARED type 11, the game's own format (OpenSimAnt.Data/BitmapFont.cs, tools/fonts.py): +0 u16 (250 - first),
+    +2 height, +4 first; +6 255 offsets, +0x204 255 flags (bytes per row of a character that has a glyph, else 0),
+    +0x402 255 advances, +0x600 the glyphs in character order, h rows of ceil(cw / 8) bytes. A character has a glyph when
+    its cell has ink or its advance is not 0; any other one points at the next glyph's data (or the end)."""
+    bpr, n = (cw + 7) // 8, len(advances)
+    has = [any(any(r) for r in cells[c]) or advances[c] != 0 for c in range(n)]
+    data, start = bytearray(), {}
+    for c in range(n):
+        if has[c]:
+            start[c] = 0x600 + len(data)
+            for r in cells[c]:
+                data += bits(r, lambda v: v == 1)
+    end = 0x600 + len(data)
+    offs, flags, adv = [], [], []
+    for i in range(255):
+        c = first_index + i
+        offs.append(next((start[k] for k in range(c, n) if has[k]), end))
+        flags.append(bpr if c < n and has[c] else 0)
+        adv.append(advances[c] if c < n else 0)
+    return (struct.pack('<3H', 250 - first_index, h, first_index) + struct.pack('<255H', *offs)
+            + struct.pack('<255H', *flags) + struct.pack('<255H', *adv) + bytes(data))
+
+
+def enc_font_mac(cells, advances, missing, ascent, h, cw):
+    """FONT / SHARED 11 ids 2, 3, the Apple FONT format (big-endian; tools/fonts.py): 13 header words, the strike (the
+    glyphs' ink columns side by side, h rows of rowWords * 2 bytes), the location table (n + 2 words: where each
+    character's columns start, then the missing glyph's start, then the end), the offset / width table (n + 2 words: high
+    byte the glyph's x offset from the pen, low byte its advance, 0xFFFF = no glyph, then the missing glyph's entry and
+    0xFFFF). kernMax is 0, so a glyph is drawn at pen + offset. A character with no ink and the missing advance has no
+    glyph; the missing glyph has no columns."""
+    n = len(advances)
+    strips, loc, ow, x = [], [], [], 0
+    for c in range(n):
+        cols = [i for i in range(cw) if any(cells[c][r][i] for r in range(h))]
+        loc.append(x)
+        if not cols and advances[c] == missing:
+            ow.append(0xffff)
+            continue
+        x0, x1 = (cols[0], cols[-1] + 1) if cols else (0, 0)
+        ow.append(x0 << 8 | advances[c])
+        strips.append((c, x0, x1))
+        x += x1 - x0
+    loc += [x, x]
+    ow += [missing, 0xffff]
+    rb = 2 * ((x + 15) // 16)
+    strike = bytearray(rb * h)
+    for r in range(h):
+        px = 0
+        for c, x0, x1 in strips:
+            for i in range(x0, x1):
+                if cells[c][r][i]:
+                    strike[r * rb + (px >> 3)] |= 0x80 >> (px & 7)
+                px += 1
+    owt = (26 + rb * h + 2 * (n + 2) - 16) // 2
+    ink_w = max([x1 for _, _, x1 in strips] + [0])
+    head = struct.pack('>H12h', 0x9000, 0, n - 1, max(advances + [missing]), 0, -(h - ascent), ink_w, h, owt, ascent,
+                       h - ascent, 0, rb // 2)
+    return head + bytes(strike) + struct.pack('>%dH' % (n + 2), *loc) + struct.pack('>%dH' % (n + 2), *ow)
+
+
+FONT_FILES = {0: 'SHARED/11/0.bin', 1: 'SHARED/11/1.bin', 2: 'FONT/1.bin', 3: 'FONT/2.bin', 4: 'FONT/3.bin', 5: 'FONT/4.bin'}
+FONT_SOURCES = {0: 'SHARED 11 0', 1: 'SHARED 11 1', 2: 'FONT1', 3: 'FONT2', 4: 'FONT3', 5: 'FONT4'}
+
+
+def cat_fonts(errors):
+    """src/fonts/font<n>.pix + .json -> the fonts the game loads (FONT_FILES), checked against the measurements."""
+    want = {m['source']: m for m in data('fonts')}
+    d = os.path.join(SRC, 'fonts')
+    for num in range(6):
+        name = 'font%d' % num
+        pix, js = os.path.join(d, name + '.pix'), os.path.join(d, name + '.json')
+        if not os.path.exists(pix) and not os.path.exists(js):
+            continue
+        if not (os.path.exists(pix) and os.path.exists(js)):
+            errors.append('fonts/%s: needs both %s.pix and %s.json' % (name, name, name))
+            continue
+        with open(js) as f:
+            meta = json.load(f)
+        mac = num >= 2
+        keys = {'advances', 'ascent', 'missing_advance'} if mac else {'advances', 'first_index'}
+        need = {'advances', 'ascent', 'missing_advance'} if mac else {'advances'}
+        if set(meta) - keys or need - set(meta):
+            errors.append('fonts/%s.json: the keys must be %s (optional: %s)' % (name, sorted(need), sorted(keys - need)))
+            continue
+        adv, missing, first_index = meta['advances'], meta.get('missing_advance', 0), meta.get('first_index', 0)
+        if not (1 <= len(adv) <= 256) or any(not isinstance(a, int) or not 0 <= a <= 255 for a in adv + [missing]):
+            errors.append('fonts/%s.json: advances are 1 to 256 integers 0..255' % name)
+            continue
+        w, ph, rows = read_pix(pix)
+        grid_rows = (len(adv) + 15) // 16
+        if w == 0 or w % 16 or ph % grid_rows:
+            errors.append('fonts/%s.pix: %d x %d is not %d rows of 16 equal cells' % (name, w, ph, grid_rows))
+            continue
+        cw, h = w // 16, ph // grid_rows
+        if any(c not in (None, 15) for r in rows for c in r):
+            errors.append("fonts/%s.pix: only 'f' (ink) and '.' are allowed" % name)
+            continue
+        cells = [[[0 if rows[(c // 16) * h + y][(c % 16) * cw + x] is None else 1 for x in range(cw)] for y in range(h)]
+                 for c in range(grid_rows * 16)]
+        stray = next((c for c in range(len(adv), len(cells)) if any(any(r) for r in cells[c])), None)
+        if stray is not None:
+            errors.append('fonts/%s.pix: ink in the cell of character %d, beyond the %d characters' % (name, stray, len(adv)))
+            continue
+        cells = cells[:len(adv)]
+        if not mac and (first_index > 255 or any(adv[c] or any(any(r) for r in cells[c]) for c in range(min(first_index, len(adv))))
+                        or len(adv) - 1 - first_index > 254):
+            errors.append('fonts/%s: first_index %d: characters before it must be empty, those after it fit 255 entries'
+                          % (name, first_index))
+            continue
+        m = want[FONT_SOURCES[num]]
+        ascent = meta['ascent'] if mac else h
+        if (h, ascent) != (m['height'], m['ascent']):
+            errors.append('fonts/%s: height %d, ascent %d; the spec says %d, %d' % (name, h, ascent, m['height'], m['ascent']))
+            continue
+        # the advance the game will measure for every character 0..255, against the measurements (the junk entries of the
+        # game's own fonts, values above 100, are not widths)
+        got = [(adv[c] if c < len(adv) else missing) if mac else
+               (adv[c] if first_index <= c < len(adv) else 0) for c in range(256)]
+        bad = [c for c in range(256) if m['advances'][c] <= 100 and got[c] != m['advances'][c]]
+        if bad:
+            errors.append('fonts/%s.json: advance of character %d is %d, the spec says %d (%d wrong in all)'
+                          % (name, bad[0], got[bad[0]], m['advances'][bad[0]], len(bad)))
+            continue
+        yield FONT_FILES[num], (enc_font_mac(cells, adv, missing, ascent, h, cw) if mac
+                                else enc_font_own(cells, adv, first_index, h, cw))
+
+
+CATEGORIES = [cat_bitmaps, cat_cursors, cat_tiles, cat_sprites, cat_fonts]
 
 
 def expected():
@@ -228,7 +368,10 @@ def expected():
         names.add('SOUND/18/%d.bin' % s['cue'])
     for a in data('embedded')['assets']:
         names.add('EXE/%s.bin' % a['Name'])
-    names.update(['SHARED/6/0.bin', 'EXE/version.txt'] + ['FONT/%d.bin' % n for n in range(1, 5)])
+    # fonts: Ui.Font loads SHARED 11 ids 0 and 1 (the game's own PC fonts) and, for game fonts 2..5, the files FONT1..FONT4;
+    # SHARED 11 ids 2 and 3 (copies of FONT1 / FONT2) are only the fallback when those files are missing, never read
+    names.update(['SHARED/6/0.bin', 'EXE/version.txt', 'SHARED/11/0.bin', 'SHARED/11/1.bin']
+                 + ['FONT/%d.bin' % n for n in range(1, 5)])
     return names
 
 

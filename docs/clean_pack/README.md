@@ -39,7 +39,16 @@ The game's art, fonts, text, sound effects and music, made new so the game runs 
   | 6 | blue | | 14 | dark grey |
   | 7 | cyan | | 15 | black |
 
-More formats (text, sound, music, fonts, layouts) are added here as their categories start.
+- Fonts (`fonts/font<n>.pix` + `font<n>.json`, n = the game's font number 0..5; [fonts.md](fonts.md)): the `.pix` is a
+  **glyph grid**, 16 cells across: character code `c` at column `c % 16`, row `c // 16`, all cells the same size
+  (picture width / 16 by picture height / rows of cells); a cell's left edge is the pen position, its top row the font's
+  row 0; `f` = ink, `.` = none (no other characters). The `.json` holds what the picture cannot:
+  `"advances"` (the pen advance of each character from code 0, exact), `"ascent"` and `"missing_advance"` (fonts 2..5),
+  `"first_index"` (font 0 only, a header number). The height, each glyph's width and offset, the header fields and the
+  tables are derived by `build.py`. Fonts 0 and 1 become `SHARED/11/0` and `1` (the game's own font format), fonts 2..5
+  `FONT/1..4` (Apple `FONT`). The game never loads `SHARED/11/2` and `3` while `FONT/1` and `2` exist.
+
+More formats (text, sound, music, layouts) are added here as their categories start.
 
 ## Categories
 
@@ -48,7 +57,8 @@ More formats (text, sound, music, fonts, layouts) are added here as their catego
 | [cursors.md](cursors.md) | the 2 mouse cursors | done 2026-10-30 (the pilot: spec, isolated maker, build, checked in the game) |
 | [map_tiles.md](map_tiles.md) | the yard and house tile sheets | both tables written (yard sheet made 2026-10-30; house sheet ready for a maker) |
 | [ant_sprites.md](ant_sprites.md) | the 2 ant sprite sheets (surface, nest) with their recolour masks | spec written 2026-10-31, ready for a maker |
-| (to write) | palette, map tiles, ant sprites, spider, yard, UI bitmaps, title / scenes, SimAntipedia pictures, fonts, layouts, text, sound effects, instruments, music | see ROADMAP A4 |
+| [fonts.md](fonts.md) | the 6 bitmap fonts (2 PC text-mode faces, 4 proportional faces) with their exact advance widths | spec written 2026-10-31, ready for a maker (encoder in `build.py`, round trip of all originals checked) |
+| (to write) | palette, spider, UI bitmaps, title / scenes, SimAntipedia pictures, layouts, text, sound effects, instruments, music | see ROADMAP A4 |
 
 ## The makers' brief (give this with the spec)
 
