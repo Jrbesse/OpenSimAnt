@@ -15,3 +15,4 @@ commit), the files made, and the script that makes them (kept beside them, so ev
 | 2026-10-31 | spec side (own text) | none (the project's own words) | src/version/version.txt | none (encoded by tools/clean_pack/build.py; the Ctrl+Alt+V line) |
 | 2026-10-31 | agent (isolated, spec only) | docs/clean_pack/balloon.md @ 4cce0ee | src/balloon/balloon.pix, preview.png, README.md | src/balloon/make_balloon.py |
 | 2026-10-31 | agent (isolated, spec only) | docs/clean_pack/spider_legs.md @ 2fe2759 | src/spider/legs.json, preview.png, README.md | src/spider/make_legs.py |
+| 2026-10-31 | agent (isolated, spec only) | docs/clean_pack/fonts.md @ f9ce051 | src/fonts/font0.pix, font0.json, font1.pix, font1.json, font2.pix, font2.json, font3.pix, font3.json, font4.pix, font4.json, font5.pix, font5.json, preview.png, README.md | src/fonts/make_fonts.py |
