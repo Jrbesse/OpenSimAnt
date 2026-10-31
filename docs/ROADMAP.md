@@ -91,6 +91,8 @@ the original files make the clean assets from those specs.
   - [ ] the spider bodies and leg geometry; the map overlays (small spider, sneaker, mower);
   - [ ] the yard window: house, lawn, toolbar, grid strips, rain, swarms; the yard actors (human, dog, mower,
         cat, bird, sign);
+  - [x] the speech balloon's pieces (`docs/clean_pack/balloon.md`, `src/balloon/`, 2026-10-31, checked in the game) and
+        our own version line (`src/version/version.txt`);
   - [ ] window and panel bitmaps, tool icons, window controls, the title and menu screens, the about box,
         event pictures and scenes (window 26), the game-over and win screens;
   - [x] mouse cursors (types 7 / 8): the pilot, 2026-10-30 (`src/cursors/`, checked in the game on a dev pack);
