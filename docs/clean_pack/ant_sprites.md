@@ -227,12 +227,11 @@ lightest, dark grey the darkest, red in between, so they are told apart even wit
 2. **The player's ant must stand out**: it is the only yellow ant, the body area is large and bright and the outline
    crisp; do not use yellow anywhere else in a sprite (outside the mask).
 3. **Ground.** Surface: sandy tan and brown ground and light house floors; the 1-pixel black outline carries the
-   ant on every ground. **Nest: the open tunnels are dark** (the clean tile sheet draws them dark grey with black
-   specks, "dark but not black"), and the **black colony's body becomes dark grey (14) there, which is nearly the
-   tunnel's own colour**. So on the nest sheet, **do not rely on a black outline**: give every ant a **thin light
-   edge or light legs and feelers** (unrecoloured light grey 12 or white 0) that stays visible on a dark ground, and
-   keep the outline's dark pixels only on the parts that touch the ant's body. Test each recolouring on both a dark
-   grey (14) and a near-black (15) background in `preview.png` and on the brown (10) soil colour.
+   ant on every ground. **Nest: the open tunnels are a light-to-mid tone** (revised 2026-10-31, map_tiles.md 0x90:
+   the first clean sheet's dark grey tunnels hid the black colony, whose body is dark grey 14), so the nest sheet
+   uses **the same black outline, legs and feelers as the surface sheet**: a black colony ant is then a dark grey
+   body with a black outline on a light tunnel. Test each recolouring in `preview.png` on the tunnel colour of the
+   clean yard sheet (tile 0x90 of `src/tiles/yard.pix`) and on the brown (10) soil colour.
 4. Carried things must be readable and not recoloured: **food** a small bright morsel, white (0) with an orange (2)
    edge (the same look as the pack's food crumb tile, so players see it is the same food); **a pebble** a small grey
    stone (13 with 12 on top-left and 14 bottom-right, like the pack's pebble tile); **a baby** a pale (0 / 12)

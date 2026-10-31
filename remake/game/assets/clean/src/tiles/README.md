@@ -24,7 +24,7 @@ shades. Every dither pattern is laid out on the 4-pixel grid, so it lines up acr
 | Water | blue with cyan ripple dashes and white glints | the only large blue area; ants drown in it |
 | Plants | green / dark green (leaf, weed tuft, caterpillar) | |
 | Scent view | tan to magenta, 15 Bayer steps (1/16 .. 15/16) | one hue that nothing else uses, so its strength reads as density |
-| Tunnels | dark grey with black and brown specks | dark, but not black, so black ants still show |
+| Tunnels | light grey (12) with medium-grey, white and tan specks (revised 2026-10-31; was dark grey) | clearly lighter than the brown packed soil, so the black colony's dark-grey ants with black outlines show; the tunnel-wall, stored-food, hole, pebble-plug and shaft tiles (0xA0..0xA4, 0xA8, 0xB0..0xBE, 0xC0, 0xC1) draw the same tunnel colour, and the script asserts 0x90..0x97 hold no dark pixel |
 | Packed soil | brown with tan / grey / black grains | |
 
 Light comes from the top-left everywhere: highlights on top-left edges, shading and a 1-px brown cast shadow

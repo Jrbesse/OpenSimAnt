@@ -60,7 +60,7 @@ ants walk over tiles up to 0x50; higher ones block them. Directions: N is up (to
 
 | Slots | What | Notes |
 |---|---|---|
-| 0x90..0x97 | an open tunnel or chamber: 8 variants of dug-out space | picked at random; dark, so ants show up |
+| 0x90..0x97 | an open tunnel or chamber: 8 variants of dug-out space | picked at random. **A light-to-mid tone** (e.g. tan 11 or light grey 12, lightly speckled), clearly lighter than the packed soil around it: the black colony's ants are drawn **dark grey (14) with a black outline** (ant_sprites.md, "Recolouring") and must stand out on it, as must the yellow (1) and red (3) ones. Never dark grey or black (revised 2026-10-31: the first clean sheet's dark grey tunnels hid the black colony) |
 | 0xA0..0xA3 | food stored in a chamber, 4 amounts (0xA0 the least) | |
 | 0xA4 | a hole leading into the other colony's nest | |
 | 0xA8 | the entrance shaft at the top of the nest (where the tunnel meets the surface) | |

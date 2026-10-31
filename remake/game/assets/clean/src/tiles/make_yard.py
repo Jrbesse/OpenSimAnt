@@ -184,14 +184,18 @@ def soil_tex(seed, wet=False):
 
 def tunnel(seed):
     r = random.Random(seed)
-    a = np.full((16, 16), DGY, dtype=np.int16)
+    # Open nest space: a light tone (light grey 12 with light speckle), clearly lighter than the
+    # brown packed soil, so dark-bodied ants with black outlines (and the yellow / red ones) stand out.
+    a = np.full((16, 16), LGR, dtype=np.int16)
     for y in range(16):
         for x in range(16):
             v = r.random()
-            if v < 0.11:
-                a[y, x] = BLK
-            elif v < 0.14:
-                a[y, x] = BRN
+            if v < 0.07:
+                a[y, x] = MGR
+            elif v < 0.12:
+                a[y, x] = WHT
+            elif v < 0.15:
+                a[y, x] = TAN
     return a
 
 
@@ -1016,10 +1020,11 @@ for i in range(8):
     if i in (2, 5):                                    # a loose crumb of soil on the floor
         x, y = r.randint(3, 11), r.randint(4, 11)
         a[y, x:x + 2] = BRN
-        a[y + 1, x:x + 2] = BLK
+        a[y + 1, x:x + 2] = MGR
         a[y, x] = TAN
     if i == 6:                                         # a root hair hanging through
         polyline(a, [(4, 3), (6, 5), (6, 8), (8, 10)], BRN)
+    assert not np.isin(a, (BLK, DGY)).any(), hex(0x90 + i)   # never dark: black-colony ants must show
     put(0x90 + i, a)
 
 # stored food A0..A3

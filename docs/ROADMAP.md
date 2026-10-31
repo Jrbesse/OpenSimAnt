@@ -79,9 +79,12 @@ the original files make the clean assets from those specs.
 - [ ] **A4. Make the pack** (isolated agents, one category at a time, each with only its spec; provenance in
       `remake/game/assets/clean/PROVENANCE.md`):
   - [ ] palette (the standard Mac 16-colour palette, not Maxis data) and colour schemes;
-  - [ ] map tiles: yard (sheet 10) and house (sheet 9), 256 each, 16 x 16 (the yard sheet made 2026-10-30 by an isolated
-        agent and checked in the game; the house sheet's table still to write; `docs/clean_pack/map_tiles.md`);
-  - [ ] ant sprites: surface (14) and nest (13) sheets, 128 each, with recolour masks;
+  - [x] map tiles: yard (sheet 10) and house (sheet 9), 256 each, 16 x 16 (`docs/clean_pack/map_tiles.md`; the yard
+        sheet made 2026-10-30, the house sheet 2026-10-31, each by an isolated agent and checked in the game on a dev
+        pack, the house with `--patch=N`; the nest tunnels lightened 2026-10-31 so the black colony shows);
+  - [x] ant sprites: surface (14) and nest (13) sheets, 128 each, with recolour masks (`docs/clean_pack/ant_sprites.md`,
+        `src/sprites/`, 2026-10-31; build.py's encoder round-trips both originals). Left for the similarity review:
+        the surface diagonals' legs are a little ragged;
   - [ ] the spider bodies and leg geometry; the map overlays (small spider, sneaker, mower);
   - [ ] the yard window: house, lawn, toolbar, grid strips, rain, swarms; the yard actors (human, dog, mower,
         cat, bird, sign);

@@ -1,11 +1,30 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-30, end of the 10-29 night session (the window layout solver f_25595; the long-run
+old transcript. Last updated 2026-10-31 (map tiles and ant sprites by subagents; see the first dated entry). Before that 2026-10-30, end of the 10-29 night session (the window layout solver f_25595; the long-run
 check: no divergence in 200,000 ticks; test builds for Windows / macOS / Linux; 38 screen captures identical but for
 timing; the owner's first play-test: it plays like the original). Before that, 2026-10-24: the remake's screens
 compared with the original's on the same game State (24 captures, 21 pixel-identical, the other 3 off by redraw timing);
 2026-10-20: the original's screens through a VGA model in the emulator, and the handler audit.
+
+**2026-10-31: map tiles and ant sprites done (ROADMAP A4), by subagents.** The owner asked to try Opus directing
+cheaper subagents (Sonnet / Haiku) with Opus reviewing every result. Done this way: the house sheet's slot table in
+`docs/clean_pack/map_tiles.md` (Sonnet, spec side: 145 slots from `Terrain.HousePatch` + the census; socket plates,
+sink, grout, counter as slot grids; only 0xC0..0xC2 block ants in the house); `docs/clean_pack/ant_sprites.md`
+(Sonnet, spec side: ids caste * 8 + heading, brood, the queen's two halves, fight clouds, the recolour rule c ^ 15 /
+c ^ 2 and which colours survive it); build.py's sprite encoder (Haiku; `src/sprites/surface.pix`, `nest.pix` +
+`*_recolour.pix`, both originals round-trip; a complete pack now needs only the type-9 sheets the game reads: 9, 10,
+13, 14); isolated makers (Sonnet) for `src/tiles/house.pix` and `src/sprites/`. In-game checks found the clean nest
+tunnels (dark grey) hid the black colony (body = 14 after recolouring): both specs were revised and the tunnels are
+now light grey with black-outlined nest ants (checked in the game). New shell flag **`--patch=N[,a,b]`**: a Full Game
+moved to any patch, surface shown (the house is 0..25; remake/README). Open: the surface sprites' diagonal legs are a
+little ragged (similarity review / polish); the house screens are still not compared tables-vs-EXE.
+**What the experiment showed (usage):** spec writing and code tasks by subagents were good quality (each needed only a
+spot check against the code); Haiku handled the well-specified encoder with a byte-exact test. The art makers are the
+expensive part: the house maker ~280k tokens / 19 min, the sprite maker ~370k / 35 min (they look at their own
+previews many times); the 5-hour window went 2% → 22% (two specs + encoder) → 63% (+ both makers). Cap image views in
+maker briefs (the narrow tunnel revision with "at most 3 image views" took ~100k / 1.5 min). Next by visibility: fonts
+(needs a FONT encoder in build.py first), then the UI bitmaps (212), the spider / yard actors, text.
 
 **2026-10-30 (late): names and the launcher.** The 1:1 remake is **OpenSimAnt** (the owner's decision); everything
 called "Formica" was renamed (projects `OpenSimAnt.Sim` / `.Data` / `.Replay` / `.Sim.Tests`, `remake/OpenSimAnt.sln`,
