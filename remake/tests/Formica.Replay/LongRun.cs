@@ -20,7 +20,6 @@ public static class LongRun
             Console.WriteLine($"no recording at {path} (python tools/ref/longrun.py [ticks] --out)");
             return 1;
         }
-        Formica.Sim.GameData.Flat = File.ReadAllBytes(TracePaths.FlatImage());
         State st = null;
         string game = null;
         int tick = 0, checkpoints = 0, games = 0;

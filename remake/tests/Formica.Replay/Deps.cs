@@ -13,7 +13,7 @@ public static class Deps
     {
         var s = new GameSession(gameDir);
         var needed = new bool[State.Size];
-        byte[] image = ExeImage.NewState(s.Files.Flat).Mem;
+        byte[] image = ExeImage.NewState(s.Files.Exe).Mem;
         // a watchdog: a game that stops advancing for 20 s is reported (a hang in the port) and the run ends
         int curGame = -1, curTick = 0, lastAction = -1;
         long lastBeat = Environment.TickCount64;

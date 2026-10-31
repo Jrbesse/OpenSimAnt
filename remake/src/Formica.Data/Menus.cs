@@ -21,7 +21,7 @@ public sealed class Menus
 
     public Menus(OriginalFiles files, int screenW = 640)
     {
-        var d = files.Shared.FirstOrDefault(r => r.Type == 6 && r.Id == 0)?.Data;
+        var d = files.Get("SHARED", 6, 0)?.Data;
         var lists = new List<List<char[]>>();
         if (d != null)
             for (int t = 0; U32(d, t) != 0; t += 4)

@@ -60,7 +60,7 @@ public sealed class Antipedia
         index = 0;
     }
 
-    byte[] Res(int type, int id) => files.Shared.FirstOrDefault(r => r.Type == type && r.Id == id)?.Data;
+    byte[] Res(int type, int id) => files.Get("SHARED", type, id)?.Data;
 
     static int Be(byte[] d, int o) => (short)(d[o] << 8 | d[o + 1]);
 

@@ -91,6 +91,6 @@ public static class Layouts
 
     /// <summary>Every window layout (ids below 128) of the player's HCEGANT archive.</summary>
     public static Dictionary<int, WindowLayout> All(OriginalFiles files) =>
-        files.Hcegant.Where(r => r.Type == 0 && r.Id < 128 && r.Data.Length >= 0x2c)
+        files.Of("HCEGANT", 0).Where(r => r.Id < 128 && r.Data.Length >= 0x2c)
              .ToDictionary(r => r.Id, r => Decode(r.Id, r.Data));
 }

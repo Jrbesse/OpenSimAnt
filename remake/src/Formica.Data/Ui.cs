@@ -28,7 +28,7 @@ public sealed class UiArt
         Layouts = Data.Layouts.All(files);
         XorMap = new Dictionary<uint, uint>();
         for (int i = 0; i < 16; i++) XorMap.TryAdd(Palette[i], Palette[i ^ 15]);
-        var t = files.Hcegant.FirstOrDefault(r => r.Type == 0 && r.Id == 129)?.Data ?? Array.Empty<byte>();
+        var t = files.Get("HCEGANT", 0, 129)?.Data ?? Array.Empty<byte>();
         Schemes = Enumerable.Range(0, t.Length / 6).Select(i => (Palette[t[6 * i] & 15], Palette[t[6 * i + 2] & 15])).ToArray();
         Checkers = Enumerable.Range(0, t.Length / 6).Select(i => (t[6 * i + 2] & 15) != (t[6 * i + 3] & 15) ? Palette[t[6 * i + 3] & 15] : (uint?)null).ToArray();
         SchemeBytes = Enumerable.Range(0, t.Length / 6).Select(i => t.AsSpan(6 * i, 6).ToArray()).ToArray();
@@ -101,7 +101,7 @@ public sealed class UiArt
     {
         if (bitmaps.TryGetValue(id, out var b)) return b;
         // HCEGANT's colour bitmaps first, then SHARED's 1-bit ones (the SimAntipedia's pictures)
-        var r = Files.Hcegant.FirstOrDefault(x => x.Type == 2 && x.Id == id) ?? Files.Shared.FirstOrDefault(x => x.Type == 2 && x.Id == id);
+        var r = Files.Get("HCEGANT", 2, id) ?? Files.Get("SHARED", 2, id);
         b = r == null ? (0, 0, Array.Empty<short>()) : Bitmaps.Decode(r.Data);
         bitmaps[id] = b;
         return b;
@@ -113,9 +113,8 @@ public sealed class UiArt
         // f_24d5d: fonts 2..5 are the slots DS:4A1A.. that start-up (f_34ab_047d) fills from the files FONT1..FONT4
         // (Mac FONTs; 1 and 2 have the glyph widths of SHARED 2 and 3, 3 is 15 px tall, 4 is the bold the
         // SimAntipedia's links use). Without them, and for 0 / 1, the SHARED type-11 fonts.
-        string file = OriginalFiles.FilePath(Files.Dir, $"FONT{id - 1}");
-        var r = Files.Shared.FirstOrDefault(x => x.Type == 11 && x.Id == id);
-        f = id is >= 2 and <= 5 && File.Exists(file) ? new BitmapFont(File.ReadAllBytes(file))
+        var r = Files.Get("SHARED", 11, id);
+        f = id is >= 2 and <= 5 && Files.FontFiles.TryGetValue(id - 1, out var file) ? new BitmapFont(file)
             : r == null ? null : new BitmapFont(r.Data);
         fonts[id] = f;
         return f;

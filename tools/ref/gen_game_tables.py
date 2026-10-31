@@ -65,6 +65,15 @@ TABLES = [
     ('DS', 0x2af8, 0x2b00, 'ScoreWeights', 'the efficiency score\'s weight per statistic'),
     ('DS', 0x2df4, 0x2e04, 'WallShapes', 'the wall tile for each mask of wall neighbours (left 8 ...), the map tools'),
     ('DS', 0x5702, 0x5704, 'ActiveWindow', 'start value of the active window word DS:5702 (0x8000: none)'),
+    # read outside the State (Formica.Data's renderers and sound driver, through OriginalFiles.Flat)
+    ('DS', 0x1f9e, 0x1ffe, 'MapDither', 'the 16-colour map driver\'s colour bytes, 4 per colour 0x00..0x17: the dither '
+                                         'patterns of the in-between shades (MapRenderer.DitherIndex)'),
+    ('DS', 0x68fe, 0x693c, 'OplSlots', 'the sound driver\'s OPL2 operator slots per channel (modulator DS:68FE, carrier '
+                                        'DS:6908), register offsets DS:6912, F-numbers per note DS:6924'),
+    ('DS', 0x6b9e, 0x6ba0, 'VolumeTablePtr', 'the mixer\'s pointer to its volume tables (DS:6CA3)'),
+    ('DS', 0x6ba4, 0x74a3, 'SoundLevels', 'the FM attenuation per velocity DS:6BA4 and the sample mixer\'s 8 volume '
+                                           'tables of 256 DS:6CA3'),
+    ('DS', 0x74c2, 0x74da, 'SamplePitch', 'the sample player\'s 8.8 pitch step per semitone'),
 ]
 
 # Read by the game but deliberately left out of the tables:

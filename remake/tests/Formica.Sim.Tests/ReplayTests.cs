@@ -24,8 +24,6 @@ public class ReplayTests
     public void TraceMatches(string name)
     {
         if (name == NoTraces) return;
-        var flat = TracePaths.FlatImage();
-        if (File.Exists(flat)) GameData.Flat = File.ReadAllBytes(flat);
         var rep = new Replayer();
         foreach (var rec in TraceReader.Read(Path.Combine(TracePaths.DefaultDir(), name))) rep.Run(rec);
         var bad = rep.Stats.Where(kv => kv.Value.Ok != kv.Value.Calls)

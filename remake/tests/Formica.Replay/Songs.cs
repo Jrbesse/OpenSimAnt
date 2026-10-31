@@ -14,7 +14,7 @@ public static class Songs
     {
         var files = new OriginalFiles(gameDir);
         Directory.CreateDirectory(outDir);
-        var ids = files.Sound.Where(r => r.Type == 18).Select(r => r.Id).OrderBy(x => x).ToList();
+        var ids = files.Of("SOUND", 18).Select(r => r.Id).OrderBy(x => x).ToList();
         foreach (int id in ids)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();

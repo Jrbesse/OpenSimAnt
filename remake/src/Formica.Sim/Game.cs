@@ -3,14 +3,6 @@ using static Formica.Sim.Bits;
 
 namespace Formica.Sim;
 
-/// <summary>The original's data the simulation reads besides the State: the flat memory image built from the
-/// player's own SIMANT.EXE (tools/re/build_flat.py). Only the saved-game block table (4E4B:0000) needs it,
-/// because the game reuses that memory for window buffers.</summary>
-public static class GameData
-{
-    public static byte[] Flat;
-}
-
 /// <summary>SimStep (f_0894e): one game tick, calling every part of the simulation in the original's order.</summary>
 public static class Sim
 {

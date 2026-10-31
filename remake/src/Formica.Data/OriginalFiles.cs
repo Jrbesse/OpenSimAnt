@@ -136,33 +136,128 @@ public static class ExeImage
     }
 }
 
-/// <summary>The player's own copy of the game (SIMANT.EXE, HCEGANT / SHARED / SOUND archives).</summary>
+/// <summary>The game's files: the player's own copy of the original (SIMANT.EXE, the HCEGANT / SHARED / SOUND archives,
+/// FONT1..FONT4), or the clean pack (ROADMAP A1: a zip holding the same resources in the same formats, so everything
+/// that reads them works the same with either). Read resources through <see cref="Get"/> / <see cref="Of"/>, which
+/// log what the game asks for (<see cref="Requested"/>, the clean pack's work list).</summary>
 public sealed class OriginalFiles
 {
+    /// <summary>The original's folder; null for the clean pack.</summary>
     public readonly string Dir;
+    /// <summary>True when the files are the clean pack.</summary>
+    public bool IsCleanPack => Dir == null;
+    /// <summary>The executable's whole image (for `--exe-state` and to extract the embedded assets); null for the
+    /// clean pack.</summary>
+    public readonly byte[] Exe;
+    /// <summary>What the engine reads of the executable: the game tables and the embedded assets at their addresses,
+    /// zeros elsewhere (EmbeddedAssets.BuildImage), so the clean pack can supply the same.</summary>
     public readonly byte[] Flat;
+    /// <summary>The version line (Ctrl+Alt+V), the string at DS:0064's far pointer.</summary>
+    public readonly string VersionLine;
     public readonly List<Resource> Hcegant;
     public readonly List<Resource> Shared;
+    public readonly List<Resource> Sound;
+    /// <summary>The files FONT1..FONT4 (fonts 2..5 of the game, Mac FONT resources), by number; missing ones absent.</summary>
+    public readonly Dictionary<int, byte[]> FontFiles = new();
 
+    /// <summary>The player's copy of the original in `dir`.</summary>
     public OriginalFiles(string dir)
     {
         Dir = dir;
-        Flat = ExeImage.BuildFlat(File.ReadAllBytes(FilePath(dir, "SIMANT.EXE")));
+        Exe = ExeImage.BuildFlat(File.ReadAllBytes(FilePath(dir, "SIMANT.EXE")));
+        // FORMICA_FULL_FLAT=1 (debugging): the whole image, as before ROADMAP A1, to compare screens and sound with
+        Flat = Environment.GetEnvironmentVariable("FORMICA_FULL_FLAT") != null ? Exe
+             : EmbeddedAssets.BuildImage(a => EmbeddedAssets.Extract(Exe, a));
+        int p = Seg.DS * 16 + 0x64, at = (Exe[p + 2] | Exe[p + 3] << 8) * 16 + (Exe[p] | Exe[p + 1] << 8), end = at;
+        while (end < Exe.Length && Exe[end] != 0) end++;
+        VersionLine = System.Text.Encoding.ASCII.GetString(Exe, at, end - at);
         Hcegant = ResourceArchive.Read(dir, "HCEGANT");
         Shared = File.Exists(FilePath(dir, "SHARED.DAT")) ? ResourceArchive.Read(dir, "SHARED") : new List<Resource>();
         Sound = File.Exists(FilePath(dir, "SOUND.DAT")) ? ResourceArchive.Read(dir, "SOUND") : new List<Resource>();
+        for (int n = 1; n <= 4; n++)
+            if (File.Exists(FilePath(dir, $"FONT{n}"))) FontFiles[n] = File.ReadAllBytes(FilePath(dir, $"FONT{n}"));
     }
 
-    public readonly List<Resource> Sound;
+    /// <summary>The clean pack: a zip of `HCEGANT/&lt;type&gt;/&lt;id&gt;.bin`, `SHARED/..`, `SOUND/..` (resources in the
+    /// original's formats), `FONT/&lt;n&gt;.bin` (n = 1..4), `EXE/&lt;name&gt;.bin` (EmbeddedAssets) and
+    /// `EXE/version.txt`. Built by tools/clean_pack/build.py.</summary>
+    public OriginalFiles(byte[] packZip)
+    {
+        Hcegant = new();
+        Shared = new();
+        Sound = new();
+        var embedded = new Dictionary<string, byte[]>();
+        string version = "";
+        using (var zip = new System.IO.Compression.ZipArchive(new MemoryStream(packZip)))
+            foreach (var e in zip.Entries)
+            {
+                if (e.Length == 0 && e.FullName.EndsWith('/')) continue;
+                using var s = e.Open();
+                var ms = new MemoryStream();
+                s.CopyTo(ms);
+                var data = ms.ToArray();
+                var parts = e.FullName.Split('/');
+                string stem = Path.GetFileNameWithoutExtension(parts[^1]);
+                if (parts.Length == 3 && parts[0] is "HCEGANT" or "SHARED" or "SOUND"
+                    && int.TryParse(parts[1], out int type) && int.TryParse(stem, out int id))
+                {
+                    var list = parts[0] == "HCEGANT" ? Hcegant : parts[0] == "SHARED" ? Shared : Sound;
+                    list.Add(new Resource(list.Count, id, type, 0, data));
+                }
+                else if (parts.Length == 2 && parts[0] == "FONT" && int.TryParse(stem, out int n)) FontFiles[n] = data;
+                else if (parts.Length == 2 && parts[0] == "EXE" && parts[1] == "version.txt")
+                    version = System.Text.Encoding.UTF8.GetString(data).Trim();
+                else if (parts.Length == 2 && parts[0] == "EXE") embedded[stem] = data;
+            }
+        Flat = EmbeddedAssets.BuildImage(a => embedded.GetValueOrDefault(a.Name));
+        VersionLine = version;
+    }
+
+    /// <summary>Every (archive, type, id) the game has asked for, and every embedded asset's name (archive "EXE").</summary>
+    public readonly HashSet<(string archive, int type, int id)> Requested = new();
+
+    List<Resource> Archive(string archive) => archive switch
+    {
+        "HCEGANT" => Hcegant,
+        "SHARED" => Shared,
+        "SOUND" => Sound,
+        _ => throw new ArgumentException("no archive " + archive),
+    };
+
+    /// <summary>A resource, or null if there is none.</summary>
+    public Resource Get(string archive, int type, int id)
+    {
+        lock (Requested) Requested.Add((archive, type, id));
+        return Archive(archive).FirstOrDefault(r => r.Type == type && r.Id == id);
+    }
+
+    /// <summary>Every resource of one type.</summary>
+    public IEnumerable<Resource> Of(string archive, int type)
+    {
+        foreach (var r in Archive(archive).Where(r => r.Type == type))
+        {
+            lock (Requested) Requested.Add((archive, type, r.Id));
+            yield return r;
+        }
+    }
+
+    /// <summary>Writes <see cref="Requested"/> as lines "ARCHIVE type id", merged with the lines already in `path`.</summary>
+    public void MergeRequested(string path)
+    {
+        var lines = new SortedSet<string>(File.Exists(path) ? File.ReadAllLines(path) : Array.Empty<string>());
+        lock (Requested)
+            foreach (var (a, t, i) in Requested) lines.Add($"{a} {t} {i}");
+        File.WriteAllLines(path, lines);
+    }
 
     SoundBank bank;
-    /// <summary>The sound driver's instruments and effect table (from SIMANT.EXE).</summary>
+    /// <summary>The sound driver's instruments and effect table (the embedded asset "soundbank").</summary>
     public SoundBank Bank => bank ??= new SoundBank(Flat);
 
     /// <summary>SOUND sample n (type 5) as signed 8-bit PCM, null if there is none.</summary>
     public sbyte[] SoundEffect(int n)
     {
-        var r = Sound.FirstOrDefault(x => x.Type == 5 && x.Id == n);
+        var r = Get("SOUND", 5, n);
         return r == null ? null : Sounds.Decode(r.Data);
     }
 
@@ -170,7 +265,7 @@ public sealed class OriginalFiles
     /// The game's messages (f_71b1a(0, id, ..)) are the lines of STR# id. Null if there is none.</summary>
     public string[] Strings(int id)
     {
-        var r = Shared.FirstOrDefault(x => x.Type == 4 && x.Id == id) ?? Hcegant.FirstOrDefault(x => x.Type == 4 && x.Id == id);
+        var r = Get("SHARED", 4, id) ?? Get("HCEGANT", 4, id);
         if (r == null) return null;
         var d = r.Data;
         int n = (d[0] << 8) | d[1], p = 2;
@@ -187,7 +282,7 @@ public sealed class OriginalFiles
     /// <summary>A SHARED type-10 text (the SimAntipedia's, the save prompts' 128 / 130), up to its NUL. Null if none.</summary>
     public string Text(int id)
     {
-        var r = Shared.FirstOrDefault(x => x.Type == 10 && x.Id == id);
+        var r = Get("SHARED", 10, id);
         if (r == null) return null;
         int n = Array.IndexOf(r.Data, (byte)0);
         return MacText(r.Data.AsSpan(0, n < 0 ? r.Data.Length : n));
@@ -235,5 +330,7 @@ public sealed class OriginalFiles
         return exact;
     }
 
-    public Resource Find(int type, int id) => Hcegant.First(r => r.Type == type && r.Id == id);
+    /// <summary>An HCEGANT resource that must exist.</summary>
+    public Resource Find(int type, int id) => Get("HCEGANT", type, id)
+        ?? throw new InvalidDataException($"HCEGANT type {type} id {id} is missing");
 }

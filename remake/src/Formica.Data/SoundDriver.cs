@@ -94,11 +94,11 @@ public sealed class SoundDriver
     public bool StartSong(int id)
     {
         Stop();
-        var entry = files.Sound.FirstOrDefault(r => r.Type == 18 && r.Id == id)?.Data;
+        var entry = files.Get("SOUND", 18, id)?.Data;
         if (entry == null || entry.Length < 8) return false;
         int song = entry[0] << 8 | entry[1];
         transpose = (short)(entry[6] << 8 | entry[7]);
-        midi = files.Sound.FirstOrDefault(r => r.Type == 20 && r.Id == song)?.Data;
+        midi = files.Get("SOUND", 20, song)?.Data;
         if (midi == null) return false;
         // f_286f6: the header, the track chunks, each track's first delta and status byte
         int hdr = Be32(4);

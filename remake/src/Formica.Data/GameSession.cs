@@ -73,18 +73,21 @@ public sealed class GameSession
     /// tick period used for it here, in clock x3 units (~55 per second).</summary>
     public int FastDelay = 2;
 
-    public GameSession(string gameDir)
+    public GameSession(string gameDir) : this(new OriginalFiles(gameDir)) { }
+
+    /// <summary>A session on the original's files or on the clean pack (OriginalFiles(byte[])).</summary>
+    public GameSession(OriginalFiles files)
     {
-        Files = new OriginalFiles(gameDir);
-        GameData.Flat = Files.Flat;
+        Files = files;
         Art = new MapArt(Files);
+        UseTables = files.Exe == null;                           // the clean pack has no executable image
     }
 
     /// <summary>Start a game: 0 tutorial (not ported), 1 Quick Game, 2 Full Game, 3 experimental. A real game
     /// seeds both generators from the time of day; pass a seed for a repeatable game.</summary>
     public void NewGame(int mode, int? seed = null, byte[] bootState = null)
     {
-        St = bootState != null ? new State((byte[])bootState.Clone()) : UseTables ? TablesState() : ExeImage.NewState(Files.Flat);
+        St = bootState != null ? new State((byte[])bootState.Clone()) : UseTables ? TablesState() : ExeImage.NewState(Files.Exe);
         if (bootState == null) ApplyBootDefaults(St);
         Hooks = new SessionHooks();
         St.Hooks = Hooks;
@@ -115,7 +118,7 @@ public sealed class GameSession
         if (State.Touch != null)
             for (int i = 0; i < State.Size; i++) State.Touch[i] &= 2;
         var st = GameTables.NewState();
-        // the spider's leg geometry (TODO ROADMAP A1: from the asset source, the clean pack's own geometry)
+        // the spider's leg geometry: an embedded asset (EmbeddedAssets "spiderlegs"), in Flat at its place
         for (int o = SpiderLegsOff; o < SpiderLegsEnd; o++) st.Set8(T, o, Files.Flat[T * 16 + o]);
         return st;
     }

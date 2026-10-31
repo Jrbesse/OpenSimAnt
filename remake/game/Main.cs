@@ -59,6 +59,9 @@ public partial class Main : Node2D
 
     string depsFile;
 
+    /// <summary>The clean-room asset pack (ROADMAP A1, tools/clean_pack/build.py), used when there is no original.</summary>
+    const string CleanPackPath = "res://assets/clean/clean_pack.zip";
+
     public override void _Ready()
     {
         // --deps=<file>: analysis only, merge the State bytes read from SIMANT.EXE's image into <file> on exit
@@ -68,7 +71,10 @@ public partial class Main : Node2D
             depsFile = System.IO.Path.GetFullPath(depsFile);   // a relative path is from the project folder (--path)
             State.Touch = new byte[State.Size];
         }
-        var dir = FindGameDir();
+        // the player's copy of the original if there is one (--clean: ignore it), else the clean pack (ROADMAP A1)
+        var dir = OS.GetCmdlineUserArgs().Contains("--clean") ? null : FindGameDir();
+        OriginalFiles files = dir != null ? new OriginalFiles(dir)
+            : Godot.FileAccess.FileExists(CleanPackPath) ? new OriginalFiles(Godot.FileAccess.GetFileAsBytes(CleanPackPath)) : null;
         var layer = new CanvasLayer();
         AddChild(layer);
         status = new Label { Position = new Vector2(4, 384), Size = new Vector2(632, 16) };
@@ -78,14 +84,14 @@ public partial class Main : Node2D
             l.AddThemeFontSizeOverride("font_size", 11);
             layer.AddChild(l);
         }
-        if (dir == null)
+        if (files == null)
         {
-            GD.PrintErr("Formica: no SIMANT.EXE / HCEGANT found");
+            GD.PrintErr("Formica: no SIMANT.EXE / HCEGANT found, and no clean pack at " + CleanPackPath);
             screenshot = OS.GetCmdlineUserArgs().FirstOrDefault(x => x.StartsWith("--screenshot="))?["--screenshot=".Length..];
             ShowSetup(layer);
             return;
         }
-        GD.Print("Formica: game files in " + dir);
+        GD.Print(dir != null ? "Formica: game files in " + dir : "Formica: the clean pack " + CleanPackPath);
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--screenshot=")) screenshot = arg["--screenshot=".Length..];
             else if (arg.StartsWith("--frames=")) shotFrames = int.Parse(arg["--frames=".Length..]);
@@ -98,7 +104,8 @@ public partial class Main : Node2D
             else if (arg == "--map-front") { }
         var args = OS.GetCmdlineUserArgs();
         // games start from the tables in source (ROADMAP A2); --exe-state: from SIMANT.EXE's image, as before
-        session = new GameSession(dir) { UseTables = !args.Contains("--exe-state") };
+        session = new GameSession(files);
+        if (args.Contains("--exe-state") && files.Exe != null) session.UseTables = false;
         foreach (var arg in args.Where(x => x.StartsWith("--seed=")))       // --seed=N: repeatable games
             session.FixedSeed = Convert.ToInt32(arg["--seed=".Length..], 16);
         session.NewGame(args.Contains("--full") ? 2 : args.Contains("--experimental") ? 3 : 1);
@@ -379,6 +386,10 @@ public partial class Main : Node2D
             GetViewport().GetTexture().GetImage().SavePng(screenshot);
             try { if (depsFile != null) ExeImage.MergeDeps(depsFile); }
             catch (Exception e) { GD.PrintErr("--deps: " + e.Message); }
+            // --requests=<file>: merge the resources the game asked for (the clean pack's work list) into <file>
+            var req = OS.GetCmdlineUserArgs().FirstOrDefault(x => x.StartsWith("--requests="))?["--requests=".Length..];
+            try { if (req != null) session?.Files.MergeRequested(System.IO.Path.GetFullPath(req)); }
+            catch (Exception e) { GD.PrintErr("--requests: " + e.Message); }
             GetTree().Quit();
         }
     }
@@ -496,8 +507,8 @@ public partial class Main : Node2D
 
     (int w, int h, uint[] px)? LoadCursor(int id)
     {
-        var img = session.Files.Hcegant.FirstOrDefault(r => r.Type == 8 && r.Id == id)?.Data;
-        var mask = (session.Files.Hcegant.FirstOrDefault(r => r.Type == 7 && r.Id == id) ?? session.Files.Shared.FirstOrDefault(r => r.Type == 7 && r.Id == id))?.Data;
+        var img = session.Files.Get("HCEGANT", 8, id)?.Data;
+        var mask = (session.Files.Get("HCEGANT", 7, id) ?? session.Files.Get("SHARED", 7, id))?.Data;
         if (img == null || mask == null || img.Length < 4 || mask.Length < 4) return null;
         int w = img[0] | img[1] << 8, h = img[2] | img[3] << 8;
         int mw = mask[0] | mask[1] << 8, mh = mask[2] | mask[3] << 8;
@@ -3221,7 +3232,7 @@ public partial class Main : Node2D
 
     void PlaySong(int id)
     {
-        if (!session.Option(1) || !AudioReady() || !session.Files.Sound.Any(r => r.Type == 18 && r.Id == id)) return;
+        if (!session.Option(1) || !AudioReady() || session.Files.Get("SOUND", 18, id) == null) return;
         if (songThisFrame && mixer.Driver.Playing) { songQueue.Enqueue(id); return; }
         songThisFrame = true;
         songQueue.Clear();
@@ -4012,10 +4023,7 @@ public partial class Main : Node2D
             // DS:0064, "Ver 1.00 ...", f_1c6e0). Not kept: Alt+I 0x817 (free memory), Alt+D 0x820 (the fatal-error
             // exit "User Request", f_174cc), Alt+F 0x821 (flush the resource cache).
             if (k.Keycode != Key.V) return false;
-            var flat = session.Files.Flat;
-            int p = Seg.DS * 16 + 0x64, at = (flat[p + 2] | flat[p + 3] << 8) * 16 + (flat[p] | flat[p + 1] << 8), end = at;
-            while (end < flat.Length && flat[end] != 0) end++;
-            OpenAlert(System.Text.Encoding.ASCII.GetString(flat, at, end - at), null);
+            OpenAlert(session.Files.VersionLine, null);
             return true;
         }
         if (k.AltPressed && k.Keycode == Key.J && spider) { Commands.Command(st, 0xc); return true; }   // f_76aeb 0x824

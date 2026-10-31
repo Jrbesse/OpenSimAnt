@@ -17,8 +17,15 @@ public static class Smoke
             var refFlat = File.ReadAllBytes(flatPath);
             int diffs = 0;
             for (int i = State.Lo; i < State.Hi; i++)
-                if (refFlat[i] != s.Files.Flat[i]) diffs++;
+                if (refFlat[i] != s.Files.Exe[i]) diffs++;
             Console.WriteLine($"state image from SIMANT.EXE vs flat.bin: {diffs} bytes differ");
+        }
+        // the game tables in source must equal the executable's bytes (they are generated from its image)
+        foreach (var t in GameTables.All)
+        {
+            int at = t.Seg * 16 + t.Off, nd = 0;
+            for (int i = 0; i < t.Bytes.Length; i++) if (t.Bytes[i] != s.Files.Exe[at + i]) nd++;
+            if (nd > 0) Console.WriteLine($"game table {t.Name}: {nd} of {t.Bytes.Length} bytes differ from SIMANT.EXE");
         }
         var layouts = Layouts.All(s.Files);
         Console.WriteLine($"window layouts: {layouts.Count}, items {layouts.Values.Sum(w => w.Items.Count)}; window 1: rect {layouts.GetValueOrDefault(1)?.Rect}, "

@@ -80,7 +80,7 @@ public static class SpiderRenderer
         var (rid, dx, dy) = Frame(st);
         if (!cache.TryGetValue(rid, out var bmp))
         {
-            var r = files.Hcegant.FirstOrDefault(x => x.Type == 2 && x.Id == rid);
+            var r = files.Get("HCEGANT", 2, rid);
             bmp = r == null ? (0, 0, Array.Empty<short>()) : Bitmaps.Decode(r.Data);
             cache[rid] = bmp;
         }
