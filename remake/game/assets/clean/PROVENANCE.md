@@ -8,3 +8,4 @@ commit), the files made, and the script that makes them (kept beside them, so ev
 |---|---|---|---|---|
 | 2026-10-30 | agent (isolated, spec only) | docs/clean_pack/cursors.md @ 10f6736 | src/cursors/0.pix, 1.pix | src/cursors/make_cursors.py |
 | 2026-10-30 | agent (isolated, spec only) | docs/clean_pack/map_tiles.md @ 80a3c2c (yard sheet) | src/tiles/yard.pix | src/tiles/make_yard.py |
+| 2026-10-31 | agent (isolated, spec only) | docs/clean_pack/map_tiles.md @ 0c6e3f7 (house sheet) | src/tiles/house.pix, src/tiles/preview_house.png, src/tiles/mockup_house.png | src/tiles/make_house.py |

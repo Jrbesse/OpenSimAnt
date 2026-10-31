@@ -43,6 +43,7 @@ public partial class Main : Node2D
     string lastMessage = "";
     string screenshot;
     bool tutorialShot, screenshotSpider;
+    (int a, int b)? patchCentre;                                            // --patch: the surface cell to show
     int shotFrames = 240;
     readonly List<string> frontArgs = new(OS.GetCmdlineUserArgs());        // --history, --panels, --map-front, --antipedia, --yard
     bool frozen;
@@ -144,6 +145,26 @@ public partial class Main : Node2D
                     stateMessage = OriginalFiles.MacText(msg);
             }
         ui = new UiArt(session.Files, session.Art);
+        foreach (var arg in OS.GetCmdlineUserArgs().Where(x => x.StartsWith("--patch=")))
+        {
+            // --patch=N[,a,b] (N hex, row * 16 + col; 0..25 are the house): a Full Game moved to that patch as f_01d48
+            // does, without its checks, the surface shown centred on cell (a, b) (default the middle); for screenshots
+            var pa = arg["--patch=".Length..].Split(',');
+            int idx = Convert.ToInt32(pa[0], 16), row = idx >> 4, col = idx & 15;
+            int ca = pa.Length == 3 ? int.Parse(pa[1]) : 64, cb = pa.Length == 3 ? int.Parse(pa[2]) : 32;
+            if (session.St.U16(Seg.G, 0xeac) != 2) session.NewGame(2);
+            var st = session.St;
+            st.Set16(Seg.G, 0x7bc, row);
+            st.Set16(Seg.G, 0x7be, col);
+            st.Set16(Seg.G, 0x7ca, row);
+            st.Set16(Seg.G, 0x7cc, col);
+            st.Set16(Seg.G, 0x354, 1);
+            foreach (int off in new[] { 0x7c8, 0x850, 0x6aa, 0x73a }) st.Set16(Seg.G, off, 0);
+            st.Set16(Seg.T, 0xc24, 1);
+            NewGame.SetupPatch(st, st.U16(Seg.SIM, (2 * (col * 12 + row)) & 0xffff), Math.Max(1, (int)st.U8(Seg.T, 0xa4 + idx)),
+                st.U8(Seg.T, 0x164 + idx), row, col);
+            patchCentre = (ca, cb);
+        }
         if (OS.GetCmdlineUserArgs().Contains("--efficiency")) OpenEfficiency();
         if (OS.GetCmdlineUserArgs().Contains("--popup")) OpenPopup(200, 150);
         foreach (var arg in OS.GetCmdlineUserArgs())                            // --popup=x,y: held at (x, y), as a press does
@@ -242,6 +263,7 @@ public partial class Main : Node2D
             originB = heldB;
         }
         if (screenshotSpider) { SetView(1); CenterOn(session.St.S16(Seg.G, 0xf12) >> 4, session.St.S16(Seg.G, 0xf34) >> 4); follow = false; }
+        if (patchCentre is var (pca, pcb)) { SetView(1); CenterOn(pca, pcb); follow = false; }
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--map-content="))                           // --map-content=n: the Map window shows T:07C8 = n
                 session.St.Set16(Seg.T, 0x7c8, int.Parse(arg["--map-content=".Length..]));

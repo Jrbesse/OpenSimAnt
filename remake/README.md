@@ -116,6 +116,9 @@ a State image and holds the game still: `tools/re/screens.py` writes one beside 
 `--seed=N` (hex) makes new games repeatable; `--exe-state` starts games from SIMANT.EXE's image instead of the game
 tables in source (`OpenSimAnt.Sim/GameTables.cs`, the default since 2026-10-30); `--deps=<file>` (analysis) merges the
 image bytes the screens read into `<file>` (`tools/ref/deps_ui.py` runs it over every window).
+`--patch=N[,a,b]` (N hex, row * 16 + col; 0..25 are the house's patches) starts a Full Game moved to that patch
+(as f_01d48, without its checks) and shows its surface centred on cell (a, b), the middle by default: for screenshots
+of the house and other patches (`--seed=1234 --patch=0 --ticks=300 --screenshot=...`).
 
 ### The game tables (no SIMANT.EXE needed for the simulation)
 
