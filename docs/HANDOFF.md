@@ -23,8 +23,10 @@ little ragged (similarity review / polish); the house screens are still not comp
 spot check against the code); Haiku handled the well-specified encoder with a byte-exact test. The art makers are the
 expensive part: the house maker ~280k tokens / 19 min, the sprite maker ~370k / 35 min (they look at their own
 previews many times); the 5-hour window went 2% → 22% (two specs + encoder) → 63% (+ both makers). Cap image views in
-maker briefs (the narrow tunnel revision with "at most 3 image views" took ~100k / 1.5 min). Next by visibility: fonts
-(needs a FONT encoder in build.py first), then the UI bitmaps (212), the spider / yard actors, text.
+maker briefs (the narrow tunnel revision with "at most 3 image views" took ~100k / 1.5 min). Later the same session: **fonts ready for a maker** (Sonnet, spec side):
+build.py encodes `src/fonts/font<n>.pix` + `.json` (game fonts 0..5; checked through the C# `BitmapFont`), spec
+`docs/clean_pack/fonts.md` (window at 77% then). **Next:** the font maker (brief it with an image-view cap), then the
+UI bitmaps (212), the spider / yard actors, text.
 
 **2026-10-30 (late): names and the launcher.** The 1:1 remake is **OpenSimAnt** (the owner's decision); everything
 called "Formica" was renamed (projects `OpenSimAnt.Sim` / `.Data` / `.Replay` / `.Sim.Tests`, `remake/OpenSimAnt.sln`,

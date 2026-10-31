@@ -91,7 +91,8 @@ the original files make the clean assets from those specs.
   - [ ] window and panel bitmaps, tool icons, window controls, the title and menu screens, the about box,
         event pictures and scenes (window 26), the game-over and win screens;
   - [x] mouse cursors (types 7 / 8): the pilot, 2026-10-30 (`src/cursors/`, checked in the game on a dev pack);
-  - [ ] fonts 0..4 (open-licensed or newly drawn bitmap fonts with the same metrics);
+  - [ ] fonts 0..5 (open-licensed or newly drawn bitmap fonts with the same metrics): spec `docs/clean_pack/fonts.md`
+        and the encoder done 2026-10-31; the maker is next;
   - [ ] window layouts: re-authored in our own format from the measured geometry (rectangles, item types and
         ids; functional data, see `ART_PLAN.md` section 2);
   - [ ] text: every string list (messages, ratings, ant states, credits, menus), the save prompts, the tutorial
