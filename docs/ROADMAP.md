@@ -79,8 +79,8 @@ the original files make the clean assets from those specs.
 - [ ] **A4. Make the pack** (isolated agents, one category at a time, each with only its spec; provenance in
       `remake/game/assets/clean/PROVENANCE.md`):
   - [ ] palette (the standard Mac 16-colour palette, not Maxis data) and colour schemes;
-  - [ ] map tiles: yard (sheet 10) and house (sheet 9), 256 each, 16 x 16 (spec: the yard table done, the house
-        table to write; `docs/clean_pack/map_tiles.md`);
+  - [ ] map tiles: yard (sheet 10) and house (sheet 9), 256 each, 16 x 16 (the yard sheet made 2026-10-30 by an isolated
+        agent and checked in the game; the house sheet's table still to write; `docs/clean_pack/map_tiles.md`);
   - [ ] ant sprites: surface (14) and nest (13) sheets, 128 each, with recolour masks;
   - [ ] the spider bodies and leg geometry; the map overlays (small spider, sneaker, mower);
   - [ ] the yard window: house, lawn, toolbar, grid strips, rain, swarms; the yard actors (human, dog, mower,
