@@ -123,7 +123,34 @@ def cat_cursors(errors):
         yield ('SHARED/7/0.bin' if ident == 0 else 'HCEGANT/7/%d.bin' % ident), mask
 
 
-CATEGORIES = [cat_bitmaps, cat_cursors]
+def enc_tiles(rows):
+    """HCEGANT type 9 tile sheet from a 256 x 256 picture: tile n at column n % 16, row n / 16; per tile 16 rows of
+    planes 0..3, 2 bytes each (FILE_FORMATS "Map tiles and ant sprites")."""
+    out = bytearray()
+    for n in range(256):
+        tx, ty = (n % 16) * 16, (n // 16) * 16
+        for y in range(16):
+            row = rows[ty + y][tx:tx + 16]
+            for p in range(4):
+                out += bits(row, lambda c, p=p: (c >> p) & 1)
+    return bytes(out)
+
+
+def cat_tiles(errors):
+    """src/tiles/yard.pix, house.pix (256 x 256, opaque) -> HCEGANT/9/10.bin, HCEGANT/9/9.bin."""
+    d = os.path.join(SRC, 'tiles')
+    for name, ident in (('yard.pix', 10), ('house.pix', 9)):
+        path = os.path.join(d, name)
+        if not os.path.exists(path):
+            continue
+        w, h, rows = read_pix(path)
+        if (w, h) != (256, 256) or any(c is None for r in rows for c in r):
+            errors.append('tiles/%s: must be 256 x 256 with no transparent pixels' % name)
+            continue
+        yield 'HCEGANT/9/%d.bin' % ident, enc_tiles(rows)
+
+
+CATEGORIES = [cat_bitmaps, cat_cursors, cat_tiles]
 
 
 def expected():

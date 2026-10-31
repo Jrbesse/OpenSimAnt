@@ -31,6 +31,17 @@ public static class Deps
         }) { IsBackground = true };
         watch.Start();
         var started = DateTime.Now;
+        // a census of the tiles in play (for the clean pack's tile spec): surface tiles in the yard and in the house,
+        // nest dirt as the tile it draws ((dirt - 0x70) & 0xFF); read straight from memory, not through the tracker
+        var census = new Dictionary<string, long[]> { ["yard"] = new long[256], ["house"] = new long[256], ["nest"] = new long[256] };
+        void Census(State st)
+        {
+            int sim = Seg.SIM * 16 - State.Lo;
+            var surf = st.U16(Seg.G, 0xf24) == 1 ? census["house"] : census["yard"];
+            for (int i = 0; i < 128 * 64; i++) surf[st.Mem[sim + 0x180 + i]]++;
+            foreach (int nb in new[] { 0x2180, 0x3180 })
+                for (int i = 0; i < 64 * 64; i++) census["nest"][(st.Mem[sim + nb + i] - 0x70) & 0xff]++;
+        }
         for (int g = 0; g < games; g++)
         {
             var rng = new Random(g);
@@ -92,6 +103,7 @@ public static class Deps
                         }
                     }
                     s.Step();
+                    if (t % 64 == 0) { var tt = State.Touch; State.Touch = null; Census(s.St); State.Touch = tt; }
                 }
                 catch (Exception ex)
                 {
@@ -135,6 +147,8 @@ public static class Deps
             var bytes = string.Join(" ", image.Skip(lo).Take(Math.Min(hi - lo, 24)).Select(b => b.ToString("x2")));
             w.WriteLine($"{Replayer.Describe(lo)} +{hi - lo,-5} read {n,-5} nonzero {nz,-5} {bytes}{(hi - lo > 24 ? " ..." : "")}");
         }
+        File.WriteAllText(Path.ChangeExtension(outFile, ".tiles.json"), System.Text.Json.JsonSerializer.Serialize(
+            census.ToDictionary(kv => kv.Key, kv => Enumerable.Range(0, 256).Where(i => kv.Value[i] > 0).ToDictionary(i => i.ToString("x2"), i => kv.Value[i]))));
         string summary = $"{games} games x up to {ticks} ticks: {ranges.Count} ranges, {total} bytes read from the image, {nonzero} of them nonzero";
         w.WriteLine(summary);
         Console.WriteLine(summary);
