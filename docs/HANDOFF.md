@@ -25,8 +25,10 @@ expensive part: the house maker ~280k tokens / 19 min, the sprite maker ~370k / 
 previews many times); the 5-hour window went 2% → 22% (two specs + encoder) → 63% (+ both makers). Cap image views in
 maker briefs (the narrow tunnel revision with "at most 3 image views" took ~100k / 1.5 min). Later the same session: **fonts ready for a maker** (Sonnet, spec side):
 build.py encodes `src/fonts/font<n>.pix` + `.json` (game fonts 0..5; checked through the C# `BitmapFont`), spec
-`docs/clean_pack/fonts.md` (window at 77% then). **Next:** the font maker (brief it with an image-view cap), then the
-UI bitmaps (212), the spider / yard actors, text.
+`docs/clean_pack/fonts.md` (window at 77% then). Then the **palette** (Haiku: `src/palette/palette.json`, the
+standard Mac 16 colours, checked in the game) and an audit of untracked resources: a complete pack also needs SHARED
+type 21 (the SimAntipedia's style runs, 88; comes with the text category); HCEGANT 15 id 1 and SHARED 9 are never read.
+**Next:** the font maker (brief it with an image-view cap), then the UI bitmaps (212), the spider / yard actors, text.
 
 **2026-10-30 (late): names and the launcher.** The 1:1 remake is **OpenSimAnt** (the owner's decision); everything
 called "Formica" was renamed (projects `OpenSimAnt.Sim` / `.Data` / `.Replay` / `.Sim.Tests`, `remake/OpenSimAnt.sln`,
