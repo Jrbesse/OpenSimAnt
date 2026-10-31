@@ -54,7 +54,7 @@ The game's art, fonts, text, sound effects and music, made new so the game runs 
   `[attach, joint, tip]`; a fang frame is a polyline of 3 points `[base, p1, p2]`. Pixels from the spider's centre (x
   right, y down), each coordinate within +-48, for the spider's right side. Becomes `EXE/spiderlegs.bin` (304 bytes).
   `build.py` checks the shape, the range, that each leg keeps its attach point, and that each fang starts at its fixed anchor.
-- UI bitmaps (`bitmaps/<ARCHIVE>_<id>.pix`, e.g. `HCEGANT_4600.pix`; [ui_bitmaps.md](ui_bitmaps.md)): one `.pix` per type-2 bitmap, exactly the measured size
+- UI bitmaps (`bitmaps/<ARCHIVE>_<id>.pix`, e.g. `HCEGANT_4600.pix`; [ui_bitmaps.md](ui_bitmaps.md), and the yard's pictures, [yard_bitmaps.md](yard_bitmaps.md), in the same folder and format): one `.pix` per type-2 bitmap, exactly the measured size
   (`data/bitmaps.json`). A picture the game draws masked (help overlays, the win screen's eyes) must contain `.` pixels
   (they become the mask plane), any other none; a 1-plane picture (21004, 21005) only `0` and `f`. Becomes `ARCHIVE/2/<id>.bin`.
   `python tools/clean_pack/build.py --roundtrip=<pack.zip>` decodes every original bitmap of a pack and encodes it back
@@ -74,7 +74,8 @@ More formats (text, sound, music, layouts) are added here as their categories st
 | [balloon.md](balloon.md) | the speech balloon's 11 pieces (`EXE/balloon.bin`) | spec written 2026-10-31, ready for a maker (encoder and join checks in `build.py`, round trip of the original checked) |
 | [spider_legs.md](spider_legs.md) | the spider's 8 legs and 2 fangs as 1-pixel lines (`EXE/spiderlegs.bin`) | spec written 2026-10-31, ready for a maker (encoder and checks in `build.py`, round trip of the original checked) |
 | [ui_bitmaps.md](ui_bitmaps.md) | the user-interface bitmaps, 74 pictures: window chrome icons, pop-up menus and help pages, tool icons, the Edit / Map window strips with their help overlays, Behavior / Caste Control, History, Status, Game Over, the win screen and its eyes, the tutorial pictures, the encyclopedia buttons, the start-up cards (`HCEGANT/2/<id>`) | spec written 2026-10-31, ready for a maker (4 passes; encoder checks and `--roundtrip` in `build.py`, round trip of all 252 originals checked) |
-| (to write) | spider body sprites, title / select / about screens, the yard and its actors, scenes, SimAntipedia pictures (SHARED type 2), layouts, text, sound effects, instruments, music | see ROADMAP A4 |
+| [yard_bitmaps.md](yard_bitmaps.md) | the yard and its actors, 114 pictures: the house outside / inside, lawn and grid strips, the yard toolbar and its help, the person, the dog, the cat, the bird, the spider's body and beaten frames, the map window's small spider, sneaker and mower, the triangle marker, the door / room patches (`HCEGANT/2/<id>`, ids 1000s, 7000s, 8000s) | spec written 2026-10-31, ready for a maker (5 passes; same encoder checks as the UI bitmaps; no `build.py` change) |
+| (to write) | title / select / about screens, scenes, SimAntipedia pictures (SHARED type 2), layouts, text, sound effects, instruments, music | see ROADMAP A4 |
 
 ## The makers' brief (give this with the spec)
 
