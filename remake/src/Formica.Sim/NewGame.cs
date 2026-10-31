@@ -391,7 +391,11 @@ public static partial class NewGame
     /// with colonies, dig their nests and place the queens, then the yellow ant and the first food.</summary>
     public static void SetupPatch(State st, int seed, int nBlack, int nRed, int row, int col)
     {
-        st.Set16(DS, 0x8ba2, seed);                                         // SeedLfsr f_009bf
+        // DIVERGENCE: a patch seed is (rand() % 0x7FFF - 0xC000) & 0x7FFF, which is 0 when rand() % 0x7FFF == 0x4000
+        // (1 patch in 32,767). The LFSR then stays 0 for good and the original hangs in f_0ad9c (the bugs' spots
+        // never come free) or plays on with every Rand at 0. Found by Formica.Replay --deps (a load in game 355).
+        // The port seeds such a patch with 0x3751 (the constant the game's clock seeding uses, f_009fe) instead.
+        st.Set16(DS, 0x8ba2, seed == 0 ? 0x3751 : seed);                    // SeedLfsr f_009bf
         ResetPatchGlobals(st);
         Terrain.SurfaceTerrain(st, row, col);                               // f_2f94c → f_73020
         nBlack += nBlack >> 2;

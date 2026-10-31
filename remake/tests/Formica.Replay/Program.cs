@@ -11,6 +11,9 @@ if (args.Length > 0 && args[0] == "--songs")
                                     args.Length > 2 ? args[2] : Path.Combine(TracePaths.DefaultDir(), "..", "songs"));
 if (args.Length > 0 && args[0] == "--longrun")
     return Formica.Replay.LongRun.Run(args.Length > 1 ? args[1] : Formica.Replay.LongRun.DefaultFile());
+if (args.Length > 0 && args[0] == "--tables")
+    return Formica.Replay.Tables.Run(args.Length > 1 ? args[1] : "..", args.Length > 2 ? int.Parse(args[2]) : 40,
+                                     args.Length > 3 ? int.Parse(args[3]) : 20000);
 if (args.Length > 0 && args[0] == "--deps")
     return Formica.Replay.Deps.Run(args.Length > 1 ? args[1] : "..", args.Length > 2 ? int.Parse(args[2]) : 40,
                                    args.Length > 3 ? int.Parse(args[3]) : 5000,

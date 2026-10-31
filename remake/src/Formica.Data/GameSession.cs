@@ -84,11 +84,11 @@ public sealed class GameSession
     /// seeds both generators from the time of day; pass a seed for a repeatable game.</summary>
     public void NewGame(int mode, int? seed = null, byte[] bootState = null)
     {
-        St = bootState != null ? new State((byte[])bootState.Clone()) : ExeImage.NewState(Files.Flat);
+        St = bootState != null ? new State((byte[])bootState.Clone()) : UseTables ? TablesState() : ExeImage.NewState(Files.Flat);
         if (bootState == null) ApplyBootDefaults(St);
         Hooks = new SessionHooks();
         St.Hooks = Hooks;
-        int s = seed ?? (int)(DateTime.Now.TimeOfDay.TotalSeconds * ClockHz);
+        int s = seed ?? FixedSeed ?? (int)(DateTime.Now.TimeOfDay.TotalSeconds * ClockHz);
         St.Set16(DS, 0x8ba2, (s & 0xffff) | 1);                 // the LFSR must not be 0
         St.Set32(DS, 0x7bbe, s);
         St.Clock = s;
@@ -98,6 +98,26 @@ public sealed class GameSession
         if (options != null)
             for (int i = 0; i < 6; i++) St.Set16(T, 0x7a8 + 2 * i, options[i]);
         Ticks = 0;
+    }
+
+    /// <summary>Start games from <see cref="GameTables"/> (the numbers in source) instead of SIMANT.EXE's image
+    /// (ROADMAP A2; `Formica.Replay --tables` checks that both play the same).</summary>
+    public bool UseTables;
+
+    /// <summary>When set, games without an explicit seed use this one instead of the time of day (repeatable runs).</summary>
+    public int? FixedSeed;
+
+    /// <summary>T:09E4..T:0B13, the spider's leg geometry: line art, so an asset rather than a game table.</summary>
+    public const int SpiderLegsOff = 0x9e4, SpiderLegsEnd = 0xb14;
+
+    State TablesState()
+    {
+        if (State.Touch != null)
+            for (int i = 0; i < State.Size; i++) State.Touch[i] &= 2;
+        var st = GameTables.NewState();
+        // the spider's leg geometry (TODO ROADMAP A1: from the asset source, the clean pack's own geometry)
+        for (int o = SpiderLegsOff; o < SpiderLegsEnd; o++) st.Set8(T, o, Files.Flat[T * 16 + o]);
+        return st;
     }
 
     /// <summary>What the original's start-up sets before the first new game that the simulation reads

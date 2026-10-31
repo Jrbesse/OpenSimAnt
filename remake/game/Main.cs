@@ -57,8 +57,17 @@ public partial class Main : Node2D
     Vector2 dragFrom;
     (int dx, int dy) dragOrig;
 
+    string depsFile;
+
     public override void _Ready()
     {
+        // --deps=<file>: analysis only, merge the State bytes read from SIMANT.EXE's image into <file> on exit
+        depsFile = OS.GetCmdlineUserArgs().FirstOrDefault(x => x.StartsWith("--deps="))?["--deps=".Length..];
+        if (depsFile != null)
+        {
+            depsFile = System.IO.Path.GetFullPath(depsFile);   // a relative path is from the project folder (--path)
+            State.Touch = new byte[State.Size];
+        }
         var dir = FindGameDir();
         var layer = new CanvasLayer();
         AddChild(layer);
@@ -87,8 +96,11 @@ public partial class Main : Node2D
             else if (arg.StartsWith("--scene="))                                   // the window-26 scenes, for screenshots
                 sceneArg = int.Parse(arg["--scene=".Length..]);
             else if (arg == "--map-front") { }
-        session = new GameSession(dir);
         var args = OS.GetCmdlineUserArgs();
+        // games start from the tables in source (ROADMAP A2); --exe-state: from SIMANT.EXE's image, as before
+        session = new GameSession(dir) { UseTables = !args.Contains("--exe-state") };
+        foreach (var arg in args.Where(x => x.StartsWith("--seed=")))       // --seed=N: repeatable games
+            session.FixedSeed = Convert.ToInt32(arg["--seed=".Length..], 16);
         session.NewGame(args.Contains("--full") ? 2 : args.Contains("--experimental") ? 3 : 1);
         if (screenshot == null || args.Contains("--title")) modal = TitleWin;    // the title, then Select a Game
         else if (args.Contains("--select")) modal = SelectWin;
@@ -365,6 +377,8 @@ public partial class Main : Node2D
         {
             // --screenshot=<png>: save the screen after 240 frames and quit (for checking a build)
             GetViewport().GetTexture().GetImage().SavePng(screenshot);
+            try { if (depsFile != null) ExeImage.MergeDeps(depsFile); }
+            catch (Exception e) { GD.PrintErr("--deps: " + e.Message); }
             GetTree().Quit();
         }
     }

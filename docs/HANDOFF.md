@@ -14,7 +14,12 @@ how the pack is made: **the owner chose isolated agents** (this side writes spec
 `docs/clean_pack/`; fresh agents with only a spec make the assets with scripts, provenance in
 `remake/game/assets/clean/PROVENANCE.md`). Measured with the new `Formica.Replay --deps [dir] [games] [ticks] [out]`
 (`State.Touch`, analysis only: marks bytes read before any write): the simulation needs only ~1,200 non-zero bytes of
-SIMANT.EXE's data (list in `remake/build/deps.txt`), so ROADMAP A2 puts them in source.
+SIMANT.EXE's data (list in `remake/build/deps.txt`), so ROADMAP A2 puts them in source. **A2 is done** (same day):
+`Formica.Sim/GameTables.cs`, the default start (remake/README "The game tables"; the shell's reads via
+`tools/ref/deps_ui.py` + `--deps=`). On the way the `--deps` runs found a **hang in the original too**: a patch seed of
+0 (1 in 32,767) freezes the LFSR and f_0ad9c loops forever; the port seeds such a patch with 0x3751 (DIVERGENCE in
+`NewGame.SetupPatch`, SIM_NOTES "New game"). New shell flags: `--seed=N`, `--exe-state`, `--deps=<file>`. **Next: A1**
+(the rest of the EXE reads: see ROADMAP A2's last sentence), then A3 specs and the first agent batch.
 
 **2026-10-29: the owner play-tested** (start-up, Quick Game, basic play): "so far it seems to play identical to the
 original". Bugs left would be the kind long play finds.

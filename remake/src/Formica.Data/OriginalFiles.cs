@@ -118,7 +118,22 @@ public static class ExeImage
     }
 
     /// <summary>A fresh simulation State from the executable's data.</summary>
-    public static State NewState(byte[] flat) => new(flat.AsSpan(State.Lo, State.Size).ToArray());
+    public static State NewState(byte[] flat)
+    {
+        if (State.Touch != null)                                // analysis: a fresh image, nothing written yet
+            for (int i = 0; i < State.Size; i++) State.Touch[i] &= 2;
+        return new(flat.AsSpan(State.Lo, State.Size).ToArray());
+    }
+
+    /// <summary>Analysis (`--deps`): ORs the bytes read from the image (State.Touch bit 2) into the bitmap file
+    /// `path` (one byte per State byte, 1 = read).</summary>
+    public static void MergeDeps(string path)
+    {
+        if (State.Touch == null) return;
+        var acc = File.Exists(path) ? File.ReadAllBytes(path) : new byte[State.Size];
+        for (int i = 0; i < State.Size; i++) if ((State.Touch[i] & 2) != 0) acc[i] = 1;
+        File.WriteAllBytes(path, acc);
+    }
 }
 
 /// <summary>The player's own copy of the game (SIMANT.EXE, HCEGANT / SHARED / SOUND archives).</summary>

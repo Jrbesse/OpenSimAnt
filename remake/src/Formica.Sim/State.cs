@@ -47,8 +47,13 @@ public sealed class State
     /// holding the starting image's value. The 2s are the data the game needs from SIMANT.EXE.</summary>
     public static byte[] Touch;
 
+    /// <summary>Analysis only (with Touch): reads left before a hang is assumed; reaching 0 throws, so the exception's
+    /// stack shows the loop.</summary>
+    public static long ReadBudget = long.MaxValue;
+
     static void Read(int a)
     {
+        if (--ReadBudget == 0) throw new InvalidOperationException("read budget spent: the port seems to loop forever");
         if ((Touch[a] & 1) == 0) Touch[a] |= 2;
     }
 

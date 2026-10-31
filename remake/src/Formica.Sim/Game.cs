@@ -224,18 +224,16 @@ public static class SaveFile
     /// <summary>[(seg, off, length)] in file order.</summary>
     public static List<(int seg, int off, int n)> Blocks()
     {
-        var flat = GameData.Flat ?? throw new InvalidOperationException("GameData.Flat is not loaded");
+        var t = GameTables.All.First(x => x.Name == "SaveBlocks").Bytes;   // 4E4B:0000 = TABLE
         var res = new List<(int, int, int)>();
-        int a = TABLE;
-        while (true)
+        for (int a = 0; ; a += 8)
         {
-            int count = (short)(flat[a] | (flat[a + 1] << 8));
-            int size = flat[a + 2] | (flat[a + 3] << 8);
-            int off = flat[a + 4] | (flat[a + 5] << 8);
-            int seg = flat[a + 6] | (flat[a + 7] << 8);
+            int count = (short)(t[a] | (t[a + 1] << 8));
+            int size = t[a + 2] | (t[a + 3] << 8);
+            int off = t[a + 4] | (t[a + 5] << 8);
+            int seg = t[a + 6] | (t[a + 7] << 8);
             if (size == 0) return res;
             res.Add((seg, off, (count * size) & 0xffff));
-            a += 8;
         }
     }
 

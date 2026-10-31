@@ -2262,6 +2262,10 @@ NewGame():                                         # f_6b36b; the mode G:0EAC is
 
 SetupPatch(seed, n_black, n_red, row, col):        # f_6ae20
     SeedLfsr(seed) (f_009bf); f_0cdb0 (per-patch globals: spider at G:0F12 = 0x400, G:0F34 = 0x200, ...)
+    **A bug in the original:** a seed is 0 when crt_rand() % 0x7FFF == 0x4000 (1 patch in 32,767); the LFSR then
+    stays 0 forever (0 << 1 never carries), every Rand returns 0, and a yard patch hangs in f_0ad9c (the two bugs
+    wait for a free cell at (0, 0)). Found 2026-10-30 by `Formica.Replay --deps` (a load's new game). The C# port
+    seeds such a patch with 0x3751 (a marked DIVERGENCE in NewGame.SetupPatch); the Python reference keeps the hang.
     f_73020(row, col): surface terrain (below)
     n_black += n_black >> 2; n_red += n_red >> 2
     nests: dirt 0x2E everywhere, exit field 0, cells empty; surface occupancy cleared
