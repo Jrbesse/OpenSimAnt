@@ -7,6 +7,14 @@ timing; the owner's first play-test: it plays like the original). Before that, 2
 compared with the original's on the same game State (24 captures, 21 pixel-identical, the other 3 off by redraw timing);
 2026-10-20: the original's screens through a VGA model in the emulator, and the handler audit.
 
+**2026-10-30 (late): names and the launcher.** The 1:1 remake is **OpenSimAnt** (the owner's decision); everything
+called "Formica" was renamed (projects `OpenSimAnt.Sim` / `.Data` / `.Replay` / `.Sim.Tests`, `remake/OpenSimAnt.sln`,
+`game/OpenSimAnt.csproj`, exports, env vars `OPENSIMANT_*`, docs). **Formica** now names the later, fully modern game
+(goal 2). Testers' saved folder setting resets once (Godot's user folder follows the project name: app_userdata/OpenSimAnt).
+OpenSimAnt starts with a **launcher**: "Original look" (the player's copy) or "Open assets" (the clean pack, greyed out
+until `remake/game/assets/clean/clean_pack.zip` exists); `--original` / `--clean` skip it (remake/README "Running the
+game"). Note: `dotnet test` on the whole solution hung once locally; run `dotnet test remake/tests/OpenSimAnt.Sim.Tests`.
+
 **2026-10-30: the next goal is the clean-room asset pack, so the game runs with no original files.** The full list of
 what is left before version 1 is now **`docs/ROADMAP.md`** (Track A: the clean pack; Track B: confirm and polish; Track
 C: release); keep it ticked off. `docs/ART_PLAN.md` sections 8 / 9 list everything the game reads from the originals and
