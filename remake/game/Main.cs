@@ -72,8 +72,11 @@ public partial class Main : Node2D
             State.Touch = new byte[State.Size];
         }
         // the player's copy of the original if there is one (--clean: ignore it), else the clean pack (ROADMAP A1)
+        // --pack=<path>: a pack file instead of the built-in one (tests: Formica.Replay --export-pack)
         var dir = OS.GetCmdlineUserArgs().Contains("--clean") ? null : FindGameDir();
+        var packArg = OS.GetCmdlineUserArgs().FirstOrDefault(x => x.StartsWith("--pack="))?["--pack=".Length..];
         OriginalFiles files = dir != null ? new OriginalFiles(dir)
+            : packArg != null ? new OriginalFiles(System.IO.File.ReadAllBytes(System.IO.Path.GetFullPath(packArg)))
             : Godot.FileAccess.FileExists(CleanPackPath) ? new OriginalFiles(Godot.FileAccess.GetFileAsBytes(CleanPackPath)) : null;
         var layer = new CanvasLayer();
         AddChild(layer);
