@@ -15,6 +15,9 @@ FONT/<n>.bin, EXE/<name>.bin, EXE/version.txt. Every source is checked against t
 docs/clean_pack/data/*.json (sizes must match: the engine places things by them).
 
 Source formats so far:
+- palette/palette.json: the 16 colours in index order (hex R G B, the standard Apple Mac 16-colour palette) ->
+  HCEGANT/15/0.bin: a little-endian u16 count (16, as the original's entry), then R, G, B per colour (50 bytes, as the original's entry; nothing
+  follows the colours; MapArt reads it).
 - .pix: pixel art as text. One row per line, one character per pixel: 0-9 a-f = palette index (the Mac 16-colour
   palette, 0 white .. 15 black), '.' = transparent. Lines starting with '#' are comments.
 - sprites/surface.pix, nest.pix (256 x 128: sprite n at column n % 16, row n // 16, 16 x 16 each; 0-9 a-f = the
@@ -100,6 +103,32 @@ def enc_cursor(w, h, rows):
 
 
 # ------------------------------------------------------------------------------------------------ categories
+def enc_palette(hexes):
+    """HCEGANT type 15 id 0 (OpenSimAnt.Data/MapArt.cs): u16 little-endian count as the original stores it (MapArt
+    reads it big-endian, 0x1000, and caps it at 16), then R, G, B bytes per colour; nothing
+    follows the colours (the original's entry is 50 bytes, 2 + 16 x 3)."""
+    return struct.pack('<H', len(hexes)) + b''.join(bytes.fromhex(h) for h in hexes)
+
+
+def cat_palette(errors):
+    """src/palette/palette.json -> HCEGANT/15/0.bin."""
+    path = os.path.join(SRC, 'palette', 'palette.json')
+    if not os.path.exists(path):
+        return
+    with open(path) as f:
+        cols = json.load(f).get('colours', [])
+    hexes = [c.get('hex') for c in cols]
+    if [c.get('index') for c in cols] != list(range(16)) or any(not isinstance(h, str) or len(h) != 6 for h in hexes):
+        errors.append('palette/palette.json: 16 colours, index 0..15 in order, each a 6-digit hex')
+        return
+    try:
+        blob = enc_palette(hexes)
+    except ValueError:
+        errors.append('palette/palette.json: a colour is not hex')
+        return
+    yield 'HCEGANT/15/0.bin', blob
+
+
 def cat_bitmaps(errors):
     """src/bitmaps/<ARCHIVE>_<id>.pix -> ARCHIVE/2/<id>.bin, sized as measured."""
     want = {(b['archive'], b['id']): b for b in data('bitmaps')}
@@ -337,7 +366,11 @@ def cat_fonts(errors):
                                 else enc_font_own(cells, adv, first_index, h, cw))
 
 
-CATEGORIES = [cat_bitmaps, cat_cursors, cat_tiles, cat_sprites, cat_fonts]
+CATEGORIES = [cat_palette, cat_bitmaps, cat_cursors, cat_tiles, cat_sprites, cat_fonts]
+
+# texts (SHARED type 10) that the original has no style runs for (no SHARED type 21 entry): Antipedia.Text reads
+# type 21 as optional, so these are not in expected()
+NO_STYLE_RUNS = {128, 129, 130, 131, 132, 865}
 
 
 def expected():
@@ -366,6 +399,11 @@ def expected():
         names.add('SOUND/20/%d.bin' % s['id'])
     for s in data('song_cues'):
         names.add('SOUND/18/%d.bin' % s['cue'])
+    # the palette (MapArt); HCEGANT 15 id 1 (21 bytes) is never read. SHARED 9 is never read: the game asks SHARED for
+    # types 2, 4, 6, 7, 10, 11, 17, 19 and 21 only
+    names.add('HCEGANT/15/0.bin')
+    # SHARED type 21 (the style runs of a text, the same id as its type-10 text): read by Antipedia.Text (Res(21, id))
+    names.update('SHARED/21/%d.bin' % t['id'] for t in data('texts') if t['id'] not in NO_STYLE_RUNS)
     for a in data('embedded')['assets']:
         names.add('EXE/%s.bin' % a['Name'])
     # fonts: Ui.Font loads SHARED 11 ids 0 and 1 (the game's own PC fonts) and, for game fonts 2..5, the files FONT1..FONT4;

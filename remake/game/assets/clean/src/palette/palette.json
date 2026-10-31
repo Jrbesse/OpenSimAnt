@@ -1,0 +1,22 @@
+{
+  "source": "the standard Apple Macintosh 16-colour system palette",
+  "note": "16 colours in index order, each 8-bit R, G, B as hex (the high byte of the Mac 16-bit-per-channel values). Encoded by tools/clean_pack/build.py as HCEGANT/15/0.bin: u16 little-endian count (16), then R G B per colour.",
+  "colours": [
+    {"index": 0, "name": "white", "hex": "FFFFFF"},
+    {"index": 1, "name": "yellow", "hex": "FCF305"},
+    {"index": 2, "name": "orange", "hex": "FF6402"},
+    {"index": 3, "name": "red", "hex": "DD0806"},
+    {"index": 4, "name": "magenta", "hex": "F20884"},
+    {"index": 5, "name": "purple", "hex": "4600A5"},
+    {"index": 6, "name": "blue", "hex": "0000D4"},
+    {"index": 7, "name": "cyan", "hex": "02ABEA"},
+    {"index": 8, "name": "green", "hex": "1FB714"},
+    {"index": 9, "name": "dark green", "hex": "006411"},
+    {"index": 10, "name": "brown", "hex": "562C05"},
+    {"index": 11, "name": "tan", "hex": "90713A"},
+    {"index": 12, "name": "light grey", "hex": "C0C0C0"},
+    {"index": 13, "name": "medium grey", "hex": "808080"},
+    {"index": 14, "name": "dark grey", "hex": "404040"},
+    {"index": 15, "name": "black", "hex": "000000"}
+  ]
+}

@@ -78,7 +78,10 @@ the original files make the clean assets from those specs.
       shown, and what it must show, in words. No images, no original text, no notes.
 - [ ] **A4. Make the pack** (isolated agents, one category at a time, each with only its spec; provenance in
       `remake/game/assets/clean/PROVENANCE.md`):
-  - [ ] palette (the standard Mac 16-colour palette, not Maxis data) and colour schemes;
+  - [x] palette: the standard Mac 16-colour palette, not Maxis data (`src/palette/palette.json`, 2026-10-31; the same
+        colours as the original's in the 6 bits the VGA DAC uses; checked in the game). The colour schemes are part of
+        the window layouts (HCEGANT type 0) below. Audit the same day: a complete pack also needs the SimAntipedia's
+        style runs SHARED type 21 (88, with the text category); HCEGANT 15 id 1 and SHARED type 9 are never read;
   - [x] map tiles: yard (sheet 10) and house (sheet 9), 256 each, 16 x 16 (`docs/clean_pack/map_tiles.md`; the yard
         sheet made 2026-10-30, the house sheet 2026-10-31, each by an isolated agent and checked in the game on a dev
         pack, the house with `--patch=N`; the nest tunnels lightened 2026-10-31 so the black colony shows);
