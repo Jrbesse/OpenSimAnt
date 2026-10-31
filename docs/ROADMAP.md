@@ -88,7 +88,8 @@ the original files make the clean assets from those specs.
   - [x] ant sprites: surface (14) and nest (13) sheets, 128 each, with recolour masks (`docs/clean_pack/ant_sprites.md`,
         `src/sprites/`, 2026-10-31; build.py's encoder round-trips both originals). Left for the similarity review:
         the surface diagonals' legs are a little ragged;
-  - [ ] the spider bodies and leg geometry; the map overlays (small spider, sneaker, mower);
+  - [ ] the spider bodies and leg geometry (the legs done 2026-10-31: `docs/clean_pack/spider_legs.md`, `src/spider/`,
+        checked in the game; the bodies left); the map overlays (small spider, sneaker, mower);
   - [ ] the yard window: house, lawn, toolbar, grid strips, rain, swarms; the yard actors (human, dog, mower,
         cat, bird, sign);
   - [x] the speech balloon's pieces (`docs/clean_pack/balloon.md`, `src/balloon/`, 2026-10-31, checked in the game) and

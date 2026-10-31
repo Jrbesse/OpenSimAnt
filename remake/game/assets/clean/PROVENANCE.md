@@ -14,3 +14,4 @@ commit), the files made, and the script that makes them (kept beside them, so ev
 | 2026-10-31 | written by hand from the public palette (not the game's data): docs/clean_pack/README.md, the palette table | src/palette/palette.json, src/palette/README.md | none (encoded by tools/clean_pack/build.py) |
 | 2026-10-31 | spec side (own text) | none (the project's own words) | src/version/version.txt | none (encoded by tools/clean_pack/build.py; the Ctrl+Alt+V line) |
 | 2026-10-31 | agent (isolated, spec only) | docs/clean_pack/balloon.md @ 4cce0ee | src/balloon/balloon.pix, preview.png, README.md | src/balloon/make_balloon.py |
+| 2026-10-31 | agent (isolated, spec only) | docs/clean_pack/spider_legs.md @ 2fe2759 | src/spider/legs.json, preview.png, README.md | src/spider/make_legs.py |

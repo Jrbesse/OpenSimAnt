@@ -30,9 +30,9 @@ standard Mac 16 colours, checked in the game) and an audit of untracked resource
 type 21 (the SimAntipedia's style runs, 88; comes with the text category); HCEGANT 15 id 1 and SHARED 9 are never read. Then
 the **speech balloon** (Sonnet spec + encoder, `docs/clean_pack/balloon.md`; Haiku maker `src/balloon/`, checked in the
 game with `--silly`) and **our own version line** (`src/version/version.txt`, Ctrl+Alt+V). Then the **spider's legs**: spec + encoder
-(`docs/clean_pack/spider_legs.md`, `src/spider/legs.json` -> EXE/spiderlegs.bin; the original round-trips); its maker was
-started at ~90% of the window: if `src/spider/` is not committed, run `make_legs.py`, build a dev pack, look with
-`--spider-view`, review, commit.
+(`docs/clean_pack/spider_legs.md`, `src/spider/legs.json` -> EXE/spiderlegs.bin; the original round-trips); and its maker
+(Haiku, `src/spider/`, checked in the game with `--spider-view`). The session ended at ~93% of the window with all of
+this committed.
 **Next:** the font maker (brief it with an image-view cap), then the UI bitmaps (212), the spider / yard actors, the
 spider legs and glossary (EXE assets left: soundbank, spiderlegs, glossary), text.
 
