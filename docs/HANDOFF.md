@@ -30,6 +30,16 @@ variable here points at a godotenv shim (4.2.2), so scripts must prefer the 4.6.
 `--fallback=remake/build/original_pack.zip`, check in the game, review, commit), starting with what shows most: map
 tiles and ant sprites, fonts, then the UI bitmaps; each new format needs its encoder in build.py first (round-trip the
 originals through it locally, as for bitmaps).
+Later still (same session): **a gap in the tables, fixed**: no measuring game had moved patches, so the house's tile
+pictures (DS:2C5A) were missing; `--deps` / `--tables` now move into other patches and the house (40 tables, 200 games /
+1.77 M ticks identical). Screens inside the house are still not compared tables-vs-EXE (do it: a flag to start in a
+house patch, then shots like `scratchpad/shots3.py`). **Map tiles:** `docs/clean_pack/map_tiles.md` has the yard
+sheet's complete slot table (from the code + a census of tiles in play: `--deps` writes `build/deps.tiles.json`; the
+nests draw `(dirt - 0x70) & 0xFF` from the same sheet); the **house sheet's table is still to write** (Terrain.HousePatch,
+the house pictures, the census's 128 house slots; sheet image via `python -I tools/tiles.py <scratch dir>`). build.py
+encodes tile sheets (round-trips both originals). A maker for `yard.pix` was started at the end of the session: check
+`remake/game/assets/clean/src/tiles/` (if it is there and not committed: build the dev pack, look at the surface and a
+nest with `--clean --pack=remake/build/dev_pack.zip --seed=1234 --screenshot=...`, review, commit).
 
 **2026-10-29: the owner play-tested** (start-up, Quick Game, basic play): "so far it seems to play identical to the
 original". Bugs left would be the kind long play finds.
