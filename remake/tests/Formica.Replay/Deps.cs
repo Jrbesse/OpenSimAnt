@@ -52,7 +52,7 @@ public static class Deps
                     {
                         int view = 1 + rng.Next(3);
                         int a = rng.Next(view == 1 ? 128 : 64), b = rng.Next(64);
-                        int act = rng.Next(11);
+                        int act = rng.Next(12);
                         lastAction = act;
                         switch (act)
                         {
@@ -78,6 +78,17 @@ public static class Deps
                             case 10:
                                 if (t > 200) SaveFile.Load(st, SaveFile.Save(st));
                                 break;
+                        case 11:                                    // Full Game: move to another patch, often the house
+                            if (st.U16(Seg.G, 0xeac) == 2)
+                            {
+                                int idx = rng.Next(3) == 0 ? rng.Next(38) : rng.Next(192);
+                                st.Set16(Seg.G, 0x7bc, idx >> 4);
+                                st.Set16(Seg.G, 0x7be, idx & 15);
+                                if (st.U8(Seg.T, 0xa4 + idx) == 0) st.Set8(Seg.T, 0xa4 + idx, 1);
+                                if (st.S16(Seg.G, 0x330) <= 1) st.Set16(Seg.G, 0x330, 2);
+                                NewGame.MoveToPatch(st);
+                            }
+                            break;
                         }
                     }
                     s.Step();

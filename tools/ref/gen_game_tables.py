@@ -63,6 +63,8 @@ TABLES = [
                                          'offsets (DS:269A..DS:26BE) (SIM_NOTES "The yard layer")'),
     ('DS', 0x2a12, 0x2ada, 'YardWindowOffsets', 'the yard window\'s actor and colony-view offsets (YardRenderer)'),
     ('DS', 0x2af8, 0x2b00, 'ScoreWeights', 'the efficiency score\'s weight per statistic'),
+    ('DS', 0x2c5a, 0x2cae, 'HousePictures', 'the house patches\' stamped tile pictures (Terrain.Blit): 5 x 4 at DS:2C5A, '
+                                            '4 x 5 at DS:2C6E, 5 x 5 at DS:2C82, then DS:2C9C and DS:2CA6; tile numbers'),
     ('DS', 0x2df4, 0x2e04, 'WallShapes', 'the wall tile for each mask of wall neighbours (left 8 ...), the map tools'),
     ('DS', 0x5702, 0x5704, 'ActiveWindow', 'start value of the active window word DS:5702 (0x8000: none)'),
     # read outside the State (Formica.Data's renderers and sound driver, through OriginalFiles.Flat)
