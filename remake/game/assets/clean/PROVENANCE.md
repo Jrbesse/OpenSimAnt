@@ -6,3 +6,4 @@ commit), the files made, and the script that makes them (kept beside them, so ev
 
 | Date | Maker | Spec | Files | Made by |
 |---|---|---|---|---|
+| 2026-10-30 | agent (isolated, spec only) | docs/clean_pack/cursors.md @ 10f6736 | src/cursors/0.pix, 1.pix | src/cursors/make_cursors.py |

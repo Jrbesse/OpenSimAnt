@@ -18,8 +18,18 @@ SIMANT.EXE's data (list in `remake/build/deps.txt`), so ROADMAP A2 puts them in 
 `Formica.Sim/GameTables.cs`, the default start (remake/README "The game tables"; the shell's reads via
 `tools/ref/deps_ui.py` + `--deps=`). On the way the `--deps` runs found a **hang in the original too**: a patch seed of
 0 (1 in 32,767) freezes the LFSR and f_0ad9c loops forever; the port seeds such a patch with 0x3751 (DIVERGENCE in
-`NewGame.SetupPatch`, SIM_NOTES "New game"). New shell flags: `--seed=N`, `--exe-state`, `--deps=<file>`. **Next: A1**
-(the rest of the EXE reads: see ROADMAP A2's last sentence), then A3 specs and the first agent batch.
+`NewGame.SetupPatch`, SIM_NOTES "New game"). New shell flags: `--seed=N`, `--exe-state`, `--deps=<file>`. Later the same day: **A1 mostly done** (resources
+through `OriginalFiles.Get` / `Of`; `Flat` = tables + `EmbeddedAssets`; the pack loader, proven pixel-identical with
+`Formica.Replay --export-pack` + `--clean --pack=`), **A3 started** (`docs/clean_pack/`: README with the process and
+the makers' brief, `data/*.json` from `Formica.Replay --measure`, the pilot spec `cursors.md`), the builder
+`tools/clean_pack/build.py`, and the first isolated maker (the cursors). Python: Pillow and numpy are installed for
+the user (the owner OK'd useful libraries; `python -I` hides user site-packages, so run makers' scripts without `-I`).
+Gotchas from today: Godot's `--path` moves the working folder (pass absolute paths to flags); the GODOT environment
+variable here points at a godotenv shim (4.2.2), so scripts must prefer the 4.6.2 path; never kill Godot by image name
+(the owner may have it open). **Next:** the ROADMAP A3 / A4 loop per category (spec, maker, build with
+`--fallback=remake/build/original_pack.zip`, check in the game, review, commit), starting with what shows most: map
+tiles and ant sprites, fonts, then the UI bitmaps; each new format needs its encoder in build.py first (round-trip the
+originals through it locally, as for bitmaps).
 
 **2026-10-29: the owner play-tested** (start-up, Quick Game, basic play): "so far it seems to play identical to the
 original". Bugs left would be the kind long play finds.

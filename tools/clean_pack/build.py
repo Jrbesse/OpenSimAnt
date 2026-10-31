@@ -5,7 +5,7 @@
 
 Sources: remake/game/assets/clean/src/<category>/ (written by the makers, docs/clean_pack/*.md). Output:
 - without --fallback: remake/game/assets/clean/clean_pack.zip, only when nothing is missing (else the list and exit 1;
-  --partial writes it anyway, for checking what exists);
+  --partial writes what exists to remake/build/partial_pack.zip);
 - with --fallback (for example remake/build/original_pack.zip from `Formica.Replay --export-pack`, the player's own
   files): remake/build/dev_pack.zip (git-ignored: it holds original data). Run the game on it with
   `-- --clean --pack=remake/build/dev_pack.zip` to see each new category in place before the pack is complete.
@@ -188,11 +188,13 @@ def main():
         print('  %-12s %d' % (k, v))
     if missing and not opts.get('partial'):
         sys.exit(1)
-    os.makedirs(os.path.dirname(OUT_CLEAN), exist_ok=True)
-    with zipfile.ZipFile(OUT_CLEAN, 'w', zipfile.ZIP_DEFLATED) as z:
+    # an incomplete pack never goes where the game would load it
+    out = OUT_CLEAN if not missing else os.path.join(ROOT, 'remake', 'build', 'partial_pack.zip')
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
         for name, blob in sorted(made.items()):
             z.writestr(name, blob)
-    print('->', OUT_CLEAN)
+    print('->', out)
 
 
 if __name__ == '__main__':

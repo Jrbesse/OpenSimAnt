@@ -32,7 +32,17 @@ asset layer that has two sources, the player's copy or the bundled clean pack, k
 This session (the one that studied the originals) writes **specs in words only**. Separate agents that never see
 the original files make the clean assets from those specs.
 
-- [ ] **A1. One asset layer.** Design (2026-10-30): the clean pack uses **the original's own resource formats**
+- [ ] **A1. One asset layer.** *Mostly done 2026-10-30:* resources go through `OriginalFiles.Get` / `Of` (access
+      log: the shell's `--requests=<file>`); `OriginalFiles.Flat` holds only the game tables and the embedded assets
+      (`EmbeddedAssets`: sound bank, balloon pieces, spider legs, glossary; the version line is `VersionLine`);
+      `OriginalFiles(byte[] packZip)` loads a pack, and the shell uses `res://assets/clean/clean_pack.zip` when no
+      original is found (`--clean` forces it, `--pack=<zip>` names one). Checked: `Formica.Replay --export-pack`
+      writes the player's files as a pack (local only) and the game on it is pixel-identical on 24 screen sets; 161
+      tests pass (the OPL traces cover the sound bank). Builder: `tools/clean_pack/build.py` (bitmaps and cursors so
+      far; its encoders round-trip all 252 original bitmaps). **Left:** encoders for the other formats as their
+      categories start (sheets, strings, texts + style runs, cards, menus, layouts, fonts, sounds, songs, the embedded
+      assets); the Godot export must include `clean_pack.zip` (export preset `include_filter`); the setup screen
+      becomes optional ("Use your own copy"). Design (2026-10-30): the clean pack uses **the original's own resource formats**
       (the planar bitmaps, tile sheets, STR# lists, fonts, sounds, MIDI ...), keyed by the same archive / type / id,
       so the verified decoders and drawing code stay exactly as they are and either source drops in. The makers
       produce ordinary files (indexed PNG, WAV, MIDI, JSON, text); `tools/clean_pack/build.py` encodes them into
@@ -61,7 +71,9 @@ the original files make the clean assets from those specs.
       DS:1A58, menu / alert colours DS:5FEA / DS:550C, the key table DS:2CBE, the balloon shapes, the SimAntipedia
       glossary 4EE5:0520, and the sound driver's effect table and volume tables (its FM instrument patches are
       sound design: the clean pack brings its own, A4).
-- [ ] **A3. Specs.** One file per category under `docs/clean_pack/` (see `ART_PLAN.md` section 9 for the list
+- [ ] **A3. Specs.** *Started 2026-10-30:* `docs/clean_pack/README.md` (the process, the `.pix` format, the
+      makers' brief), the measurements `docs/clean_pack/data/*.json` (`Formica.Replay --measure`: sizes, counts,
+      lengths, timings and numeric structure only), the pilot spec `cursors.md`. One file per category under `docs/clean_pack/` (see `ART_PLAN.md` section 9 for the list
       and the template): for every asset the id, size, frame count, palette roles, timing, where and when it is
       shown, and what it must show, in words. No images, no original text, no notes.
 - [ ] **A4. Make the pack** (isolated agents, one category at a time, each with only its spec; provenance in
@@ -74,7 +86,7 @@ the original files make the clean assets from those specs.
         cat, bird, sign);
   - [ ] window and panel bitmaps, tool icons, window controls, the title and menu screens, the about box,
         event pictures and scenes (window 26), the game-over and win screens;
-  - [ ] mouse cursors (types 7 / 8);
+  - [x] mouse cursors (types 7 / 8): the pilot, 2026-10-30 (`src/cursors/`, checked in the game on a dev pack);
   - [ ] fonts 0..4 (open-licensed or newly drawn bitmap fonts with the same metrics);
   - [ ] window layouts: re-authored in our own format from the measured geometry (rectangles, item types and
         ids; functional data, see `ART_PLAN.md` section 2);
