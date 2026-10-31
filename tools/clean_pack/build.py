@@ -17,6 +17,9 @@ docs/clean_pack/data/*.json (sizes must match: the engine places things by them)
 Source formats so far:
 - .pix: pixel art as text. One row per line, one character per pixel: 0-9 a-f = palette index (the Mac 16-colour
   palette, 0 white .. 15 black), '.' = transparent. Lines starting with '#' are comments.
+- sprites/surface.pix, nest.pix (256 x 128: sprite n at column n % 16, row n // 16, 16 x 16 each; 0-9 a-f = the
+  yellow ant's colour, '.' = transparent) with surface_recolour.pix, nest_recolour.pix (same size: 1 = recoloured for
+  the black and red ants, 0 or '.' = not).
 """
 import json, os, struct, sys, zipfile
 
@@ -150,7 +153,51 @@ def cat_tiles(errors):
         yield 'HCEGANT/9/%d.bin' % ident, enc_tiles(rows)
 
 
-CATEGORIES = [cat_bitmaps, cat_cursors, cat_tiles]
+def enc_sprites(rows, recolour):
+    """HCEGANT type 9 sprite sheet from a 256 x 128 picture and its recolour mask (1 = recoloured): sprite n at column
+    n % 16, row n / 16; per sprite 16 rows of mask, recolour mask, planes 0..3, 2 bytes each (FILE_FORMATS "Map tiles
+    and ant sprites"). A transparent pixel is mask 0 and planes 0."""
+    out = bytearray()
+    for n in range(128):
+        sx, sy = (n % 16) * 16, (n // 16) * 16
+        for y in range(16):
+            row = rows[sy + y][sx:sx + 16]
+            out += bits(row, lambda c: c is not None)
+            out += bits(recolour[sy + y][sx:sx + 16], lambda c: c == 1)
+            for p in range(4):
+                out += bits(row, lambda c, p=p: c is not None and (c >> p) & 1)
+    return bytes(out)
+
+
+def cat_sprites(errors):
+    """src/sprites/surface.pix, nest.pix (256 x 128) with surface_recolour.pix, nest_recolour.pix -> HCEGANT/9/14.bin,
+    HCEGANT/9/13.bin."""
+    d = os.path.join(SRC, 'sprites')
+    for name, ident in (('surface', 14), ('nest', 13)):
+        path = os.path.join(d, name + '.pix')
+        if not os.path.exists(path):
+            continue
+        rec_name = name + '_recolour.pix'
+        rec_path = os.path.join(d, rec_name)
+        if not os.path.exists(rec_path):
+            errors.append('sprites/%s: the recolour file %s is missing' % (name + '.pix', rec_name))
+            continue
+        w, h, rows = read_pix(path)
+        rw, rh, rec = read_pix(rec_path)
+        if (w, h) != (256, 128) or (rw, rh) != (256, 128):
+            errors.append('sprites/%s and %s: must be 256 x 128' % (name + '.pix', rec_name))
+            continue
+        if any(c not in (None, 0, 1) for r in rec for c in r):
+            errors.append('sprites/%s: only 1 (recoloured) and 0 or . (not) are allowed' % rec_name)
+            continue
+        hole = next(((x, y) for y in range(h) for x in range(w) if rec[y][x] == 1 and rows[y][x] is None), None)
+        if hole:
+            errors.append('sprites/%s: recoloured at (%d, %d), a transparent pixel' % (rec_name, hole[0], hole[1]))
+            continue
+        yield 'HCEGANT/9/%d.bin' % ident, enc_sprites(rows, rec)
+
+
+CATEGORIES = [cat_bitmaps, cat_cursors, cat_tiles, cat_sprites]
 
 
 def expected():
@@ -160,8 +207,11 @@ def expected():
         names.add('%s/2/%d.bin' % (b['archive'], b['id']))
     for c in data('cursors'):
         names.add('%s/%d/%d.bin' % (c['archive'], c['type'], c['id']))
+    # only the sheets MapArt reads: 9 / 10 the house / yard tiles, 13 / 14 the nest / surface sprites (0 and the EMS
+    # copies 15..20 are never loaded by the game)
     for s in data('sheets'):
-        names.add('HCEGANT/9/%d.bin' % s['id'])
+        if s['id'] in (9, 10, 13, 14):
+            names.add('HCEGANT/9/%d.bin' % s['id'])
     for s in data('strings'):
         names.add('%s/4/%d.bin' % (s['archive'], s['id']))
     for t in data('texts'):

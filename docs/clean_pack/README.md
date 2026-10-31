@@ -46,7 +46,8 @@ More formats (text, sound, music, fonts, layouts) are added here as their catego
 | Spec | What | Status |
 |---|---|---|
 | [cursors.md](cursors.md) | the 2 mouse cursors | done 2026-10-30 (the pilot: spec, isolated maker, build, checked in the game) |
-| [map_tiles.md](map_tiles.md) | the yard and house tile sheets | draft: the per-tile table is still to write |
+| [map_tiles.md](map_tiles.md) | the yard and house tile sheets | both tables written (yard sheet made 2026-10-30; house sheet ready for a maker) |
+| [ant_sprites.md](ant_sprites.md) | the 2 ant sprite sheets (surface, nest) with their recolour masks | spec written 2026-10-31, ready for a maker |
 | (to write) | palette, map tiles, ant sprites, spider, yard, UI bitmaps, title / scenes, SimAntipedia pictures, fonts, layouts, text, sound effects, instruments, music | see ROADMAP A4 |
 
 ## The makers' brief (give this with the spec)
