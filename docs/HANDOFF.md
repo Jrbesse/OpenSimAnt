@@ -1,11 +1,38 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-31 (map tiles and ant sprites by subagents; see the first dated entry). Before that 2026-10-30, end of the 10-29 night session (the window layout solver f_25595; the long-run
+old transcript. Last updated 2026-10-31, afternoon (fonts and all 74 UI bitmaps by subagents; see the first dated entry). Before that 2026-10-31 (map tiles and ant sprites by subagents). Before that 2026-10-30, end of the 10-29 night session (the window layout solver f_25595; the long-run
 check: no divergence in 200,000 ticks; test builds for Windows / macOS / Linux; 38 screen captures identical but for
 timing; the owner's first play-test: it plays like the original). Before that, 2026-10-24: the remake's screens
 compared with the original's on the same game State (24 captures, 21 pixel-identical, the other 3 off by redraw timing);
 2026-10-20: the original's screens through a VGA model in the emulator, and the handler audit.
+
+**2026-10-31 afternoon: fonts and the UI bitmaps done, the yard spec written (all by Sonnet subagents, Opus reviewing).**
+- **Fonts** (`src/fonts/`, isolated maker, ~200k tokens, 4 image views): all six; `build.py` accepts every advance;
+  checked in the game (captions, History, SimAntipedia with bold links, Game Over, balloons). Polish later: font 3 is
+  cramped; & % ~ braces are plain.
+- **UI bitmaps spec** `docs/clean_pack/ui_bitmaps.md` (74 bitmaps: ids 100..113, 4500s..6000, 13000..17013, 21004/5,
+  28000/3), with rectangles taken from the layouts and `Main.cs` / `UiArt.cs` (spot-checked: the panels' bar well and
+  colours). `build.py`: `cat_bitmaps` now checks the mask and 1-plane rules, and `--roundtrip=<zip>` checks
+  `enc_bitmap` against all 252 originals (0 problems). Spec fixes after the first maker: 5000 is 97 x 143; the
+  inversion contrast rule (3:1 drawn and XOR 15) beats any lettering colour named in the tables, so menu and button
+  lettering is black.
+- **UI bitmaps made**, two isolated makers (passes 1-2: 46 files, ~250k; passes 3-4: 28 files, ~230k; the second
+  reused the first's `uilib.py` / `pics.py` and kept its files byte-identical): `src/bitmaps/HCEGANT_<id>.pix`, made by
+  `make_ui_bitmaps.py` + `grp_*.py`. Checked in the game: Edit strip, help overlays, scent menu, Game Over, Behavior /
+  Caste panels, History, win screen. Notes: the History caption "Starved" reads "Hunger" (width); the start-up cards
+  say "AN OPEN FAN PROJECT" (the owner may want other wording; the remake never draws them); tutorial step 11 asks for
+  17014, which does not exist (no picture, as in the original).
+- **Yard / actors spec** `docs/clean_pack/yard_bitmaps.md` (114 bitmaps: 1000s, 7000s, 8000s; 5 maker passes; lattice
+  checked against `YardRenderer.cs`). The maker may read `src/spider/legs.json` and the UI batch's 14000 / 17006 /
+  17007; 17006 / 17007 become crops of the new 7010 (`--crops`). Open points the spec found: the door patches are drawn
+  at x 174 by the code, but 172 fits the art (`DOOR_X`); **a remake bug: 8200 / 8201 (the person in the armchair / at the
+  fridge) are drawn in both yard views, but the original draws them only in the House view**; 8905 is an unused spare.
+- Usage: the 5-hour window went 1% → 82%. Each maker cost ~10% and each spec writer 10-15% (~5% per 100k Sonnet
+  tokens). Running two agents in parallel worked as long as only one touched `build.py`.
+**Next:** the yard maker (5 passes; run passes 1-2 and 3-5 as two agents, each with at most 4-6 image views), then
+specs for the title / select / about screens (2000s, 3000s), the scenes (9000s, 12000s) and SHARED type 2 (40), then
+text, glossary, soundbank. Also fix the 8200 / 8201 House-view-only bug.
 
 **2026-10-31: map tiles and ant sprites done (ROADMAP A4), by subagents.** The owner asked to try Opus directing
 cheaper subagents (Sonnet / Haiku) with Opus reviewing every result. Done this way: the house sheet's slot table in
