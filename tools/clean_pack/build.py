@@ -40,6 +40,13 @@ Source formats so far:
   tail_right, tail_left. Only '0' (white inside), 'f' (black outline) and '.' (transparent) are used. -> EXE/balloon.bin
   (176 bytes: per piece 8 rows of two bytes, the inside plane (1 = white) then the shape plane (1 = opaque), MSB =
   leftmost pixel). The pieces must join as Balloon.Make lays them out (balloon_seams checks it).
+- spider/legs.json (docs/clean_pack/spider_legs.md): {"north": view, "north_east": view}; a view is {"legs": [4 legs],
+  "fangs": [4 frames]}; a leg is 8 frames, each a polyline of 3 integer [x, y] points [attach, joint, tip]; a fang frame
+  is a polyline of 3 points [base, p1, p2]. Points are pixels from the spider's centre (x right, y down), |x|, |y| <= 48,
+  for the spider's right side facing that view; the left side is the mirror image at frame + 4, the other 6 headings
+  are made by the game from these two views (turned or flipped). A leg keeps its attach point in all 8 frames; a fang's
+  base is the fixed anchor [4, -10] ('north') / [10, -3] ('north_east'), which is not stored. -> EXE/spiderlegs.bin
+  (304 bytes of signed bytes; layout in enc_spiderlegs).
 - version/version.txt: one line of printable ASCII, at most 72 characters (the Ctrl+Alt+V alert) -> EXE/version.txt.
 """
 import json, os, struct, sys, zipfile
@@ -443,6 +450,98 @@ def cat_balloon(errors):
     yield 'EXE/balloon.bin', enc_balloon(rows)
 
 
+SPIDER_VIEWS = ('north', 'north_east')
+SPIDER_ANCHORS = {'north': (4, -10), 'north_east': (10, -3)}    # where the code starts each view's first fang (not stored)
+SPIDER_LIMIT = 48                                               # |x|, |y| of every stored point (pixels from the centre)
+
+
+def enc_spiderlegs(src):
+    """EXE/spiderlegs.bin (OpenSimAnt.Data/SpiderLegs.cs, tools/ref/gen_spider_legs_cs.py; docs/clean_pack/spider_legs.md),
+    304 bytes of signed bytes, from {"north": view, "north_east": view}; a view is {"legs": [4 legs], "fangs": [4 frames]}, a
+    leg is 8 frames of [attach, joint, tip], a fang frame is [base, p1, p2] (base not stored). The game draws the other 6
+    headings from these two views by turning / flipping them (the engine's code, not the file) and the spider's other side
+    as the mirror image of this side at frame + 4. Layout: 0 'north' fangs: x1[4] y1[4] x2[4] y2[4] (p1, p2 per frame);
+    16 'north_east' fangs; 32 'north' legs: attach x[4] y[4], then joint x[4 legs][8 frames] ... 40 + 16 * leg + 8 * (0
+    joint, 1 tip) + frame, y the same + 64; 168 'north_east' legs: attach x[4] y[4], then 176 + 16 * leg + 64 * (0 joint,
+    1 tip) + frame for x, +8 for y."""
+    out = bytearray(304)
+    for v, view in enumerate(SPIDER_VIEWS):
+        s = src[view]
+        fang, legs = 16 * v, (32, 168)[v]
+        for f in range(4):
+            for j in range(2):
+                for c in range(2):
+                    out[fang + 8 * j + 4 * c + f] = s['fangs'][f][1 + j][c] & 255
+        for k in range(4):
+            for c in range(2):
+                out[legs + 4 * c + k] = s['legs'][k][0][0][c] & 255
+            for f in range(8):
+                for j in range(2):
+                    p = s['legs'][k][f][1 + j]
+                    if v == 0:
+                        out[legs + 8 + 16 * k + 8 * j + f] = p[0] & 255
+                        out[legs + 72 + 16 * k + 8 * j + f] = p[1] & 255
+                    else:
+                        out[legs + 8 + 16 * k + 64 * j + f] = p[0] & 255
+                        out[legs + 16 + 16 * k + 64 * j + f] = p[1] & 255
+    return bytes(out)
+
+
+def spiderlegs_problems(src):
+    """Why legs.json is not acceptable (a list of sentences): the shape, integer points within SPIDER_LIMIT, each leg
+    keeping its attach point in all 8 frames, each fang starting at the engine's anchor, no two points of a polyline
+    equal (a line must have a length), and a leg's joint and tip neither both at the attach point."""
+    why = []
+    if not isinstance(src, dict) or set(src) != set(SPIDER_VIEWS):
+        return ['the keys must be %s' % list(SPIDER_VIEWS)]
+
+    def pt(p):
+        return isinstance(p, list) and len(p) == 2 and all(type(c) is int and abs(c) <= SPIDER_LIMIT for c in p)
+
+    for view in SPIDER_VIEWS:
+        s = src[view]
+        if not isinstance(s, dict) or set(s) != {'legs', 'fangs'}:
+            why.append('%s: the keys must be legs and fangs' % view)
+            continue
+        legs, fangs = s['legs'], s['fangs']
+        if not (isinstance(legs, list) and len(legs) == 4 and all(isinstance(l, list) and len(l) == 8 for l in legs)):
+            why.append('%s: legs must be 4 legs of 8 frames' % view)
+            continue
+        if not (isinstance(fangs, list) and len(fangs) == 4):
+            why.append('%s: fangs must be 4 frames' % view)
+            continue
+        for k, leg in enumerate(legs):
+            for f, pl in enumerate(leg):
+                if not (isinstance(pl, list) and len(pl) == 3 and all(pt(p) for p in pl)):
+                    why.append('%s: leg %d frame %d must be 3 points [attach, joint, tip], integers within +-%d' % (view, k, f, SPIDER_LIMIT))
+                elif pl[0] != legs[k][0][0]:
+                    why.append('%s: leg %d frame %d: the attach point must be the same in all 8 frames' % (view, k, f))
+                elif pl[1] == pl[0] or pl[2] == pl[1]:
+                    why.append('%s: leg %d frame %d: two points of the leg are the same' % (view, k, f))
+        for f, pl in enumerate(fangs):
+            if not (isinstance(pl, list) and len(pl) == 3 and all(pt(p) for p in pl)):
+                why.append('%s: fang frame %d must be 3 points [base, p1, p2], integers within +-%d' % (view, f, SPIDER_LIMIT))
+            elif tuple(pl[0]) != SPIDER_ANCHORS[view]:
+                why.append('%s: fang frame %d must start at the anchor %s' % (view, f, list(SPIDER_ANCHORS[view])))
+            elif pl[1] == pl[0] or pl[2] == pl[1]:
+                why.append('%s: fang frame %d: two points of the fang are the same' % (view, f))
+    return why
+
+
+def cat_spiderlegs(errors):
+    """src/spider/legs.json -> EXE/spiderlegs.bin."""
+    path = os.path.join(SRC, 'spider', 'legs.json')
+    if not os.path.exists(path):
+        return
+    with open(path) as f:
+        src = json.load(f)
+    why = spiderlegs_problems(src)
+    if why:
+        errors.extend('spider/legs.json: ' + s for s in why)
+        return
+    yield 'EXE/spiderlegs.bin', enc_spiderlegs(src)
+
+
 VERSION_MAX = 72
 
 
@@ -463,7 +562,8 @@ def cat_version(errors):
         yield 'EXE/version.txt', text.encode('ascii')
 
 
-CATEGORIES = [cat_palette, cat_bitmaps, cat_cursors, cat_tiles, cat_sprites, cat_fonts, cat_balloon, cat_version]
+CATEGORIES = [cat_palette, cat_bitmaps, cat_cursors, cat_tiles, cat_sprites, cat_fonts, cat_balloon, cat_spiderlegs,
+              cat_version]
 
 # texts (SHARED type 10) that the original has no style runs for (no SHARED type 21 entry): Antipedia.Text reads
 # type 21 as optional, so these are not in expected()

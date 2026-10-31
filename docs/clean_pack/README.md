@@ -49,6 +49,11 @@ The game's art, fonts, text, sound effects and music, made new so the game runs 
   `FONT/1..4` (Apple `FONT`). The game never loads `SHARED/11/2` and `3` while `FONT/1` and `2` exist.
 
 - Speech balloon (`balloon/balloon.pix`; [balloon.md](balloon.md)): the 11 pieces of 8 x 8 side by side, 88 x 8, in the order top_left, top_right, top, right, left, bottom_left, bottom_right, bottom, inside, tail_right, tail_left; `0` = white (inside), `f` = black (outline), `.` = transparent. Becomes `EXE/balloon.bin` (176 bytes: per piece 8 rows of an inside byte and a shape byte). `build.py` checks that the pieces join as the game lays them out.
+- Spider legs (`spider/legs.json`; [spider_legs.md](spider_legs.md)): `{"north": view, "north_east": view}`; a view is
+  `{"legs": [4 legs], "fangs": [4 frames]}`; a leg is 8 frames, each a polyline of 3 integer `[x, y]` points
+  `[attach, joint, tip]`; a fang frame is a polyline of 3 points `[base, p1, p2]`. Pixels from the spider's centre (x
+  right, y down), each coordinate within +-48, for the spider's right side. Becomes `EXE/spiderlegs.bin` (304 bytes).
+  `build.py` checks the shape, the range, that each leg keeps its attach point, and that each fang starts at its fixed anchor.
 - Version line (`version/version.txt`): our own text, one line of printable ASCII, at most 72 characters (the Ctrl+Alt+V alert) -> `EXE/version.txt`. Needs no spec or maker.
 
 More formats (text, sound, music, layouts) are added here as their categories start.
@@ -62,7 +67,8 @@ More formats (text, sound, music, layouts) are added here as their categories st
 | [ant_sprites.md](ant_sprites.md) | the 2 ant sprite sheets (surface, nest) with their recolour masks | spec written 2026-10-31, ready for a maker |
 | [fonts.md](fonts.md) | the 6 bitmap fonts (2 PC text-mode faces, 4 proportional faces) with their exact advance widths | spec written 2026-10-31, ready for a maker (encoder in `build.py`, round trip of all originals checked) |
 | [balloon.md](balloon.md) | the speech balloon's 11 pieces (`EXE/balloon.bin`) | spec written 2026-10-31, ready for a maker (encoder and join checks in `build.py`, round trip of the original checked) |
-| (to write) | spider, UI bitmaps, title / scenes, SimAntipedia pictures, layouts, text, sound effects, instruments, music | see ROADMAP A4 |
+| [spider_legs.md](spider_legs.md) | the spider's 8 legs and 2 fangs as 1-pixel lines (`EXE/spiderlegs.bin`) | spec written 2026-10-31, ready for a maker (encoder and checks in `build.py`, round trip of the original checked) |
+| (to write) | spider body sprites, UI bitmaps, title / scenes, SimAntipedia pictures, layouts, text, sound effects, instruments, music | see ROADMAP A4 |
 
 ## The makers' brief (give this with the spec)
 
