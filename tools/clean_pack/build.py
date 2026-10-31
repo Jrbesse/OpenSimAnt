@@ -2,6 +2,7 @@
 
     python tools/clean_pack/build.py                       # the clean pack; lists what is still missing
     python tools/clean_pack/build.py --fallback=<zip>      # a dev pack: missing resources taken from <zip>
+    python tools/clean_pack/build.py --roundtrip=<zip>     # check enc_bitmap against every type-2 bitmap in <zip>; builds nothing
 
 Sources: remake/game/assets/clean/src/<category>/ (written by the makers, docs/clean_pack/*.md). Output:
 - without --fallback: remake/game/assets/clean/clean_pack.zip, only when nothing is missing (else the list and exit 1;
@@ -20,6 +21,11 @@ Source formats so far:
   follows the colours; MapArt reads it).
 - .pix: pixel art as text. One row per line, one character per pixel: 0-9 a-f = palette index (the Mac 16-colour
   palette, 0 white .. 15 black), '.' = transparent. Lines starting with '#' are comments.
+- bitmaps/<ARCHIVE>_<id>.pix (docs/clean_pack/ui_bitmaps.md and later bitmap specs): one .pix per HCEGANT / SHARED type-2
+  bitmap, e.g. HCEGANT_4600.pix, exactly the measured size (bitmaps.json). A bitmap measured "masked" must contain '.'
+  pixels (they become the mask plane: the game draws mode-3 bitmaps through it), any other must contain none; a 1-plane
+  bitmap (21004, 21005) allows only 0 and f. -> ARCHIVE/2/<id>.bin. --roundtrip=<zip> checks the encoder against the
+  originals of a pack.
 - sprites/surface.pix, nest.pix (256 x 128: sprite n at column n % 16, row n // 16, 16 x 16 each; 0-9 a-f = the
   yellow ant's colour, '.' = transparent) with surface_recolour.pix, nest_recolour.pix (same size: 1 = recoloured for
   the black and red ants, 0 or '.' = not).
@@ -64,19 +70,24 @@ def data(name):
 
 
 # ------------------------------------------------------------------------------------------------ source readers
-def read_pix(path):
-    """(width, height, rows): rows of palette indices, None = transparent."""
+def parse_pix(lines, what='pix'):
+    """(width, height, rows) from the lines of a .pix: rows of palette indices, None = transparent."""
     rows = []
-    with open(path) as f:
-        for line in f:
-            line = line.rstrip('\r\n')
-            if not line or line.startswith('#'):
-                continue
-            rows.append([None if c == '.' else int(c, 16) for c in line])
+    for line in lines:
+        line = line.rstrip('\r\n')
+        if not line or line.startswith('#'):
+            continue
+        rows.append([None if c == '.' else int(c, 16) for c in line])
     w = len(rows[0]) if rows else 0
     if any(len(r) != w for r in rows):
-        raise ValueError('%s: rows of different lengths' % path)
+        raise ValueError('%s: rows of different lengths' % what)
     return w, len(rows), rows
+
+
+def read_pix(path):
+    """(width, height, rows): rows of palette indices, None = transparent."""
+    with open(path) as f:
+        return parse_pix(f, path)
 
 
 # ------------------------------------------------------------------------------------------------ encoders
@@ -142,8 +153,61 @@ def cat_palette(errors):
     yield 'HCEGANT/15/0.bin', blob
 
 
+def dec_bitmap(d):
+    """HCEGANT / SHARED type 2 -> (width, height, planes, masked, rows): rows of palette indices, None = transparent
+    (a masked bitmap's mask bit 0); a 1-plane bitmap's ink (1) is index 15, its paper index 0. The inverse of
+    enc_bitmap (and OpenSimAnt.Data Bitmaps.Decode); only used to check that the encoder reads the originals back."""
+    mode, planes, _flags, _size, w, h = struct.unpack_from('<HBBIHH', d, 0)
+    rb, masked = (w + 7) // 8, mode == 3
+    np_ = planes + (1 if masked else 0)
+    rows = []
+    for y in range(h):
+        pl = [d[12 + (y * np_ + p) * rb:12 + (y * np_ + p + 1) * rb] for p in range(np_)]
+        row = []
+        for x in range(w):
+            bit, bx = 0x80 >> (x & 7), x >> 3
+            if masked and not pl[0][bx] & bit:
+                row.append(None)
+            elif planes == 1:
+                row.append(15 if pl[-1][bx] & bit else 0)
+            else:
+                row.append(sum(1 << p for p in range(planes) if pl[(1 if masked else 0) + p][bx] & bit))
+        rows.append(row)
+    return w, h, planes, masked, rows
+
+
+def check_bitmap_roundtrip(zip_path):
+    """--roundtrip=<zip>: every bitmap of the measurements (bitmaps.json) in the pack <zip> (for example
+    remake/build/original_pack.zip) is decoded, written as .pix text, read back with read_pix, encoded with
+    enc_bitmap and decoded again; width, height, planes, masked and every pixel must survive. The header's size hint and
+    flags and the padding bits are not stored by the encoder, so the bytes may differ (the game ignores those). Returns
+    (checked, problems)."""
+    checked, problems = 0, []
+    with zipfile.ZipFile(zip_path) as z:
+        for m in data('bitmaps'):
+            name = '%s/2/%d.bin' % (m['archive'], m['id'])
+            if name not in z.namelist():
+                problems.append('%s: not in the pack' % name)
+                continue
+            w, h, planes, masked, rows = dec_bitmap(z.read(name))
+            if (w, h, planes, masked) != (m['width'], m['height'], m['planes'], m['masked']):
+                problems.append('%s: %dx%d, %d planes, masked %s; the measurements say %dx%d, %d, %s'
+                                % (name, w, h, planes, masked, m['width'], m['height'], m['planes'], m['masked']))
+                continue
+            text = [''.join('.' if c is None else '%x' % c for c in r) for r in rows]
+            w2, h2, rows2 = parse_pix(text)
+            blob = enc_bitmap(w2, h2, rows2, planes)
+            back = dec_bitmap(blob)
+            checked += 1
+            if back != (w, h, planes, masked, rows):
+                problems.append('%s: the pixels do not survive the encoder' % name)
+    return checked, problems
+
+
 def cat_bitmaps(errors):
-    """src/bitmaps/<ARCHIVE>_<id>.pix -> ARCHIVE/2/<id>.bin, sized as measured."""
+    """src/bitmaps/<ARCHIVE>_<id>.pix -> ARCHIVE/2/<id>.bin, sized as measured. A bitmap the game draws masked (the
+    measurements' "masked") must have at least one '.' (transparent) pixel and any other must have none; a 1-plane
+    bitmap is black ink on white paper, so only 0 (white) and f (black) are allowed in it."""
     want = {(b['archive'], b['id']): b for b in data('bitmaps')}
     d = os.path.join(SRC, 'bitmaps')
     for name in sorted(os.listdir(d)) if os.path.isdir(d) else []:
@@ -158,6 +222,14 @@ def cat_bitmaps(errors):
         m = want[key]
         if (w, h) != (m['width'], m['height']):
             errors.append('bitmaps/%s: %d x %d, the spec says %d x %d' % (name, w, h, m['width'], m['height']))
+            continue
+        has_hole = any(c is None for r in rows for c in r)
+        if has_hole != m['masked']:
+            errors.append('bitmaps/%s: %s' % (name, "must have transparent ('.') pixels (it is drawn masked)" if m['masked']
+                                              else "must be opaque, no '.' pixels"))
+            continue
+        if m['planes'] == 1 and any(c not in (0, 15) for r in rows for c in r):
+            errors.append("bitmaps/%s: a 1-plane bitmap allows only '0' (white) and 'f' (black)" % name)
             continue
         yield '%s/2/%d.bin' % key, enc_bitmap(w, h, rows, m['planes'])
 
@@ -612,6 +684,12 @@ def expected():
 
 def main():
     opts = dict(a[2:].split('=', 1) if '=' in a else (a[2:], '1') for a in sys.argv[1:] if a.startswith('--'))
+    if 'roundtrip' in opts:                                   # check the encoder against the originals, build nothing
+        checked, problems = check_bitmap_roundtrip(opts['roundtrip'])
+        for p in problems:
+            print('error:', p)
+        print('%d bitmaps checked through enc_bitmap, %d problems' % (checked, len(problems)))
+        sys.exit(1 if problems else 0)
     errors, made = [], {}
     for cat in CATEGORIES:
         for name, blob in cat(errors):
