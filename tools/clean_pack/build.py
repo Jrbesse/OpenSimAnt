@@ -35,6 +35,12 @@ Source formats so far:
   ceil(cell width / 8) bytes per row for each character that has ink or an advance), font2..font5 -> FONT/1..4
   (Apple FONT: the strike is the ink columns of all glyphs side by side, kernMax 0, fontType 0x9000; the optional
   tables behind the offset / width table are not written, the game never reads them).
+- balloon/balloon.pix (docs/clean_pack/balloon.md): the speech balloon's 11 pieces side by side, 88 x 8, piece n at
+  columns 8n .. 8n+7 in the order top_left, top_right, top, right, left, bottom_left, bottom_right, bottom, inside,
+  tail_right, tail_left. Only '0' (white inside), 'f' (black outline) and '.' (transparent) are used. -> EXE/balloon.bin
+  (176 bytes: per piece 8 rows of two bytes, the inside plane (1 = white) then the shape plane (1 = opaque), MSB =
+  leftmost pixel). The pieces must join as Balloon.Make lays them out (balloon_seams checks it).
+- version/version.txt: one line of printable ASCII, at most 72 characters (the Ctrl+Alt+V alert) -> EXE/version.txt.
 """
 import json, os, struct, sys, zipfile
 
@@ -366,7 +372,98 @@ def cat_fonts(errors):
                                 else enc_font_own(cells, adv, first_index, h, cw))
 
 
-CATEGORIES = [cat_palette, cat_bitmaps, cat_cursors, cat_tiles, cat_sprites, cat_fonts]
+BALLOON_PIECES = ['top_left', 'top_right', 'top', 'right', 'left', 'bottom_left', 'bottom_right', 'bottom', 'inside',
+                  'tail_right', 'tail_left']
+
+
+def enc_balloon(rows):
+    """EXE/balloon.bin (OpenSimAnt.Data/Balloon.cs; docs/clean_pack/balloon.md) from the 88 x 8 strip of the 11 pieces
+    (BALLOON_PIECES, in this order): per piece 8 rows of two bytes, MSB = leftmost pixel: first the inside plane (1 =
+    white), then the shape plane (1 = opaque: white inside or black outline; 0 = transparent). 176 bytes."""
+    out = bytearray()
+    for i in range(11):
+        for r in rows:
+            seg = r[8 * i:8 * i + 8]
+            out += bits(seg, lambda c: c == 0) + bits(seg, lambda c: c is not None)
+    return bytes(out)
+
+
+def balloon_seams(rows):
+    """Why the 11 pieces do not join (a list of sentences), by how Balloon.Make lays them out: left / right / inside
+    are tiled down any number of rows and top / bottom / inside across any number of cells (so they must be uniform
+    that way), and a piece must continue its neighbour at the shared edge."""
+    P = {n: [r[8 * i:8 * i + 8] for r in rows] for i, n in enumerate(BALLOON_PIECES)}
+    col = lambda n, x: [row[x] for row in P[n]]
+    why = []
+    for n in ('left', 'right', 'inside'):
+        if any(P[n][y] != P[n][0] for y in range(8)):
+            why.append('%s: all 8 rows must be the same (it is tiled downwards)' % n)
+    for n in ('top', 'bottom', 'inside'):
+        if any(col(n, x) != col(n, 0) for x in range(8)):
+            why.append('%s: all 8 columns must be the same (it is tiled across)' % n)
+    # a piece's last column continues the next piece's first; a piece's last row continues the one below
+    for a, b in (('top_left', 'top'), ('top', 'top_right'), ('left', 'inside'), ('inside', 'right'),
+                 ('bottom_left', 'bottom'), ('bottom', 'bottom_right')):
+        if col(a, 7) != col(b, 0):
+            why.append('%s | %s: the right column of the first must equal the left column of the second' % (a, b))
+    for a, b in (('top_left', 'left'), ('top', 'inside'), ('top_right', 'right')):
+        if P[a][7] != P[b][0]:
+            why.append('%s over %s: the bottom row of the first must equal the top row of the second' % (a, b))
+    for a, b in (('left', 'bottom_left'), ('inside', 'bottom'), ('right', 'bottom_right'), ('inside', 'tail_left'),
+                 ('inside', 'tail_right')):
+        if P[a][0] != P[b][0]:
+            why.append('%s / %s: the top row of both must be equal (the bottom pieces are laid over the tiles)' % (a, b))
+    # a tail replaces a bottom piece and runs on below the outline, so only its rows 0..3 (down to the outline) join
+    for a, b in (('bottom_left', 'tail_left'), ('tail_left', 'bottom'), ('bottom', 'tail_right'),
+                 ('tail_right', 'bottom')):
+        if col(a, 7)[:4] != col(b, 0)[:4]:
+            why.append('%s | %s: rows 0..3 of the right column of the first must equal those of the left column of the second' % (a, b))
+    for n in ('tail_left', 'tail_right'):
+        if any(P[n][y] != P['inside'][0] for y in range(3)):
+            why.append('%s: rows 0..2 must be the inside, as the bottom piece they replace' % n)
+    return why
+
+
+def cat_balloon(errors):
+    """src/balloon/balloon.pix (88 x 8; 0 white, f black, . transparent) -> EXE/balloon.bin."""
+    path = os.path.join(SRC, 'balloon', 'balloon.pix')
+    if not os.path.exists(path):
+        return
+    w, h, rows = read_pix(path)
+    if (w, h) != (88, 8):
+        errors.append('balloon/balloon.pix: %d x %d, must be 88 x 8 (11 pieces of 8 x 8)' % (w, h))
+        return
+    if any(c not in (None, 0, 15) for r in rows for c in r):
+        errors.append("balloon/balloon.pix: only '0' (white), 'f' (black) and '.' are allowed")
+        return
+    why = balloon_seams(rows)
+    if why:
+        errors.extend('balloon/balloon.pix: ' + s for s in why)
+        return
+    yield 'EXE/balloon.bin', enc_balloon(rows)
+
+
+VERSION_MAX = 72
+
+
+def cat_version(errors):
+    """src/version/version.txt -> EXE/version.txt (the Ctrl+Alt+V alert: one line of printable ASCII; the alert is a
+    text-mode box of 8-pixel cells on 640 pixels, line + 2 cells wide, so at most 78 characters; kept to VERSION_MAX)."""
+    path = os.path.join(SRC, 'version', 'version.txt')
+    if not os.path.exists(path):
+        return
+    with open(path, 'rb') as f:
+        raw = f.read()
+    text = raw.decode('latin-1').strip('\r\n')
+    if not text or any(not 32 <= ord(c) < 127 for c in text):
+        errors.append('version/version.txt: one non-empty line of printable ASCII (32..126)')
+    elif len(text) > VERSION_MAX:
+        errors.append('version/version.txt: %d characters, at most %d' % (len(text), VERSION_MAX))
+    else:
+        yield 'EXE/version.txt', text.encode('ascii')
+
+
+CATEGORIES = [cat_palette, cat_bitmaps, cat_cursors, cat_tiles, cat_sprites, cat_fonts, cat_balloon, cat_version]
 
 # texts (SHARED type 10) that the original has no style runs for (no SHARED type 21 entry): Antipedia.Text reads
 # type 21 as optional, so these are not in expected()

@@ -48,6 +48,9 @@ The game's art, fonts, text, sound effects and music, made new so the game runs 
   tables are derived by `build.py`. Fonts 0 and 1 become `SHARED/11/0` and `1` (the game's own font format), fonts 2..5
   `FONT/1..4` (Apple `FONT`). The game never loads `SHARED/11/2` and `3` while `FONT/1` and `2` exist.
 
+- Speech balloon (`balloon/balloon.pix`; [balloon.md](balloon.md)): the 11 pieces of 8 x 8 side by side, 88 x 8, in the order top_left, top_right, top, right, left, bottom_left, bottom_right, bottom, inside, tail_right, tail_left; `0` = white (inside), `f` = black (outline), `.` = transparent. Becomes `EXE/balloon.bin` (176 bytes: per piece 8 rows of an inside byte and a shape byte). `build.py` checks that the pieces join as the game lays them out.
+- Version line (`version/version.txt`): our own text, one line of printable ASCII, at most 72 characters (the Ctrl+Alt+V alert) -> `EXE/version.txt`. Needs no spec or maker.
+
 More formats (text, sound, music, layouts) are added here as their categories start.
 
 ## Categories
@@ -58,7 +61,8 @@ More formats (text, sound, music, layouts) are added here as their categories st
 | [map_tiles.md](map_tiles.md) | the yard and house tile sheets | both tables written (yard sheet made 2026-10-30; house sheet ready for a maker) |
 | [ant_sprites.md](ant_sprites.md) | the 2 ant sprite sheets (surface, nest) with their recolour masks | spec written 2026-10-31, ready for a maker |
 | [fonts.md](fonts.md) | the 6 bitmap fonts (2 PC text-mode faces, 4 proportional faces) with their exact advance widths | spec written 2026-10-31, ready for a maker (encoder in `build.py`, round trip of all originals checked) |
-| (to write) | palette, spider, UI bitmaps, title / scenes, SimAntipedia pictures, layouts, text, sound effects, instruments, music | see ROADMAP A4 |
+| [balloon.md](balloon.md) | the speech balloon's 11 pieces (`EXE/balloon.bin`) | spec written 2026-10-31, ready for a maker (encoder and join checks in `build.py`, round trip of the original checked) |
+| (to write) | spider, UI bitmaps, title / scenes, SimAntipedia pictures, layouts, text, sound effects, instruments, music | see ROADMAP A4 |
 
 ## The makers' brief (give this with the spec)
 
