@@ -122,11 +122,13 @@ copy.
 ## 6. Audio notes
 
 - **Effects**: recreate each effect by function (footstep stomp, mower, bite, bird, eat, dig, alarm, UI
-  clicks ...) at a similar length and a lo-fi 8–11 kHz character. Which effect id plays when is in the
-  code (`st.player.effect(st, 'sound', n)` calls); the id-to-sound-resource mapping is still to decode
-  (HANDOFF step 8 "Open").
-- **Music**: compose new pieces per cue, with similar length, tempo and mood, for General MIDI or a
-  chiptune-style synth. The cue list (which song plays for which event) is still to decode. Playing the
+  clicks ...) at a similar length and a lo-fi character. Which effect id plays when is in the code
+  (`st.player.effect(st, 'sound', n)` calls). Decoded since (SIM_NOTES "The sound driver"): the driver's effect
+  table names an instrument per effect; sampled effects play at 5575.6 Hz, some effects are FM notes.
+- **Instruments**: the original's FM patches (OPL2 register values in SIMANT.EXE) are sound design, so the clean
+  pack defines its own patches for the same driver (or plays its music through another synth).
+- **Music**: compose new pieces per cue, with similar length, tempo and mood. The cues are the effect ids 10000+
+  the sim and the shell play (the title, File > New, the win screen ...; `remake/README.md` "Sound"). Playing the
   player's own MIDI files is part of "Use your own copy" mode.
 
 ## 7. Engine requirements that follow
@@ -137,3 +139,57 @@ copy.
   only colours in the clean pack, so "Use your own copy" and the clean pack mix freely.
 - Vector-line rendering for the spider's legs (1 px, no anti-aliasing) to keep the original's feel.
 - Integer scaling of the 640 x 480 canvas, with no filtering.
+
+## 8. Everything the game reads from the original files (2026-10-30)
+
+Not only art: to run with no original files, the clean pack (or the source code) has to supply all of this.
+Where it is read today, in `remake/src/Formica.Data` and `remake/game/Main.cs`:
+
+| Source | What | Read by | Clean replacement |
+|---|---|---|---|
+| SIMANT.EXE, the sim's tables | ~6,300 bytes read before written, ~1,200 non-zero (`Formica.Replay --deps`): direction / offset tables, terrain generator tables, cell and sprite tables, wall shapes DS:2DF4, cheat codes T:067E, start-up values | `ExeImage.NewState`, `GameSession.NewGame` | named tables in source (ROADMAP A2) |
+| SIMANT.EXE, the saved game's block table 4E4B:0000 | the .ANT file layout | `SaveFile.Blocks` (`GameData.Flat`) | a table in source (it is the file format, FILE_FORMATS "Saved games") |
+| SIMANT.EXE, UI tables | map dither patterns DS:1F9E, colour modes DS:1A58, menu colours DS:5FEA, alert colours DS:550C, key table DS:2CBE, balloon shapes (`Balloon.Make`), SimAntipedia glossary 4EE5:0520 | `MapRenderer`, `Balloon`, `Antipedia`, `Main` | tables in source; the glossary's words are new text |
+| SIMANT.EXE, the sound driver's data | the effect table DS:0A82, volume tables, FM instrument patches | `SoundBank`, `SoundDriver` | tables in source; new instrument patches |
+| HCEGANT type 0 | window layouts (34) and the UI tables 128 / 129 / 131 (colour schemes) | `Layouts`, `UiArt` | re-authored layouts in our own format (geometry and item types: functional) |
+| HCEGANT type 2 | colour bitmaps: UI, title, yard, actors, spider, scenes | `UiArt.Bitmap`, `Spider`, `YardRenderer`, `Main` | new art |
+| HCEGANT type 9 | tile and sprite sheets 9, 10, 13, 14 (15..20 EMS copies) | `MapArt` | new art |
+| HCEGANT type 15 | the palette | `MapArt` | the standard Mac 16-colour palette |
+| HCEGANT types 7 / 8 | cursors and masks | `Main` | new art |
+| SHARED type 2 | mono bitmaps (SimAntipedia pictures, icons) | `UiArt.Bitmap`, `Antipedia` | new art |
+| SHARED type 4 (and HCEGANT type 4) | STR# string lists: messages, ratings, names, balloon lines, credits, tutorial | `OriginalFiles.Strings` | new text |
+| SHARED type 6 | the pull-down menus | `Menus` | new text, same structure |
+| SHARED type 10 | texts: the 53 SimAntipedia cards, the save prompts 128 / 130 | `OriginalFiles.Text`, `Antipedia` | new text |
+| SHARED type 11, FONT1..FONT4 | fonts 0..4 | `UiArt.Font` | open-licensed or new bitmap fonts, same metrics |
+| SOUND type 5 | 57 sampled effects | `OriginalFiles.SoundEffect` | new effects |
+| SOUND types 18 / 20 | per-song metadata and 30 MIDI songs | `SoundDriver`, `Main` | new songs |
+
+## 9. Making the clean pack with isolated agents (decided 2026-10-30)
+
+The owner chose to have the pack made by AI agents, kept apart as section 2 requires:
+
+- **The spec side** is the session that studied the originals. It writes the specs (`docs/clean_pack/<category>.md`)
+  and the engine work, and later reviews the results for similarity. It never makes an asset.
+- **The makers** are fresh agents, one per batch, started with only the spec file's text and an output folder
+  (`remake/game/assets/clean/<category>/`). Their instructions: read nothing else in the repository, never open the
+  original files (SIMANT.EXE, *.DAT, *.NDX, FONT*), `extracted/` or `tools/re/build/`, and never search for them; work
+  from the spec, general knowledge and their own invention. They write the assets with scripts (pixel art drawn in
+  code, synthesized sounds, MIDI written note by note, new prose) and keep those scripts beside the output, so
+  every asset can be regenerated and its making is on record.
+- **Provenance**: each batch appends to `remake/game/assets/clean/PROVENANCE.md`: date, maker (agent run), spec
+  file and revision, the files made, and the scripts that made them.
+- **The pack is a first version**: decent, consistent programmer art that makes the game complete. Any asset can be
+  replaced later (by people or better agents) from the same spec without code changes.
+
+**A spec entry** gives, per asset or group:
+- the id(s) and the category, and what it is for (where and when the game shows or plays it);
+- sizes in pixels, frame counts, origins / offsets that the code depends on, and the transparency or mask rule;
+- the palette indices allowed and their roles (for ants: drawn in the yellow set, plus the recolour mask);
+- for text: the purpose of each line, its maximum length in characters or pixels, and the placeholders the code
+  fills in (`%d`, `%s`), never the original's wording;
+- for sound: the function, the length, the character (for example "a short dry thump"), the sample rate, or for FM
+  the instrument's role; for music the cue, the length, the tempo range and the mood;
+- what to avoid: the original's distinctive designs, logos and names.
+
+Measurements, counts, sizes, timings and functional descriptions are fine to pass on (section 2); images, text,
+waveforms and melodies are not.

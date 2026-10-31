@@ -15,7 +15,7 @@ publisher, and the remake's public name is still to be chosen.
 
 | Path | What |
 |---|---|
-| `docs/` | `SIM_NOTES.md` (the decoded rules, memory layout and addresses), `FILE_FORMATS.md` (archives, bitmaps, fonts, layouts, saves), `RECREATION_PLAN.md`, `ART_PLAN.md` (how to make a clean-room art pack), `HANDOFF.md` (status and next steps). |
+| `docs/` | `ROADMAP.md` (what is left before version 1), `SIM_NOTES.md` (the decoded rules, memory layout and addresses), `FILE_FORMATS.md` (archives, bitmaps, fonts, layouts, saves), `RECREATION_PLAN.md`, `ART_PLAN.md` (how to make a clean-room art pack), `HANDOFF.md` (status and next steps). |
 | `tools/` | Python tools that read the original files: archive extraction, bitmaps, tiles, fonts, window layouts. |
 | `tools/re/` | Reverse-engineering tooling: a flat memory image of the executable, an annotated disassembler, a Ghidra wrapper, and a Unicorn-based emulator of the game. |
 | `tools/ref/` | `simant_ref`, the Python reference port of the whole simulation, and its differential tests against the emulator. |
@@ -26,10 +26,12 @@ publisher, and the remake's public name is still to be chosen.
 - The simulation is completely ported and verified: every tick of the game (both colonies, nests, the
   yellow ant, the spider, ant lions, weather, the yard and the house, new games, saved games, cheats, map
   tools, menu commands) matches the original byte for byte in the tests.
-- The C# port matches the Python reference on every recorded call (about 225,000).
-- The Godot remake is an early shell: it plays a game from the player's files, draws the map windows with
-  the original's art, and takes mouse and keyboard commands. The original's screens (menus, panels, yard
-  map, history graph, sounds) are next.
+- The C# port matches the Python reference on every recorded call (about 236,000), and long scripted games
+  (200,000 ticks) stay identical to the original.
+- The Godot remake is complete with the player's own files: every window, menu, panel, the yard, the
+  SimAntipedia, the tutorial, sound and music, compared screen by screen with the original.
+- **Next: a clean-room asset pack**, so the game runs with no original files at all. What is left before
+  version 1 is listed in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Using it
 
@@ -41,7 +43,7 @@ python -I tools/extract.py                          # optional: browse the art, 
 cd remake && dotnet build game/Formica.csproj       # then open remake/game in Godot 4.6 (.NET) and run
 ```
 
-Test builds for Windows (no Godot or .NET needed) come from tagged releases; see "Test builds for players"
+Test builds for Windows, macOS and Linux (no Godot or .NET needed) come from tagged releases; see "Test builds for players"
 in `remake/README.md`. On first run the game asks for the folder with your copy of the original files.
 
 The verification setup (emulator snapshots, traces) is described in `docs/HANDOFF.md` and

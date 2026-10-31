@@ -43,19 +43,39 @@ public sealed class State
     // ---- raw access by (segment, offset)
     static int A(int seg, int off) => seg * 16 + (off & 0xffff) - Lo;
 
-    public int U8(int seg, int off) => Mem[A(seg, off)];
+    /// <summary>Analysis only (`Formica.Replay --deps`), null otherwise: per byte, 1 = written, 2 = read while still
+    /// holding the starting image's value. The 2s are the data the game needs from SIMANT.EXE.</summary>
+    public static byte[] Touch;
+
+    static void Read(int a)
+    {
+        if ((Touch[a] & 1) == 0) Touch[a] |= 2;
+    }
+
+    public int U8(int seg, int off)
+    {
+        int a = A(seg, off);
+        if (Touch != null) Read(a);
+        return Mem[a];
+    }
 
     public int S8(int seg, int off)
     {
-        int v = Mem[A(seg, off)];
+        int v = U8(seg, off);
         return v > 127 ? v - 256 : v;
     }
 
-    public void Set8(int seg, int off, int v) => Mem[A(seg, off)] = (byte)v;
+    public void Set8(int seg, int off, int v)
+    {
+        int a = A(seg, off);
+        if (Touch != null) Touch[a] |= 1;
+        Mem[a] = (byte)v;
+    }
 
     public int U16(int seg, int off)
     {
         int a = A(seg, off);
+        if (Touch != null) { Read(a); Read(a + 1); }
         return Mem[a] | (Mem[a + 1] << 8);
     }
 
@@ -68,6 +88,7 @@ public sealed class State
     public void Set16(int seg, int off, int v)
     {
         int a = A(seg, off);
+        if (Touch != null) { Touch[a] |= 1; Touch[a + 1] |= 1; }
         Mem[a] = (byte)v;
         Mem[a + 1] = (byte)(v >> 8);
     }

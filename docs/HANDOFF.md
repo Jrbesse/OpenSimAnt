@@ -7,6 +7,15 @@ timing; the owner's first play-test: it plays like the original). Before that, 2
 compared with the original's on the same game State (24 captures, 21 pixel-identical, the other 3 off by redraw timing);
 2026-10-20: the original's screens through a VGA model in the emulator, and the handler audit.
 
+**2026-10-30: the next goal is the clean-room asset pack, so the game runs with no original files.** The full list of
+what is left before version 1 is now **`docs/ROADMAP.md`** (Track A: the clean pack; Track B: confirm and polish; Track
+C: release); keep it ticked off. `docs/ART_PLAN.md` sections 8 / 9 list everything the game reads from the originals and
+how the pack is made: **the owner chose isolated agents** (this side writes specs in words only, under
+`docs/clean_pack/`; fresh agents with only a spec make the assets with scripts, provenance in
+`remake/game/assets/clean/PROVENANCE.md`). Measured with the new `Formica.Replay --deps [dir] [games] [ticks] [out]`
+(`State.Touch`, analysis only: marks bytes read before any write): the simulation needs only ~1,200 non-zero bytes of
+SIMANT.EXE's data (list in `remake/build/deps.txt`), so ROADMAP A2 puts them in source.
+
 **2026-10-29: the owner play-tested** (start-up, Quick Game, basic play): "so far it seems to play identical to the
 original". Bugs left would be the kind long play finds.
 
@@ -40,6 +49,10 @@ is testing the builds on all three systems**: ask for the results.
 Constraints:
 - **Never commit original Maxis files or anything extracted from them.** The tools read the user's own copy
   (SIMANT.EXE and the .NDX/.DAT archives in the repo root, all git-ignored) at runtime.
+  **One exception (the owner's decision, 2026-10-30):** the gameplay number tables the simulation reads from
+  SIMANT.EXE (~1.2 KB: direction vectors, caste odds, terrain / rock shapes, cheat codes, the save layout; ROADMAP A2)
+  may be committed as named, documented tables in source, so the game runs without the original. Numbers only, never
+  art, text, sound or fonts; flagged for the legal review before going public (ROADMAP Track C).
 - Commits use the owner's personal identity, which is configured repo-locally (do not change it).
 - Keep an eye on the plan's usage limits (`get_usage`); stop at a clean, committed point when the 5-hour
   window gets high.
@@ -313,7 +326,9 @@ already at 52% and ended around 75% (weekly 3%). The night session (menus .. mes
 fresh window (weekly 5% → 12%): a screen piece costs 5-10%, the tutorial (RE + Python + emulator test +
 traces + C# + shell) about 15%.
 
-Suggested next session (in order):
+Suggested next session: **follow `docs/ROADMAP.md` Track A** (A1 the asset layer, A2 the tables in source, A3 specs,
+A4 the pack), with Track B items as the owner reports. The older list below is kept for its details; its open items
+are all in the roadmap.
 0. Keep comparing screens (2026-10-24 workflow: `python tools/re/screens.py` (~3 min), `dotnet build
    remake/game/Formica.csproj`, `python tools/re/compare_screens.py`; look at `build/screens/remake/<name>_diff.png`).
    **Where this stopped (2026-10-29):** the file dialog (`filedlg`) is done: its chrome is identical to the original's;
