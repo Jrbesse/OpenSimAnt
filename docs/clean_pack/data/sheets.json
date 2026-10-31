@@ -1,0 +1,57 @@
+[
+  {
+    "id": 0,
+    "bytes": 320,
+    "kind": "table"
+  },
+  {
+    "id": 9,
+    "bytes": 32768,
+    "kind": "tiles: 256 x (16 rows x 4 planes x 2 bytes)"
+  },
+  {
+    "id": 10,
+    "bytes": 32768,
+    "kind": "tiles: 256 x (16 rows x 4 planes x 2 bytes)"
+  },
+  {
+    "id": 13,
+    "bytes": 24576,
+    "kind": "sprites: 128 x 16 rows x (mask, recolour mask, 4 planes) x 2 bytes"
+  },
+  {
+    "id": 14,
+    "bytes": 24576,
+    "kind": "sprites: 128 x 16 rows x (mask, recolour mask, 4 planes) x 2 bytes"
+  },
+  {
+    "id": 15,
+    "bytes": 20480,
+    "kind": "sprites: 128 x 16 rows x (mask, recolour mask, 4 planes) x 2 bytes"
+  },
+  {
+    "id": 16,
+    "bytes": 20480,
+    "kind": "sprites: 128 x 16 rows x (mask, recolour mask, 4 planes) x 2 bytes"
+  },
+  {
+    "id": 17,
+    "bytes": 20480,
+    "kind": "sprites: 128 x 16 rows x (mask, recolour mask, 4 planes) x 2 bytes"
+  },
+  {
+    "id": 18,
+    "bytes": 20480,
+    "kind": "sprites: 128 x 16 rows x (mask, recolour mask, 4 planes) x 2 bytes"
+  },
+  {
+    "id": 19,
+    "bytes": 20480,
+    "kind": "sprites: 128 x 16 rows x (mask, recolour mask, 4 planes) x 2 bytes"
+  },
+  {
+    "id": 20,
+    "bytes": 20480,
+    "kind": "sprites: 128 x 16 rows x (mask, recolour mask, 4 planes) x 2 bytes"
+  }
+]

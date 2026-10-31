@@ -1,0 +1,34 @@
+[
+  {
+    "archive": "HCEGANT",
+    "type": 7,
+    "id": 1,
+    "width": 24,
+    "height": 32,
+    "bytes": 100
+  },
+  {
+    "archive": "HCEGANT",
+    "type": 8,
+    "id": 0,
+    "width": 16,
+    "height": 16,
+    "bytes": 132
+  },
+  {
+    "archive": "HCEGANT",
+    "type": 8,
+    "id": 1,
+    "width": 24,
+    "height": 32,
+    "bytes": 388
+  },
+  {
+    "archive": "SHARED",
+    "type": 7,
+    "id": 0,
+    "width": 16,
+    "height": 16,
+    "bytes": 36
+  }
+]

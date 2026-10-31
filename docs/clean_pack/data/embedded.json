@@ -1,0 +1,981 @@
+{
+  "assets": [
+    {
+      "Name": "soundbank",
+      "bytes": 2856,
+      "About": "the sound driver\u0027s bank (SoundBank): per MIDI channel a priority and an instrument (DS:0068), the FM records (16 bytes, DS:0202..) and sample records (0x20 bytes, DS:0342..), the 56 effects (key, priority, instrument, velocity; DS:0A82), the 56 instruments (device, record; DS:0D92)"
+    },
+    {
+      "Name": "balloon",
+      "bytes": 176,
+      "About": "the speech balloon\u0027s 8 x 8 pieces, 16 bytes each: corners, edges, inside, two tails (Balloon)"
+    },
+    {
+      "Name": "spiderlegs",
+      "bytes": 304,
+      "About": "the spider\u0027s leg and fang coordinates per heading and frame (SpiderLegs reads them from the State\u0027s T:09E4)"
+    },
+    {
+      "Name": "glossary",
+      "bytes": 886,
+      "About": "the SimAntipedia glossary: 0x22-byte entries (u16 text id, a 32-byte upper-case word), ending with id 0"
+    }
+  ],
+  "instruments": [
+    {
+      "index": 0,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        0
+      ]
+    },
+    {
+      "index": 1,
+      "device": "sample",
+      "sample_sound": 1,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        1
+      ]
+    },
+    {
+      "index": 2,
+      "device": "sample",
+      "sample_sound": 2,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        2
+      ]
+    },
+    {
+      "index": 3,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        3
+      ]
+    },
+    {
+      "index": 4,
+      "device": "sample",
+      "sample_sound": 4,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        4
+      ]
+    },
+    {
+      "index": 5,
+      "device": "sample",
+      "sample_sound": 5,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        5
+      ]
+    },
+    {
+      "index": 6,
+      "device": "sample",
+      "sample_sound": 6,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        6
+      ]
+    },
+    {
+      "index": 7,
+      "device": "sample",
+      "sample_sound": 7,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        7
+      ]
+    },
+    {
+      "index": 8,
+      "device": "sample",
+      "sample_sound": 8,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        8
+      ]
+    },
+    {
+      "index": 9,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        9
+      ]
+    },
+    {
+      "index": 10,
+      "device": "sample",
+      "sample_sound": 10,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        10,
+        55
+      ]
+    },
+    {
+      "index": 11,
+      "device": "sample",
+      "sample_sound": 11,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        11
+      ]
+    },
+    {
+      "index": 12,
+      "device": "sample",
+      "sample_sound": 5,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        12
+      ]
+    },
+    {
+      "index": 13,
+      "device": "sample",
+      "sample_sound": 13,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        13
+      ]
+    },
+    {
+      "index": 14,
+      "device": "sample",
+      "sample_sound": 14,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        14
+      ]
+    },
+    {
+      "index": 15,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        15
+      ]
+    },
+    {
+      "index": 16,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        16
+      ]
+    },
+    {
+      "index": 17,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        17
+      ]
+    },
+    {
+      "index": 18,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        18
+      ]
+    },
+    {
+      "index": 19,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        19
+      ]
+    },
+    {
+      "index": 20,
+      "device": "sample",
+      "sample_sound": 20,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        20
+      ]
+    },
+    {
+      "index": 21,
+      "device": "sample",
+      "sample_sound": 21,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        21
+      ]
+    },
+    {
+      "index": 22,
+      "device": "sample",
+      "sample_sound": 22,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        22
+      ]
+    },
+    {
+      "index": 23,
+      "device": "sample",
+      "sample_sound": 23,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        23
+      ]
+    },
+    {
+      "index": 24,
+      "device": "sample",
+      "sample_sound": 24,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        24
+      ]
+    },
+    {
+      "index": 25,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        25
+      ]
+    },
+    {
+      "index": 26,
+      "device": "sample",
+      "sample_sound": 26,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        26
+      ]
+    },
+    {
+      "index": 27,
+      "device": "sample",
+      "sample_sound": 27,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        27
+      ]
+    },
+    {
+      "index": 28,
+      "device": "sample",
+      "sample_sound": 28,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        28
+      ]
+    },
+    {
+      "index": 29,
+      "device": "sample",
+      "sample_sound": 29,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        29
+      ]
+    },
+    {
+      "index": 30,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        30
+      ]
+    },
+    {
+      "index": 31,
+      "device": "sample",
+      "sample_sound": 31,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        31
+      ]
+    },
+    {
+      "index": 32,
+      "device": "sample",
+      "sample_sound": 32,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        32
+      ]
+    },
+    {
+      "index": 33,
+      "device": "sample",
+      "sample_sound": 33,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        33
+      ]
+    },
+    {
+      "index": 34,
+      "device": "sample",
+      "sample_sound": 34,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        34
+      ]
+    },
+    {
+      "index": 35,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        35
+      ]
+    },
+    {
+      "index": 36,
+      "device": "sample",
+      "sample_sound": 36,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        36
+      ]
+    },
+    {
+      "index": 37,
+      "device": "sample",
+      "sample_sound": 37,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        37
+      ]
+    },
+    {
+      "index": 38,
+      "device": "sample",
+      "sample_sound": 38,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        38
+      ]
+    },
+    {
+      "index": 39,
+      "device": "sample",
+      "sample_sound": 39,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        39
+      ]
+    },
+    {
+      "index": 40,
+      "device": "sample",
+      "sample_sound": 40,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        40
+      ]
+    },
+    {
+      "index": 41,
+      "device": "sample",
+      "sample_sound": 41,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        41
+      ]
+    },
+    {
+      "index": 42,
+      "device": "sample",
+      "sample_sound": 42,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        42
+      ]
+    },
+    {
+      "index": 43,
+      "device": "sample",
+      "sample_sound": 5,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        43
+      ]
+    },
+    {
+      "index": 44,
+      "device": "sample",
+      "sample_sound": 44,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        44
+      ]
+    },
+    {
+      "index": 45,
+      "device": "sample",
+      "sample_sound": 45,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        45
+      ]
+    },
+    {
+      "index": 46,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        46
+      ]
+    },
+    {
+      "index": 47,
+      "device": "sample",
+      "sample_sound": 47,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        47
+      ]
+    },
+    {
+      "index": 48,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        48
+      ]
+    },
+    {
+      "index": 49,
+      "device": "sample",
+      "sample_sound": 49,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        49
+      ]
+    },
+    {
+      "index": 50,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        50
+      ]
+    },
+    {
+      "index": 51,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        51
+      ]
+    },
+    {
+      "index": 52,
+      "device": "sample",
+      "sample_sound": 5,
+      "base_octave": 5,
+      "transpose": 0,
+      "used_by_effects": [
+        52
+      ]
+    },
+    {
+      "index": 53,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        53
+      ]
+    },
+    {
+      "index": 54,
+      "device": "FM",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": [
+        54
+      ]
+    },
+    {
+      "index": 55,
+      "device": "none",
+      "sample_sound": null,
+      "base_octave": null,
+      "transpose": null,
+      "used_by_effects": []
+    }
+  ],
+  "effects": [
+    {
+      "effect": 0,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 0,
+      "Velocity": 127
+    },
+    {
+      "effect": 1,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 1,
+      "Velocity": 127
+    },
+    {
+      "effect": 2,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 2,
+      "Velocity": 127
+    },
+    {
+      "effect": 3,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 3,
+      "Velocity": 127
+    },
+    {
+      "effect": 4,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 4,
+      "Velocity": 127
+    },
+    {
+      "effect": 5,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 5,
+      "Velocity": 127
+    },
+    {
+      "effect": 6,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 6,
+      "Velocity": 127
+    },
+    {
+      "effect": 7,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 7,
+      "Velocity": 127
+    },
+    {
+      "effect": 8,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 8,
+      "Velocity": 127
+    },
+    {
+      "effect": 9,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 9,
+      "Velocity": 127
+    },
+    {
+      "effect": 10,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 10,
+      "Velocity": 127
+    },
+    {
+      "effect": 11,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 11,
+      "Velocity": 127
+    },
+    {
+      "effect": 12,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 12,
+      "Velocity": 127
+    },
+    {
+      "effect": 13,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 13,
+      "Velocity": 127
+    },
+    {
+      "effect": 14,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 14,
+      "Velocity": 127
+    },
+    {
+      "effect": 15,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 15,
+      "Velocity": 127
+    },
+    {
+      "effect": 16,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 16,
+      "Velocity": 127
+    },
+    {
+      "effect": 17,
+      "Key": 60,
+      "Priority": 2,
+      "Instrument": 17,
+      "Velocity": 127
+    },
+    {
+      "effect": 18,
+      "Key": 60,
+      "Priority": 2,
+      "Instrument": 18,
+      "Velocity": 127
+    },
+    {
+      "effect": 19,
+      "Key": 60,
+      "Priority": 2,
+      "Instrument": 19,
+      "Velocity": 127
+    },
+    {
+      "effect": 20,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 20,
+      "Velocity": 127
+    },
+    {
+      "effect": 21,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 21,
+      "Velocity": 127
+    },
+    {
+      "effect": 22,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 22,
+      "Velocity": 127
+    },
+    {
+      "effect": 23,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 23,
+      "Velocity": 127
+    },
+    {
+      "effect": 24,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 24,
+      "Velocity": 127
+    },
+    {
+      "effect": 25,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 25,
+      "Velocity": 127
+    },
+    {
+      "effect": 26,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 26,
+      "Velocity": 127
+    },
+    {
+      "effect": 27,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 27,
+      "Velocity": 127
+    },
+    {
+      "effect": 28,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 28,
+      "Velocity": 127
+    },
+    {
+      "effect": 29,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 29,
+      "Velocity": 127
+    },
+    {
+      "effect": 30,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 30,
+      "Velocity": 127
+    },
+    {
+      "effect": 31,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 31,
+      "Velocity": 127
+    },
+    {
+      "effect": 32,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 32,
+      "Velocity": 127
+    },
+    {
+      "effect": 33,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 33,
+      "Velocity": 127
+    },
+    {
+      "effect": 34,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 34,
+      "Velocity": 127
+    },
+    {
+      "effect": 35,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 35,
+      "Velocity": 127
+    },
+    {
+      "effect": 36,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 36,
+      "Velocity": 127
+    },
+    {
+      "effect": 37,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 37,
+      "Velocity": 127
+    },
+    {
+      "effect": 38,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 38,
+      "Velocity": 127
+    },
+    {
+      "effect": 39,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 39,
+      "Velocity": 127
+    },
+    {
+      "effect": 40,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 40,
+      "Velocity": 127
+    },
+    {
+      "effect": 41,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 41,
+      "Velocity": 127
+    },
+    {
+      "effect": 42,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 42,
+      "Velocity": 127
+    },
+    {
+      "effect": 43,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 43,
+      "Velocity": 127
+    },
+    {
+      "effect": 44,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 44,
+      "Velocity": 127
+    },
+    {
+      "effect": 45,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 45,
+      "Velocity": 127
+    },
+    {
+      "effect": 46,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 46,
+      "Velocity": 127
+    },
+    {
+      "effect": 47,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 47,
+      "Velocity": 127
+    },
+    {
+      "effect": 48,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 48,
+      "Velocity": 127
+    },
+    {
+      "effect": 49,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 49,
+      "Velocity": 127
+    },
+    {
+      "effect": 50,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 50,
+      "Velocity": 127
+    },
+    {
+      "effect": 51,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 51,
+      "Velocity": 127
+    },
+    {
+      "effect": 52,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 52,
+      "Velocity": 127
+    },
+    {
+      "effect": 53,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 53,
+      "Velocity": 127
+    },
+    {
+      "effect": 54,
+      "Key": 60,
+      "Priority": 3,
+      "Instrument": 54,
+      "Velocity": 127
+    },
+    {
+      "effect": 55,
+      "Key": 100,
+      "Priority": 4,
+      "Instrument": 10,
+      "Velocity": 127
+    }
+  ],
+  "glossary_entries": 26,
+  "version_line_length": 33
+}

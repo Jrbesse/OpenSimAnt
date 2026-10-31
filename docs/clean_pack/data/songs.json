@@ -1,0 +1,1380 @@
+[
+  {
+    "id": 10001,
+    "ppq": 240,
+    "tracks": 10,
+    "tempo_us_per_quarter": [
+      280373
+    ],
+    "bpm": 214,
+    "ticks": 88390,
+    "seconds": 103.3,
+    "notes": 1185,
+    "lowest": 39,
+    "highest": 91,
+    "channels": [
+      1,
+      2,
+      3,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 120,
+        "channels": [
+          5
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 346,
+        "channels": [
+          1
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 182,
+        "channels": [
+          2
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 98,
+        "channels": [
+          3
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 91,
+        "channels": [
+          9
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 136,
+        "channels": [
+          6
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 107,
+        "channels": [
+          10
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 95,
+        "channels": [
+          7
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 10,
+        "channels": [
+          8
+        ]
+      }
+    ]
+  },
+  {
+    "id": 10003,
+    "ppq": 240,
+    "tracks": 6,
+    "tempo_us_per_quarter": [
+      333333
+    ],
+    "bpm": 180,
+    "ticks": 40320,
+    "seconds": 56,
+    "notes": 468,
+    "lowest": 71,
+    "highest": 79,
+    "channels": [
+      5,
+      7,
+      8,
+      9,
+      10
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 29,
+        "channels": [
+          9
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 225,
+        "channels": [
+          5
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 74,
+        "channels": [
+          7
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 56,
+        "channels": [
+          10
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 84,
+        "channels": [
+          8
+        ]
+      }
+    ]
+  },
+  {
+    "id": 10004,
+    "ppq": 240,
+    "tracks": 5,
+    "tempo_us_per_quarter": [
+      191082
+    ],
+    "bpm": 314,
+    "ticks": 59520,
+    "seconds": 47.4,
+    "notes": 452,
+    "lowest": 71,
+    "highest": 79,
+    "channels": [
+      5,
+      7,
+      8,
+      9
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 77,
+        "channels": [
+          9
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 99,
+        "channels": [
+          5
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 225,
+        "channels": [
+          7
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 51,
+        "channels": [
+          8
+        ]
+      }
+    ]
+  },
+  {
+    "id": 10005,
+    "ppq": 240,
+    "tracks": 6,
+    "tempo_us_per_quarter": [
+      200000
+    ],
+    "bpm": 300,
+    "ticks": 49920,
+    "seconds": 41.6,
+    "notes": 297,
+    "lowest": 62,
+    "highest": 81,
+    "channels": [
+      5,
+      6,
+      8,
+      9,
+      10
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 29,
+        "channels": [
+          6
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 155,
+        "channels": [
+          5
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 59,
+        "channels": [
+          8
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 36,
+        "channels": [
+          10
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 18,
+        "channels": [
+          9
+        ]
+      }
+    ]
+  },
+  {
+    "id": 10006,
+    "ppq": 240,
+    "tracks": 7,
+    "tempo_us_per_quarter": [
+      258620
+    ],
+    "bpm": 232,
+    "ticks": 19200,
+    "seconds": 20.7,
+    "notes": 227,
+    "lowest": 36,
+    "highest": 95,
+    "channels": [
+      1,
+      2,
+      5,
+      6,
+      9,
+      10
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 9,
+        "channels": [
+          9
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 76,
+        "channels": [
+          1
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 38,
+        "channels": [
+          2
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 21,
+        "channels": [
+          5
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 18,
+        "channels": [
+          6
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 65,
+        "channels": [
+          10
+        ]
+      }
+    ]
+  },
+  {
+    "id": 10007,
+    "ppq": 240,
+    "tracks": 8,
+    "tempo_us_per_quarter": [
+      267857
+    ],
+    "bpm": 224,
+    "ticks": 21120,
+    "seconds": 23.6,
+    "notes": 236,
+    "lowest": 48,
+    "highest": 85,
+    "channels": [
+      1,
+      2,
+      5,
+      6,
+      8,
+      9,
+      10
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 9,
+        "channels": [
+          10
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 92,
+        "channels": [
+          1
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 39,
+        "channels": [
+          2
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 50,
+        "channels": [
+          5
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 9,
+        "channels": [
+          6
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 19,
+        "channels": [
+          8
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 18,
+        "channels": [
+          9
+        ]
+      }
+    ]
+  },
+  {
+    "id": 10008,
+    "ppq": 240,
+    "tracks": 8,
+    "tempo_us_per_quarter": [
+      312500
+    ],
+    "bpm": 192,
+    "ticks": 23040,
+    "seconds": 30,
+    "notes": 292,
+    "lowest": 41,
+    "highest": 91,
+    "channels": [
+      1,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 13,
+        "channels": [
+          10
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 99,
+        "channels": [
+          1
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 89,
+        "channels": [
+          5
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 14,
+        "channels": [
+          6
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 20,
+        "channels": [
+          9
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 27,
+        "channels": [
+          8
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 30,
+        "channels": [
+          7
+        ]
+      }
+    ]
+  },
+  {
+    "id": 10010,
+    "ppq": 240,
+    "tracks": 7,
+    "tempo_us_per_quarter": [
+      230769
+    ],
+    "bpm": 260,
+    "ticks": 34560,
+    "seconds": 33.2,
+    "notes": 273,
+    "lowest": 50,
+    "highest": 91,
+    "channels": [
+      2,
+      3,
+      5,
+      7,
+      9,
+      10
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 95,
+        "channels": [
+          10
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 41,
+        "channels": [
+          2
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 46,
+        "channels": [
+          3
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 68,
+        "channels": [
+          5
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 18,
+        "channels": [
+          9
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 5,
+        "channels": [
+          7
+        ]
+      }
+    ]
+  },
+  {
+    "id": 11002,
+    "ppq": 480,
+    "tracks": 3,
+    "tempo_us_per_quarter": [
+      250000
+    ],
+    "bpm": 240,
+    "ticks": 9600,
+    "seconds": 5,
+    "notes": 35,
+    "lowest": 41,
+    "highest": 79,
+    "channels": [
+      1,
+      2
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 25,
+        "channels": [
+          2
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 10,
+        "channels": [
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "id": 11003,
+    "ppq": 480,
+    "tracks": 2,
+    "tempo_us_per_quarter": [
+      333333
+    ],
+    "bpm": 180,
+    "ticks": 1920,
+    "seconds": 1.3,
+    "notes": 8,
+    "lowest": 72,
+    "highest": 84,
+    "channels": [
+      4
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 8,
+        "channels": [
+          4
+        ]
+      }
+    ]
+  },
+  {
+    "id": 11004,
+    "ppq": 240,
+    "tracks": 5,
+    "tempo_us_per_quarter": [
+      250000
+    ],
+    "bpm": 240,
+    "ticks": 1920,
+    "seconds": 2,
+    "notes": 30,
+    "lowest": 55,
+    "highest": 82,
+    "channels": [
+      1,
+      3,
+      7,
+      8
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 13,
+        "channels": [
+          1
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 12,
+        "channels": [
+          7
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 4,
+        "channels": [
+          3
+        ]
+      },
+      {
+        "role": "percussion (sampled drums)",
+        "notes": 1,
+        "channels": [
+          8
+        ]
+      }
+    ]
+  },
+  {
+    "id": 11005,
+    "ppq": 240,
+    "tracks": 3,
+    "tempo_us_per_quarter": [
+      250000
+    ],
+    "bpm": 240,
+    "ticks": 3840,
+    "seconds": 4,
+    "notes": 23,
+    "lowest": 40,
+    "highest": 80,
+    "channels": [
+      0,
+      1
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 18,
+        "channels": [
+          0
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 5,
+        "channels": [
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "id": 11006,
+    "ppq": 240,
+    "tracks": 2,
+    "tempo_us_per_quarter": [
+      331674
+    ],
+    "bpm": 180.9,
+    "ticks": 7680,
+    "seconds": 10.6,
+    "notes": 31,
+    "lowest": 69,
+    "highest": 84,
+    "channels": [
+      2
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 31,
+        "channels": [
+          2
+        ]
+      }
+    ]
+  },
+  {
+    "id": 11007,
+    "ppq": 240,
+    "tracks": 2,
+    "tempo_us_per_quarter": [
+      331674
+    ],
+    "bpm": 180.9,
+    "ticks": 1920,
+    "seconds": 2.7,
+    "notes": 6,
+    "lowest": 38,
+    "highest": 53,
+    "channels": [
+      1
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 6,
+        "channels": [
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "id": 11013,
+    "ppq": 240,
+    "tracks": 2,
+    "tempo_us_per_quarter": [
+      332963
+    ],
+    "bpm": 180.2,
+    "ticks": 1920,
+    "seconds": 2.7,
+    "notes": 15,
+    "lowest": 72,
+    "highest": 84,
+    "channels": [
+      2
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 15,
+        "channels": [
+          2
+        ]
+      }
+    ]
+  },
+  {
+    "id": 11016,
+    "ppq": 480,
+    "tracks": 2,
+    "tempo_us_per_quarter": [
+      500000
+    ],
+    "bpm": 120,
+    "ticks": 3840,
+    "seconds": 4,
+    "notes": 8,
+    "lowest": 55,
+    "highest": 79,
+    "channels": [
+      1
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 8,
+        "channels": [
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "id": 11018,
+    "ppq": 240,
+    "tracks": 2,
+    "tempo_us_per_quarter": [
+      250000
+    ],
+    "bpm": 240,
+    "ticks": 3840,
+    "seconds": 4,
+    "notes": 6,
+    "lowest": 68,
+    "highest": 79,
+    "channels": [
+      2
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 6,
+        "channels": [
+          2
+        ]
+      }
+    ]
+  },
+  {
+    "id": 11020,
+    "ppq": 240,
+    "tracks": 3,
+    "tempo_us_per_quarter": [
+      125000
+    ],
+    "bpm": 480,
+    "ticks": 9600,
+    "seconds": 5,
+    "notes": 12,
+    "lowest": 48,
+    "highest": 70,
+    "channels": [
+      1,
+      2
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 7,
+        "channels": [
+          2
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 5,
+        "channels": [
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "id": 11021,
+    "ppq": 240,
+    "tracks": 2,
+    "tempo_us_per_quarter": [
+      331674
+    ],
+    "bpm": 180.9,
+    "ticks": 7680,
+    "seconds": 10.6,
+    "notes": 70,
+    "lowest": 60,
+    "highest": 84,
+    "channels": [
+      2
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 70,
+        "channels": [
+          2
+        ]
+      }
+    ]
+  },
+  {
+    "id": 20000,
+    "ppq": 240,
+    "tracks": 3,
+    "tempo_us_per_quarter": [
+      272727
+    ],
+    "bpm": 220,
+    "ticks": 1920,
+    "seconds": 2.2,
+    "notes": 9,
+    "lowest": 76,
+    "highest": 83,
+    "channels": [
+      1,
+      2
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 1,
+        "channels": [
+          2
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 8,
+        "channels": [
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "id": 20001,
+    "ppq": 240,
+    "tracks": 2,
+    "tempo_us_per_quarter": [
+      271616
+    ],
+    "bpm": 220.9,
+    "ticks": 1920,
+    "seconds": 2.2,
+    "notes": 12,
+    "lowest": 52,
+    "highest": 76,
+    "channels": [
+      1
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 12,
+        "channels": [
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "id": 20002,
+    "ppq": 240,
+    "tracks": 3,
+    "tempo_us_per_quarter": [
+      125000
+    ],
+    "bpm": 480,
+    "ticks": 15360,
+    "seconds": 8,
+    "notes": 36,
+    "lowest": 41,
+    "highest": 82,
+    "channels": [
+      1,
+      2
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 26,
+        "channels": [
+          2
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 10,
+        "channels": [
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "id": 20003,
+    "ppq": 240,
+    "tracks": 3,
+    "tempo_us_per_quarter": [
+      125000
+    ],
+    "bpm": 480,
+    "ticks": 13440,
+    "seconds": 7,
+    "notes": 34,
+    "lowest": 41,
+    "highest": 82,
+    "channels": [
+      1,
+      2
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 24,
+        "channels": [
+          2
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 10,
+        "channels": [
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "id": 20004,
+    "ppq": 240,
+    "tracks": 3,
+    "tempo_us_per_quarter": [
+      125000
+    ],
+    "bpm": 480,
+    "ticks": 7680,
+    "seconds": 4,
+    "notes": 18,
+    "lowest": 58,
+    "highest": 81,
+    "channels": [
+      1,
+      2
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 14,
+        "channels": [
+          2
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 4,
+        "channels": [
+          1
+        ]
+      }
+    ]
+  },
+  {
+    "id": 20005,
+    "ppq": 240,
+    "tracks": 3,
+    "tempo_us_per_quarter": [
+      125000
+    ],
+    "bpm": 480,
+    "ticks": 15360,
+    "seconds": 8,
+    "notes": 36,
+    "lowest": 41,
+    "highest": 86,
+    "channels": [
+      1,
+      2
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 26,
+        "channels": [
+          1
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 10,
+        "channels": [
+          2
+        ]
+      }
+    ]
+  },
+  {
+    "id": 20007,
+    "ppq": 240,
+    "tracks": 3,
+    "tempo_us_per_quarter": [
+      125000
+    ],
+    "bpm": 480,
+    "ticks": 15360,
+    "seconds": 8,
+    "notes": 26,
+    "lowest": 48,
+    "highest": 84,
+    "channels": [
+      2,
+      4
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 8,
+        "channels": [
+          4
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 18,
+        "channels": [
+          2
+        ]
+      }
+    ]
+  },
+  {
+    "id": 20008,
+    "ppq": 240,
+    "tracks": 3,
+    "tempo_us_per_quarter": [
+      250000
+    ],
+    "bpm": 240,
+    "ticks": 7680,
+    "seconds": 8,
+    "notes": 21,
+    "lowest": 56,
+    "highest": 77,
+    "channels": [
+      1,
+      4
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 13,
+        "channels": [
+          1
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 8,
+        "channels": [
+          4
+        ]
+      }
+    ]
+  },
+  {
+    "id": 20009,
+    "ppq": 240,
+    "tracks": 2,
+    "tempo_us_per_quarter": [
+      234375
+    ],
+    "bpm": 256,
+    "ticks": 3840,
+    "seconds": 3.8,
+    "notes": 32,
+    "lowest": 54,
+    "highest": 60,
+    "channels": [
+      4
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 32,
+        "channels": [
+          4
+        ]
+      }
+    ]
+  },
+  {
+    "id": 20010,
+    "ppq": 240,
+    "tracks": 3,
+    "tempo_us_per_quarter": [
+      271616
+    ],
+    "bpm": 220.9,
+    "ticks": 3840,
+    "seconds": 4.3,
+    "notes": 12,
+    "lowest": 52,
+    "highest": 71,
+    "channels": [
+      1,
+      2
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 11,
+        "channels": [
+          1
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 1,
+        "channels": [
+          2
+        ]
+      }
+    ]
+  },
+  {
+    "id": 20011,
+    "ppq": 240,
+    "tracks": 3,
+    "tempo_us_per_quarter": [
+      271616
+    ],
+    "bpm": 220.9,
+    "ticks": 3840,
+    "seconds": 4.3,
+    "notes": 6,
+    "lowest": 40,
+    "highest": 71,
+    "channels": [
+      2,
+      4
+    ],
+    "per_track": [
+      {
+        "role": "tempo / title (no notes)",
+        "notes": 0,
+        "channels": []
+      },
+      {
+        "role": "melodic",
+        "notes": 3,
+        "channels": [
+          2
+        ]
+      },
+      {
+        "role": "melodic",
+        "notes": 3,
+        "channels": [
+          4
+        ]
+      }
+    ]
+  }
+]
