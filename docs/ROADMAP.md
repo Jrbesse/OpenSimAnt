@@ -95,10 +95,16 @@ the original files make the clean assets from those specs.
   - [x] the speech balloon's pieces (`docs/clean_pack/balloon.md`, `src/balloon/`, 2026-10-31, checked in the game) and
         our own version line (`src/version/version.txt`);
   - [ ] window and panel bitmaps, tool icons, window controls, the title and menu screens, the about box,
-        event pictures and scenes (window 26), the game-over and win screens;
+        event pictures and scenes (window 26), the game-over and win screens. *2026-10-31:* the UI batch's spec
+        `docs/clean_pack/ui_bitmaps.md` (74 bitmaps: chrome, menus, toolbars, panels, help overlays, the game-over and
+        win screens, tutorial pictures, encyclopedia buttons, start-up cards); passes 1-2 made (46, `src/bitmaps/`,
+        checked in the game); the yard / actors spec `docs/clean_pack/yard_bitmaps.md` (114, see the yard items above;
+        ready for a maker, after the UI batch). Left: the title / select / about screens (2000s, 3000s), the scenes
+        (9000s, 12000s), SHARED type 2 (40);
   - [x] mouse cursors (types 7 / 8): the pilot, 2026-10-30 (`src/cursors/`, checked in the game on a dev pack);
-  - [ ] fonts 0..5 (open-licensed or newly drawn bitmap fonts with the same metrics): spec `docs/clean_pack/fonts.md`
-        and the encoder done 2026-10-31; the maker is next;
+  - [x] fonts 0..5 (newly drawn bitmap fonts with the same metrics): spec `docs/clean_pack/fonts.md`, `src/fonts/`
+        (2026-10-31, an isolated agent; the build checks every advance; checked in the game). Left for the similarity
+        review / polish: font 3 (the small serif) is cramped, some symbols (& % ~ braces) are plain;
   - [ ] window layouts: re-authored in our own format from the measured geometry (rectangles, item types and
         ids; functional data, see `ART_PLAN.md` section 2);
   - [ ] text: every string list (messages, ratings, ant states, credits, menus), the save prompts, the tutorial

@@ -97,8 +97,20 @@ def make(reg, path, sections=None):
     for i in (13000, 16100, 14002):
         if i in I:
             wins.append(to_pil(I[i], 2))
-    for i in (16000, 16001, 4600, 4601, 4620, 4621):
-        pass
+    for base, ov, off, size in ((4600, 4601, (40, 2), (210, 170)), (4620, 4621, (35, -1), (210, 170)),
+                                (16000, 16001, (45, 20), (320, 179))):
+        if base in I and ov in I:
+            wins.append(window([(I[base], 0, 0)], (I[ov], off[0], off[1]), size, 2))
+    if 16200 in I and 16210 in I:
+        from uilib import Img
+        pic = I[16200].copy()
+        for k, (x, y) in enumerate([(72, 74), (87, 66), (175, 64), (191, 66), (159, 122), (179, 124)]):
+            e = I[16210 + k % 3]
+            for yy in range(13):
+                for xx in range(13):
+                    if e.a[yy, xx] != T:
+                        pic.a[y + yy, x + xx] = e.a[yy, xx]
+        wins.append(to_pil(pic, 2))
     secs['windows'] = sheet(wins, 1700, 2)
     secs['inverted'] = sheet(inverted_pairs(reg), 1500, 2)
     W = max(s.width for s in secs.values())

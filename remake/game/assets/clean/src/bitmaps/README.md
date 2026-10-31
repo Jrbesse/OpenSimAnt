@@ -1,6 +1,6 @@
-# UI bitmaps (clean pack): passes 1 and 2
+# UI bitmaps (clean pack): all four passes (74 pictures)
 
-Made from `docs/clean_pack/ui_bitmaps.md` (groups A, B incl. B2, C, D, E, H: 46 of the 74 pictures). One file per
+Made from `docs/clean_pack/ui_bitmaps.md` (groups A to L: all 74 pictures; passes 1-2 = A, B, C, D, E, H; passes 3-4 = F, G, I, J, K, L). One file per
 bitmap, `HCEGANT_<id>.pix`, written by `make_ui_bitmaps.py`:
 
 ```
@@ -17,7 +17,9 @@ Needs Python 3 with numpy (always) and Pillow (preview only).
 | `pics.py` | the shared **subjects**, each drawn once: surface, nest cut-away, ants (top, side), larva, spider, queen on soil, the five scent pictures, alarm bulb, path, graph, house with lawn, card; `pic_button` wraps a picture in a bevelled button |
 | `grp_abc.py` | group A (100..113), group C (5100..5107), group B (menus, palettes, notices, the three help pages) |
 | `grp_deh.py` | group D (15000 + overlay 15001), E (14000, overlay 14001, popup 14002), H (13000, 16100) |
-| `preview.py` | `preview.png`: contact sheet at 2x, the Edit window and the Map window assembled with their overlays (over a brown check standing for the map), Status, Game Over, the popup, and every inverted rectangle next to its normal state |
+| `grp_fg.py` | group F (Behavior Control 4600, Caste Control 4620, overlays 4601 / 4621: shared panel and overlay builders driven by the `CFG` rectangles) and G (History 16000, overlay 16001) |
+| `grp_ijkl.py` | group I (win screen 16200 and the three eye frames 16210..16212), J (tutorial pictures 17000..17013), K (encyclopedia strips 21004, 21005), L (neutral start-up cards 28000, 28003) |
+| `preview.py` | `preview.png`: contact sheet at 2x, the Edit, Map, Behavior Control, Caste Control and History windows assembled with their overlays (over a brown check standing for the map), Status, Game Over, the popup, the win screen with the six eyes (frames 0, 1, 2 alternating) in place, and every inverted rectangle next to its normal state |
 | `make_ui_bitmaps.py` | the driver: the `GROUPS` list, the checks, the writing |
 
 ## The look
@@ -83,3 +85,40 @@ Callouts: `callout(img, x, y, lines)` (13 px high for one line, +10 per extra li
   other pictorial buttons carry the bevel inside their rectangle. Black-colony pictures have a black 15 frame, red-colony
   pictures a red 3 frame (outermost pixel) inside the rectangle.
 * The close box 100 is a plain X; 113 is the same X in red 3 on yellow 1.
+
+## Passes 3-4: decisions
+
+* **Corner boxes (4600 / 4620).** The spec's value rectangles touch or lie on the edge of the hit rectangles, so a 2-px
+  frame cannot fit inside them. The 2-px frame in the bar colour (8, 11, 7 / 4, 6, 2) hugs the white value rectangle and the
+  label zone and may lie 1-2 px outside the hit rectangle (left of the 4600 top box, below the 4620 boxes, 1 px above all
+  of them); the hit rectangle itself is always covered. Labels use the **small face** (the label face is too wide: `Forage`
+  needs 35 px of the 32 available). Labels sit in the first rows of the white label zone so that descenders (`g`) stay out
+  of the value rectangle.
+* **Triangle.** Computed per pixel from signed distances to the three sides of the spec's triangle (apex at the top
+  middle, base corners 2 px in from the rectangle's lower corners): flat white inside, 1-px black line, then a 3-px
+  edge (white left, 13 / 14 right and bottom). The check flood-fills the white interior and compares it with the triangle
+  grown / shrunk by 2 px.
+* **Bar well.** The white strip with the three letters (`F D N` / `B W S`, small face) continues the well down to y 92,
+  inside one frame; the gauge rectangle itself is flat white.
+* **Overlays 4601 / 4621** are built from the panel rectangles minus the overlay origin. Leader tips for the buttons sit
+  2 px right of the buttons' right edge (spec: 3 px tolerance), the bar callout overlaps the bar rectangle, the corner-box
+  panel is between the two lower boxes with outward arrowheads whose tips are inside the boxes' white value halves. All
+  content stays inside 164 x 164 / 169 x 169.
+* **History 16000.** Ten captions in the label face: `Pop`, `Food`, `Health` (both rows), `S.Food`, `Hunger` (starved),
+  `Eaten`, `Killed` (`Starved` is 41 px, wider than the 38 allowed). All black (inversion rule). Dividers at x about 180
+  (between the colony buttons and the four others, the spec's "x about 281" would split the four from the help button; a
+  second one is drawn there too). 16001 uses staggered **two-line rotated panels** 22 px wide (spec allows at most 22).
+  The two lower-row leaders run at x 182 / 230 so that they pass beside the button caption above.
+* **Win screen 16200.** Person (left), cat (upper right, on a tree) and dog (lower right) with a white flag, no ant and
+  no yellow at all. The 13 x 13 squares at the six given positions hold only the creature's flat face colour and a plain
+  white socket (asserted); everything else (brows, nose, mouth) is outside them. Eyes 16210..16212: the same 24-pixel corner
+  mask (rows 0-2 inset by 3, 2, 1 at both ends), black ring, pupil medium, then small with many red veins, then medium and
+  shifted with a grey lid shadow, so 0, 1, 2, 0 reads as a trembling panic.
+* **Tutorial pictures.** 17005 / 17008 / 17009 / 17011 / 17012 are crops of 14000 made by script and asserted equal (17012
+  includes a 1-px face ring, the toolbar has none). 17006 / 17007 are plain bevelled buttons (house, surface) that a later
+  batch may replace by crops of its own toolbar. 17010 has the same two wells as 14000's report (64 x 8 and 64 x 5, black
+  frame, black fill).  17000 reuses `pics.ant_top` in yellow with a black outline (5103's ant in the player's colour).
+* **Encyclopedia strips.** 1 plane, checkerboard `f` where x + y is even, black first row, white boxes (outline x 16..81,
+  y 3..17 for BACK) with a 1-px black shadow right and below, label face captions.
+* **Start-up cards.** Black, a seven-hexagon flower (own design, drawn at each size from the card's height, not scaled)
+  and one line, `AN OPEN FAN PROJECT`, in the small face at 2x with yellow face and two shadow steps (orange, red).

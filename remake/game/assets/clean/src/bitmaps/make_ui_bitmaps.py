@@ -1,4 +1,4 @@
-"""make_ui_bitmaps.py: writes every HCEGANT_<id>.pix of the UI bitmaps (passes 1-2: groups A, B, C, D, E, H),
+"""make_ui_bitmaps.py: writes every HCEGANT_<id>.pix of the UI bitmaps (all 74: groups A to L),
 runs the spec's checks as assertions, and writes preview.png.  Run from anywhere:  python make_ui_bitmaps.py
 Groups are functions group_x(reg) in grp_*.py; add a group by writing one and listing it in GROUPS (order matters:
 a group may use pictures made by an earlier one, e.g. 5000 uses the icons 5100..5106)."""
@@ -18,6 +18,14 @@ GROUPS = [
 try:
     import grp_deh
     GROUPS += [('D Edit strip', grp_deh.group_d), ('E Map toolbar', grp_deh.group_e), ('H Status, Game Over', grp_deh.group_h)]
+except ImportError:
+    pass
+import grp_fg  # noqa: E402
+GROUPS += [('F Behavior / Caste Control', grp_fg.group_f), ('G History', grp_fg.group_g)]
+try:
+    import grp_ijkl
+    GROUPS += [('I win screen', grp_ijkl.group_i), ('J tutorial pictures', grp_ijkl.group_j),
+               ('K encyclopedia buttons', grp_ijkl.group_k), ('L start-up cards', grp_ijkl.group_l)]
 except ImportError:
     pass
 
