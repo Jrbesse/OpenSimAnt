@@ -11,6 +11,33 @@ how they were checked) as they land. `HANDOFF.md` has the session-by-session det
   like the original (the way it works today);
 - published on GitHub under its own name, with builds for Windows, macOS and Linux.
 
+## Burn-down (update every session)
+
+Counted in **jobs**: one spec, one maker run, one encoder, one fix or one check, each about a tenth of a 5-hour
+usage window when done by a subagent. At the start and end of each session: tick off what landed, add what was found,
+and add a row to the log. New work found on the way goes into the table as it shows up.
+
+| Area | Done | Left (jobs) | What is left |
+|---|---|---|---|
+| A1 asset layer + encoders | layer, launcher, bitmap / tile / sprite / font / balloon / legs / palette / version encoders | 6 | encoders: strings + menus, texts + style runs + cards, glossary, layouts, sound bank + effects, songs + cues; the export's `include_filter` |
+| A4 bitmaps (252) | cursors, tiles, sprites, fonts, balloon, legs, palette; 74 UI bitmaps | 6 | yard maker x 2 (114); screens / scenes spec + maker (24); SimAntipedia pictures spec + maker (SHARED 40) |
+| A4 layouts (37) | (measured) | 2 | spec, maker |
+| A4 text | (measured: 119 string lists, 94 texts, 53 cards, 6 menus) | 6 | spec + maker each: strings and menus; tutorial and balloon lines; SimAntipedia cards, glossary, style runs |
+| A4 sound (57 effects, instruments) | (measured) | 2 | spec, maker |
+| A4 music (30 songs, 33 cues) | (measured) | 2 | spec, maker |
+| A5 integration | launcher | 3 | CI game with no originals; clean screenshots of every window; similarity review |
+| A6 identity | name, rename | 1 | audit: no SimAnt / Maxis marks in the pack (the title / about pictures come with the screens spec) |
+| B confirm and polish | B3 hang fix; 8200 / 8201 House-view-only (2026-10-31) | 9 | B2..B7 (6); polish: font 3 cramped, sprite legs ragged, house screens tables-vs-EXE |
+| C release | | 5 | public repo, licences, legal review, player README, tagged v1.0.0 |
+| **Total** | | **42** | B1 (the owner's test builds) is the owner's, not counted |
+
+Pace so far: 6..10 jobs per 5-hour window (art makers cost the most), so **about 5 to 7 sessions** to version 1, plus
+whatever the reviews find.
+
+| Session | Jobs done | Jobs left | Est. sessions left |
+|---|---|---|---|
+| 2026-10-31 evening (start) | (baseline) | 42 | 5..7 |
+
 ## Where things stand (2026-10-30)
 
 Done and checked:

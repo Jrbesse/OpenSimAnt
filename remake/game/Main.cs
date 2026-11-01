@@ -3574,7 +3574,9 @@ public partial class Main : Node2D
         var pic = ItemRect(YardWin, 2);
         var area = clip.Clip(pic.l, pic.t, pic.r, pic.b);
         if (mode < 2)
-            foreach (var (rid, x, y) in YardRenderer.Sprites(st, rainRng))
+            // f_6fc6e: in the Yard view (mode 0) the human shows only while roaming (T:0C28 != 0); the indoor
+            // script (armchair 8200, fridge 8201) shows only in the House view (SIM_NOTES "The yard window")
+            foreach (var (rid, x, y) in YardRenderer.Sprites(st, rainRng, human: mode == 1))
                 ui.DrawBitmap(area, rid, x + ox, y + oy);
         else
         {
