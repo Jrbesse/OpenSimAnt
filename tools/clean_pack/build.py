@@ -2,7 +2,7 @@
 
     python tools/clean_pack/build.py                       # the clean pack; lists what is still missing
     python tools/clean_pack/build.py --fallback=<zip>      # a dev pack: missing resources taken from <zip>
-    python tools/clean_pack/build.py --roundtrip=<zip>     # check enc_bitmap against every type-2 bitmap in <zip>; builds nothing
+    python tools/clean_pack/build.py --roundtrip=<zip>     # check enc_bitmap, enc_strlist and enc_menus against every original in <zip>; builds nothing
 
 Sources: remake/game/assets/clean/src/<category>/ (written by the makers, docs/clean_pack/*.md). Output:
 - without --fallback: remake/game/assets/clean/clean_pack.zip, only when nothing is missing (else the list and exit 1;
@@ -53,6 +53,15 @@ Source formats so far:
   are made by the game from these two views (turned or flipped). A leg keeps its attach point in all 8 frames; a fang's
   base is the fixed anchor [4, -10] ('north') / [10, -3] ('north_east'), which is not stored. -> EXE/spiderlegs.bin
   (304 bytes of signed bytes; layout in enc_spiderlegs).
+- strings/system.json, balloons.json, messages.json, tutorial.json (docs/clean_pack/strings.md): {"<list id>": ["line", ...]}
+  per file. The entry count of each list is the measured one (strings.json; the credits 1700 may have 10..80), a
+  line break inside a speech-balloon entry is a real newline (the build writes the two characters backslash, n, which
+  the game splits at), printable ASCII only without backslash / percent, widths in pixels from the clean fonts'
+  advances (font 0 = 8 px per character), none of the original's names (OpenSimAnt is fine). -> ARCHIVE/4/<id>.bin
+  (u16 big-endian count, then Pascal strings). The 6 lists no code reads (STR_UNUSED) are refused and not expected.
+- menus/menus.json: {"titles": [5 labels], "menus": [5 lists of item labels]}; a separator is "---" exactly where the
+  game has one, titles start with F, W, V, O, S (their Alt keys), labels at most 14 characters (titles 9, the bar at
+  most 60 cells), menu 4 item 0 (Pause) is padded to 7. -> SHARED/6/0.bin (enc_menus: offset tables then strings).
 - version/version.txt: one line of printable ASCII, at most 72 characters (the Ctrl+Alt+V alert) -> EXE/version.txt.
 """
 import json, os, struct, sys, zipfile
@@ -634,8 +643,387 @@ def cat_version(errors):
         yield 'EXE/version.txt', text.encode('ascii')
 
 
+# ------------------------------------------------------------------------------------------------ string lists, menus
+# STR#-style string lists (OriginalFiles.Strings) and the pull-down menus (OpenSimAnt.Data/Menus.cs); the spec is
+# docs/clean_pack/strings.md. 113 of the 119 measured lists are read by the game; the other 6 are Macintosh leftovers
+# that no code loads (an immediate-operand search of the executable and the remake's code), so they are not in the
+# pack and not in expected().
+STR_UNUSED = {1030, 1300, 1310, 1350, 2000, 2100}
+STR_GROUPS = ['system', 'balloons', 'messages', 'tutorial']       # src/strings/<group>.json
+STR_SYSTEM = {1000, 1001, 1010, 1020, 1050, 1100, 1101, 1102, 1103, 1700, 1800, 1900}
+STR_BALLOONS = {1200, 1210, 1220, 1230, 1240, 1250, 1260}
+STR_TEXT_WIDTH_FONT4 = {'messages': 300, 'tutorial': 460}         # the widest line, in pixels of font 4
+CAPTION_CHARS = 40                                                 # window captions: 8-pixel cells
+SCENE_CAPTION_CHARS = 24                                           # the picture strip of the death scenes: 200 px / 8
+
+
+def str_group(i):
+    if i in STR_SYSTEM:
+        return 'system'
+    if i in STR_BALLOONS:
+        return 'balloons'
+    if 10000 <= i < 11000:
+        return 'messages'
+    if 11000 <= i < 12000:
+        return 'tutorial'
+    return None
+
+
+def str_rule(i, k):
+    """The placement rule of entry k of list i: (font, widest line in pixels, kind). Font 0 is the PC text-cell font
+    (8 pixels per character); fonts 1..5 use the advances of src/fonts/font<n>.json. kind: 'text' (non-empty),
+    'blank' (must be empty), 'blank_ok' (may be empty), 'balloon' (up to 2 lines, `\\n` = line break),
+    'lead_space' / 'trail_space' (must start / end with a space), 'sep' (a separator: spaces around it are fine)."""
+    if i == 1000:
+        return 0, CAPTION_CHARS * 8, 'text'
+    if i == 1001:
+        return 4, 100, 'text'
+    if i == 1010:
+        if k == 14:                                        # the Status window's continue prompt: a 295 px strip
+            return 2, 290, 'text'
+        return (0, SCENE_CAPTION_CHARS * 8, 'text') if k >= 23 else (2, 340, 'text')
+    if i == 1020:
+        return 2, 340, 'text'
+    if i == 1050:
+        return 3, 38, 'text'
+    if i in (1100, 1101, 1102, 1103):
+        return 2, 75, 'text'
+    if i in STR_BALLOONS:
+        return 2, 220, 'balloon'
+    if i == 1700:
+        return 4, 254, 'blank_ok'
+    if i == 1800:
+        if k <= 12:
+            return 4, 0, 'blank'
+        return {13: (4, 60, 'trail_space'), 14: (4, 60, 'lead_space'), 15: (0, 40, 'sep'), 16: (4, 38, 'text'),
+                17: (4, 280, 'text'), 18: (4, 280, 'text')}[k]
+    if i == 1900:
+        return 4, 218, 'text'
+    return 4, STR_TEXT_WIDTH_FONT4[str_group(i)], 'text'
+
+
+def enc_strlist(entries):
+    """A Mac STR# list as the game reads it (OriginalFiles.Strings): u16 big-endian count, then each entry as a length
+    byte and its bytes. A real newline in an entry becomes the two characters backslash, n (the balloons' line break)."""
+    out = bytearray(struct.pack('>H', len(entries)))
+    for e in entries:
+        b = e.replace('\n', '\\n').encode('latin-1')
+        out.append(len(b))
+        out += b
+    return bytes(out)
+
+
+def dec_strlist(d):
+    """The inverse of enc_strlist (a backslash-n pair becomes a newline). Raises ValueError on bytes left over."""
+    n, p, res = (d[0] << 8) | d[1], 2, []
+    for _ in range(n):
+        res.append(d[p + 1:p + 1 + d[p]].decode('latin-1').replace('\\n', '\n'))
+        p += 1 + d[p]
+    if p != len(d):
+        raise ValueError('%d bytes left over' % (len(d) - p))
+    return res
+
+
+_font_cache = {}
+
+
+def font_advances(n):
+    """(advances, missing advance) of the clean font n from src/fonts/font<n>.json; None if it is not made yet."""
+    if n not in _font_cache:
+        path = os.path.join(SRC, 'fonts', 'font%d.json' % n)
+        if os.path.exists(path):
+            with open(path) as f:
+                j = json.load(f)
+            _font_cache[n] = (j['advances'], j.get('missing_advance', 0))
+        else:
+            _font_cache[n] = None
+    return _font_cache[n]
+
+
+def text_width(font, s):
+    """The pixel width of the line s in the game's font (the PC font 0: 8 per character); None if the font is missing."""
+    if font == 0:
+        return 8 * len(s)
+    f = font_advances(font)
+    if f is None:
+        return None
+    adv, missing = f
+    return sum(adv[ord(c)] if ord(c) < len(adv) else missing for c in s)
+
+
+IDENTITY = None
+
+
+def identity_problem(s):
+    """The original's product, publisher and franchise names stay out of the pack (ROADMAP A6); the project's own name,
+    OpenSimAnt, is fine."""
+    global IDENTITY
+    if IDENTITY is None:
+        import re
+        IDENTITY = re.compile(r'maxis|simcity|(?<!open)simant', re.I)
+    return IDENTITY.search(s) is not None
+
+
+def str_problems(i, entries, where):
+    """The reasons the new entries of list i break the spec (docs/clean_pack/strings.md); [] when they are fine."""
+    errs = []
+    count = len(next(m for m in data('strings') if m['id'] == i)['entries'])
+    if i == 1700:
+        if not 10 <= len(entries) <= 80:
+            errs.append('%s: %d lines, the credits roll wants 10..80' % (where, len(entries)))
+    elif len(entries) != count:
+        errs.append('%s: %d entries, the game indexes exactly %d' % (where, len(entries), count))
+        return errs
+    for k, e in enumerate(entries):
+        w = '%s entry %d' % (where, k)
+        if not isinstance(e, str):
+            errs.append('%s: not a string' % w)
+            continue
+        font, limit, kind = str_rule(i, k)
+        lines = e.split('\n')
+        if any(not 32 <= ord(c) < 127 for c in e.replace('\n', '')):
+            errs.append('%s: only printable ASCII (32..126) and line breaks' % w)
+        if '\\' in e or '%' in e:
+            errs.append('%s: no backslash and no percent sign (they are format codes in the game)' % w)
+        if len(lines) > 1 and kind != 'balloon':
+            errs.append('%s: a line break is only for the speech balloons (one entry is one line elsewhere)' % w)
+        if kind == 'balloon' and len(lines) > 2:
+            errs.append('%s: at most 2 lines' % w)
+        if kind == 'blank' and e != '':
+            errs.append('%s: this entry is never read, leave it empty' % w)
+        if kind in ('text', 'balloon', 'lead_space', 'trail_space', 'sep') and not e.strip():
+            errs.append('%s: empty' % w)
+        if i == 1001 and len(e) > 14:
+            errs.append('%s: %d characters, at most 14 (it is also lettered in the 8-pixel text cells of the Edit window caption)' % (w, len(e)))
+        if kind in ('text', 'balloon') and e != e.strip(' '):
+            errs.append('%s: no leading or trailing spaces' % w)
+        if kind == 'lead_space' and not e.startswith(' '):
+            errs.append('%s: must start with a space (it is joined to the text before it without one)' % w)
+        if kind == 'trail_space' and not e.endswith(' '):
+            errs.append('%s: must end with a space (the next text is joined to it without one)' % w)
+        if kind in ('lead_space', 'trail_space') and not e.strip():
+            errs.append('%s: empty' % w)
+        if identity_problem(e):
+            errs.append('%s: contains a name the pack must not carry (ROADMAP A6)' % w)
+        if limit:
+            for line in lines:
+                px = text_width(font, line)
+                if px is None:
+                    errs.append('%s: font %d is not made yet, cannot check the width' % (w, font))
+                    break
+                if px > limit:
+                    errs.append('%s: %d px wide in font %d, the room is %d px' % (w, px, font, limit))
+    return errs
+
+
+def cat_strings(errors):
+    """src/strings/<group>.json (system, balloons, messages, tutorial): {"<list id>": ["entry", ...]} -> the archive's
+    type-4 resource of each list (ARCHIVE/4/<id>.bin; the archive is the measured one). Counts, widths and the other
+    rules are in str_problems."""
+    archive = {m['id']: m['archive'] for m in data('strings')}
+    seen = {}
+    for group in STR_GROUPS:
+        path = os.path.join(SRC, 'strings', group + '.json')
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, encoding='utf-8') as f:
+                src = json.load(f)
+        except ValueError as e:
+            errors.append('strings/%s.json: %s' % (group, e))
+            continue
+        if not isinstance(src, dict):
+            errors.append('strings/%s.json: an object {"<list id>": [entries]}' % group)
+            continue
+        for key, entries in src.items():
+            where = 'strings/%s.json list %s' % (group, key)
+            if not key.isdigit() or int(key) not in archive:
+                errors.append('%s: no such list in the game' % where)
+                continue
+            i = int(key)
+            if i in STR_UNUSED:
+                errors.append('%s: this list is never read by the game, leave it out' % where)
+                continue
+            if str_group(i) != group:
+                errors.append('%s: belongs in strings/%s.json' % (where, str_group(i)))
+                continue
+            if i in seen:
+                errors.append('%s: also in strings/%s.json' % (where, seen[i]))
+                continue
+            seen[i] = group + '.json'
+            if not isinstance(entries, list):
+                errors.append('%s: a list of strings' % where)
+                continue
+            problems = str_problems(i, entries, where)
+            errors.extend(problems)
+            if not problems:
+                yield '%s/4/%d.bin' % (archive[i], i), enc_strlist(entries)
+
+
+MENU_ITEM_CHARS = 14                  # a label: the box is label + 2 cells wide (8-pixel cells)
+MENU_TITLE_CHARS = 9                  # a title takes its label + 1 cells; all five fit the 80-cell bar
+MENU_PAUSE_PAD = 7                    # menu 4 item 0 is relabelled by the game with a 7-character word: padded to that
+MENU_ALT_KEYS = 'FWVOS'               # the initial letters of the titles = their Alt keys (the key table is fixed)
+MENU_SEP = '---'
+
+
+def enc_menus(titles, menus):
+    """SHARED type 6 id 0 (OpenSimAnt.Data/Menus.cs): u32 little-endian offsets of the lists (titles first, then each
+    menu) up to a 0, then each list's table of u32 string offsets up to a 0, then the NUL-terminated strings in order.
+    A title is a space and its label; an item is its state byte (a space) and its label, a separator is '---'; the
+    first item of menu 4 (the Pause toggle) is padded with spaces to MENU_PAUSE_PAD."""
+    lists = [[' ' + t for t in titles]]
+    for mi, items in enumerate(menus):
+        lst = []
+        for k, it in enumerate(items):
+            if it == MENU_SEP:
+                lst.append(MENU_SEP)
+            else:
+                lst.append(' ' + (it.ljust(MENU_PAUSE_PAD) if (mi, k) == (4, 0) else it))
+        lists.append(lst)
+    head = 4 * (len(lists) + 1)
+    tables, p = [], head
+    for lst in lists:
+        tables.append(p)
+        p += 4 * (len(lst) + 1)
+    out = bytearray(struct.pack('<%dI' % (len(lists) + 1), *tables, 0))
+    for lst in lists:
+        offs = []
+        for s in lst:
+            offs.append(p)
+            p += len(s) + 1
+        out += struct.pack('<%dI' % (len(lst) + 1), *offs, 0)
+    for lst in lists:
+        for s in lst:
+            out += s.encode('latin-1') + b'\0'
+    return bytes(out)
+
+
+def dec_menus(d):
+    """The inverse of enc_menus: (titles, menus) with the leading space of titles and items removed (a separator is
+    '---'). The Pause item keeps its padding."""
+    def u32(o):
+        return struct.unpack_from('<I', d, o)[0]
+    lists, t = [], 0
+    while u32(t):
+        lst, p = [], u32(t)
+        while u32(p):
+            s = u32(p)
+            lst.append(d[s:d.index(0, s)].decode('latin-1'))
+            p += 4
+        lists.append(lst)
+        t += 4
+    clean = lambda lst: [x if x == MENU_SEP else x[1:] for x in lst]
+    return clean(lists[0]), [clean(l) for l in lists[1:]]
+
+
+def menu_problems(src):
+    errs = []
+    want = data('menus')
+    titles, menus = src.get('titles'), src.get('menus')
+    if not (isinstance(titles, list) and isinstance(menus, list)):
+        return ['menus/menus.json: {"titles": [5 strings], "menus": [5 lists of strings]}']
+    if len(titles) != len(want[0]['items']) or len(menus) != len(want) - 1:
+        return ['menus/menus.json: %d titles and %d menus, the game has %d and %d'
+                % (len(titles), len(menus), len(want[0]['items']), len(want) - 1)]
+
+    def label_problems(w, s, limit, sep_ok):
+        out = []
+        if not isinstance(s, str) or not s:
+            return ['%s: a non-empty string' % w]
+        if sep_ok and s == MENU_SEP:
+            return out
+        if any(not 32 <= ord(c) < 127 for c in s) or s != s.strip(' ') or '%' in s or '\\' in s:
+            out.append('%s: printable ASCII without leading / trailing spaces, no percent sign or backslash' % w)
+        if len(s) > limit:
+            out.append('%s: %d characters, at most %d' % (w, len(s), limit))
+        if identity_problem(s):
+            out.append('%s: contains a name the pack must not carry (ROADMAP A6)' % w)
+        return out
+    for k, t in enumerate(titles):
+        errs += label_problems('menus.json title %d' % k, t, MENU_TITLE_CHARS, False)
+        if isinstance(t, str) and t[:1].upper() != MENU_ALT_KEYS[k]:
+            errs.append('menus.json title %d: must start with %s (its Alt key is fixed in the key table)' % (k, MENU_ALT_KEYS[k]))
+    if all(isinstance(t, str) for t in titles) and sum(len(t) + 1 for t in titles) > 60:
+        errs.append('menus.json: the five titles take %d cells, at most 60' % sum(len(t) + 1 for t in titles))
+    for mi, items in enumerate(menus):
+        w = want[mi + 1]['items']
+        if not isinstance(items, list) or len(items) != len(w):
+            errs.append('menus.json menu %d: %d items, the game has %d' % (mi, len(items) if isinstance(items, list) else -1, len(w)))
+            continue
+        for k, it in enumerate(items):
+            where = 'menus.json menu %d item %d' % (mi, k)
+            if w[k]['separator'] != (it == MENU_SEP):
+                errs.append('%s: %s' % (where, 'must be the separator "---"' if w[k]['separator'] else 'must not be a separator'))
+                continue
+            errs += label_problems(where, it, MENU_PAUSE_PAD if (mi, k) == (4, 0) else MENU_ITEM_CHARS, True)
+    return errs
+
+
+def cat_menus(errors):
+    """src/menus/menus.json: {"titles": [...], "menus": [[...], ...]} -> SHARED/6/0.bin (enc_menus)."""
+    path = os.path.join(SRC, 'menus', 'menus.json')
+    if not os.path.exists(path):
+        return
+    try:
+        with open(path, encoding='utf-8') as f:
+            src = json.load(f)
+    except ValueError as e:
+        errors.append('menus/menus.json: %s' % e)
+        return
+    problems = menu_problems(src) if isinstance(src, dict) else ['menus/menus.json: an object']
+    errors.extend(problems)
+    if not problems:
+        yield 'SHARED/6/0.bin', enc_menus(src['titles'], src['menus'])
+
+
+def check_text_roundtrip(zip_path):
+    """The string lists and the menus of the pack <zip> decoded, encoded again and compared byte for byte, and the
+    decoders compared with the measurements (strings.json, menus.json). Returns (lists, menus, problems); the pack's
+    text is read for this check only and never written anywhere."""
+    lists, menus, problems = 0, 0, []
+    with zipfile.ZipFile(zip_path) as z:
+        names = set(z.namelist())
+        for m in data('strings'):
+            name = '%s/4/%d.bin' % (m['archive'], m['id'])
+            if name not in names:
+                problems.append('%s: not in the pack' % name)
+                continue
+            blob = z.read(name)
+            try:
+                entries = dec_strlist(blob)
+            except (ValueError, IndexError) as e:
+                problems.append('%s: %s' % (name, e))
+                continue
+            lists += 1
+            if [len(e.replace('\n', '\\n')) for e in entries] != [x['length'] for x in m['entries']]:
+                problems.append('%s: the entry lengths differ from the measurements' % name)
+            if enc_strlist(entries) != blob:
+                problems.append('%s: not byte-identical after decode + encode' % name)
+        if 'SHARED/6/0.bin' not in names:
+            problems.append('SHARED/6/0.bin: not in the pack')
+        else:
+            blob = z.read('SHARED/6/0.bin')
+            titles, mn = dec_menus(blob)
+            menus += 1 + len(mn)
+            want = data('menus')
+            if len(titles) != len(want[0]['items']) or [len(mi) for mi in mn] != [len(w['items']) for w in want[1:]]:
+                problems.append('SHARED/6/0.bin: the item counts differ from the measurements')
+            else:
+                for w, labels in zip(want, [titles] + mn):
+                    got = [(len(x) if x != MENU_SEP else 2, x == MENU_SEP) for x in labels]
+                    if w['list'] == 'titles':
+                        got = [(len(x) + 1, False) for x in labels]
+                    if got != [(i['length'], i['separator']) for i in w['items']]:
+                        problems.append('SHARED/6/0.bin %s: lengths or separators differ from the measurements' % w['list'])
+            # the whole resource, byte for byte; the Pause padding is the original's
+            if enc_menus(titles, mn) != blob:
+                problems.append('SHARED/6/0.bin: not byte-identical after decode + encode')
+    return lists, menus, problems
+
+
 CATEGORIES = [cat_palette, cat_bitmaps, cat_cursors, cat_tiles, cat_sprites, cat_fonts, cat_balloon, cat_spiderlegs,
-              cat_version]
+              cat_version, cat_strings, cat_menus]
 
 # texts (SHARED type 10) that the original has no style runs for (no SHARED type 21 entry): Antipedia.Text reads
 # type 21 as optional, so these are not in expected()
@@ -655,7 +1043,8 @@ def expected():
         if s['id'] in (9, 10, 13, 14):
             names.add('HCEGANT/9/%d.bin' % s['id'])
     for s in data('strings'):
-        names.add('%s/4/%d.bin' % (s['archive'], s['id']))
+        if s['id'] not in STR_UNUSED:                      # the 6 Macintosh leftovers no code loads are not needed
+            names.add('%s/4/%d.bin' % (s['archive'], s['id']))
     for t in data('texts'):
         names.add('SHARED/10/%d.bin' % t['id'])
     for c in data('cards'):
@@ -686,10 +1075,13 @@ def main():
     opts = dict(a[2:].split('=', 1) if '=' in a else (a[2:], '1') for a in sys.argv[1:] if a.startswith('--'))
     if 'roundtrip' in opts:                                   # check the encoder against the originals, build nothing
         checked, problems = check_bitmap_roundtrip(opts['roundtrip'])
-        for p in problems:
+        n_lists, n_menus, text_problems = check_text_roundtrip(opts['roundtrip'])
+        for p in problems + text_problems:
             print('error:', p)
         print('%d bitmaps checked through enc_bitmap, %d problems' % (checked, len(problems)))
-        sys.exit(1 if problems else 0)
+        print('%d string lists and %d menu lists (SHARED/6/0) decoded and encoded back byte-identically, %d problems'
+              % (n_lists, n_menus, len(text_problems)))
+        sys.exit(1 if problems or text_problems else 0)
     errors, made = [], {}
     for cat in CATEGORIES:
         for name, blob in cat(errors):
