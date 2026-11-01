@@ -221,3 +221,38 @@ sign (tight, both sides of the post transparent, two lines of lettering in two c
 identical outside `HOUSE_MASK` and at least 55 % identical; the niche ring, the fridge and chair rectangles; the free places (sign, porch lawn, mower's place); the person's route; text rectangles flat white; labels
 (start on row 35, never touch each other, panel below the buttons); box bevels; the 3 : 1 inversion test; the crops (windows contain the boxes and end above the label); the overlay's colours, boxes (end on row 46, cover the
 middle 60 % of their buttons, no gaps in the left group, the text fits) and tabs. `python tools/clean_pack/build.py` accepts all the files.
+
+
+# Screens and scenes (clean pack, `screens_bitmaps.md`: 24 pictures)
+
+Made from `docs/clean_pack/screens_bitmaps.md` (all three passes). One file per bitmap, `HCEGANT_<id>.pix`, written by `make_screens_bitmaps.py`:
+
+```
+python make_screens_bitmaps.py   # writes the 24 .pix files, runs the spec's checks as assertions, writes preview_screens.png
+```
+
+Needs Python 3 with numpy and Pillow. Pillow's `ImageDraw` is used only on 8-bit index canvases (`Cv` in `screens_lib.py`): no anti-aliasing, the pixel values are palette indices.
+
+| File | What |
+|---|---|
+| `screens_lib.py` | `Cv` (index canvas), the **ant drawing program** `ant()` (one body plan: abdomen, waist, thorax, neck, head, three leg pairs, elbowed antennae, mandibles; used from 10-px ants to the 230-px nestmate), dithering, pebbles, curves, lettering through `uilib`'s pixel faces; the `LETTERED` list of every string drawn |
+| `screens_ab.py` | A the title (2000 / 2001), B Select a Game (2500), C the About box (3000 / 3001); the wordmark routine |
+| `screens_icons.py` | E the seven 32 x 32 icons (9150..9156) |
+| `screens_ants.py` | D the player's-ant pictures (9100, 9101, 9110, 9111) |
+| `screens_scenes.py` | F the ant lion scene (9200..9203) and G the spider scene (12000..12003), each one `render(state)` |
+| `screens_preview.py` | `preview_screens.png`: the title on its black screen, Select a Game (plain and with the hit rectangles / caption zones outlined), the About box with the card and with sample credits, the seven message boxes, every scene with its patches in cycle order |
+| `make_screens_bitmaps.py` | the driver: sizes, the checks, the writing, a re-read of the files |
+
+## Design
+
+- **Title (A).** Option (c), a **night scene**: a purple-to-blue dithered sky with stars and a moon, a broad dark hill with three lit tunnel mouths, tan trails with marching ants (black colony, a few red, some carrying leaf pieces), a grass strip in front; the whole 512 x 372 canvas is drawn once and cut at row 172 (a script assertion: no wordmark and no thin line on the seam). The edges fade to black by ordered dither; the outermost ring is black 15 (11 % of the canvas is black). The wordmark `OpenSimAnt` is a regular 8-px face at 4x (32 px capitals): yellow with an orange lower part, a white top edge, a black outline and a dark drop shadow; `an open-source remake` below it, white with a black outline.
+- **Select a Game (B).** Grey 12 everywhere except the heading, the five 63 x 63 (64 x 63) picture buttons, their caption zones and the Cancel button. Each tile has its own ground colour (cyan, tan, green, yellow, blue) and subject: Tutorial = a yellow ant with a pointer in front of a green chalkboard; Quick Game = a black and a red ant face to face under two flags with a spark between; Full Game = the yard from above (a lawn of 14-px cells, a house corner, a fence, two red and three black cells); Experimental = a soil heap with a spade, a magnifier and two ants; Load Game = a folder with a sheet sliding out and a returning arrow. Each tile: black 15 ring, bevel ring (white top / left, grey 13 bottom / right). Captions: a bold 9-px-capital title (black) and two lines of 7-px lettering (blue 6); the descriptions are our own wording.
+- **About (C).** 3000 is flat 12 with the heading `About OpenSimAnt` (regular 8-px face at 2x, blue with a purple lower part), a groove at rows 46..47, the sunken well bevel round R exactly as the spec says (white 0 top / left, 13 then 14 bottom / right) and the footer; nothing else within 8 px of R. 3001 is the card: a round badge (sky, hill, tunnel mouth, an ant) at the left and the three lines at the right, a 6-px free margin all round.
+- **Icons (E).** One 1-px black ring, one ground colour per cause (grass 8, grass 9 for the mower, water 6, light grey 12, magenta 4, purple 5), 6 to 9 colours each. 9155 a shoe sole (two parts, the ant's legs sticking out); 9152 / 9153 the same mower from above with wheels at the sides and a round shield, 9153 with flying clippings; 9150 an ant on its back in ripples; 9154 an empty gauge (red zone, needle at the empty end); 9151 a spray can, a green cloud and an ant on its back; 9156 a bolt and a small dark ant.
+- **Player's-ant pictures (D).** 9100 a low three-quarter side view, the yellow ant lying on its back with curled legs, an X eye, one antenna bent; 9101 the newborn, seen from the front and a little above, beside a torn cocoon; 9110 / 9111 one `render_feed(state)`: the black nestmate (230 px, head down, body off the top) and the small yellow ant (head up), the green drop between their mouths; 9111 is the crop (72,62)-(152,151) of the "after" state (drop in the yellow ant's mouth, head leaning forward, mandibles changed): 17.7 % of its pixels differ from 9110's crop. Rows 0..14 of 9100 / 9101 are plain soil (no colour 1 or 15).
+- **Ant lion (F).** A cross-section: dry ground above, the funnel with its far wall, layered sand with pebbles at both sides, the larva (flat wedge head, red eyes, two sickle jaws, a ridged neck) in four states "rest / rear / left / right"; the base is "rest", the patches are crops of the other states at (38,39) and (38,52); rows 39..51 of the "rear" render equal the base (so the strip stays correct when 9202 / 9203 replace the lower part). The caught ant shows only a leg and an antenna (no colour 1) in 9202 / 9203.
+- **Spider (G).** A glossy black spider facing the viewer on a flat dusk-purple sky (blue strip at the bottom): a big abdomen above the head, eight small eyes in two rows, four jointed legs raised at each side, two chelicerae with curved fangs (orange tips); states "open / half / closed", 12000 = "open" in full, the patches are crops of (46,77)-(144,157).
+
+## Checks (assertions in `make_screens_bitmaps.py`)
+
+The nine groups of "The script's checks": sizes, characters, no `.`; the identity strings (`LETTERED`, no "SimAnt" outside "OpenSimAnt", no publisher / year, no lettering in the scenes and icons); the title (ring, cut, black share, wordmark height, no line on the seam, contrast); Select (flat 12 outside the allowed rectangles, tile rings and bevels, colour counts, caption inks, heading rows); About (ring, R, the bevel on at least 95 % of each side, the 8-px clearance, heading / footer rows, the card's margins and last row); the icons; 9100 / 9101 rows 0..14, 9110 / 9111 ring and difference; the patches of 9200 / 12000 (ring equality, pairwise differences, the yellow-ant rule, the constants `PATCHES`); all 24 distinct and not flat.

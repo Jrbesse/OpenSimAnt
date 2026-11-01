@@ -936,7 +936,7 @@ public partial class Main : Node2D
         // the game mode's name (STR# 1001, G:0324)
         var modes = session.Files.Strings(1001);
         int gm = st.U16(Seg.G, 0xeac);
-        string title = "SimAnt" + (session.Files.Strings(1800)?[15] ?? " - ") + (modes != null && gm < modes.Length ? modes[gm] : "");
+        string title = (session.Files.IsCleanPack ? "OpenSimAnt" : "SimAnt") + (session.Files.Strings(1800)?[15] ?? " - ") + (modes != null && gm < modes.Length ? modes[gm] : "");
         ui.DrawWindow(c, EditWin, dx, dy, title, new[] { 15001 });
         var win = c.Clip(WindowRect(EditWin).l, WindowRect(EditWin).t, WindowRect(EditWin).r, WindowRect(EditWin).b);
         var m = ItemRect(EditWin, EditMapItem);
