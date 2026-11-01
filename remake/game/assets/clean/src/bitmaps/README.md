@@ -122,3 +122,102 @@ Callouts: `callout(img, x, y, lines)` (13 px high for one line, +10 per extra li
   y 3..17 for BACK) with a 1-px black shadow right and below, label face captions.
 * **Start-up cards.** Black, a seven-hexagon flower (own design, drawn at each size from the card's height, not scaled)
   and one line, `AN OPEN FAN PROJECT`, in the small face at 2x with yellow face and two shadow steps (orange, red).
+
+
+---
+
+# Yard bitmaps (clean pack): passes 1-2 (12 pictures so far)
+
+Made from `docs/clean_pack/yard_bitmaps.md` (114 pictures in 5 passes; this is **pass 1: the scenery, groups A and C** and
+**pass 2: the toolbar, group D**). One file per bitmap, `HCEGANT_<id>.pix`, written by `make_yard_bitmaps.py`:
+
+```
+python make_yard_bitmaps.py            # writes the .pix files, runs every check as an assertion, writes preview_yard.png
+python make_yard_bitmaps.py --crops    # only: replace HCEGANT_17006 / 17007 (if they exist) by crops of 7010
+python make_yard_bitmaps.py --no-preview
+```
+
+Needs Python 3 with numpy (always) and Pillow (preview only). The yard modules import `uilib.py` of the interface batch
+(`Img`, `Reg`, the two pixel faces, `bevel`, `groove`, the contrast maths), which must stay in this folder.
+
+**Made so far:** 7000, 7001, 7003 (the yard window's pictures), 7020, 7021, 7022 (the colony views' grid strips), 7005 (raindrop),
+7006, 7007 (the queens' dots), 1260 (the for-sale sign), 7010 (the toolbar), 7011 (its help overlay). **Crops:** 17006 and 17007 are crops of
+7010 (the House button's box and the Patch button's box); the script writes them **only if they already exist** (it said so
+when it ran); if the interface batch is run later, run `python make_yard_bitmaps.py --crops` afterwards.
+**Not made yet:** passes 3 (the people E, the door / room patches B), 4 (the dog, cat, bird F, G), 5 (the spider H, the
+map-window actors I): add a module `yard_pass3.py` ... with a `build(reg)` function and list it in `PASSES` of `make_yard_bitmaps.py`.
+
+## Files (yard)
+
+| File | What |
+|---|---|
+| `yardlib.py` | `lattice(x, y)` (the engine's lawn: 8 in the cells, 9 on the lines, `None` outside the parallelogram), `house_covers(x, y)` (the boundary the colony views mark), `G(s, y, z)` (the scenery's projection), `World` (one canvas in yard coordinates: polygons, lines, ellipses, `gbox` / `obox` boxes with inner outlines, clipping), `polygon_mask` |
+| `yard_scene.py` | **the drawing program**: `draw_scenery` (garden, back fence, lawn), `draw_house_outside` (+ `draw_door`), `draw_house_inside` (+ `draw_fridge`, `draw_chair`), `render_world`, `pictures`, `strips`, `sign_board`; the constants `HOUSE_MASK`, `DOOR_RECT`, `CHAIR_RECT`, `FRIDGE_RECT`, `PERSON_PATH` |
+| `yard_pass1.py` | pass 1: registers 7000, 7001, 7003, 7020..7022, 7005..7007, 1260 and their assertions |
+| `yard_pass2.py` | pass 2: the toolbar 7010 (button pictures drawn once each), the overlay 7011, the crops, and their assertions |
+| `preview_yard.py` | `preview_yard.png`: the yard window as the game shows it in the Yard, House, Strat and Graphic views (2x), the toolbar with its overlay, its inverted buttons, the sign, a raindrop and the two queens' dots |
+| `make_yard_bitmaps.py` | the driver: the `PASSES` list, the checks, the writing, `--crops` |
+
+## The look (scenery)
+
+An isometric yard seen from above and in front: lawn lines run down-left at 45 degrees, the rows horizontally, light from the
+top-left. **One drawing program** (`yard_scene.py`) draws the whole window as a single canvas in yard coordinates (canvas column =
+yard x + 2): 7000 / 7001 are its columns 0..280 and 7003 its columns 281..513, so the seam cannot show. The ground is
+`G(s, y, z) = (s - y, y - z)`: `s` is constant along a lawn line (x + y = s), `y` is the row, `z` a height. The house is a box on
+the footprint s in [212, 288] with its back wall on y = 65, running on beyond the bottom of the picture; its long right wall
+stands on the boundary x + y = 288 (the lattice line k = 2), the porch (s 286..316, y 65..115) holds the door in its front face
+on y = 115. Cream-white and light-grey walls, a red (lit slope) and brown (shaded slope) hipped roof, a chimney, a skylight,
+three windows on the long wall, a porch with a lean-to roof, a lamp and a brown door with two inset panels. The grey 13 beside and
+behind it is the window background; the garden (two trees, bushes, a raised flower bed, a dog house, a coiled hose) stands on it, left of the
+house, and the back fence (picket fence, posts every 28 px, a light plank on top at y = 38 for the cat, a flower bed at its foot,
+two trees and shrubs behind it) runs from x = 250 to the right edge. **Nothing stands on the lawn**; the sign, mower and porch-lawn places are kept free of detail (asserted).
+
+**The inside view (7001)** is the same program with the roof and the front wall left out: the floor (wood in the living room, a
+white / grey check in the kitchen and the porch), the left wall's inner face (light grey, with a window and a picture), the back wall (white,
+with a window), the cut tops of the walls, a floor slab edge on the boundary; the kitchen along the back wall (wall cabinets, counter
+with sink and cooker, the refrigerator in **its rectangle yard (207,47)-(226,77)**, exactly 19 x 30), the living room along the left wall (bookcase, television
+on its stand, a sofa, a rug) and the armchair in **(45,166)-(62,196)** (with a one-pixel floor ring all round). The person's route
+(53,195) -> (100,161) -> (163,89) -> (198,89) runs over a floor band kept free of furniture (assert: at least 14 px; the nearest furniture is 16 px away).
+Outside the house the two pictures are identical (assert), and 60 % of all their pixels agree.
+
+**For pass 3 (the door and room patches):** render the scenes with the person drawn in through the hooks, then crop, never paint a patch
+by hand (see the docstring of `yard_scene.py`):
+
+```python
+import yard_scene as ys
+w = ys.render_world('outside', door=0.35, hooks={'behind': fn})      # fn(world) draws the person in yard coordinates
+patch8900 = w.pic(172, 198)[73:115]                                  # 26 x 42; door 0.0 closed .. 1.0 wide open; hooks 'behind' | 'front'
+w = ys.render_world('inside', hooks={'chair': fn})                   # 8200 = w.pic(45, 62)[166:196]
+w = ys.render_world('inside', fridge_open=True, hooks={'fridge': fn}) # 8201 = w.pic(207, 226)[47:77]
+```
+(`World.pic(x0, x1)` returns the canvas columns of the yard x range as a numpy array, all 226 rows.) The niche's outermost ring is wall colour 0
+in 7000 (asserted); the door, its frame and its step lie inside it, the step on the niche's last rows (nothing goes below y = 115, the lawn's line).
+
+## The look (toolbar)
+
+A light-grey 12 panel (white top row and left column, black bottom row), four picture buttons for the views, the mating group
+(MATE, the queens count, the AUTO / MANUAL radio pair, PLACE), the `?` button and two colony counters; thin grooves between
+the groups (x = 165 and x = 362). Picture buttons have a raised bevel **outside** their hit rectangle (box = rect grown 1 / 1 / 2 / 2: white
+top and left, dark grey 14 and medium grey 13 at the bottom and right); the radios and the `?` have the bevel inside. Every picture has a
+black 15 ring on its hit rectangle's edge (so inversion keeps it neutral). Pictures (each drawn once): **Patch** the ground from above (tan soil, food crumbs, ants, a pebble); **House** a front view of a house on its lawn
+(white sky, black roof and outline); **Strat** the grid of patches in perspective with black, red, checkered and (two) green cells on white; **Graphic** the same grid with short
+black and red bars; **MATE** a few winged ants in flight; **PLACE** a winged queen about to land on a dark ground. The inverted buttons
+(House, Strat, Graphic, PLACE, AUTO, MANUAL) are drawn so that the two most frequent colours (and the dominant light and dark colours)
+contrast at least 3 : 1 both as drawn and with every pixel XOR-ed with 15 (asserted; the Strat picture has only two green cells for that reason: green
+as a dominant colour fails the inverted test). Labels (the interface batch's bold face, rows 35..41): Patch, House, Strat, Graphic, MATE, PLACE; `AUTOMATIC` does not fit 56 px (60), so the
+button says `AUTO`. The text rectangles (queens, black colonies, red colonies) are flat white with a black frame **outside**.
+
+**Overlay 7011** (masked, only colours 0, 14, 15): eight white callout boxes side by side from x = 0 to 363 (rows 10..46, 37 rows, 14 frame,
+three or two short lines in the small face, each box centred on and wider than the middle 60 % of its button), two heading tabs
+(`Views`, `Mating`) joined to the band's top edge, and the colony counters' box (x 443..511, rows 20..46). Every box ends on row 46 (a continuous dark line).
+
+**Crops.** 17006 (37 x 29) = 7010 pixels (45,4)-(82,33); 17007 (41 x 30) = 7010 pixels (4,3)-(45,33): no label ink in either (labels start at row 35).
+
+## Checks (asserted by `make_yard_bitmaps.py`)
+
+Sizes, masks and colours of all 12 pictures; the raindrop (one pixel per row 1..35, colour 7, column 5 -> 1), the queens' dots, the
+sign (tight, both sides of the post transparent, two lines of lettering in two colours); the frame (black left column, top row, 7003's right column; row 1 = 13); **every visible lawn pixel of 7000, 7001, 7003 equals
+`lattice()`** (the house hides the rest; no lawn colour peeks out), the seam columns; the strips equal `lattice()` over 13 plus the colour-10 house line and contain only 8, 9, 10, 13; 7000 / 7001
+identical outside `HOUSE_MASK` and at least 55 % identical; the niche ring, the fridge and chair rectangles; the free places (sign, porch lawn, mower's place); the person's route; text rectangles flat white; labels
+(start on row 35, never touch each other, panel below the buttons); box bevels; the 3 : 1 inversion test; the crops (windows contain the boxes and end above the label); the overlay's colours, boxes (end on row 46, cover the
+middle 60 % of their buttons, no gaps in the left group, the text fits) and tabs. `python tools/clean_pack/build.py` accepts all the files.

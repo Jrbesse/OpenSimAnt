@@ -232,6 +232,8 @@ public partial class Main : Node2D
             if (arg.StartsWith("--ant-info=") && arg["--ant-info=".Length..].Split(',') is { Length: 2 } ai)
                 OpenAntInfo(int.Parse(ai[0]), int.Parse(ai[1]));
         if (OS.GetCmdlineUserArgs().Contains("--strat")) session.St.Set16(Seg.G, 0x35c, 2);
+        foreach (var arg in OS.GetCmdlineUserArgs())                            // --yard-view=n: 0 Yard, 1 House, 2 Strat, 3 Graphic
+            if (arg.StartsWith("--yard-view=")) session.St.Set16(Seg.G, 0x35c, int.Parse(arg["--yard-view=".Length..]));
         font = ui.Font(2);
         menus = new Menus(session.Files, ScreenW);
         foreach (var arg in OS.GetCmdlineUserArgs())
