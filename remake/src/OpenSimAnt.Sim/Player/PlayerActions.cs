@@ -336,6 +336,13 @@ public static partial class Player
         [3] = 0x272a, [4] = 0x272c, [5] = 0x2732, [6] = 0x2734, [7] = 0x2736, [8] = 0x2738, [9] = 0x273a, [10] = 0x273d,
     };
 
+    /// <summary>The picture f_75d01 passes with each death's message (f_2f6ea(picture, id, 1)): the cause icons
+    /// 9150..9156; events 3 and 4 pass none.</summary>
+    public static readonly Dictionary<int, int> EVENT_PICTURE = new()
+    {
+        [5] = 0x23c3, [6] = 0x23c0, [7] = 0x23be, [8] = 0x23c2, [9] = 0x23bf, [10] = 0x23c4,
+    };
+
     /// <summary>f_75d01 (via f_2f7d0): the yellow ant dies (n: 0 starved, 1 spider, 2 ant lion, 3..10 other
     /// deaths, see EVENT_MESSAGE) and the player takes over another ant: the black queen if she is gone ...
     /// (types 1..7 in the black nest), else the last adult of the black nest, the surface, the red nest. With
@@ -383,14 +390,14 @@ public static partial class Player
         else if (5 <= n && n <= 9)
         {
             st.Hooks.Effect(st, "sound", st.Rand(5) + 0x4e27);
-            if (msg != 0) st.Hooks.Effect(st, "message_box", EVENT_MESSAGE[n], 1);
+            if (msg != 0) st.Hooks.Effect(st, "message_box", EVENT_MESSAGE[n], 1, EVENT_PICTURE[n]);
             st.Inc32(G, n == 8 ? 0xf30 : 0xefc);
         }
         else if (n == 10)
         {
             st.Inc32(G, 0xefc);
             FightAnimation(st, G16(st, 0x48c), G16(st, 0x47c), G16(st, 0x48a), st.U16(G, 0x496), st.U16(G, 0x4c2), 10);
-            if (msg != 0) st.Hooks.Effect(st, "message_box", EVENT_MESSAGE[n], 1);
+            if (msg != 0) st.Hooks.Effect(st, "message_box", EVENT_MESSAGE[n], 1, EVENT_PICTURE[n]);
         }
         if (1 <= n && n <= 2) st.Hooks.Effect(st, "help", 0x238c, 0);        // f_7686d
         st.Hooks.Effect(st, "redraw_all");                                  // f_0151c

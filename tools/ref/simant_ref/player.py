@@ -1073,6 +1073,8 @@ def queen_scene(st, view, a, b, t, found):
 
 # the death messages per event (f_75d01), shown when T:07AE (messages on)
 EVENT_MESSAGE = {3: 0x272a, 4: 0x272c, 5: 0x2732, 6: 0x2734, 7: 0x2736, 8: 0x2738, 9: 0x273a, 10: 0x273d}
+# the picture f_75d01 passes with each death's message (f_2f6ea(picture, id, 1)): the cause icons 9150..9156
+EVENT_PICTURE = {5: 0x23c3, 6: 0x23c0, 7: 0x23be, 8: 0x23c2, 9: 0x23bf, 10: 0x23c4}
 
 
 def player_event(st, n):
@@ -1115,13 +1117,13 @@ def player_event(st, n):
     elif 5 <= n <= 9:
         st.player.effect(st, 'sound', st.rand(5) + 0x4e27)
         if msg:
-            st.player.effect(st, 'message_box', EVENT_MESSAGE[n], 1)
+            st.player.effect(st, 'message_box', EVENT_MESSAGE[n], 1, EVENT_PICTURE[n])
         st.inc32(G, 0xf30 if n == 8 else 0xefc)
     elif n == 10:
         st.inc32(G, 0xefc)
         fight_animation(st, g(0x48c), g(0x47c), g(0x48a), st.u16(G, 0x496), st.u16(G, 0x4c2), 10)
         if msg:
-            st.player.effect(st, 'message_box', EVENT_MESSAGE[n], 1)
+            st.player.effect(st, 'message_box', EVENT_MESSAGE[n], 1, EVENT_PICTURE[n])
     if 1 <= n <= 2:
         st.player.effect(st, 'help', 0x238c, 0)                        # f_7686d
     st.player.effect(st, 'redraw_all')                                  # f_0151c
