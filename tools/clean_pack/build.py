@@ -74,6 +74,12 @@ Source formats so far:
   they are data/card_layouts.json (tools/clean_pack/make_card_layouts.py), always built. Every text is laid out by a port of
   the game's own line breaker (ant_layout) with the clean fonts 2 and 5: it must fit its rectangle, every bold word must become
   a link to the right definition, and each card's required link words (the originals' ones, by definition id) must be there.
+- layouts/texts.json (docs/clean_pack/layouts.md): {"<window>.<item>": "text"}, the 12 words inside window items (three window
+  captions, the file dialog's two labels and CANCEL, the two "continue" lines, DEBUG, the quit dialog's three buttons); printable
+  ASCII, no percent sign, at most the item's room in pixels (font 0 = 8 px per character). The windows themselves (rectangles,
+  edge references, item types, colour schemes, the UI tables 128 / 129 / 131) are functional data, not written by any maker:
+  data/window_layouts.json, made by tools/clean_pack/make_layouts.py from the player's pack (numbers and ids only), always built
+  (enc_layout -> HCEGANT/0/<id>.bin); a window with a word of the makers' waits for it (listed as missing).
 """
 import json, os, re, struct, sys, zipfile
 
@@ -1667,8 +1673,234 @@ def check_texts_roundtrip(zip_path):
     return counts, notes, problems
 
 
+# ------------------------------------------------------------------------------------------------ window layouts
+# HCEGANT type 0 (docs/clean_pack/layouts.md; FILE_FORMATS "Window layouts"; the reader is OpenSimAnt.Data/Layouts.cs).
+# Functional data (rectangles, edge references and modes, item types, schemes, flags, bitmap ids, the colour-scheme and
+# UI tables) is docs/clean_pack/data/window_layouts.json, made by tools/clean_pack/make_layouts.py from the player's pack
+# and always built; the few words inside items are the makers' (src/layouts/texts.json). Little endian.
+LAYOUT_TEXT_AT = {0x05: 0x2a, 0x09: 0x2a, 0x0c: 0x2a, 0x10: 0x2e, 0x11: 0x2e, 0x12: 0x2e}   # item type -> where its string starts
+LAYOUT_HEADER = 0x2c
+LAYOUT_WINDOWS = range(34)
+LAYOUT_TABLES = (128, 129, 131)
+# texts whose room is not their item's width less 8: the file dialog's drive label is not clipped (the row to its right is free); the
+# message box 30 is only as wide as its widest line + 8 (Main.DrawMessageBox, at least 58), so its "continue" line stays within the
+# width the original's own line has in font 3 (84 px)
+LAYOUT_ROOM = {'22.10': 112, '30.2': 84}
+LAYOUT_MISC_WORDS = (4, 5, 12, 13, 15, 16, 17, 18, 19, 20, 21)    # the header's other words (+8 .. +2A), stored as an offset -> value map
+
+
+def layout_text_ref(wid, k, s):
+    """How a layout item's string is carried in window_layouts.json: a printf format the code reads ({"format"}) and a drive
+    letter ({"literal"}) are functional and kept; any other string is the maker's new text, looked up by key "window.item"."""
+    if '%' in s:
+        return {'format': s}
+    if re.fullmatch(r'[A-H]:', s):
+        return {'literal': s}
+    return {'key': '%d.%d' % (wid, k)}
+
+
+def dec_layout(d):
+    """A window layout resource -> (window, dead): the window as window_layouts.json holds it except that a text item carries
+    its raw string as "string"; dead = the bytes that mean nothing (the item table's memory segments, the two padding bytes
+    behind each string, which hold editor debris in some layouts), {"seg": [...], "pad": [[b, b] or None, ...]}."""
+    w = struct.unpack_from('<22H', d, 0)
+    n, size = w[6], w[7]
+    if size != len(d) or struct.unpack_from('<H', d, LAYOUT_HEADER)[0] != LAYOUT_HEADER + 4 * n:
+        raise ValueError('the size or the first item is not where the header says')
+    win = {'rect': list(struct.unpack_from('<4h', d, 0)), 'requested': list(struct.unpack_from('<4h', d, 0x10)), 'flags': w[14],
+           'misc': {str(2 * i): struct.unpack_from('<h', d, 2 * i)[0] for i in LAYOUT_MISC_WORDS if w[i]}, 'items': []}
+    dead, pos = {'seg': [], 'pad': []}, LAYOUT_HEADER + 4 * n
+    for k in range(n):
+        o, seg = struct.unpack_from('<HH', d, LAYOUT_HEADER + 4 * k)
+        if o != pos:
+            raise ValueError('item %d is not where the previous one ends' % k)
+        state, typ, length = struct.unpack_from('<BBH', d, o + 0x20)
+        flags, scheme, alt = struct.unpack_from('<HBB', d, o + 0x24)
+        it = {'rect': list(struct.unpack_from('<4h', d, o)), 'off': list(struct.unpack_from('<4h', d, o + 8)),
+              'ref': list(struct.unpack_from('<4H', d, o + 16)), 'mode': list(struct.unpack_from('<4H', d, o + 24)),
+              'state': state, 'type': typ, 'flags': flags, 'scheme': scheme, 'alt': alt}
+        so = LAYOUT_TEXT_AT.get(typ)
+        dead['seg'].append(seg)
+        if so is None:
+            it['tail'] = list(d[o + 0x28:o + length])
+            dead['pad'].append(None)
+        else:
+            s = d[o + so:o + length]
+            nul = s.find(0)
+            if nul < 0 or len(s) - nul - 1 != 2:
+                raise ValueError('item %d: the string is not NUL-terminated with two bytes after it' % k)
+            it['tail'] = list(d[o + 0x28:o + so])
+            it['string'] = s[:nul].decode('latin-1')
+            dead['pad'].append(list(s[nul + 1:]))
+        win['items'].append(it)
+        pos = o + length
+    if pos != len(d):
+        raise ValueError('%d bytes left over' % (len(d) - pos))
+    return win, dead
+
+
+def enc_layout(win, texts, dead=None):
+    """The inverse of dec_layout, for window_layouts.json's window (items carry "text": {"format" | "literal" | "key"}; the key's
+    string comes from texts). dead as dec_layout's, or None for zero segments and zero padding (what the pack carries)."""
+    items = win['items']
+    n = len(items)
+    out = bytearray(LAYOUT_HEADER + 4 * n)
+    body = bytearray()
+    for k, it in enumerate(items):
+        so = LAYOUT_TEXT_AT.get(it['type'])
+        tail = bytes(it['tail'])
+        ref = it.get('text')
+        if (so is None) != (ref is None) or (so is not None and len(tail) != so - 0x28):
+            raise ValueError('item %d: type %#x and its text do not agree' % (k, it['type']))
+        if ref is None:
+            string = b''
+        else:
+            s = ref['format'] if 'format' in ref else ref['literal'] if 'literal' in ref else texts[ref['key']]
+            pad = (dead or {}).get('pad', [None] * n)[k] or [0, 0]
+            string = s.encode('latin-1') + b'\0' + bytes(pad)
+        length = 0x28 + len(tail) + len(string)
+        struct.pack_into('<HH', out, LAYOUT_HEADER + 4 * k, LAYOUT_HEADER + 4 * n + len(body), (dead or {}).get('seg', [0] * n)[k])
+        body += struct.pack('<4h4h4H4HBBHHBB', *it['rect'], *it['off'], *it['ref'], *it['mode'], it['state'], it['type'], length,
+                            it['flags'], it['scheme'], it['alt']) + tail + string
+    struct.pack_into('<4h', out, 0, *win['rect'])
+    struct.pack_into('<HH', out, 0xc, n, len(out) + len(body))
+    struct.pack_into('<4h', out, 0x10, *win['requested'])
+    struct.pack_into('<H', out, 0x1c, win['flags'])
+    for off, v in win['misc'].items():
+        struct.pack_into('<h', out, int(off), v)
+    return bytes(out + body)
+
+
+def layout_text_info(wid, k, it, s):
+    """What a maker needs to know about the room of the item's text (window_layouts.json "texts")."""
+    l, t, r, b = it['rect']
+    key = '%d.%d' % (wid, k)
+    align = (it['flags'] & 0x180) >> 7
+    return {'window': wid, 'item': k, 'type': it['type'], 'font': it['tail'][0], 'align': ('centre', 'left', 'right', 'centre')[align],
+            'clip': bool(it['flags'] & 0x200), 'rect': it['rect'], 'room_px': LAYOUT_ROOM.get(key, r - l - 8), 'chars': len(s)}
+
+
+def layout_entry(wid, d):
+    """(window, strings, dead, infos) of a layout resource: the window as window_layouts.json holds it, the new-text strings by
+    key, the dead bytes, and the text infos by key."""
+    win, dead = dec_layout(d)
+    strings, infos = {}, {}
+    for k, it in enumerate(win['items']):
+        if 'string' in it:
+            s = it.pop('string')
+            it['text'] = layout_text_ref(wid, k, s)
+            if 'key' in it['text']:
+                strings[it['text']['key']] = s
+                infos[it['text']['key']] = layout_text_info(wid, k, it, s)
+    return win, strings, dead, infos
+
+
+def layout_text_problems(key, s, info):
+    """The reasons a new text of a layout item breaks docs/clean_pack/layouts.md; []."""
+    where = 'layouts/texts.json "%s"' % key
+    if not isinstance(s, str):
+        return ['%s: a string' % where]
+    errs = []
+    if not s or s != s.strip(' '):
+        errs.append('%s: not empty, no spaces at the ends' % where)
+    if any(not 32 <= ord(c) < 127 for c in s) or '%' in s or '\\' in s:
+        errs.append('%s: printable ASCII only, no percent sign and no backslash (the game treats % as a format and then draws no text)' % where)
+    if identity_problem(s):
+        errs.append('%s: contains a name the pack must not carry (ROADMAP A6)' % where)
+    px = text_width(info['font'], s) if not errs else 0
+    if px is None:
+        errs.append('%s: font %d is not made yet, cannot check the width' % (where, info['font']))
+    elif px > info['room_px']:
+        errs.append('%s: %d px wide in font %d, the room is %d px' % (where, px, info['font'], info['room_px']))
+    return errs
+
+
+def cat_layouts(errors):
+    """HCEGANT/0/<id>.bin, the 34 windows and the UI tables 128 / 129 / 131, from docs/clean_pack/data/window_layouts.json; the words
+    inside items from src/layouts/texts.json {"<window>.<item>": "text"} (12 keys). A window whose words are not all given (and
+    valid) is not built, so the missing list shows it."""
+    try:
+        lay = data('window_layouts')
+    except OSError:
+        return
+    texts, path = {}, os.path.join(SRC, 'layouts', 'texts.json')
+    if os.path.exists(path):
+        try:
+            with open(path, encoding='utf-8') as f:
+                src = json.load(f)
+        except ValueError as e:
+            errors.append('layouts/texts.json: %s' % e)
+            src = {}
+        if not isinstance(src, dict):
+            errors.append('layouts/texts.json: an object {"<window>.<item>": "text"}')
+            src = {}
+        for key, s in src.items():
+            if key not in lay['texts']:
+                errors.append('layouts/texts.json "%s": no such text (the keys are %s)' % (key, ', '.join(lay['texts'])))
+                continue
+            errs = layout_text_problems(key, s, lay['texts'][key])
+            errors.extend(errs)
+            if not errs:
+                texts[key] = s
+    for wid, win in lay['windows'].items():
+        keys = [it['text']['key'] for it in win['items'] if 'key' in (it.get('text') or {})]
+        if all(k in texts for k in keys):
+            yield 'HCEGANT/0/%s.bin' % wid, enc_layout(win, texts)
+    for tid, table in lay['tables'].items():
+        yield 'HCEGANT/0/%s.bin' % tid, bytes(table)
+
+
+def check_layouts_roundtrip(zip_path):
+    """--roundtrip=<zip>: every layout of the pack decoded to window_layouts.json's form and encoded back. Returns (counts, notes,
+    problems). byte-identical with the original's dead bytes (item table segments, string padding) for all; with zeros there
+    for those whose dead bytes are zero already; the others must differ only at dead bytes."""
+    counts = dict(windows=0, same_json=0, exact=0, zero=0, dead_only=0, tables=0)
+    notes, problems = [], []
+    lay = data('window_layouts')
+    with zipfile.ZipFile(zip_path) as z:
+        names = set(z.namelist())
+        for wid in LAYOUT_WINDOWS:
+            n = 'HCEGANT/0/%d.bin' % wid
+            if n not in names:
+                problems.append('%s: not in the pack' % n)
+                continue
+            d = z.read(n)
+            counts['windows'] += 1
+            try:
+                win, strings, dead, infos = layout_entry(wid, d)
+            except (ValueError, struct.error) as e:
+                problems.append('%s: %s' % (n, e))
+                continue
+            if win == lay['windows'].get(str(wid)) and all(lay['texts'].get(k) == v for k, v in infos.items()):
+                counts['same_json'] += 1
+            else:
+                problems.append('%s: docs/clean_pack/data/window_layouts.json is not the pack\'s layout (run tools/clean_pack/make_layouts.py)' % n)
+            if enc_layout(win, strings, dead) == d:
+                counts['exact'] += 1
+            else:
+                problems.append('%s: not byte-identical after decode + encode' % n)
+                continue
+            plain = enc_layout(win, strings)
+            if plain == d:
+                counts['zero'] += 1
+            else:
+                a, b = enc_layout(win, strings, dict(dead, seg=[0xffff] * len(win['items']), pad=[None if p is None else [255, 255] for p in dead['pad']])), plain
+                free = {i for i in range(len(a)) if a[i] != b[i]}
+                if len(plain) == len(d) and all(d[i] == plain[i] or i in free for i in range(len(d))):
+                    counts['dead_only'] += 1
+                else:
+                    problems.append('%s: differs from the pack outside the dead bytes with zeros there' % n)
+        for tid in LAYOUT_TABLES:
+            n = 'HCEGANT/0/%d.bin' % tid
+            if n in names and z.read(n) == bytes(lay['tables'].get(str(tid), [])):
+                counts['tables'] += 1
+            else:
+                problems.append('%s: not the pack\'s table (run tools/clean_pack/make_layouts.py)' % n)
+    return counts, notes, problems
+
+
 CATEGORIES = [cat_palette, cat_bitmaps, cat_cursors, cat_tiles, cat_sprites, cat_fonts, cat_balloon, cat_spiderlegs,
-              cat_version, cat_strings, cat_menus, cat_texts]
+              cat_version, cat_strings, cat_menus, cat_texts, cat_layouts]
 
 
 def expected():
@@ -1718,6 +1950,9 @@ def main():
         checked, problems = check_bitmap_roundtrip(opts['roundtrip'])
         n_lists, n_menus, text_problems = check_text_roundtrip(opts['roundtrip'])
         counts, notes, prose_problems = check_texts_roundtrip(opts['roundtrip'])
+        lcounts, lnotes, layout_problems = check_layouts_roundtrip(opts['roundtrip'])
+        prose_problems = prose_problems + layout_problems
+        notes = notes + lnotes
         for p in problems + text_problems + prose_problems:
             print('error:', p)
         for n in notes:
@@ -1729,7 +1964,12 @@ def main():
               'the same bytes for %d, the same lines and links on the card for %d of %d card texts; %d card layouts (17), %d '
               'captions (19) and %d glossary entries (EXE/glossary.bin) byte-identical; %d problems'
               % (counts['texts'], counts['view'], counts['exact'], counts['same_layout'], counts['layout'], counts['layouts'],
-                 counts['names'], counts['glossary'], len(prose_problems)))
+                 counts['names'], counts['glossary'], len(prose_problems) - len(layout_problems)))
+        print('%d window layouts (HCEGANT/0, ids 0..33) decoded and encoded back: the same as window_layouts.json for %d, '
+              'byte-identical with the original\'s dead bytes (item table segments, padding after strings) for %d, with zeros there '
+              'for %d (the other %d differ only in dead bytes); %d of the %d UI tables (128 / 129 / 131) byte-identical; %d problems'
+              % (lcounts['windows'], lcounts['same_json'], lcounts['exact'], lcounts['zero'], lcounts['dead_only'], lcounts['tables'],
+                 len(LAYOUT_TABLES), len(layout_problems)))
         sys.exit(1 if problems or text_problems or prose_problems else 0)
     errors, made = [], {}
     for cat in CATEGORIES:
