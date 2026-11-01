@@ -40,6 +40,7 @@ whatever the reviews find.
 | 2026-10-31 evening (end) | 9 (+2 found and fixed, +2 found open), in ~80% of the window | 35 | 4..6 |
 | 2026-11-01 (start) | | 35 | 4..6 |
 | 2026-11-01 (end) | 9 (5 agents in parallel: yard passes 3-5, SimAntipedia pictures, texts spec + encoders, 3 engine findings; +1 found and fixed: the glossary; +3 found open: rewording) in ~92% of the window | 32 | 4..5 |
+| 2026-11-01 afternoon (start) | | 32 | 4..5 |
 
 ## Where things stand (2026-10-30)
 

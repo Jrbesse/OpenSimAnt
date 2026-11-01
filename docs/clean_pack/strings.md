@@ -161,7 +161,7 @@ names the thing (the tutorial especially). They are functional labels, not text 
 - Map window buttons: a **Yard** button, a **House** button and a **Patch** button; two small triangle icons, one
   lettered **B** (opens Behavior Control) and one lettered **C** (opens Caste Control); a green **?** help button; two bar
   graphs lettered **P** (population) and **H** (health) for the red and black colonies.
-- Edit window: a yellow-ant icon at the left of the tool strip that re-centres the view on your ant.
+- Edit window: a button on the tool strip's left end, drawn as the yellow ant, that re-centres the view on your ant.
 - Keys: **Ctrl** (the Control key), **0** (the zero key: toggles dropping the alarm scent), Tab (Map / Edit), Esc.
 - The game modes: **Tutorial, Quick Game, Full Game, Experimental** (the same words as the Select-a-Game buttons).
 - The About box shows a name card with `OpenSimAnt` / `an open-source remake` / `a fan project`; the credits (list
@@ -233,7 +233,7 @@ second person ("You ..."), plain and short. Measured widest: 254 px.
 | 17 | stays up in Chase mode (spider): pick the target by clicking an ant; unpausing aborts |
 | 18 | a second "click to continue" prompt (never read; keep it short) |
 | 19 | on the yard map: that square has no black colony |
-| 20 | on the yard map after the colony was lost: asks for a pick among the black colonies so play can resume |
+| 20 | on the yard map once the player's colony is gone: a prompt to select one of the surviving black nests, so the game can go on |
 | 21 | the fill tool was refused: it is not available on the surface |
 | 22 | the dig tool was refused: not enough room for a hole there |
 | 23 | caption of the scene picture when the yellow ant is dead |
@@ -398,15 +398,15 @@ widest line in px, to show the scale.
 | 10048 | 3 | 193 | the yellow ant dies: the spider's poison burns through it (the other version) |
 | 10050 | 3 | 205 | the ants swarm and kill an ant lion, then dismember and eat it |
 | 10052 | 3 | 175 | triumph: not a single red ant is left anywhere in the yard |
-| 10053 | 2 | 293 | hint, after the humans have been driven away but red ants survive: finish them off to win the Full Game |
+| 10053 | 2 | 293 | hint, once the people are gone but red ants remain: eliminate them too, to take the Full Game |
 | 10054 | 2 | 226 | triumph: the humans have given up the house and left |
-| 10055 | 2 | 220 | hint, when the humans are gone but the house is not yet captured: conquer it to win the Full Game |
+| 10055 | 2 | 220 | hint, with the people gone but the house not yet taken: occupy it, to take the Full Game |
 | 10056 | 4 | 228 | the Full Game is lost: no black queen, breeder or egg remains anywhere, so the line cannot continue |
 | 10057 | 3 | 229 | the Full Game is won: the red ants are crushed and the house is occupied |
-| 10058 | 3 | 249 | this colony has no ants left; the player must choose another black colony in the yard or house |
+| 10058 | 3 | 249 | the chosen nest is empty (no ants alive); the player has to select a different black nest, in either the yard or the house |
 | 10059 | 2 | 215 | the player's consciousness has been moved to an ant that was already alive |
 
-The death messages (10026 to 10048) are shown when the yellow ant dies; the player then takes over another ant. Mention
+The death messages (10026 to 10048) are shown at the moment the player's yellow ant is killed; the player then takes over another ant. Mention
 the cause of death and, in one of the lines, that the player carries on (as another ant). 10053 is the widest in the
 original; keep yours under 300 px.
 
@@ -454,8 +454,8 @@ The "measured widest" column is the original's widest line in px.
 | 29 | 11056 | 3 | 225 | announces the next lesson: Exchange, which puts the player into another ant |
 | 30 | 11058 | 3 | 288 | asks the player to press and hold on the ant, pick Exchange, then click a black ant close by (done after the swap) |
 | 31 | 11060 | 3 | 267 | confirms the swap: the chosen ant is now the player's, and any black ant can be taken over this way |
-| 32 | 11062 | 3 | 172 | asks the player to return to the Map window via the Window menu (done when it is frontmost) |
-| 33 | 11064 | 3 | 343 | **picture.** moves the lesson to the wider world: asks the player to press the Yard button at the lower left of the Map window (done in the yard view) |
+| 32 | 11062 | 3 | 172 | asks the player to bring the Map window forward through the Window menu (done when it is frontmost) |
+| 33 | 11064 | 3 | 343 | **picture.** moves the lesson to the wider world: asks the player to press the Yard button found in the Map window's bottom-left corner (done in the yard view) |
 | 34 | 11066 | 3 | 200 | points out that the blinking square on the yard's right-hand side marks the current colony |
 | 35 | 11068 | 3 | 234 | explains that the yard view is where, in the Full Game, new colonies are bred and spread |
 | 36 | 11070 | 2 | 209 | **picture.** asks the player to press the House button at the lower left (done in the house view) |
@@ -464,15 +464,15 @@ The "measured widest" column is the original's widest line in px.
 | 39 | 11076 | 3 | 265 | **picture.** asks the player to press the little triangle icon lettered B at the lower middle of the Map window (done when Behavior Control is frontmost) |
 | 40 | 11078 | 3 | 217 | **picture.** introduces the Behavior Control window as the place to decide what the black ants do |
 | 41 | 11080 | 3 | 456 | **picture.** asks the player to drag the small dot inside the triangle, which sets how the ants split between three jobs (done when the dot has moved) |
-| 42 | 11082 | 3 | 233 | asks the player to go back to the Map window, by clicking it or via the Window menu (done when it is frontmost) |
+| 42 | 11082 | 3 | 233 | asks the player to return to the Map window, by clicking it or through the Window menu (done when it is frontmost) |
 | 43 | 11084 | 3 | 268 | **picture.** asks the player to press and hold the "?" icon below and let go after reading the pop-up |
 | 44 | 11086 | 4 | 319 | **picture.** explains that such icons are help buttons found in most windows, each opening a pop-up that labels that window's controls |
-| 45 | 11088 | 3 | 286 | **picture.** points to the two bar graphs at the lower right, which compare the colonies' headcount (P) and health (H) |
+| 45 | 11088 | 3 | 286 | **picture.** points to the two bar charts in the bottom-right corner, which compare the colonies' headcount (P) and health (H) |
 | 46 | 11090 | 3 | 224 | **picture.** asks the player to press and hold inside the bar graph area for a detailed population breakdown |
 | 47 | 11092 | 3 | 206 | **picture.** asks the player to open caste control by pressing the triangle icon lettered C below (done when Caste Control is frontmost) |
 | 48 | 11094 | 3 | 279 | **picture.** says this window chooses which kinds of ants (castes) the queen raises, and that it is used like Behavior Control |
 | 49 | 11096 | 2 | 233 | asks the player to go back to the Edit window via the Window menu (done when it is frontmost; eighty black ants are added now) |
-| 50 | 11098 | 2 | 254 | **picture.** asks the player to press the yellow ant icon at the left so the window centres on the ant (done when the view centres) |
+| 50 | 11098 | 2 | 254 | **picture.** asks the player to press the icon of the yellow ant, on the left edge, so the window re-centres on that ant (done when the view centres) |
 | 51 | 11100 | 2 | 232 | announces the first battle: an assault on the red colony far across the map |
 | 52 | 11102 | 3 | 257 | asks the player to gather helpers: press and hold on the ant, choose Recruit 10, and repeat that about five times (done at roughly forty followers) |
 | 53 | 11104 | 2 | 206 | states that roughly fifty ants are now ready for the assault |
@@ -571,7 +571,7 @@ and encodes them back byte for byte (119 lists and the menu resource: 0 problems
 - **Engine side, not the pack.** The Edit window's caption starts with the product name from the program itself, not from
   a list: `Main.cs` builds it as a literal plus list 1800 [15] plus the mode name; for the clean pack the literal must
   become `OpenSimAnt`. A few fallback lines and dialogs in `Main.cs` (the file dialog's words, the overwrite alert, the
-  game-over console line, "Click on a black colony to continue." as a fallback for 1010 [20]) are English text written
+  game-over console line, a pick-a-colony prompt used as the fallback for 1010 [20]) are English text written
   in the code, to be moved to the pack or made our own (ROADMAP A6).
 - **Entries never read:** 1010 [0], [1] and [18]; 1800 [0..12]; 1101 [0], [11], [15], [16] and 1102 [17], [18],
   [20..29] are placeholders for states and castes the game never produces. They must still exist.
