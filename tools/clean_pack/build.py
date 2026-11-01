@@ -2,7 +2,7 @@
 
     python tools/clean_pack/build.py                       # the clean pack; lists what is still missing
     python tools/clean_pack/build.py --fallback=<zip>      # a dev pack: missing resources taken from <zip>
-    python tools/clean_pack/build.py --roundtrip=<zip>     # check the encoders (bitmaps, string lists, menus, texts, cards, glossary) against every original in <zip>; builds nothing
+    python tools/clean_pack/build.py --roundtrip=<zip>     # check the encoders (bitmaps, string lists, menus, texts, cards, glossary, layouts, sounds, the sound bank, songs, cues) against every original in <zip>; builds nothing
 
 Sources: remake/game/assets/clean/src/<category>/ (written by the makers, docs/clean_pack/*.md). Output:
 - without --fallback: remake/game/assets/clean/clean_pack.zip, only when nothing is missing (else the list and exit 1;
@@ -80,8 +80,17 @@ Source formats so far:
   edge references, item types, colour schemes, the UI tables 128 / 129 / 131) are functional data, not written by any maker:
   data/window_layouts.json, made by tools/clean_pack/make_layouts.py from the player's pack (numbers and ids only), always built
   (enc_layout -> HCEGANT/0/<id>.bin); a window with a word of the makers' waits for it (listed as missing).
+- sounds/sfx_<id>.wav (docs/clean_pack/sounds.md): RIFF PCM mono 16-bit 5,576 Hz with only 'fmt ' and 'data' chunks, at most 16,000
+  frames, ends at zero, length and peak within the measured table for the 35 required ids (the other ids 0..56 are optional) ->
+  SOUND/5/<id>.bin (16 signed deltas, then 4-bit codes, high nibble first; enc_sample searches the table, refuses under 9 dB SNR).
+  sounds/fm_patches.json {"patches": [16 objects]} (the OPL2 register fields of the 16 instruments, effect_key, velocity_offset) ->
+  EXE/soundbank.bin (2,856 bytes: the song channel table, 20 FM records, 53 sample records, 56 effects, 56 instruments; the
+  functional tables come from data/embedded.json).
+- music/<song id>.mid (docs/clean_pack/music.md): Standard MIDI file, format 1, 240 ppq, note on / off only, checked with a port of
+  the game's sequencer (midi_walk / midi_check) and copied unchanged -> SOUND/20/<id>.bin; the cue entries SOUND/18/<cue>.bin come from
+  data/song_cues.json and are always built.
 """
-import json, os, re, struct, sys, zipfile
+import json, math, os, re, struct, sys, time, zipfile
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 SRC = os.path.join(ROOT, 'remake', 'game', 'assets', 'clean', 'src')
@@ -672,6 +681,58 @@ STR_BALLOONS = {1200, 1210, 1220, 1230, 1240, 1250, 1260}
 STR_TEXT_WIDTH_FONT4 = {'messages': 300, 'tutorial': 460}         # the widest line, in pixels of font 4
 CAPTION_CHARS = 40                                                 # window captions: 8-pixel cells
 SCENE_CAPTION_CHARS = 24                                           # the picture strip of the death scenes: 200 px / 8
+
+
+ENGINE_KEYS = ['caption_load', 'caption_save', 'overwrite', 'saved', 'read_error', 'not_found', 'drive_error',
+               'no_files', 'yard_choose']                    # OriginalFiles.EngineStringKeys
+ENGINE_PLACEHOLDER = {'overwrite': '%s', 'saved': '%s', 'drive_error': '%c'}   # exactly once; %s alone on its line
+ENGINE_LINES = {'overwrite': 2, 'saved': 2, 'read_error': 2}                    # lines (1 for every other key)
+# the longest line, in characters of the 8-pixel cell: an alert is drawn in text-mode cells, its longest line + 2 cells
+# wide on 640 pixels, and the path line (%s) can be long, so every other line is kept to 40; the file dialog's caption is
+# an item 240 pixels wide (30 characters of font 0, 28 kept); the list's one row is clipped at 14 characters (12 kept);
+# yard_choose is only the status line's fallback for STR# 1010 entry 20 (never shown while that list exists)
+ENGINE_IDENTITY = re.compile(r'maxis|simcity|(?<!open)simant', re.I)
+ENGINE_MAX = {'caption_load': 28, 'caption_save': 28, 'no_files': 12, 'yard_choose': 70}
+
+
+def cat_engine_strings(errors):
+    """src/strings/engine.json -> EXE/engine_strings.json: {"<key>": "text"}, the engine's own alerts and file dialog
+    words (OpenSimAnt.Data/OriginalFiles.EngineString; on the player's files they are read from SIMANT.EXE). Printable
+    ASCII and \\n; %s (the path) / %c (the drive letter) as ENGINE_PLACEHOLDER says; no leading or trailing blank."""
+    path = os.path.join(SRC, 'strings', 'engine.json')
+    if not os.path.exists(path):
+        return
+    try:
+        with open(path, encoding='utf-8') as f:
+            src = json.load(f)
+    except (OSError, ValueError) as e:
+        errors.append('strings/engine.json: %s' % e)
+        return
+    if not isinstance(src, dict) or set(src) != set(ENGINE_KEYS) or not all(isinstance(v, str) for v in src.values()):
+        errors.append('strings/engine.json: an object with exactly the keys %s, string values' % ', '.join(ENGINE_KEYS))
+        return
+    bad = len(errors)
+    for key in ENGINE_KEYS:
+        text, where = src[key], 'strings/engine.json "%s"' % key
+        lines = text.split('\n')
+        if any(not 32 <= ord(c) < 127 for c in text.replace('\n', '')) or text != text.strip() or '' in lines:
+            errors.append('%s: printable ASCII only, no blank line, no leading or trailing space' % where)
+            continue
+        if len(lines) != ENGINE_LINES.get(key, 1):
+            errors.append('%s: %d line(s) expected' % (where, ENGINE_LINES.get(key, 1)))
+        ph = ENGINE_PLACEHOLDER.get(key)
+        if text.count('%') != (1 if ph else 0) or (ph and text.count(ph) != 1):
+            errors.append('%s: %s' % (where, ('exactly one %s' % ph) if ph else 'no percent sign'))
+        elif ph == '%s' and ph not in lines:
+            errors.append('%s: %%s (the path) alone on its line' % where)
+        for ln in lines:
+            if ln != '%s' and len(ln) > ENGINE_MAX.get(key, 40):
+                errors.append('%s: line "%s" is %d characters, at most %d'
+                              % (where, ln, len(ln), ENGINE_MAX.get(key, 40)))
+        if ENGINE_IDENTITY.search(text):
+            errors.append('%s: carries a foreign name' % where)
+    if len(errors) == bad:
+        yield 'EXE/engine_strings.json', json.dumps({k: src[k] for k in ENGINE_KEYS}, indent=1).encode('ascii')
 
 
 def str_group(i):
@@ -1899,8 +1960,1036 @@ def check_layouts_roundtrip(zip_path):
     return counts, notes, problems
 
 
+# ------------------------------------------------------------------------------------------------ sound effects
+# docs/clean_pack/sounds.md: SOUND/5/<id> (the 4-bit delta samples) and EXE/soundbank.bin (the sound driver's tables)
+SFX_RATE = 5576                      # the WAV's sample rate (the driver mixes at 5575.6 Hz)
+SFX_MAX_FRAMES = 16000
+SFX_FRAMES_TOL = 0.20                # frame count within 20 % of the measured one
+SFX_PEAK_RANGE = (0.80, 1.10)        # peak (8-bit units) within 80..110 % of the measured one
+SFX_EDGE = 6                         # the first and last 8 samples within +-6
+SFX_SNR_MIN, SFX_SNR_NOTE = 9.0, 14.0      # coding error: refused below, noted below the second
+SFX_ITERATIONS, SFX_STALE = 30, 6    # table refinement passes, stop after this many without a better one
+
+
+def sfx_required():
+    """The sound ids the driver can reach through a sample instrument (35): the ones a complete pack needs."""
+    return sorted({i['sample_sound'] for i in data('embedded')['instruments'] if i['device'] == 'sample'})
+
+
+def dec_sample(d):
+    """SOUND type 5 -> signed 8-bit samples, exactly OpenSimAnt.Data Sounds.Decode: a table of 16 signed deltas, then 4-bit
+    codes (high nibble first); the running sum wraps in 8 bits."""
+    if len(d) < 16:
+        return []
+    table = [b - 256 if b > 127 else b for b in d[:16]]
+    out, s = [], 0
+    for b in d[16:]:
+        for c in (b >> 4, b & 15):
+            s = ((s + table[c] + 128) & 255) - 128
+            out.append(s)
+    return out
+
+
+def pack_sample(table, codes):
+    blob = bytearray(e & 255 for e in table)
+    for i in range(0, len(codes), 2):
+        blob.append(codes[i] << 4 | codes[i + 1])
+    return bytes(blob)
+
+
+def enc_sample_lossless(t, table):
+    """The samples `t` (decoded from an original) coded with the original's own table: at each step the wanted delta (mod 256)
+    and the lowest code whose table entry is that delta. Same samples back; the same bytes when the table entries differ."""
+    lowest = {}
+    for c, e in enumerate(table):
+        lowest.setdefault(e, c)
+    s, codes = 0, []
+    for x in t:
+        codes.append(lowest[((x - s + 128) & 255) - 128])
+        s = x
+    return pack_sample(table, codes)
+
+
+def _sample_pass(t, table):
+    """One greedy encoding pass (sounds.md E1): at each sample the code whose step lands nearest to it without leaving
+    -128..127 (ties: the smaller step, then the lower code). Returns the codes, the squared error and, per code, the sum of the
+    ideal deltas and the count (for the next table)."""
+    near = [min(range(16), key=lambda c: (abs(d - table[c]), abs(table[c]), c)) for d in range(-255, 256)]
+    sums, counts, codes = [0] * 16, [0] * 16, []
+    s = err = 0
+    for x in t:
+        d = x - s
+        c = near[d + 255]
+        ns = s + table[c]
+        if ns < -128 or ns > 127:                               # rare: the nearest step would leave the 8-bit range
+            c = min((k for k in range(16) if -128 <= s + table[k] <= 127), key=lambda k: (abs(d - table[k]), abs(table[k]), k))
+            ns = s + table[c]
+        sums[c] += d
+        counts[c] += 1
+        codes.append(c)
+        err += (x - ns) ** 2
+        s = ns
+    return codes, err, sums, counts
+
+
+def _rising(n, top):
+    """n distinct integers rising from 1 to about `top`."""
+    v = [max(1, int(round(top ** (i / (n - 1))))) for i in range(n)]
+    for i in range(1, n):
+        if v[i] <= v[i - 1]:
+            v[i] = v[i - 1] + 1
+    return v
+
+
+def _separate(mags, top):
+    """Sorted, distinct magnitudes in 1..top."""
+    mags = sorted(min(top, max(1, m)) for m in mags)
+    for i in range(1, len(mags)):
+        if mags[i] <= mags[i - 1]:
+            mags[i] = mags[i - 1] + 1
+    for i in range(len(mags) - 2, -1, -1):
+        if mags[i] >= mags[i + 1]:
+            mags[i] = mags[i + 1] - 1
+    return mags
+
+
+def enc_sample(t):
+    """The lossy encoder for a maker's samples (signed 8-bit list, even length): a table found by repeated greedy passes
+    (sounds.md E1). Returns (SOUND/5 bytes, signal-to-noise ratio in dB of the decoded result against `t`)."""
+    t = list(t)
+    energy = sum(x * x for x in t)
+    if energy == 0:
+        raise ValueError('silent')
+    top = max(abs(b - a) for a, b in zip([0] + t, t))
+    p = min(127, max(8, -(-9 * top // 10)))
+    table = [0] + _rising(7, p) + [-m for m in _rising(8, min(128, p + 1))]
+    best, stale = None, 0
+    for _ in range(SFX_ITERATIONS):
+        codes, err, sums, counts = _sample_pass(t, table)
+        if best is None or err < best[0]:
+            best, stale = (err, list(table), codes), 0
+        else:
+            stale += 1
+            if stale >= SFX_STALE:
+                break
+        new = [0] + [int(math.floor(sums[c] / counts[c] + 0.5)) if counts[c] else table[c] for c in range(1, 16)]
+        pos = _separate(new[1:8], 127)
+        neg = _separate([-v for v in new[8:16]], 128)
+        table = [0] + pos + [-m for m in neg]
+    err, table, codes = best
+    snr = 99.0 if err == 0 else 10 * math.log10(energy / err)
+    return pack_sample(table, codes), snr
+
+
+def read_wav(raw):
+    """(rate, channels, bits, samples) of a RIFF PCM file holding only a 'fmt ' and a 'data' chunk; ValueError otherwise."""
+    if len(raw) < 12 or raw[:4] != b'RIFF' or raw[8:12] != b'WAVE':
+        raise ValueError('not a RIFF/WAVE file')
+    p, fmt, pcm, ids = 12, None, None, []
+    while p + 8 <= len(raw):
+        cid, size = raw[p:p + 4], struct.unpack_from('<I', raw, p + 4)[0]
+        body = raw[p + 8:p + 8 + size]
+        if len(body) < size:
+            raise ValueError('a chunk is cut short')
+        ids.append(cid.decode('latin-1'))
+        if cid == b'fmt ' and size >= 16:
+            fmt = struct.unpack_from('<HHIIHH', body, 0)
+        elif cid == b'data':
+            pcm = body
+        p += 8 + size + (size & 1)
+    if ids != ['fmt ', 'data'] or fmt is None:
+        raise ValueError("chunks %s, expected exactly 'fmt ' and 'data'" % ids)
+    tag, ch, rate, _bps, _align, bits = fmt
+    if tag != 1:
+        raise ValueError('not PCM (format tag %d)' % tag)
+    if bits != 16 or len(pcm) % 2:
+        raise ValueError('%d bits, must be 16' % bits)
+    return rate, ch, bits, list(struct.unpack('<%dh' % (len(pcm) // 2), pcm))
+
+
+def sfx_problems(where, ident, t):
+    """The checks of sounds.md section 4.1 / 6 on the 8-bit samples of one file (before the SNR). A required id is also
+    compared with the measurements (frames, peak)."""
+    errs = []
+    if not t:
+        return ['%s: no samples' % where]
+    if len(t) > SFX_MAX_FRAMES:
+        errs.append('%s: %d samples, at most %d' % (where, len(t), SFX_MAX_FRAMES))
+    peak = max(abs(x) for x in t)
+    if peak == 0:
+        errs.append('%s: silent' % where)
+    row = next((r for r in data('sounds') if r['id'] == ident), None)
+    if ident in sfx_required() and row:
+        lo, hi = row['samples'] * (1 - SFX_FRAMES_TOL), row['samples'] * (1 + SFX_FRAMES_TOL)
+        if not lo <= len(t) <= hi:
+            errs.append('%s: %d samples, the spec says %d (within %d %%: %d..%d)'
+                        % (where, len(t), row['samples'], SFX_FRAMES_TOL * 100, lo, hi))
+        lo, hi = row['peak'] * SFX_PEAK_RANGE[0], row['peak'] * SFX_PEAK_RANGE[1]
+        if not lo <= peak <= hi:
+            errs.append('%s: peak %d (8-bit units), the spec says %d (%.0f..%.0f)' % (where, peak, row['peak'], lo, hi))
+    if any(abs(x) > SFX_EDGE for x in t[:8] + t[-8:]):
+        errs.append('%s: the first and last 8 samples must be within +-%d (8-bit units): start and end at zero' % (where, SFX_EDGE))
+    return errs
+
+
+def to_8bit(x16):
+    """16-bit sample -> signed 8-bit, rounded (sounds.md E1 step 1), odd counts padded with one zero."""
+    t = [max(-128, min(127, (x + 128) >> 8)) for x in x16]
+    if len(t) % 2:
+        t.append(0)
+    return t
+
+
+def cat_sounds(errors):
+    """src/sounds/sfx_<id>.wav (RIFF PCM mono 16-bit 5,576 Hz) -> SOUND/5/<id>.bin, with the checks of sounds.md."""
+    d = os.path.join(SRC, 'sounds')
+    for name in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+        if not name.startswith('sfx_') or not name.endswith('.wav'):
+            continue
+        where = 'sounds/' + name
+        m = re.fullmatch(r'sfx_(\d+)\.wav', name)
+        if not m or int(m.group(1)) not in range(57):
+            errors.append('%s: sfx_<id>.wav with an id 0..56' % where)
+            continue
+        ident = int(m.group(1))
+        try:
+            with open(os.path.join(d, name), 'rb') as f:
+                rate, ch, _bits, x16 = read_wav(f.read())
+        except ValueError as e:
+            errors.append('%s: %s' % (where, e))
+            continue
+        if ch != 1 or rate != SFX_RATE:
+            errors.append('%s: %d channel(s) at %d Hz, must be mono at %d Hz' % (where, ch, rate, SFX_RATE))
+            continue
+        t = to_8bit(x16)
+        errs = sfx_problems(where, ident, t)
+        if errs:
+            errors.extend(errs)
+            continue
+        blob, snr = enc_sample(t)
+        if snr < SFX_SNR_MIN:
+            errors.append('%s: the 4-bit code reproduces it at %.1f dB signal-to-noise, at least %.0f needed: soften it (less high '
+                          'frequency, a gentler attack, less noise)' % (where, snr, SFX_SNR_MIN))
+            continue
+        if snr < SFX_SNR_NOTE:
+            WARNINGS.append('%s: the 4-bit code reproduces it at %.1f dB signal-to-noise (below %.0f: rough)' % (where, snr, SFX_SNR_NOTE))
+        yield 'SOUND/5/%d.bin' % ident, blob
+
+
+# ------------------------------------------------------------------------------------------------ FM patches and the sound bank
+FM_PATCH_TABLE = [('fm25', (25,)), ('fm53', (53,)), ('fm3', (3,)), ('fm54', (54,)), ('fm35', (35,)), ('fm46', (46,)),
+                  ('fm50', (50,)), ('fm51', (51,)), ('fm48', (48,)), ('fm0', (0,)), ('fm9', (9,)), ('fm15', (15, 16)),
+                  ('fm17', (17,)), ('fm18', (18,)), ('fm19', (19,)), ('fm30', (30,))]
+FM_EFFECT_KEY_REQUIRED = {'fm9', 'fm15', 'fm17', 'fm18', 'fm19', 'fm30', 'fm35'}
+FM_OPERATOR = (('tremolo', 0, 1), ('vibrato', 0, 1), ('sustain', 0, 1), ('ksr', 0, 1), ('multiple', 0, 15), ('ksl', 0, 3),
+               ('level', 0, 63), ('attack', 0, 15), ('decay', 0, 15), ('sustain_level', 0, 15), ('release', 0, 15))
+FM_CARRIER_LEVEL_MAX = 40
+FM_DEFAULT_KEY = 60
+SB_SIZE = 2856
+SB_SEG = 0x55B3                       # the segment of the far pointers in the instrument table
+SB_FM_AT, SB_FM_N = 0x202, 20         # DS offsets of the FM records (16 bytes) and the sample records (32 bytes)
+SB_SMP_AT, SB_SMP_N = 0x342, 53
+SB_CHANNEL_PRIORITY = [0, 7, 7, 7, 7] + [5] * 9               # MIDI channels 0..13
+SB_CHANNEL_INSTRUMENT = [0, 25, 53, 3, 54, 35, 46, 50, 51, 48, 0, 12, 43, 52]
+
+
+def fm_op_bytes(o):
+    """An operator's registers 0x20, 0x40, 0x60, 0x80."""
+    return (o['tremolo'] << 7 | o['vibrato'] << 6 | o['sustain'] << 5 | o['ksr'] << 4 | o['multiple'],
+            o['ksl'] << 6 | o['level'], o['attack'] << 4 | o['decay'], o['sustain_level'] << 4 | o['release'])
+
+
+def fm_op_fields(b0, b1, b2, b3):
+    return dict(tremolo=b0 >> 7, vibrato=b0 >> 6 & 1, sustain=b0 >> 5 & 1, ksr=b0 >> 4 & 1, multiple=b0 & 15,
+                ksl=b1 >> 6, level=b1 & 63, attack=b2 >> 4, decay=b2 & 15, sustain_level=b3 >> 4, release=b3 & 15)
+
+
+FM_EXTRA = dict(c0_hi=0, wave_c=0, wave_m=0, octave=0, b15=0)       # the bytes of a record that a clean patch leaves 0
+
+
+def enc_fm_record(p, x=None):
+    """The 16-byte FM record (sounds.md E2) of a patch's fields; x = the bytes a clean patch leaves 0."""
+    x = dict(FM_EXTRA, **(x or {}))
+    c, m = fm_op_bytes(p['carrier']), fm_op_bytes(p['modulator'])
+    return (bytes([c[0], m[0], c[1], m[1], c[2], m[2], c[3], m[3], x['c0_hi'] << 4 | p['feedback'] << 1 | p['connection'],
+                   x['wave_c'], x['wave_m']]) + struct.pack('<hh', x['octave'], p['velocity_offset']) + bytes([x['b15']]))
+
+
+def dec_fm_record(b):
+    """(fields, extra): the inverse of enc_fm_record."""
+    p = dict(velocity_offset=struct.unpack_from('<h', b, 13)[0], feedback=b[8] >> 1 & 7, connection=b[8] & 1,
+             modulator=fm_op_fields(b[1], b[3], b[5], b[7]), carrier=fm_op_fields(b[0], b[2], b[4], b[6]))
+    return p, dict(c0_hi=b[8] >> 4, wave_c=b[9], wave_m=b[10], octave=struct.unpack_from('<h', b, 11)[0], b15=b[15])
+
+
+def dec_sample_record(b):
+    return dict(head=bytes(b[0:6]), loop=b[6] | b[7] << 8, loop_flag=b[8], base_octave=b[9], transpose=struct.unpack_from('<h', b, 10)[0],
+                w12=b[12] | b[13] << 8, name=bytes(b[14:29]), sound=b[29] | b[30] << 8, b31=b[31])
+
+
+def enc_sample_record(r):
+    return (r['head'] + struct.pack('<HBBhH', r['loop'], r['loop_flag'], r['base_octave'], r['transpose'], r['w12']) + r['name']
+            + struct.pack('<HB', r['sound'], r['b31']))
+
+
+def dec_soundbank(d):
+    """EXE/soundbank.bin -> the model: channels (priority, instrument), 20 FM records (fields + extra), 53 sample records,
+    56 effects (key, priority, instrument, velocity), 56 instruments (device, DS offset, segment)."""
+    if len(d) != SB_SIZE:
+        raise ValueError('%d bytes, expected %d' % (len(d), SB_SIZE))
+    return dict(priority=list(struct.unpack_from('<14H', d, 0)), instrument=list(struct.unpack_from('<14H', d, 28)),
+                fm=[dec_fm_record(d[56 + 16 * r:72 + 16 * r]) for r in range(SB_FM_N)],
+                samples=[dec_sample_record(d[376 + 32 * s:408 + 32 * s]) for s in range(SB_SMP_N)],
+                effects=[struct.unpack_from('<4H', d, 2072 + 8 * n) for n in range(56)],
+                instruments=[struct.unpack_from('<3H', d, 2520 + 6 * i) for i in range(56)])
+
+
+def enc_soundbank(m):
+    out = struct.pack('<14H', *m['priority']) + struct.pack('<14H', *m['instrument'])
+    out += b''.join(enc_fm_record(p, x) for p, x in m['fm'])
+    out += b''.join(enc_sample_record(r) for r in m['samples'])
+    out += b''.join(struct.pack('<4H', *e) for e in m['effects'])
+    out += b''.join(struct.pack('<3H', *i) for i in m['instruments'])
+    assert len(out) == SB_SIZE
+    return out
+
+
+def patch_problems(doc, where='sounds/fm_patches.json'):
+    """Validates fm_patches.json (sounds.md section 5 / 6). Returns (the 16 patches, []) or (None, errors)."""
+    isint = lambda v: isinstance(v, int) and not isinstance(v, bool)
+    if not isinstance(doc, dict) or not isinstance(doc.get('patches'), list):
+        return None, ['%s: {"patches": [16 objects]}' % where]
+    errs, ps = [], doc['patches']
+    if len(ps) != len(FM_PATCH_TABLE):
+        errs.append('%s: %d patches, exactly %d in the order of the spec' % (where, len(ps), len(FM_PATCH_TABLE)))
+    for k, (pid, ins) in enumerate(FM_PATCH_TABLE[:len(ps)]):
+        p, w = ps[k], '%s "%s"' % (where, pid)
+        if not isinstance(p, dict):
+            errs.append('%s: not an object' % w)
+            continue
+        if p.get('id') != pid or p.get('instruments') != list(ins):
+            errs.append('%s: patch %d must be id "%s", instruments %s (got %r, %r)' % (w, k, pid, list(ins), p.get('id'), p.get('instruments')))
+        for key in p:
+            if key not in ('id', 'instruments', 'effect_key', 'velocity_offset', 'feedback', 'connection', 'modulator', 'carrier', 'note'):
+                errs.append('%s: unknown field "%s"' % (w, key))
+
+        def num(obj, key, lo, hi, what):
+            v = obj.get(key)
+            if not isint(v) or not lo <= v <= hi:
+                errs.append('%s: %s must be an integer %d..%d (got %r)' % (w, what, lo, hi, v))
+                return False
+            return True
+        if 'effect_key' in p:
+            num(p, 'effect_key', 0, 95, 'effect_key')
+        elif pid in FM_EFFECT_KEY_REQUIRED:
+            errs.append('%s: effect_key is required (an effect plays this patch)' % w)
+        num(p, 'velocity_offset', -64, 0, 'velocity_offset')
+        num(p, 'feedback', 0, 7, 'feedback')
+        num(p, 'connection', 0, 1, 'connection')
+        for op in ('modulator', 'carrier'):
+            o = p.get(op)
+            if not isinstance(o, dict):
+                errs.append('%s: "%s" must be an object' % (w, op))
+                continue
+            for key in o:
+                if key not in [f[0] for f in FM_OPERATOR]:
+                    errs.append('%s %s: unknown field "%s"' % (w, op, key))
+            for key, lo, hi in FM_OPERATOR:
+                num(o, key, lo, hi, '%s.%s' % (op, key))
+        c = p.get('carrier')
+        if errs or not isinstance(c, dict):
+            continue
+        if c['sustain'] != 0:
+            errs.append('%s: the carrier\'s sustain must be 0 (an effect has no note off: a held carrier never stops)' % w)
+        if c['level'] > FM_CARRIER_LEVEL_MAX:
+            errs.append('%s: the carrier\'s level is %d, at most %d' % (w, c['level'], FM_CARRIER_LEVEL_MAX))
+        if c['attack'] == 0 or (c['decay'] == 0 and c['release'] == 0):
+            errs.append('%s: silent (carrier attack 0, or decay and release both 0)' % w)
+    return (None, errs) if errs else (ps, [])
+
+
+def clean_soundbank(patches):
+    """The model of the clean EXE/soundbank.bin from the 16 patches (sounds.md E2 "Building the clean bank"): the functional
+    tables of embedded.json (effects, instrument devices), the patches' fields and effect keys, one sample record per
+    required sound id."""
+    emb = data('embedded')
+    rec_of = {i: r for r, (pid, ins) in enumerate(FM_PATCH_TABLE) for i in ins}
+    slot = {sid: k for k, sid in enumerate(sfx_required())}
+    zero_fm = ({o: 0 for o in ('velocity_offset', 'feedback', 'connection')}, FM_EXTRA)
+    zero_op = {f[0]: 0 for f in FM_OPERATOR}
+    zero_fm = (dict(zero_fm[0], modulator=dict(zero_op), carrier=dict(zero_op)), dict(FM_EXTRA))
+    fm = [({k: v for k, v in p.items() if k in ('velocity_offset', 'feedback', 'connection', 'modulator', 'carrier')}, dict(FM_EXTRA))
+          for p in patches] + [zero_fm] * (SB_FM_N - len(patches))
+    zero_smp = dict(head=bytes(6), loop=0, loop_flag=0, base_octave=0, transpose=0, w12=0, name=bytes(15), sound=0, b31=0)
+    samples = [dict(zero_smp, base_octave=5, name=b'sfx%d' % sid + bytes(15 - len(b'sfx%d' % sid)), sound=sid) for sid in slot]
+    samples += [zero_smp] * (SB_SMP_N - len(samples))
+    instruments, key_of = [], {}
+    for ins in emb['instruments']:
+        i = ins['index']
+        if ins['device'] == 'FM':
+            instruments.append((2, SB_FM_AT + 16 * rec_of[i], SB_SEG))
+            key_of[i] = patches[rec_of[i]].get('effect_key', FM_DEFAULT_KEY)
+        elif ins['device'] == 'sample':
+            instruments.append((1, SB_SMP_AT + 32 * slot[ins['sample_sound']], SB_SEG))
+        else:
+            instruments.append((0, 0, 0))
+    effects = [(key_of.get(e['Instrument'], e['Key']), e['Priority'], e['Instrument'], e['Velocity']) for e in emb['effects']]
+    return dict(priority=list(SB_CHANNEL_PRIORITY), instrument=list(SB_CHANNEL_INSTRUMENT), fm=fm, samples=samples,
+                effects=effects, instruments=instruments)
+
+
+def soundbank_problems(m, names=None, clean=None):
+    """Invariants of a decoded bank (originals and the clean one): channel tables, FM byte 15, far pointer segments, record
+    offsets inside their tables, sample records (base octave 5, no transposition, no loop) behind sample instruments, the
+    effects against the functional table. `clean` (the patches) adds: every FM instrument has its patch with clean extras,
+    sample instruments name sfx<id> records whose SOUND/5 id exists in `names`, effect keys are the patches'."""
+    errs, emb = [], data('embedded')
+    if m['priority'] != SB_CHANNEL_PRIORITY or m['instrument'] != SB_CHANNEL_INSTRUMENT:
+        errs.append('the song channel table is not the functional one')
+    if any(x['b15'] != 0 for _p, x in m['fm']):
+        errs.append('an FM record has a non-zero byte 15')
+    for ins in emb['instruments']:
+        i = ins['index']
+        dev, off, seg = m['instruments'][i]
+        want = {'FM': 2, 'sample': 1, 'none': 0}[ins['device']]
+        if dev != want or seg != (0 if want == 0 else SB_SEG) or (want == 0 and off != 0):
+            errs.append('instrument %d: device %d, segment %04X, expected device %d' % (i, dev, seg, want))
+        elif dev == 2:
+            r = (off - SB_FM_AT) // 16
+            if off < SB_FM_AT or (off - SB_FM_AT) % 16 or r >= (len(clean) if clean else SB_FM_N):
+                errs.append('instrument %d: FM record offset %04X is outside the table' % (i, off))
+            elif clean is not None:
+                p, x = m['fm'][r]
+                if x != FM_EXTRA:
+                    errs.append('instrument %d: the clean record has extra (waveform, octave, unused) bytes set' % i)
+                if i not in FM_PATCH_TABLE[r][1]:
+                    errs.append('instrument %d plays patch %s' % (i, FM_PATCH_TABLE[r][0]))
+        elif dev == 1:
+            s = (off - SB_SMP_AT) // 32
+            if off < SB_SMP_AT or (off - SB_SMP_AT) % 32 or s >= SB_SMP_N:
+                errs.append('instrument %d: sample record offset %04X is outside the table' % (i, off))
+                continue
+            r = m['samples'][s]
+            if (r['base_octave'], r['transpose'], r['loop_flag']) != (5, 0, 0):
+                errs.append('instrument %d: sample record %d has octave %d, transposition %d, loop %d (expected 5, 0, 0)'
+                            % (i, s, r['base_octave'], r['transpose'], r['loop_flag']))
+            if r['sound'] != ins['sample_sound']:
+                errs.append('instrument %d: its sample record says sound %d, the measurements say %d' % (i, r['sound'], ins['sample_sound']))
+            if clean is not None:
+                if r['name'].split(b'\0')[0] != b'sfx%d' % r['sound']:
+                    errs.append('instrument %d: sample record name %r is not sfx%d' % (i, r['name'], r['sound']))
+                if names is not None and 'SOUND/5/%d.bin' % r['sound'] not in names:
+                    errs.append('instrument %d: sound %d is not in the pack' % (i, r['sound']))
+    for e, want in zip(m['effects'], emb['effects']):
+        got = (e[1], e[2], e[3])
+        if got != (want['Priority'], want['Instrument'], want['Velocity']):
+            errs.append('effect %d: priority, instrument, velocity %s are not the functional table\'s' % (want['effect'], got))
+        elif clean is None and e[0] != want['Key']:
+            errs.append('effect %d: key %d, the functional table says %d' % (want['effect'], e[0], want['Key']))
+        elif clean is not None:
+            ins = emb['instruments'][want['Instrument']]
+            if ins['device'] == 'FM':
+                r = (m['instruments'][ins['index']][1] - SB_FM_AT) // 16
+                if e[0] != clean[r].get('effect_key', FM_DEFAULT_KEY):
+                    errs.append('effect %d: key %d is not the patch\'s effect_key' % (want['effect'], e[0]))
+            elif e[0] != want['Key']:
+                errs.append('effect %d: key %d, the functional table says %d' % (want['effect'], e[0], want['Key']))
+    return errs
+
+
+def patches_of_bank(m):
+    """The 16 patch objects (fm_patches.json's form) read out of an original's bank model: each patch's fields from the record
+    of its first instrument, effect_key the effect's key. The original's octave shift, waveform bytes and unused bits are not
+    part of a patch (a clean patch is 0 there), so the clean sound is not the original's pitch."""
+    out = []
+    for pid, ins in FM_PATCH_TABLE:
+        _dev, off, _seg = m['instruments'][ins[0]]
+        p = m['fm'][(off - SB_FM_AT) // 16][0]
+        out.append(dict(id=pid, instruments=list(ins), effect_key=m['effects'][ins[0]][0], **json.loads(json.dumps(p)), note=''))
+    return out
+
+
+def cat_soundbank(errors):
+    """src/sounds/fm_patches.json -> EXE/soundbank.bin (2,856 bytes) with the functional tables."""
+    path = os.path.join(SRC, 'sounds', 'fm_patches.json')
+    if not os.path.exists(path):
+        return
+    try:
+        with open(path, encoding='utf-8') as f:
+            doc = json.load(f)
+    except ValueError as e:
+        errors.append('sounds/fm_patches.json: %s' % e)
+        return
+    patches, errs = patch_problems(doc)
+    errors.extend(errs)
+    if patches is None:
+        return
+    blob = enc_soundbank(clean_soundbank(patches))
+    bad = soundbank_problems(dec_soundbank(blob), clean=patches)
+    if bad:
+        errors.extend('sounds/fm_patches.json: the bank built from it fails its own checks: %s' % b for b in bad)
+        return
+    yield 'EXE/soundbank.bin', blob
+
+
+def check_sounds_roundtrip(zip_path):
+    """--roundtrip=<zip>: the 57 samples of the pack decoded and coded back (the same samples; the same bytes where the table
+    entries are distinct), the lossy encoder run on the decoded originals (the SNR it reaches), the sound bank decoded and encoded
+    back byte for byte with its invariants, and a clean bank built from the original's own fields. Returns (counts, notes,
+    problems)."""
+    c = dict(samples=0, same=0, exact=0, dup_tables=0, snr=[], seconds=0.0, bank=0, patches=0, fm_fields=0)
+    notes, problems = [], []
+    rows = {r['id']: r for r in data('sounds')}
+    with zipfile.ZipFile(zip_path) as z:
+        names = set(z.namelist())
+        for ident in range(57):
+            n = 'SOUND/5/%d.bin' % ident
+            if n not in names:
+                problems.append('%s: not in the pack' % n)
+                continue
+            d = z.read(n)
+            t = dec_sample(d)
+            c['samples'] += 1
+            row = rows[ident]
+            if len(t) != row['samples'] or max(abs(x) for x in t) != row['peak']:
+                problems.append('%s: %d samples, peak %d; the measurements say %d, %d'
+                                % (n, len(t), max(abs(x) for x in t), row['samples'], row['peak']))
+            table = [b - 256 if b > 127 else b for b in d[:16]]
+            back = enc_sample_lossless(t, table)
+            if dec_sample(back) != t or len(back) != len(d):
+                problems.append('%s: the samples do not survive the lossless coder' % n)
+                continue
+            c['same'] += 1
+            if back == d:
+                c['exact'] += 1
+            elif len(set(table)) == 16:
+                problems.append('%s: the table has 16 distinct entries but the bytes differ' % n)
+            if len(set(table)) < 16:
+                c['dup_tables'] += 1
+            start = time.time()
+            if any(t):
+                blob, snr = enc_sample(t)
+                got = dec_sample(blob)
+                err = sum((x - y) ** 2 for x, y in zip(t, got))
+                if len(got) != len(t) or abs((99.0 if err == 0 else 10 * math.log10(sum(x * x for x in t) / err)) - snr) > 1e-6:
+                    problems.append('%s: the lossy coder result does not decode to the SNR it reports' % n)
+                c['snr'].append((snr, ident))
+            c['seconds'] += time.time() - start
+        # the sound bank
+        raw = z.read('EXE/soundbank.bin') if 'EXE/soundbank.bin' in names else None
+        if raw is None:
+            problems.append('EXE/soundbank.bin: not in the pack')
+        else:
+            m = dec_soundbank(raw)
+            if enc_soundbank(m) != raw:
+                problems.append('EXE/soundbank.bin: not byte-identical after decode + encode')
+            else:
+                c['bank'] = 1
+            for p in soundbank_problems(m):
+                problems.append('EXE/soundbank.bin: %s' % p)
+            for pid, ins in FM_PATCH_TABLE:
+                for i in ins[1:]:
+                    if m['instruments'][i][1] != m['instruments'][ins[0]][1]:
+                        problems.append('EXE/soundbank.bin: instruments %s do not share one record' % list(ins))
+            for pa, x in m['fm']:                                   # the field <-> byte conversion is an exact inverse
+                if dec_fm_record(enc_fm_record(pa, x)) != (pa, x):
+                    problems.append('EXE/soundbank.bin: an FM record\'s fields do not survive the conversion')
+            for op in FM_OPERATOR:                                  # and every value of every field
+                for v in range(op[1], op[2] + 1):
+                    o = {f[0]: 0 for f in FM_OPERATOR}
+                    o[op[0]] = v
+                    if fm_op_fields(*fm_op_bytes(o)) != o:
+                        problems.append('FM field %s=%d does not survive the conversion' % (op[0], v))
+            # a clean bank from the original's fields
+            patches = patches_of_bank(m)
+            ps, errs = patch_problems({'patches': patches}, 'patches read from the original')
+            if errs:
+                notes.append('read out of the original\'s bank, %d of its 16 patches break a clean-file rule (for example a held carrier, '
+                             'carrier level above %d, octave shift): %s' % (len({e.split('"')[1] for e in errs if '"' in e}),
+                                                                             FM_CARRIER_LEVEL_MAX, errs[0]))
+            cm = clean_soundbank(patches)
+            blob = enc_soundbank(cm)
+            back = dec_soundbank(blob)
+            if len(blob) != SB_SIZE or enc_soundbank(back) != blob:
+                problems.append('the clean bank is not %d bytes / not a fixed point of decode + encode' % SB_SIZE)
+            for p in soundbank_problems(back, names, patches):
+                problems.append('clean bank: %s' % p)
+            for ins in data('embedded')['instruments']:
+                if ins['device'] != 'FM':
+                    continue
+                i = ins['index']
+                a = m['fm'][(m['instruments'][i][1] - SB_FM_AT) // 16][0]
+                b = back['fm'][(back['instruments'][i][1] - SB_FM_AT) // 16][0]
+                if a == b:
+                    c['fm_fields'] += 1
+                else:
+                    problems.append('clean bank: instrument %d has other FM fields than the original' % i)
+            c['patches'] = len(patches)
+    if c['snr']:
+        snrs = sorted(s for s, _i in c['snr'])
+        notes.append('the lossy encoder on the %d decoded originals (their own delta codes): SNR min %.1f dB (id %d), median %.1f, max %.1f; '
+                     '%.1f s in all' % (len(snrs), snrs[0], min(c['snr'])[1], snrs[len(snrs) // 2], snrs[-1], c['seconds']))
+    return c, notes, problems
+
+
+# ------------------------------------------------------------------------------------------------ music
+# docs/clean_pack/music.md: SOUND/20/<song>.bin (the Standard MIDI file unchanged after the checks) and SOUND/18/<cue>.bin
+STEP_HZ = 1193182 / 0xD6 / 16               # the driver's music clock: steps per second (348.47)
+MUSIC_PPQ = 240
+MIDI_MAX_BYTES = 64 * 1024
+MIDI_TEMPO = (100000, 1000000)
+MIDI_MAX_HELD = 6
+MIDI_CHANNEL_HELD = {2: 3, 4: 2}                                  # notes at once per channel (1 elsewhere)
+MIDI_LENGTH_TOL = 0.10
+MIDI_START_MAX = MIDI_END_MAX = 0.3        # seconds: the first note on, the last end-of-track after the last note off
+MIDI_NOTE_MIN, MIDI_NOTE_MIN_DRUM, MIDI_NOTE_MAX = 0.04, 0.08, 12.0
+MIDI_DRUM_CHANNELS = (5, 6, 7, 9)
+MIDI_KEYS = {1: (48, 88), 2: (40, 80), 3: (24, 52), 4: (48, 88), 5: (20, 55), 6: (40, 80), 7: (60, 95), 8: (36, 84), 9: (50, 95),
+             10: (60, 95)}
+MIDI_KEY_SLACK = 6
+MIDI_AMBIENT = (10003, 10004, 10005)
+
+
+class MidiError(Exception):
+    pass
+
+
+def midi_scale(ppq, tempo):
+    """Music steps per MIDI tick in 8.8 fixed point (SoundDriver.Scale)."""
+    return tempo // 1000 * 0x4AA // ppq // 13 if ppq else 0
+
+
+def midi_walk(d):
+    """A port of the game's sequencer (SoundDriver.StartSong / Step / Meta / NextEvent / ChannelEvent): the events in the order the
+    game runs them, with the music clock. Returns dict(events=[(step, track, status, a, b)] for the note on / off events of the
+    channels 0..13, eots=[step of each end-of-track], steps=the song's length in steps, ticks=the last event's tick, tracks, ppq).
+    Raises MidiError for what the game's reader would choke on."""
+    try:
+        return _midi_walk(d)
+    except (IndexError, struct.error):
+        raise MidiError('the file ends where the game\'s sequencer still reads')
+
+
+def _midi_walk(d):
+    be16 = lambda i: d[i] << 8 | d[i + 1]
+    be32 = lambda i: d[i] << 24 | d[i + 1] << 16 | d[i + 2] << 8 | d[i + 3]
+    hdr, tracks, ppq = be32(4), be16(10), be16(12)
+    ptr, at = [], hdr + 8
+    for _t in range(tracks):
+        ptr.append(at + 8)
+        at += 8 + be32(at + 4)
+
+    def varlen(t):
+        p = ptr[t]
+        b = d[p]
+        p += 1
+        v = b
+        if b & 0x80:
+            v &= 0x7f
+            while True:
+                b = d[p]
+                p += 1
+                v = (v << 7) + (b & 0x7f)
+                if not b & 0x80:
+                    break
+        ptr[t] = p
+        return v
+    time_, status = [0] * tracks, [0] * tracks
+    for t in range(tracks):
+        time_[t] = varlen(t)
+        status[t] = d[ptr[t]]
+    last, cur, scale, now, events, eots = 0, 0, midi_scale(480, 500000), 0, [], []
+    for _ in range(8 * len(d) + 64):
+        b = d[ptr[cur]]
+        if b & 0x80:
+            status[cur] = b
+            ptr[cur] += 1
+        st = status[cur]
+        if st in (0xf0, 0xf7):
+            n = varlen(cur)
+            ptr[cur] += n
+        elif st == 0xff:
+            typ = d[ptr[cur]]
+            if typ == 0x2f:
+                status[cur] = 0x2f
+                ptr[cur] -= 1
+                eots.append(now)
+            elif typ == 0x51:
+                ptr[cur] += 2
+                p = ptr[cur]
+                scale = midi_scale(ppq, d[p] << 16 | d[p + 1] << 8 | d[p + 2])
+                ptr[cur] += 3
+            else:
+                ptr[cur] += 1
+                n = varlen(cur)
+                ptr[cur] += n
+        else:
+            if st < 0x80 or st >= 0xf0:
+                raise MidiError('track %d: status byte %02X' % (cur, st))
+            if (st >> 4) <= 9 and (st & 15) < 14 and (st >> 4) in (8, 9):
+                events.append((now, cur, st, d[ptr[cur]], d[ptr[cur] + 1]))
+            ptr[cur] += (2, 2, 2, 2, 1, 1, 2)[(st & 0x70) >> 4]
+        if status[cur] != 0x2f:
+            time_[cur] += varlen(cur)
+        else:
+            time_[cur] = 0x7fffffff
+        di = 0
+        for t in range(1, tracks):
+            if time_[di] > time_[t] and status[t] != 0x2f:
+                di = t
+        if status[di] == 0x2f or time_[di] == 0x7fffffff:
+            return dict(events=events, eots=eots, steps=now, ticks=last, tracks=tracks, ppq=ppq)
+        diff = time_[di] - last
+        last = time_[di]
+        cur = di
+        now += (diff * scale >> 8) & 0xffff
+    raise MidiError('the sequencer would not stop')
+
+
+def _midi_track(t, body, bad):
+    """One track chunk read strictly: a list of ('note', tick, status, key, velocity) and ('meta', tick, type, data)."""
+    ev, i, tick, running, ended, n, seen = [], 0, 0, None, False, len(body), set()
+    while i < n:
+        v = 0
+        for _k in range(4):
+            if i >= n:
+                bad('structure', 'track %d: ends inside a delta time' % t)
+                return ev
+            b = body[i]
+            i += 1
+            v = v << 7 | b & 0x7f
+            if not b & 0x80:
+                break
+        else:
+            bad('structure', 'track %d: a variable-length number longer than 4 bytes' % t)
+            return ev
+        if ended:
+            bad('structure', 'track %d: events after the end-of-track' % t)
+            return ev
+        tick += v
+        if i >= n:
+            bad('structure', 'track %d: ends inside an event' % t)
+            return ev
+        b = body[i]
+        if b == 0xff:
+            if i + 2 > n:
+                bad('structure', 'track %d: ends inside a meta event' % t)
+                return ev
+            typ, i, ln = body[i + 1], i + 2, 0
+            for _k in range(4):
+                if i >= n:
+                    bad('structure', 'track %d: ends inside a meta event' % t)
+                    return ev
+                x = body[i]
+                i += 1
+                ln = ln << 7 | x & 0x7f
+                if not x & 0x80:
+                    break
+            if i + ln > n:
+                bad('structure', 'track %d: a meta event runs past the end of the track' % t)
+                return ev
+            ev.append(('meta', tick, typ, bytes(body[i:i + ln])))
+            i += ln
+            running = None
+            ended = typ == 0x2f
+        elif b >= 0xf0:
+            bad('event', 'track %d: system exclusive / system messages are not allowed' % t)
+            return ev
+        else:
+            if b & 0x80:
+                running = b
+                i += 1
+            elif running is None:
+                bad('structure', 'track %d: a data byte with no status' % t)
+                return ev
+            kind = running >> 4
+            ln = 1 if kind in (0xc, 0xd) else 2
+            if i + ln > n:
+                bad('structure', 'track %d: ends inside an event' % t)
+                return ev
+            data_ = body[i:i + ln]
+            i += ln
+            if any(x > 127 for x in data_):
+                bad('structure', 'track %d: a data byte above 127' % t)
+                return ev
+            if kind in (8, 9):
+                ev.append(('note', tick, running, data_[0], data_[1]))
+            elif kind not in seen:
+                seen.add(kind)
+                bad('event', 'track %d: %s events are not allowed (note on / off only)'
+                    % (t, {0xa: 'aftertouch', 0xb: 'controller', 0xc: 'program change', 0xd: 'aftertouch', 0xe: 'pitch bend'}[kind]))
+    if not ended:
+        bad('structure', 'track %d: no end-of-track' % t)
+    return ev
+
+
+def midi_check(d, song=None):
+    """The checks of music.md section 3 on a song file. Returns (errors, warnings, info); the first two are lists of (kind, text),
+    info the measurements (steps, seconds, notes, lowest, highest, channels, max held, ticks) when the file could be walked."""
+    errs, warns, info = [], [], {}
+    bad = lambda kind, text: errs.append((kind, text))
+    if len(d) > MIDI_MAX_BYTES:
+        bad('size', '%d bytes, at most %d' % (len(d), MIDI_MAX_BYTES))
+    if len(d) < 14 or d[:4] != b'MThd' or struct.unpack_from('>I', d, 4)[0] != 6:
+        bad('header', 'not a Standard MIDI file (MThd, header length 6)')
+        return errs, warns, info
+    fmt, ntr, div = struct.unpack_from('>HHH', d, 8)
+    if fmt != 1:
+        bad('header', 'format %d, must be 1' % fmt)
+    if not 2 <= ntr <= 11:
+        bad('header', '%d tracks, 2..11' % ntr)
+    if div != MUSIC_PPQ:
+        bad('header', 'division %d, must be %d ticks per quarter' % (div, MUSIC_PPQ))
+    p, tracks = 14, []
+    for t in range(ntr):
+        if p + 8 > len(d) or d[p:p + 4] != b'MTrk':
+            bad('structure', 'track %d: no MTrk chunk where the file should hold it' % t)
+            return errs, warns, info
+        n = struct.unpack_from('>I', d, p + 4)[0]
+        if p + 8 + n > len(d):
+            bad('structure', 'track %d: its chunk runs past the end of the file' % t)
+            return errs, warns, info
+        tracks.append(_midi_track(t, d[p + 8:p + 8 + n], bad))
+        p += 8 + n
+    if p != len(d):
+        bad('structure', '%d bytes after the last track' % (len(d) - p))
+    if errs:
+        return errs, warns, info
+    # track layout
+    chan_of, tempo_at0 = {}, False
+    for t, ev in enumerate(tracks):
+        notes = [e for e in ev if e[0] == 'note']
+        if t == 0:
+            if notes:
+                bad('track', 'track 0 (the conductor) holds notes')
+            if not ev or ev[0][1] != 0:
+                bad('track', 'track 0: the first event must be at delta 0')
+            for e in ev:
+                if e[0] != 'meta':
+                    continue
+                typ, data_ = e[2], e[3]
+                if typ == 0x51:
+                    if len(data_) != 3 or not MIDI_TEMPO[0] <= int.from_bytes(data_, 'big') <= MIDI_TEMPO[1]:
+                        bad('tempo', 'tempo %s microseconds per quarter, %d..%d' % (int.from_bytes(data_, 'big'), *MIDI_TEMPO))
+                    tempo_at0 = tempo_at0 or e[1] == 0
+                elif typ not in (0x2f, 0x58, 0x59) and not 1 <= typ <= 15:
+                    bad('meta', 'track 0: meta event FF %02X is not allowed (tempo, time / key signature, text)' % typ)
+            continue
+        for e in ev:
+            if e[0] == 'meta' and e[2] not in (0x2f,) and not 1 <= e[2] <= 15:
+                bad('meta', 'track %d: meta event FF %02X is not allowed (a name or text, and the end-of-track)' % (t, e[2]))
+        chans = {e[2] & 15 for e in notes}
+        if len(chans) > 1:
+            bad('track', 'track %d uses several MIDI channels %s' % (t, sorted(chans)))
+        for ch in chans:
+            if not 1 <= ch <= 10:
+                bad('channel', 'track %d: MIDI channel %d, must be 1..10' % (t, ch))
+            if ch in chan_of:
+                bad('track', 'tracks %d and %d both use channel %d' % (chan_of[ch], t, ch))
+            chan_of[ch] = t
+        for e in notes:
+            if e[3] > 95:
+                bad('key', 'track %d tick %d: key %d, at most 95' % (t, e[1], e[3]))
+                break
+        for e in notes:
+            if e[2] >> 4 == 9 and e[4] == 1:
+                bad('velocity', 'track %d tick %d: velocity 1 is read as a note off by the driver (2..127)' % (t, e[1]))
+                break
+        for ch in chans:
+            if 1 <= ch <= 10:
+                lo, hi = MIDI_KEYS[ch]
+                keys = [e[3] for e in notes if e[2] & 15 == ch]
+                far = [k for k in keys if k < lo - MIDI_KEY_SLACK or k > hi + MIDI_KEY_SLACK]
+                near = [k for k in keys if (k < lo or k > hi) and k not in far]
+                if far:
+                    bad('range', 'channel %d: key %d is more than %d semitones outside its range %d..%d' % (ch, far[0], MIDI_KEY_SLACK, lo, hi))
+                elif near:
+                    warns.append(('range', 'channel %d: key %d is outside its range %d..%d' % (ch, near[0], lo, hi)))
+    if not tempo_at0:
+        bad('tempo', 'track 0 needs a tempo event at tick 0 (the game assumes 480 ticks per quarter until it reads one)')
+    if errs:
+        return errs, warns, info
+    try:
+        w = midi_walk(d)
+    except MidiError as e:
+        bad('walk', str(e))
+        return errs, warns, info
+    on = [e for e in w['events'] if e[2] >> 4 == 9 and e[4] > 0]
+    info.update(steps=w['steps'], seconds=w['steps'] / STEP_HZ, ticks=w['ticks'], notes=len(on),
+                lowest=min((e[3] for e in on), default=None), highest=max((e[3] for e in on), default=None),
+                channels=sorted({e[2] & 15 for e in w['events']}))
+    if not on:
+        bad('notes', 'no notes')
+        return errs, warns, info
+    # held notes, lengths, polyphony
+    held, played, by_step, max_total, max_ch = {}, [], {}, 0, {}
+    for step, trk, st, key, vel in w['events']:
+        ch = st & 15
+        if st >> 4 == 9 and vel > 0:
+            if (ch, key) in held:
+                bad('overlap', 'channel %d: key %d is struck again while held (step %d)' % (ch, key, step))
+            else:
+                held[(ch, key)] = step
+        elif (ch, key) not in held:
+            bad('overlap', 'channel %d: note off for key %d which is not held (step %d)' % (ch, key, step))
+        else:
+            played.append((held.pop((ch, key)), step, ch, key))
+        by_step[step] = (len(held), [c for c, _k in held])
+    if held:
+        bad('overlap', '%d notes are never switched off' % len(held))
+    for total, chs in by_step.values():
+        max_total = max(max_total, total)
+        for ch in set(chs):
+            max_ch[ch] = max(max_ch.get(ch, 0), chs.count(ch))
+    info['max_held'] = max_total
+    if max_total > MIDI_MAX_HELD:
+        bad('polyphony', '%d notes held at once, at most %d' % (max_total, MIDI_MAX_HELD))
+    for ch, n in sorted(max_ch.items()):
+        if n > MIDI_CHANNEL_HELD.get(ch, 1):
+            bad('polyphony', 'channel %d holds %d notes at once, at most %d' % (ch, n, MIDI_CHANNEL_HELD.get(ch, 1)))
+    for a, b, ch, key in played:
+        sec = (b - a) / STEP_HZ
+        if sec < (MIDI_NOTE_MIN_DRUM if ch in MIDI_DRUM_CHANNELS else MIDI_NOTE_MIN) - 1e-9:
+            bad('length', 'channel %d key %d at step %d lasts %.0f ms, at least %d' %
+                (ch, key, a, sec * 1000, 1000 * (MIDI_NOTE_MIN_DRUM if ch in MIDI_DRUM_CHANNELS else MIDI_NOTE_MIN)))
+            break
+    if any((b - a) / STEP_HZ > MIDI_NOTE_MAX for a, b, _c, _k in played):
+        bad('length', 'a note lasts longer than %g s' % MIDI_NOTE_MAX)
+    first = min(e[0] for e in on) / STEP_HZ
+    if first > MIDI_START_MAX:
+        bad('timing', 'the first note starts at %.2f s, at most %.1f' % (first, MIDI_START_MAX))
+    tail = w['steps'] / STEP_HZ - max((b for _a, b, _c, _k in played), default=0) / STEP_HZ
+    if tail > MIDI_END_MAX:
+        bad('timing', 'the last end-of-track comes %.2f s after the last note off, at most %.1f' % (tail, MIDI_END_MAX))
+    if song is not None:
+        row = next((s for s in data('songs') if s['id'] == song), None)
+        if row is None:
+            bad('song', 'no such song')
+        else:
+            if abs(info['seconds'] - row['seconds']) > MIDI_LENGTH_TOL * row['seconds']:
+                bad('length', 'plays for %.1f s through the game\'s clock, the spec says %g s (within %d %%)'
+                    % (info['seconds'], row['seconds'], MIDI_LENGTH_TOL * 100))
+            ratio = info['notes'] / row['notes']
+            if not 0.25 <= ratio <= 4:
+                bad('notes', '%d notes, the spec says about %d (25..400 %%)' % (info['notes'], row['notes']))
+            elif not 0.5 <= ratio <= 2:
+                warns.append(('notes', '%d notes, the spec says about %d (50..200 %%)' % (info['notes'], row['notes'])))
+            if song in MIDI_AMBIENT and any(not 5 <= ch <= 10 for ch in info['channels']):
+                bad('channel', 'an ambient theme uses only channels 5..10')
+            up = max((c['transpose'] for c in data('song_cues') if c['song'] == song), default=0)
+            if info['highest'] + up > 95:
+                bad('key', 'highest key %d, a cue plays it %d semitones up: at most %d' % (info['highest'], up, 95 - up))
+    return errs, warns, info
+
+
+def cat_music(errors):
+    """src/music/<song id>.mid -> SOUND/20/<id>.bin (unchanged bytes) after the checks of music.md."""
+    ids = {s['id'] for s in data('songs')}
+    d = os.path.join(SRC, 'music')
+    for name in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+        if not name.endswith('.mid'):
+            continue
+        where = 'music/' + name
+        if not name[:-4].isdigit() or int(name[:-4]) not in ids:
+            errors.append('%s: no such song (the ids are %s ...)' % (where, ', '.join(str(i) for i in sorted(ids)[:4])))
+            continue
+        ident = int(name[:-4])
+        with open(os.path.join(d, name), 'rb') as f:
+            raw = f.read()
+        errs, warns, _info = midi_check(raw, ident)
+        errors.extend('%s: %s' % (where, t) for _k, t in errs)
+        WARNINGS.extend('%s: %s' % (where, t) for _k, t in warns)
+        if not errs:
+            yield 'SOUND/20/%d.bin' % ident, raw
+
+
+def enc_cue(song, kind, transposition, a, b, c, d):
+    """SOUND type 18 (18 bytes, big-endian): the song, a kind, 0, the transposition in semitones, and the old driver's numbers."""
+    return struct.pack('>HHHhHHBB4x', song, kind, 0, transposition, a, b, c, d)
+
+
+def dec_cue(blob):
+    song, kind, zero, tr, a, b, c, d = struct.unpack('>HHHhHHBB4x', blob)
+    return dict(song=song, kind=kind, zero=zero, transposition=tr, a=a, b=b, c=c, d=d)
+
+
+def cat_cues(errors):
+    """data/song_cues.json -> SOUND/18/<cue>.bin (functional data, always built): the cue's 18 bytes, checked against its song and
+    transposition."""
+    songs = {s['id'] for s in data('songs')}
+    for cue in data('song_cues'):
+        blob = bytes.fromhex(cue['bytes_hex'])
+        try:
+            f = dec_cue(blob)
+        except struct.error:
+            errors.append('song_cues.json cue %d: not 18 bytes' % cue['cue'])
+            continue
+        if f['song'] != cue['song'] or f['transposition'] != cue['transpose'] or f['song'] not in songs or f['zero'] != 0:
+            errors.append('song_cues.json cue %d: its bytes do not say song %d, transposition %d' % (cue['cue'], cue['song'], cue['transpose']))
+            continue
+        yield 'SOUND/18/%d.bin' % cue['cue'], blob
+
+
+def check_music_roundtrip(zip_path):
+    """--roundtrip=<zip>: the 30 songs of the pack through the sequencer port (ticks, notes, keys and channels as measured; the
+    Game Theme 35,856 steps), the clean-file rules on them (which originals would not pass is listed, not an error), and the 33 cue
+    entries decoded and encoded back. Returns (counts, notes, problems)."""
+    c = dict(songs=0, measured=0, would_pass=0, cues=0, steps=0)
+    notes, problems, broken = [], [], {}
+    with zipfile.ZipFile(zip_path) as z:
+        names = set(z.namelist())
+        for s in data('songs'):
+            n = 'SOUND/20/%d.bin' % s['id']
+            if n not in names:
+                problems.append('%s: not in the pack' % n)
+                continue
+            raw = z.read(n)
+            c['songs'] += 1
+            try:
+                w = midi_walk(raw)
+            except MidiError as e:
+                problems.append('%s: %s' % (n, e))
+                continue
+            on = [e for e in w['events'] if e[2] >> 4 == 9 and e[4] > 0]
+            got = dict(ticks=w['ticks'], notes=len(on), lowest=min(e[3] for e in on), highest=max(e[3] for e in on),
+                       channels=sorted({e[2] & 15 for e in on}))
+            want = {k: s[k] for k in got}
+            if got != want or w['ppq'] != s['ppq'] or w['tracks'] != s['tracks']:
+                problems.append('%s: the port finds %s (%d tracks, ppq %d), the measurements say %s' % (n, got, w['tracks'], w['ppq'], want))
+            else:
+                c['measured'] += 1
+            if abs(w['steps'] / STEP_HZ - s['seconds']) > 0.02 * s['seconds'] + 0.1:
+                problems.append('%s: %.1f s through the game\'s clock, the measurements say %g s' % (n, w['steps'] / STEP_HZ, s['seconds']))
+            if s['id'] == 10001:
+                c['steps'] = max(e[0] for e in w['events'])
+                if c['steps'] != 35856:
+                    problems.append('%s: the last note event comes at step %d, the game plays the main theme for 35,856' % (n, c['steps']))
+            errs, _w, _i = midi_check(raw, s['id'])
+            if errs:
+                for k in {k for k, _t in errs}:
+                    broken[k] = broken.get(k, 0) + 1
+            else:
+                c['would_pass'] += 1
+        for cue in data('song_cues'):
+            n = 'SOUND/18/%d.bin' % cue['cue']
+            if n not in names:
+                problems.append('%s: not in the pack' % n)
+                continue
+            raw = z.read(n)
+            f = dec_cue(raw)
+            if enc_cue(f['song'], f['kind'], f['transposition'], f['a'], f['b'], f['c'], f['d']) == raw == bytes.fromhex(cue['bytes_hex']) \
+                    and (f['song'], f['transposition']) == (cue['song'], cue['transpose']) and f['kind'] == (4 if cue['cue'] < 11000 else 1):
+                c['cues'] += 1
+            else:
+                problems.append('%s: not byte-identical after decode + encode / not the cue table\'s' % n)
+    if broken:
+        notes.append('the clean-file rules (music.md section 3) applied to the originals: %d of %d would fail, by rule: %s'
+                     % (c['songs'] - c['would_pass'], c['songs'], ', '.join('%s %d' % kv for kv in sorted(broken.items()))))
+    return c, notes, problems
+
+
 CATEGORIES = [cat_palette, cat_bitmaps, cat_cursors, cat_tiles, cat_sprites, cat_fonts, cat_balloon, cat_spiderlegs,
-              cat_version, cat_strings, cat_menus, cat_texts, cat_layouts]
+              cat_version, cat_strings, cat_engine_strings, cat_menus, cat_texts, cat_layouts, cat_sounds, cat_soundbank, cat_music, cat_cues]
 
 
 def expected():
@@ -1924,8 +3013,9 @@ def expected():
         names.update(['SHARED/17/%d.bin' % c['id'], 'SHARED/19/%d.bin' % c['id']])
     for l in data('layouts'):
         names.add('HCEGANT/0/%d.bin' % l['id'])
-    for s in data('sounds'):
-        names.add('SOUND/5/%d.bin' % s['id'])
+    # the 35 samples a sample instrument reaches; the other 22 ids of the original's archive are never read (optional here)
+    for ident in sfx_required():
+        names.add('SOUND/5/%d.bin' % ident)
     for s in data('songs'):
         names.add('SOUND/20/%d.bin' % s['id'])
     for s in data('song_cues'):
@@ -1939,7 +3029,7 @@ def expected():
         names.add('EXE/%s.bin' % a['Name'])
     # fonts: Ui.Font loads SHARED 11 ids 0 and 1 (the game's own PC fonts) and, for game fonts 2..5, the files FONT1..FONT4;
     # SHARED 11 ids 2 and 3 (copies of FONT1 / FONT2) are only the fallback when those files are missing, never read
-    names.update(['SHARED/6/0.bin', 'EXE/version.txt', 'SHARED/11/0.bin', 'SHARED/11/1.bin']
+    names.update(['SHARED/6/0.bin', 'EXE/version.txt', 'EXE/engine_strings.json', 'SHARED/11/0.bin', 'SHARED/11/1.bin']
                  + ['FONT/%d.bin' % n for n in range(1, 5)])
     return names
 
@@ -1953,7 +3043,11 @@ def main():
         lcounts, lnotes, layout_problems = check_layouts_roundtrip(opts['roundtrip'])
         prose_problems = prose_problems + layout_problems
         notes = notes + lnotes
-        for p in problems + text_problems + prose_problems:
+        scounts, snotes, sound_problems = check_sounds_roundtrip(opts['roundtrip'])
+        mcounts, mnotes, music_problems = check_music_roundtrip(opts['roundtrip'])
+        notes = notes + snotes + mnotes
+        sound_problems = sound_problems + music_problems
+        for p in problems + text_problems + prose_problems + sound_problems:
             print('error:', p)
         for n in notes:
             print('note:', n)
@@ -1970,7 +3064,16 @@ def main():
               'for %d (the other %d differ only in dead bytes); %d of the %d UI tables (128 / 129 / 131) byte-identical; %d problems'
               % (lcounts['windows'], lcounts['same_json'], lcounts['exact'], lcounts['zero'], lcounts['dead_only'], lcounts['tables'],
                  len(LAYOUT_TABLES), len(layout_problems)))
-        sys.exit(1 if problems or text_problems or prose_problems else 0)
+        print('%d sound samples (SOUND/5) decoded and coded back with their own tables: the same samples for %d, the same bytes for %d '
+              '(%d of the 57 tables repeat an entry, where the lowest code is only a convention); the lossy encoder reaches the SNRs in the note above; '
+              'the sound bank (EXE/soundbank.bin, %d bytes) byte-identical: %s; a clean bank built from the original\'s %d patches keeps '
+              'the fields of all %d FM instruments; %d problems'
+              % (scounts['samples'], scounts['same'], scounts['exact'], scounts['dup_tables'], SB_SIZE, 'yes' if scounts['bank'] else 'NO',
+                 scounts['patches'], scounts['fm_fields'], len(sound_problems) - len(music_problems)))
+        print('%d songs (SOUND/20) through the port of the game\'s sequencer: ticks, notes, keys and channels as measured for %d (the '
+              'Game Theme\'s last note comes at step %d); %d of the 33 cue entries (SOUND/18) byte-identical; %d problems'
+              % (mcounts['songs'], mcounts['measured'], mcounts['steps'], mcounts['cues'], len(music_problems)))
+        sys.exit(1 if problems or text_problems or prose_problems or sound_problems else 0)
     errors, made = [], {}
     for cat in CATEGORIES:
         for name, blob in cat(errors):

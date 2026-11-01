@@ -1,7 +1,8 @@
 # Spec: the 30 songs and their cues
 
-> **Status (2026-11-01):** spec written, ready for a maker. The encoder is **not yet in `tools/clean_pack/build.py`**:
-> section "Encoder (for build.py)" is its design (written from the engine's sequencer). The instruments the songs are
+> **Status (2026-11-01):** spec written, ready for a maker. The encoder is **in `tools/clean_pack/build.py`**
+> (`midi_walk` is the port of the sequencer, `midi_check` the rules, `cat_music`, `cat_cues`; `--roundtrip` checks the port against
+> the 30 originals); section "Encoder (for build.py)" describes it, with what its first run measured. The instruments the songs are
 > played on are made from a separate spec, [sounds.md](sounds.md) (the FM patches); the table of channel roles
 > (section 2) is the contract between the two and is repeated in both.
 
@@ -50,7 +51,8 @@ Do not use channels 0 (it never sounds), 11..15.
 - **Pitch.** A written key `k` sounds at `440 * 2^((k + 12 - 69) / 12)` Hz: **key 60 sounds at 523 Hz, an octave above
   the usual MIDI convention** (so a bass written at keys 24..52 sounds from about 65 Hz to 330 Hz). Equal temperament, any
   key you like; keys 0..95 sound, 96 and above are silent. Pitch bend, vibrato wheel and controllers do nothing.
-- **Loudness.** Only the note-on velocity matters (1..127). The patches are balanced so the "typical velocity" column
+- **Loudness.** Only the note-on velocity matters (2..127: the driver scales it by the music volume, 127 at the start, and a
+  result of 0 is a note off, so **velocity 1 is silent** and the build refuses it). The patches are balanced so the "typical velocity" column
   puts the voices in a good mix; below about 40 a note is nearly silent. Do not use velocity to fake long fades.
 - **Polyphony: at most 6 notes held at once, counting all channels together** (a note is held from its note on to its note
   off). The chip has 8 voices; the other two stay free for sound effects. A drum hit is held for its whole note, so make
@@ -72,11 +74,12 @@ rendered preview is not possible for you (you have no copy of the driver); the s
 
 - Header `MThd`, length 6, **format 1**, track count 2..11, **division 240 ticks per quarter** (not SMPTE).
 - **Track 0 is the conductor**: its first event is at delta 0; it holds the tempo (`FF 51 03 tt tt tt`, between 100,000 and
-  1,000,000 microseconds per quarter, i.e. 60..600 beats per minute; change it as often as you like), optionally a
-  track name (`FF 03`), the time signature (`FF 58`) and the key signature (`FF 59`); **no notes**; and an end-of-track.
+  1,000,000 microseconds per quarter, i.e. 60..600 beats per minute; change it as often as you like), **a tempo event at tick 0** (until the game reads one it assumes 480 ticks per quarter, so a song without one runs at the wrong
+  speed at the start), optionally a track name (`FF 03`), the time signature (`FF 58`) and the key signature (`FF 59`); **no
+  notes**; and an end-of-track. Any other meta event (SMPTE offset, sequencer-specific, channel prefix) is refused.
 - Every other track holds the notes of **one MIDI channel** (one track per channel, at most 10), optionally a track
   name (`FF 03`), and ends with `FF 2F 00`. Only note on (`9n kk vv`, velocity 1..127) and note off (`8n kk vv`; a note on with
-  velocity 0 also works) are allowed: no controller, program change, pitch bend, aftertouch or system-exclusive events.
+  velocity 0 also works; velocities 2..127, not 1) are allowed: no controller, program change, pitch bend, aftertouch or system-exclusive events.
   Running status is allowed. Other text meta events (`FF 01`..`FF 0F`) are allowed and ignored.
 - Events in a track are in time order; **when events of different tracks fall at the same tick they run in track
   order** (track 1 before track 2 ...); a note off and a note on of the same key at the same tick on one channel must be
@@ -97,10 +100,12 @@ beats per minute (quarter note = beat) of the situation the piece is used in: a 
 note values (a piece that feels fast at 120 bpm with sixteenth notes is fine); only the length, the number of notes
 and the polyphony are checked.
 
-**What the build checks** (all errors unless marked): the header and track structure above; the tempo range; keys in
-0..95 and (for 11013, 11016) at most 83; velocities 1..127; every note on matched by a later note off on the same
+**What the build checks** (all errors unless marked): the header and track structure above (the file ends exactly where
+the last track ends); the tempo range; keys in
+0..95 and (for 11013, 11016) at most 83; velocities 2..127; every note on matched by a later note off on the same
 channel and key; no overlap of the same key on a channel; the minimum and maximum note lengths; at most 6 notes held
-at once (3 on channel 2 and a single note on the others, 2 on channel 4); the channel of each track is 1..10 and no
+at once (3 on channel 2 and a single note on the others, 2 on channel 4), counted after all the events of one tick have run
+(a note ending on the tick another starts is not "at once"), and a size of at most 64 KB; the channel of each track is 1..10 and no
 two tracks share a channel; a track's keys within 6 semitones of its channel's range in the table (outside the range
 itself but within 6: a warning); the simulated length within 10 % of the table; the number of notes within 50..200 %
 of the "notes" column (a warning; an error outside 25..400 %); the first note on within 0.3 s of the start; the last
@@ -279,17 +284,22 @@ the other tracks hold, so track 0 starts at delta 0 with the tempo or the name. 
 (sum of the waits) / 348.47. The music starts about 5 steps after the cue.
 
 **Verification of the port** (`--roundtrip`): run it on the 30 originals: total MIDI ticks = `ticks` in `data/songs.json`; notes,
-lowest / highest key and the channel set equal the measurements; the Game Theme (10001) comes to **35,856 steps = 102.9 s**
-(SIM_NOTES); no original fails the structural checks except the ones a clean file must avoid (the originals carry controller,
-SMPTE-offset and time-signature events and use channel 0; list them, do not fail on them).
+lowest / highest key and the channel set equal the measurements; the Game Theme (10001)'s last note event comes at **step 35,856 = 102.9 s**
+(SIM_NOTES; the song's own end, the last end-of-track, is 97 steps later, 35,953 = 103.2 s: the figure the table's "length" and
+the build's 10 % check use); no original fails the structural checks except the ones a clean file must avoid (the originals carry controller,
+SMPTE-offset and time-signature events and use channel 0; list them, do not fail on them). Measured with the finished port: ticks, notes, lowest and highest key, channels and track
+count agree with the measurements for all 30; 28 of the 30 would fail the clean-file rules (by rule: key range 13 songs, more than 6
+notes at once 7, a late first note or a long tail 4, header 3 (format, track count or division), plus one each for a controller event, channel 0, a key above 95, a
+velocity of 1 and a note length outside the limits), which is expected: the clean rules are stricter than the old files.
 
 ### The checks for a clean file
 
 All in section 3; implement them on the parsed events in the engine's order (by time, ties by track):
 
-- held notes: +1 at a note on (velocity > 0), -1 at the matching note off; the maximum over time <= 6 (<= 3 for channel 2's own
-  count, <= 1 for channels 1, 3, 5..10, <= 2 for channel 4); a note on while the same key is held on the channel is an error; a
-  note off with nothing held is an error; at the end of the song nothing is held;
+- held notes: +1 at a note on (velocity > 0), -1 at the matching note off; the maximum over time <= 6, taken after the last event
+  of each step (<= 3 for channel 2's own count, <= 1 for channels 1, 3, 5..10, <= 2 for channel 4); a note on while the same key
+  is held on the channel is an error (checked event by event, in the engine's order); a note off with nothing held is an
+  error; at the end of the song nothing is held;
 - lengths in seconds from the simulated clock: pitched >= 40 ms, channels 5, 6, 7, 9 >= 80 ms, any <= 12 s;
 - the transposed cues: `max key + max(transposition of the cues of that song) <= 95`;
 - the track layout (one channel per track, no shared channels, track 0 without notes, the first event of track 0 at delta 0);

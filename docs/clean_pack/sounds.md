@@ -1,7 +1,8 @@
 # Spec: sound effects and FM instrument patches
 
-> **Status (2026-11-01):** spec written, ready for a maker. The encoder is **not yet in `tools/clean_pack/build.py`**:
-> section "Encoder (for build.py)" is its design (written from the engine's decoder). Music is a separate spec,
+> **Status (2026-11-01):** spec written, ready for a maker. The encoder is **in `tools/clean_pack/build.py`** (`cat_sounds`,
+> `enc_sample`, `cat_soundbank`, `enc_soundbank`; `--roundtrip` checks it against the originals); section "Encoder
+> (for build.py)" describes what it does, with the numbers its first run measured. Music is a separate spec,
 > [music.md](music.md); the two share the table of channel roles (section 2), repeated in both.
 
 Output folder: `remake/game/assets/clean/src/sounds/`. Provenance: `remake/game/assets/clean/PROVENANCE.md` (add an
@@ -264,11 +265,12 @@ bass and kick carry the low end, the ticks and shaker sit under everything).
 
 Samples: the file is a valid 5,576 Hz mono 16-bit WAV; frames within 20 % of the table and at most 16,000; the peak
 within 80..110 % of the table; the first and last 8 samples within +-6 of full scale (8-bit units); the **coding error**
-(signal-to-noise ratio of the decoded 4-bit result against your file) at least 9 dB, with a note when under 14 dB; no
+(signal-to-noise ratio of the decoded 4-bit result against your file) at least 9 dB, with a warning when under 14 dB (see
+"Calibration" below for what that means for a sound); no
 file for an id outside 0..56; every required id present.
 
 Patches: valid JSON of the form above; all 16 ids exactly once in the order of the table, `instruments` as in the
-table; every field an integer in its range; the carrier's `sustain` 0; `effect_key` present for `fm9`, `fm15`,
+table; no field outside the form above (a misspelt name is an error); every field an integer in its range; the carrier's `sustain` 0; `effect_key` present for `fm9`, `fm15`,
 `fm17`, `fm18`, `fm19`, `fm30`, `fm35`; the carrier level at most 40; no patch silent (carrier level below 63, attack
 above 0, and not both release and decay 0).
 
@@ -299,27 +301,36 @@ position 0 and stops after position `n - 2`.
 
 **Round trip of the 57 originals** (`--roundtrip`): decode each, then re-encode losslessly with its own table: at each step
 the needed delta is `((t - s + 128) & 255) - 128`; take the **lowest code** whose table entry equals it (it exists since the
-data came from that table). The pass criterion is that the decoded samples are identical and the count is equal; the
-file bytes are identical when the 16 table entries are distinct (34 of the 57; with a duplicated entry the original
-may have used another code). Report both counts.
+data came from that table). The pass criterion is that the decoded samples are identical and the count is equal. Measured:
+the samples are identical for all 57 **and so are the file bytes**: 34 of the tables have 16 distinct entries (where the bytes
+must agree), the other 23 repeat an entry and the original too always used the lowest code. The summary line reports both
+counts; it fails a file whose table is all distinct but whose bytes differ.
 
 **Encoder for a maker's WAV** (lossy):
 
 1. Read the WAV (`wave`/`struct`), check mono / 16-bit / 5,576 Hz. `t[i] = clamp(round(x[i] / 256), -128, 127)`; if the
    count is odd append one 0.
-2. Choose the table by iteration. Start: entry 0 = 0; entries 1..7 = a rising geometric series from 1 to
-   `P = clamp(ceil(0.9 * max|t[i+1] - t[i]|), 8, 127)`; entries 8..15 = the same series negated (so 7 positive steps,
-   a hold step and 8 negative ones). Repeat 30 times: encode greedily (below), for each code average the *ideal* deltas
-   (`t[i] - s`) of the samples that chose it, set the entry to that average rounded (entry 0 stays 0, positives stay positive
-   and distinct, negatives negative and distinct, nudge by 1 to separate equals), and keep the iteration with the best
-   signal-to-noise ratio.
+2. Choose the table by iteration. Start: entry 0 = 0; entries 1..7 = a rising geometric series of 7 distinct integers from 1 to
+   `P = clamp(ceil(0.9 * max|t[i+1] - t[i]|), 8, 127)` (the first step is taken from 0); entries 8..15 = a rising series of 8
+   from 1 to `P + 1` (at most 128), negated (so 7 positive steps, a hold step and 8 negative ones). Repeat up to 30 times:
+   encode greedily (below), for each code average the *ideal* deltas (`t[i] - s`) of the samples that chose it, set the entry
+   to that average rounded (entry 0 stays 0; the positives are sorted and kept positive and distinct, the negatives negative
+   and distinct, nudged by 1 to separate equals; a code nobody chose keeps its entry), and keep the pass with the least
+   squared error (= the best signal-to-noise ratio). The build stops early after 6 passes without a better one.
 3. Greedy encode: `s = 0`; for each sample choose the code that minimises `|t[i] - (s + table[c])|` among codes with
    `-128 <= s + table[c] <= 127` (so the sum **never wraps**); ties go to the smaller `|delta|`, then the lower code;
    `s += table[c]`.
 4. Pack the nibbles, high first; prepend the table as unsigned bytes.
-5. SNR = `10 log10(sum t^2 / sum (t - decoded)^2)`; refuse below 9 dB, note below 14 dB. (Thresholds to be calibrated once
-   the encoder runs on the first maker files; a noise-like sound such as the rain will be the worst case.)
+5. SNR = `10 log10(sum t^2 / sum (t - decoded)^2)`; refuse below 9 dB, warn below 14 dB.
 6. The checks of section 4.1 above (frames within 20 %, peak, first / last samples, at most 16,000 samples).
+
+**Calibration** (the encoder run on test signals; the thresholds stay 9 and 14 dB). The 57 decoded originals, re-coded by the
+lossy encoder: 11.4 dB at worst (the drip, 26), median 25 dB, so none would be refused. Synthetic sounds of 5,576 Hz: a sine of
+300 Hz 31 dB, 1 kHz 22 dB, **2 kHz 8.6 dB (refused)**, 2.6 kHz 9.7 dB, white noise 16 dB (noise is *not* the worst case: its
+error is uniform), a smooth low rumble (noise low-passed near 300 Hz) 20 dB, a chirp 30 dB, a three-note chord 28 dB. So what fails is a loud, pure
+tone above about 1.8 kHz (a delta code of 16 steps cannot follow it); anything with its energy under 1.5 kHz passes with a
+margin, and a sound below 14 dB is a noisy, hard-edged one worth a second look. A full build of 35 effects and the sound bank
+takes about 1 s.
 
 ### E2. The sound bank (`EXE/soundbank.bin`, 2,856 bytes)
 
@@ -360,12 +371,18 @@ none for 55).
    effect whose instrument is an FM instrument (default 60 when absent). Samples keep key 60; effect 55 keeps 100.
 3. Sample records: one per distinct sound id the sample instruments reach (the 35 required ids in ascending order = slots 0..34;
    slots 35..52 zero). Instrument `i` (sample) points at the slot of its sound id; aliases 12, 43, 52 point at the slot of id 5.
-4. Everything is little-endian. The result must be exactly 2,856 bytes.
+4. Everything is little-endian. The result must be exactly 2,856 bytes. The original's FM records 16..19 (not reached by any
+   instrument) hold data; the clean bank writes them as zeros. A clean record's waveform bytes `[9]`, `[10]`, the unused
+   high nibble of `[8]`, the octave shift `[11..12]` and `[15]` are 0.
 
 **Round trip** (`--roundtrip`): `dec_soundbank` splits an original `EXE/soundbank.bin` into the model (channels, 20 raw FM
 records with their fields, 53 sample records, 56 effects, 56 instruments) and `enc_soundbank` writes it back: **byte-identical**.
 Also check on the originals: byte 15 of every FM record is 0, every instrument's segment word is `0x55B3` (or 0), every
 referenced record offset lies inside its table, and the field <-> byte conversion of the FM records is an exact inverse.
-Then build the clean bank, decode it with the same decoder and check the same invariants plus: every FM instrument has a
+(Measured on the original: all 2,856 bytes, the records' fields both ways, and every value of every operator field.) Then
+build the clean bank, decode it with the same decoder and check the same invariants plus: every FM instrument has a
 patch, every sample instrument a record whose sound id exists in the pack (`SOUND/5/<id>`), the 56 effects match the
-functional table except the keys.
+functional table except the keys. With no maker file yet, `--roundtrip` builds this clean bank from patches read out of the
+original's own bank (`patches_of_bank`: fields of the first instrument's record, the effect's key as `effect_key`) and checks
+that all 17 FM instruments keep their fields; two of those 16 original patches would break a clean-file rule (a positive velocity
+offset, a held carrier), which the summary lists as a note.
