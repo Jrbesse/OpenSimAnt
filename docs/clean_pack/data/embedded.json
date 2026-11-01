@@ -17,8 +17,8 @@
     },
     {
       "Name": "glossary",
-      "bytes": 886,
-      "About": "the SimAntipedia glossary: 0x22-byte entries (u16 text id, a 32-byte upper-case word), ending with id 0"
+      "bytes": 918,
+      "About": "the SimAntipedia glossary (4EE5:0500): 0x22-byte entries (a 32-byte upper-case word, then its u16 text id), ending with an entry whose id is 0"
     }
   ],
   "instruments": [

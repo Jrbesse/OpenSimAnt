@@ -19,17 +19,17 @@ and add a row to the log. New work found on the way goes into the table as it sh
 
 | Area | Done | Left (jobs) | What is left |
 |---|---|---|---|
-| A1 asset layer + encoders | layer, launcher, bitmap / tile / sprite / font / balloon / legs / palette / version / strings + menus encoders | 5 | encoders: texts + style runs + cards, glossary, layouts, sound bank + effects, songs + cues; the export's `include_filter` |
-| A4 bitmaps (252) | cursors, tiles, sprites, fonts, balloon, legs, palette; 74 UI, 12 yard (passes 1-2), 24 screens / scenes; specs for all 252 | 2 | yard maker passes 3-5 (102); SimAntipedia pictures maker (SHARED 40, `encyclopedia_bitmaps.md`) |
+| A1 asset layer + encoders | layer, launcher, bitmap / tile / sprite / font / balloon / legs / palette / version / strings + menus / texts + style runs + cards + glossary encoders | 4 | encoders: layouts, sound bank + effects, songs + cues; the export's `include_filter` |
+| A4 bitmaps (252) | all 252 made (2026-11-01: the yard's passes 3-5, 102; the SimAntipedia's 40) | 1 | check in the game: the yard's people, animals, spider, map actors, door / room patches; the SimAntipedia pictures (540, 630 the weakest) |
 | A4 layouts (37) | (measured) | 2 | spec, maker |
-| A4 text | strings + menus (113 lists incl. the tutorial and balloons; spec, maker) | 2 | spec + maker: the texts (type 10: SimAntipedia cards, save prompts), glossary, style runs; reconcile the encyclopedia pictures' label words |
+| A4 text | strings + menus (113 lists; spec, maker); texts spec `texts.md` + encoders (2026-11-01) | 3 | reword `texts.md` (67 six-word runs shared with the original, `tools/clean_pack/overlap.py`), `strings.md` (11) and `encyclopedia_bitmaps.md` (1); the texts maker; a maker revision of `src/strings` tutorial / messages lines that share runs |
 | A4 sound (57 effects, instruments) | (measured) | 2 | spec, maker |
 | A4 music (30 songs, 33 cues) | (measured) | 2 | spec, maker |
 | A5 integration | launcher | 3 | CI game with no originals; clean screenshots of every window; similarity review |
 | A6 identity | name, rename; title / about pictures; the Edit caption says OpenSimAnt on the clean pack | 1 | audit: no SimAnt / Maxis marks in the pack; the engine's own English fallbacks (file dialog, overwrite alert, "Click on a black colony") |
-| B confirm and polish | B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons 9150..9156 (2026-10-31) | 11 | B2..B7 (6); polish: font 3 cramped, sprite legs ragged, house screens tables-vs-EXE; found 2026-10-31: the tutorial's closing box (list 11112 never shown, `Tutorial.cs` maps step 56 to 11110), the History graph's labels (list 1050, not drawn; also check 10044, the ant lion's box) |
+| B confirm and polish | B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused | 9 | B2..B7 (6); polish: font 3 cramped, sprite legs ragged, house screens tables-vs-EXE |
 | C release | | 5 | public repo, licences, legal review, player README, tagged v1.0.0 |
-| **Total** | | **35** | B1 (the owner's test builds) is the owner's, not counted |
+| **Total** | | **32** | B1 (the owner's test builds) is the owner's, not counted |
 
 Pace so far: 6..10 jobs per 5-hour window (art makers cost the most), so **about 5 to 7 sessions** to version 1, plus
 whatever the reviews find.
@@ -38,6 +38,8 @@ whatever the reviews find.
 |---|---|---|---|
 | 2026-10-31 evening (start) | (baseline) | 42 | 5..7 |
 | 2026-10-31 evening (end) | 9 (+2 found and fixed, +2 found open), in ~80% of the window | 35 | 4..6 |
+| 2026-11-01 (start) | | 35 | 4..6 |
+| 2026-11-01 (end) | 9 (5 agents in parallel: yard passes 3-5, SimAntipedia pictures, texts spec + encoders, 3 engine findings; +1 found and fixed: the glossary; +3 found open: rewording) in ~92% of the window | 32 | 4..5 |
 
 ## Where things stand (2026-10-30)
 

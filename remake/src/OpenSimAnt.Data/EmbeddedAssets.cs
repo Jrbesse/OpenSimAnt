@@ -25,8 +25,9 @@ public static class EmbeddedAssets
             "the speech balloon's 8 x 8 pieces, 16 bytes each: corners, edges, inside, two tails (Balloon)"),
         new("spiderlegs", new[] { (T + 0x9e4, T + 0xb14) },
             "the spider's leg and fang coordinates per heading and frame (SpiderLegs reads them from the State's T:09E4)"),
-        new("glossary", new[] { (0x4f370, 0x4f6e6) },
-            "the SimAntipedia glossary: 0x22-byte entries (u16 text id, a 32-byte upper-case word), ending with id 0"),
+        new("glossary", new[] { (0x4f350, 0x4f6e6) },
+            "the SimAntipedia glossary (4EE5:0500): 0x22-byte entries (a 32-byte upper-case word, then its u16 text id), "
+            + "ending with an entry whose id is 0"),
     };
 
     public static Asset Get(string name) => All.First(a => a.Name == name);

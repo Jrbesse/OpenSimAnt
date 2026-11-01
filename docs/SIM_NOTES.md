@@ -2058,8 +2058,10 @@ max(height f1, height f2) from (left + 1, top + 4), at most (bottom - top) / lin
 strlen. Run k is drawn in f2 when its face word is 0x0100 (bold), else f1. Per line: x = 0; for each
 character, first if run k + 1 starts here: draw the pending segment (from the segment's start to here) at
 the segment's x, and with `record`, if run k was bold: strip leading spaces, upper-case it, and look it up in
-the glossary 4EE5:0520 (0x22-byte entries: u16 text id, 32-byte name; 26 entries CHITIN 901 .. NOP 967,
-ended by id 0, `strcmp`); a match adds a hotspot (segment x, line top, left + x, line top + line height,
+the glossary 4EE5:0500 (0x22-byte entries: a 32-byte name, then its u16 text id at +0x20; f_78440 tests the
+id at 0x520 + 0x22 i and compares the name at 0x500 + 0x22 i; 26 entries HIGHLIGHTED 901, CHITIN 910 .. EGGS 967,
+ended by an entry with id 0, `strcmp`; until 2026-11-01 the remake read [id][name] from 0x520, giving every word
+the previous word's definition); a match adds a hotspot (segment x, line top, left + x, line top + line height,
 id) to 4EE5:0000 (count DS:8C24, reset per call), no match logs "ERROR: Cannot file text rez". Then
 x += the character's width in the current font; if x < width: a line end (0, LF, CR) ends the line with a
 break before it; a break goes before space ( [ {, after ! ) , - . ? ] }. The line ends when x ≥ width. Its

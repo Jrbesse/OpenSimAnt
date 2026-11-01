@@ -18,13 +18,16 @@ sys.path.insert(0, HERE)
 from uilib import Reg, run_generic_checks, write_pix  # noqa: E402
 import yard_pass1  # noqa: E402
 import yard_pass2  # noqa: E402
+import yard_pass3  # noqa: E402
+import yard_pass4  # noqa: E402
+import yard_pass5  # noqa: E402
 
 PASSES = [
     ('1 scenery (A, C)', yard_pass1),
     ('2 toolbar (D)', yard_pass2),
-    # ('3 people and door / room patches (E, B)', yard_pass3),
-    # ('4 animals (F, G)', yard_pass4),
-    # ('5 spider and map-window actors (H, I)', yard_pass5),
+    ('3 people and door / room patches (E, B)', yard_pass3),
+    ('4 animals (F, G)', yard_pass4),
+    ('5 spider and map-window actors (H, I)', yard_pass5),
 ]
 
 

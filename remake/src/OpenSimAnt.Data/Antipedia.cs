@@ -43,13 +43,14 @@ public sealed class Antipedia
     {
         this.files = files;
         this.font = font;
-        // the glossary: 0x22-byte entries (u16 text id, a 32-byte upper-case name) up to an id of 0
-        for (int p = 0x4ee5 * 16 + 0x520; p + 0x22 <= files.Flat.Length; p += 0x22)
+        // the glossary: 0x22-byte entries from 4EE5:0500, a 32-byte upper-case name then its u16 text id, up to an
+        // id of 0 (f_78440 compares the name at 0x500 + 0x22 i and takes the id at 0x520 + 0x22 i)
+        for (int p = 0x4ee5 * 16 + 0x500; p + 0x22 <= files.Flat.Length; p += 0x22)
         {
-            int id = files.Flat[p] | files.Flat[p + 1] << 8;
+            int id = files.Flat[p + 0x20] | files.Flat[p + 0x21] << 8;
             if (id == 0) break;
-            int end = Array.IndexOf(files.Flat, (byte)0, p + 2);
-            glossary.Add((id, System.Text.Encoding.ASCII.GetString(files.Flat, p + 2, Math.Min(end, p + 0x22) - p - 2)));
+            int end = Array.IndexOf(files.Flat, (byte)0, p);
+            glossary.Add((id, System.Text.Encoding.ASCII.GetString(files.Flat, p, Math.Min(end < 0 ? p + 0x20 : end, p + 0x20) - p)));
         }
     }
 

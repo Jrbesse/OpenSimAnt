@@ -1,11 +1,42 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-31, evening (specs for all remaining bitmaps, the strings, the screens; burn-down in ROADMAP; see the first dated entry). Before that 2026-10-31 afternoon (fonts and all 74 UI bitmaps by subagents). Before that 2026-10-31 (map tiles and ant sprites by subagents). Before that 2026-10-30, end of the 10-29 night session (the window layout solver f_25595; the long-run
+old transcript. Last updated 2026-11-01 (all bitmaps made, the texts spec, the glossary fix; see the first dated entry). Before that 2026-10-31, evening (specs for all remaining bitmaps, the strings, the screens; burn-down in ROADMAP; see the first dated entry). Before that 2026-10-31 afternoon (fonts and all 74 UI bitmaps by subagents). Before that 2026-10-31 (map tiles and ant sprites by subagents). Before that 2026-10-30, end of the 10-29 night session (the window layout solver f_25595; the long-run
 check: no divergence in 200,000 ticks; test builds for Windows / macOS / Linux; 38 screen captures identical but for
 timing; the owner's first play-test: it plays like the original). Before that, 2026-10-24: the remake's screens
 compared with the original's on the same game State (24 captures, 21 pixel-identical, the other 3 off by redraw timing);
 2026-10-20: the original's screens through a VGA model in the emulator, and the handler audit.
+
+**2026-11-01: every bitmap made, the texts spec, four engine fixes (5 Sonnet agents in parallel, Opus reviewing).**
+- **Made** (isolated makers): the yard's passes 3-5 (102: the person and mower, the door / room patches, the dog, cat,
+  bird, the spider's bodies and beaten frames, the Map window's small spider, sneaker, mower, marker; `yard_pass3..5.py`,
+  `yard_fig.py`, `yard_sprite.py`, `yard_mapactors.py`; 17006 / 17007 are now crops of 7010) and the SimAntipedia's 40
+  pictures (`ency_*.py`, `make_ency_bitmaps.py`). **All 252 bitmaps now exist**; `make_yard_bitmaps.py` passes all 5 passes'
+  checks. The pass-3 agent was stopped at its last step to save the window: its README section is missing, and it may
+  not have applied the colours sent to it (sneaker white / red 3 / sole 14, mower red 3 / orange 2, as passes 4-5 drew
+  them): check the person's shoes and the yard mower against 1200..1203 / 1210. **Not yet checked in the game** (yard
+  actors, patches, SimAntipedia pictures; the ency maker calls 540 and 630 its weakest; its label words are in its README
+  section).
+- **Texts spec** `docs/clean_pack/texts.md` + encoders in build.py (94 type-10 texts, 53 captions, 88 style runs from
+  `*bold*` markup, the glossary; card layouts type 17 are measured data `data/card_layouts.json` from
+  `tools/clean_pack/make_card_layouts.py`; `--roundtrip` 0 problems). **But it is not ready for a maker:** the new
+  `tools/clean_pack/overlap.py` (shared runs of 6 words with the original's type 4 / 10 text) finds 67 in `texts.md`
+  (topic notes too close to the original), 11 in `strings.md`, 1 in `encyclopedia_bitmaps.md`, and in the made strings
+  ~20 in `src/strings/tutorial.json` + 3 in `messages.json` (the 19 in `system.json` are view names and the cell
+  lists: functional, fine). Next: the spec side rewords the three specs to 0 runs, a fresh maker rewords the listed
+  tutorial / message lines (give it the phrases, not the source), then the texts maker. Run `overlap.py` on every text
+  batch from now on.
+- **Engine fixes** (all checked against the original's code): the tutorial's closing box (step 56 shows list 11112,
+  f_0e4e4 case 56; `Tutorial.cs` + `tutorial.py`); the History graph's labels (STR# 1050 names, newest values while the
+  graph is held, `--history-values`; the plot runs over all 64 slots from G:04F4, f_795ec 79715); **the glossary was read
+  one entry off** (f_78440 compares the word at 4EE5:0500 + 0x22 i, id at +0x20: every bold word showed the previous
+  word's definition with the player's files; `EmbeddedAssets` glossary is now 0x4f350..0x4f6e6, `Antipedia.cs` reads
+  [word][id], build.py's `enc_glossary` too; `original_pack.zip` re-exported; checked in the game: "maxillae" pops up its
+  own definition). 10044 (the ant lion's message) is never referenced by the original's code: the scene is right.
+- Usage: 5 agents in parallel took the window 1% -> 90% in ~45 minutes (makers ~310-320k tokens each, the texts spec
+  ~445k). Next time run at most 3 at once and check usage after each report.
+**Next:** the rewording above, then the texts maker; check the new bitmaps in the game on a dev pack; layouts spec,
+sound, music (ROADMAP burn-down: 32 jobs).
 
 **2026-10-31 evening: the burn-down, four specs / makers in parallel, two engine fixes (Sonnet subagents, Opus reviewing).**
 - **Burn-down** (the owner's request): `docs/ROADMAP.md` "Burn-down" counts the jobs left per area (a job = one spec,

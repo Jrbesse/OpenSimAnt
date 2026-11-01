@@ -120,7 +120,7 @@ public static class Measure
                 used_by_effects = Enumerable.Range(0, SoundBank.EffectCount).Where(e => bank.Effects[e].Instrument == i).ToArray(),
             }).ToArray(),
             effects = Enumerable.Range(0, SoundBank.EffectCount).Select(e => new { effect = e, bank.Effects[e].Key, bank.Effects[e].Priority, bank.Effects[e].Instrument, bank.Effects[e].Velocity }).ToArray(),
-            glossary_entries = (EmbeddedAssets.Get("glossary").Size - 2) / 0x22,
+            glossary_entries = EmbeddedAssets.Get("glossary").Size / 0x22 - 1,
             version_line_length = f.VersionLine.Length,
         });
         return 0;

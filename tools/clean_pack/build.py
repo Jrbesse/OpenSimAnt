@@ -2,7 +2,7 @@
 
     python tools/clean_pack/build.py                       # the clean pack; lists what is still missing
     python tools/clean_pack/build.py --fallback=<zip>      # a dev pack: missing resources taken from <zip>
-    python tools/clean_pack/build.py --roundtrip=<zip>     # check enc_bitmap, enc_strlist and enc_menus against every original in <zip>; builds nothing
+    python tools/clean_pack/build.py --roundtrip=<zip>     # check the encoders (bitmaps, string lists, menus, texts, cards, glossary) against every original in <zip>; builds nothing
 
 Sources: remake/game/assets/clean/src/<category>/ (written by the makers, docs/clean_pack/*.md). Output:
 - without --fallback: remake/game/assets/clean/clean_pack.zip, only when nothing is missing (else the list and exit 1;
@@ -63,8 +63,19 @@ Source formats so far:
   game has one, titles start with F, W, V, O, S (their Alt keys), labels at most 14 characters (titles 9, the bar at
   most 60 cells), menu 4 item 0 (Pause) is padded to 7. -> SHARED/6/0.bin (enc_menus: offset tables then strings).
 - version/version.txt: one line of printable ASCII, at most 72 characters (the Ctrl+Alt+V alert) -> EXE/version.txt.
+- texts/cards.json, glossary.json, popups.json, prompts.json (docs/clean_pack/texts.md): the SimAntipedia's prose.
+  cards.json {"<card id>": {"title": ..., "text": ...}} (no "text" on cards 127, 129, 177): the title -> SHARED/19 (a caption,
+  at most 24 characters), the text -> SHARED/10 + 21 of the card's text id; in a text the bold (link) words are written between
+  asterisks and a line break is a real newline (a blank line = two); the style runs are derived from the asterisks.
+  glossary.json {"<definition id>": {"word", "term", "text"}} for the 26 ids 901, 910..929, 963..967: "word" the link word as
+  the cards write it in bold (the glossary table EXE/glossary.bin is derived from the 26 words), the pop-up definition is
+  "*term* - text". popups.json {"950".."962": text}: the 13 flowchart pop-ups. prompts.json {"128".."132": text}: the save
+  prompts (128 quit, 130 load / new game; 129, 131, 132 are never shown). The card layouts (SHARED/17) are not made by anyone:
+  they are data/card_layouts.json (tools/clean_pack/make_card_layouts.py), always built. Every text is laid out by a port of
+  the game's own line breaker (ant_layout) with the clean fonts 2 and 5: it must fit its rectangle, every bold word must become
+  a link to the right definition, and each card's required link words (the originals' ones, by definition id) must be there.
 """
-import json, os, struct, sys, zipfile
+import json, os, re, struct, sys, zipfile
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 SRC = os.path.join(ROOT, 'remake', 'game', 'assets', 'clean', 'src')
@@ -1022,12 +1033,642 @@ def check_text_roundtrip(zip_path):
     return lists, menus, problems
 
 
-CATEGORIES = [cat_palette, cat_bitmaps, cat_cursors, cat_tiles, cat_sprites, cat_fonts, cat_balloon, cat_spiderlegs,
-              cat_version, cat_strings, cat_menus]
+# ------------------------------------------------------------------------------------------------ texts, cards, glossary
+# The long prose: the SimAntipedia's cards (SHARED type 17 layout, 19 caption, 10 text, 21 style runs), the glossary
+# (EXE/glossary.bin), the pop-up definitions and the two save prompts (docs/clean_pack/texts.md). OpenSimAnt.Data/
+# Antipedia.cs reads them; the port of its text clean-up and line breaker below (ant_clean, ant_layout) is exact, so
+# "the text fits its rectangle" and "this bold word becomes a link" are decided here the way the game will decide them.
+NO_STYLE_RUNS = {128, 129, 130, 131, 132, 865}        # texts the original has no style runs for (no SHARED type 21 entry)
+PROMPT_IDS = (128, 129, 130, 131, 132)                 # 128 (quit) and 130 (load / new game) are shown, 129 / 131 / 132 never read
+GLOSSARY_IDS = [901] + list(range(910, 930)) + list(range(963, 968))      # the 26 definitions the glossary table can hold
+POPUP_IDS = list(range(950, 963))                      # the 13 flowchart pop-ups (reached by picture hotspots only)
+GLOSSARY_SLOTS = 26                                    # 0x396 bytes: EmbeddedAssets.glossary is exactly 26 entries and the id 0 end entry
+BOLD = 0x100                                           # a style run's face word for bold (= a link font 5 word)
+STYL_FIXED = (12, 10, 3, 9)                            # height, ascent, font, size of every ScrpSTElement of the originals
+CARD_TITLE_CHARS = 24                                  # the caption is lettered in font 0 (8 px) in a 320 px strip: 40 at most
+POPUP_WIDTH = 160                                      # Antipedia.Popup: half the card item (320 / 2)
+POPUP_MAX_LINES = 10
+PROMPT_WIDTH = 258                                     # Main.DrawSavePrompt: the item (266 px) less 8; font 4
+PROMPT_MAX_LINES = 7                                   # the item is 109 px tall, a font 4 line 14 px
+CARD_BOTTOM = 180                                      # rows 180..199 of a card carry the navigation strip
+MISSING_PICTURES = {151, 161, 162, 163, 164, 165, 166, 167, 168, 169, 171, 211, 212, 430, 570, 860, 875, 877}   # the game draws nothing
+WARNINGS = []
 
-# texts (SHARED type 10) that the original has no style runs for (no SHARED type 21 entry): Antipedia.Text reads
-# type 21 as optional, so these are not in expected()
-NO_STYLE_RUNS = {128, 129, 130, 131, 132, 865}
+
+def enc_card_layout(recs):
+    """SHARED type 17 (Antipedia.Build; big-endian): u16 height 200, u16 width 320, then the records in order: 'PICT' + u16
+    bitmap, Rect (top, left, bottom, right), u16 n, n x (Rect, s16 value); 'TEXT' + Rect, u16 n, n x u16 text id.
+    recs: [["P", bitmap, [t, l, b, r], [[t, l, b, r, value], ...]], ["T", [t, l, b, r], [text ids]], ...]."""
+    out = bytearray(struct.pack('>HH', 200, 320))
+    for rec in recs:
+        if rec[0] == 'P':
+            out += b'PICT' + struct.pack('>H4hH', rec[1], *rec[2], len(rec[3]))
+            for h in rec[3]:
+                out += struct.pack('>5h', *h)
+        else:
+            out += b'TEXT' + struct.pack('>4hH', *rec[1], len(rec[2])) + b''.join(struct.pack('>H', t) for t in rec[2])
+    return bytes(out)
+
+
+def dec_card_layout(d):
+    """The inverse of enc_card_layout."""
+    recs, o = [], 4
+    while o + 4 <= len(d):
+        tag = d[o:o + 4]
+        o += 4
+        if tag == b'PICT':
+            pid, t, l, b, r, n = struct.unpack_from('>H4hH', d, o)
+            o += 12
+            links = [list(struct.unpack_from('>5h', d, o + 10 * k)) for k in range(n)]
+            o += 10 * n
+            recs.append(['P', pid, [t, l, b, r], links])
+        elif tag == b'TEXT':
+            t, l, b, r, n = struct.unpack_from('>4hH', d, o)
+            o += 10
+            recs.append(['T', [t, l, b, r], list(struct.unpack_from('>%dH' % n, d, o))])
+            o += 2 * n
+        else:
+            raise ValueError('unknown record %r' % tag)
+    return recs
+
+
+def enc_card_name(title):
+    """SHARED type 19: the caption, a space written as an underscore (the game shows it as a space), NUL-terminated."""
+    return title.replace(' ', '_').encode('latin-1') + b'\0'
+
+
+def enc_text(plain):
+    """SHARED type 10: the text in Mac Roman (printable ASCII here), a line break as CR, one NUL at the end."""
+    return plain.replace('\n', '\r').encode('latin-1') + b'\0'
+
+
+def parse_markup(s):
+    """'a *b* c' -> ('a b c', [(2, 3)]): the bold (link) words of a text are written between asterisks. ValueError if an
+    asterisk is unpaired or a bold span is empty."""
+    plain, spans, start = [], [], None
+    for ch in s:
+        if ch != '*':
+            plain.append(ch)
+        elif start is None:
+            start = len(plain)
+        elif start == len(plain):
+            raise ValueError('an empty pair of asterisks')
+        else:
+            spans.append((start, len(plain)))
+            start = None
+    if start is not None:
+        raise ValueError('an asterisk that is not closed')
+    return ''.join(plain), spans
+
+
+def enc_styl(plain, spans):
+    """SHARED type 21 (a Mac 'styl': u16 count, then per run 20 bytes: u32 start, s16 height, ascent, font, u16 face, s16
+    size, 6 bytes of colour): the text is one run from 0, a new run wherever bold starts or ends; a bold run's face word
+    is 0x0100, the others 0 (STYL_FIXED are the originals' constants, which the game does not read)."""
+    flags = [False] * len(plain)
+    for s, e in spans:
+        flags[s:e] = [True] * (e - s)
+    runs, prev = [], None
+    for i, f in enumerate(flags):
+        if f != prev:
+            runs.append((i, BOLD if f else 0))
+            prev = f
+    if not runs:
+        runs = [(0, 0)]
+    h, a, fo, sz = STYL_FIXED
+    return struct.pack('>H', len(runs)) + b''.join(struct.pack('>I3hHh6s', st, h, a, fo, face, sz, bytes(6)) for st, face in runs)
+
+
+def dec_styl(d):
+    """The inverse of enc_styl: [(start, face)] and the other fields of the first element (to check they are constant)."""
+    n = struct.unpack_from('>H', d, 0)[0]
+    if 2 + 20 * n != len(d):
+        raise ValueError('%d bytes for %d runs' % (len(d), n))
+    runs, other = [], set()
+    for k in range(n):
+        st, h, a, fo, face, sz = struct.unpack_from('>I3hHh', d, 2 + 20 * k)
+        runs.append((st, face))
+        other.add((h, a, fo, sz, d[2 + 20 * k + 14:2 + 20 * k + 20]))
+    return runs, other
+
+
+def enc_glossary(entries):
+    """EXE/glossary.bin: the table of the link words, as the game reads it (EmbeddedAssets "glossary", 4EE5:0500,
+    f_78440): 0x22-byte entries, the word upper-case in 32 bytes (NUL-padded), then its u16 little-endian text id; the
+    entries up to one with id 0; GLOSSARY_SLOTS entries and the end entry = 918 bytes. entries: [(id, word)]. (The
+    original's end entry carries a word the game never compares; ours is all zeros.)"""
+    out = bytearray()
+    ents = [(i, w.upper()) for i, w in sorted(entries)]
+    for i, w in ents:
+        out += w.encode('ascii').ljust(32, b'\0') + struct.pack('<H', i)
+    return bytes(out + bytes(34 * (GLOSSARY_SLOTS - len(ents) + 1)))
+
+
+def dec_glossary(d):
+    """The inverse of enc_glossary (the game's reading): [(id, word)] up to the first id 0."""
+    res = []
+    for p in range(0, len(d) - 33, 34):
+        i = struct.unpack_from('<H', d, p + 32)[0]
+        if i == 0:
+            break
+        res.append((i, d[p:p + 32].split(b'\0')[0].decode('ascii')))
+    return res
+
+
+# --- the engine's reading of a text, ported exactly (Antipedia.Text, Layout, BreakAt)
+def ant_clean(raw, runs):
+    """Antipedia.Text: each NUL in the first size - 4 bytes goes together with the bytes after it that are below 0x20 (as
+    signed chars, so the 0x80.. ones too), the runs after it move back; the text ends at the first NUL. -> (bytes, runs)."""
+    text, runs, size = bytearray(raw), list(runs), len(raw)
+    while True:
+        p = text.find(b'\0', 0, max(0, min(size - 4, len(text))))
+        if p < 0:
+            break
+        q = p
+        while (text[q] - 256 if text[q] > 127 else text[q]) <= 0x1f and q < size - 4:
+            q += 1
+        n = min(size - q, len(text) - q)
+        text[p:p + n] = text[q:q + n]
+        runs = [((s - (q - p)) if s >= q else s, f) for s, f in runs]
+        size -= q - p
+        if q == p:
+            break
+    e = text.find(b'\0', 0, size)
+    return bytes(text[:size if e < 0 else e]), runs
+
+
+def break_at(c, i):
+    """Antipedia.BreakAt: -1 none, else the break position (before a line end, a space, ( [ {, after ! ) , - . ? ] })."""
+    if c in (0, 10, 13, 0x20, 0x28, 0x5b, 0x7b):
+        return i
+    if c in (0x21, 0x29, 0x2c, 0x2d, 0x2e, 0x3f, 0x5d, 0x7d):
+        return i + 1
+    return -1
+
+
+def ant_layout(text, runs, l, t, r, b, adv, lh):
+    """Antipedia.Layout into the rectangle (l, t, r, b) with adv(font, byte) the pen advance and lh the line height. Returns
+    (draws, links, lines, consumed, too_long): draws [(x, y, font, bytes)], links [(x, y, bytes)] (a bold segment that ends
+    inside its line; the game looks its trimmed upper-case text up in the glossary), the number of lines drawn, how many
+    bytes of the text were laid out, and the lines that had no break point and ran past the width (an over-long word)."""
+    width, lines, y = r - l, (b - t) // lh, t + 4
+    run, i, cur = 0, 0, (5 if runs and runs[0][1] == BOLD else 2)
+    draws, links, too_long, line = [], [], [], 0
+
+    def at(k):
+        return text[k] if k < len(text) else 0
+
+    while i < len(text) and line < lines:
+        x, brk, seg, segx, end = 0, 0, i, l + 1, False
+        while x < width and not end:
+            if run + 1 < len(runs) and runs[run + 1][0] <= i:
+                run += 1
+                if i - seg > 0:
+                    draws.append((segx, y, cur, text[seg:i]))
+                    if runs[run - 1][1] == BOLD:
+                        links.append((segx, y, text[seg:i]))
+                segx = l + x + 1
+                cur = 5 if runs[run][1] == BOLD else 2
+                seg = i
+            c = at(i)
+            x += adv(cur, c)
+            if x < width:
+                if c in (0, 10, 13):
+                    end = True
+                k = break_at(c, i)
+                if k >= 0:
+                    brk = k
+            i += 1
+        frm, to = seg, i
+        if brk != 0:
+            to = brk
+            if brk < seg:
+                frm = brk
+        elif x >= width:
+            too_long.append(line)
+        if to - frm > 0:
+            draws.append((segx, y, cur, text[frm:to]))
+        while at(to) == 0x20:
+            to += 1
+        if at(to) in (10, 13):
+            to += 1
+        i = to
+        line += 1
+        y += lh
+    return draws, links, line, min(i, len(text)), too_long
+
+
+def ink(b):
+    return bytes(c for c in b if c > 32)
+
+
+def line_height():
+    """Antipedia.Layout's line height: the taller of fonts 2 and 5, an Apple FONT counting its height less 1."""
+    h = {m['source']: m['height'] for m in data('fonts')}
+    return max(h['FONT1'], h['FONT4']) - 1
+
+
+def clean_adv():
+    """adv(font, byte) from the clean fonts' json (fonts 2 and 5); None if one is not made yet."""
+    f2, f5 = font_advances(2), font_advances(5)
+    if f2 is None or f5 is None:
+        return None
+    tabs = {2: f2, 5: f5}
+
+    def adv(font, c):
+        a, missing = tabs[font]
+        return a[c] if c < len(a) else missing
+    return adv
+
+
+def original_adv():
+    """adv(font, byte) from the measurements of the originals (FONT1 and FONT4), for the checks of --roundtrip."""
+    tabs = {m['source']: m['advances'] for m in data('fonts')}
+    t = {2: tabs['FONT1'], 5: tabs['FONT4']}
+    return lambda font, c: t[font][c] if c < len(t[font]) else 0
+
+
+def wrap_prompt(text, width):
+    """Main.WrapText for the save prompt (font 4): greedy words, line breaks kept; the lines."""
+    lines = []
+    for para in text.split('\n'):
+        line = ''
+        for word in para.split(' '):
+            nxt = word if not line else line + ' ' + word
+            if line and text_width(4, nxt) > width:
+                lines.append(line)
+                line = word
+            else:
+                line = nxt
+        lines.append(line)
+    return lines
+
+
+def bold_spans(runs, n):
+    """The (start, end) of each bold run of a text of n bytes."""
+    return [(st, min(n, runs[k + 1][0] if k + 1 < len(runs) else n)) for k, (st, f) in enumerate(runs) if f == BOLD and st < n]
+
+
+def markup_of(text, spans):
+    """A text (bytes, as the game sees it) and its bold spans as maker markup: asterisks round the bold words, CR / LF as a
+    line break. ValueError if the text cannot be written that way."""
+    if b'*' in text:
+        raise ValueError('an asterisk in the text')
+    out, ends = [], {e: 1 for _, e in spans}
+    starts = {s for s, _ in spans}
+    for k, c in enumerate(text + b'\0'):
+        if k in ends:
+            out.append('*')
+        if k in starts:
+            out.append('*')
+        if k < len(text):
+            out.append('\n' if c in (10, 13) else chr(c))
+    if any(spans[k][1] >= spans[k + 1][0] for k in range(len(spans) - 1)):
+        raise ValueError('two bold runs touch')
+    return ''.join(out)
+
+
+def check_markup_text(where, s, allow_bold):
+    """The character rules shared by every prose text; (plain, spans, problems)."""
+    errs = []
+    if not isinstance(s, str) or not s.strip():
+        return '', [], ['%s: a non-empty string' % where]
+    if any(not 32 <= ord(c) < 127 and c != '\n' for c in s):
+        errs.append('%s: only printable ASCII (32..126) and line breaks (no tabs, accents or typographic quotes)' % where)
+    if '\\' in s:
+        errs.append('%s: no backslash' % where)
+    if s != s.strip() or '\n ' in s or ' \n' in s or '  ' in s:
+        errs.append('%s: no leading / trailing spaces or line breaks, no two spaces in a row, no space next to a line break' % where)
+    if identity_problem(s):
+        errs.append('%s: contains a name the pack must not carry (ROADMAP A6)' % where)
+    try:
+        plain, spans = parse_markup(s)
+    except ValueError as e:
+        return s, [], errs + ['%s: %s' % (where, e)]
+    if spans and not allow_bold:
+        errs.append('%s: no bold (asterisk) words here' % where)
+    for a, b in spans:
+        w = plain[a:b]
+        if w != w.strip() or '\n' in w:
+            errs.append('%s: the bold word "*%s*" has a space or a line break at an end or inside' % (where, w.replace('\n', '\\n')))
+    if any(spans[k][1] == spans[k + 1][0] for k in range(len(spans) - 1)):
+        errs.append('%s: two bold words touch ("**")' % where)
+    if spans and spans[-1][1] == len(plain):
+        errs.append('%s: a bold word cannot end the text (the game makes a link only when more text follows it): put a word or a full stop after it' % where)
+    return plain, spans, errs
+
+
+def card_text_problems(where, tid, info, plain, spans, words, adv, lh):
+    """Does the card text `plain` (bold spans `spans`) lay out in its rectangle the way the game will draw it, and does
+    every bold word become the link to the definition the glossary gives it? words: {UPPER word: definition id}."""
+    errs = []
+    t, l, b, r = info['rect']
+    raw = enc_text(plain)
+    styl = None if tid in NO_STYLE_RUNS else dec_styl(enc_styl(plain, spans))[0]
+    text, runs = ant_clean(raw, styl or [])
+    draws, links, nlines, used, too_long = ant_layout(text, runs, l, t, r, b, adv, lh)
+    lines = (b - t) // lh
+    if used < len(text):
+        errs.append('%s: %d lines hold only the first %d of its %d characters (the rectangle is %d x %d px, %d lines of %d px): '
+                    'shorten it' % (where, lines, used, len(text), r - l, b - t, lines, lh))
+    elif t + 4 + nlines * lh > CARD_BOTTOM:
+        errs.append('%s: %d lines reach row %d, the navigation strip starts at row %d: shorten it' % (where, nlines, t + 4 + nlines * lh, CARD_BOTTOM))
+    if too_long:
+        errs.append('%s: a word is wider than the %d px of the rectangle (line %d): break it or shorten it' % (where, r - l, too_long[0] + 1))
+    if used < len(text):
+        pass                                           # the links of the text that did not fit are not worth reporting
+    elif ink(b''.join(d[3] for d in draws)) != ink(text[:used]):
+        errs.append('%s: the game draws part of this text twice or not at all around a bold word that wraps (a bold word that does not '
+                    'start its line must not follow a character other than a space)' % where)
+    if words is not None:                              # the link checks need the complete glossary
+        got = [words.get(seg.lstrip(b' ').decode('latin-1').upper()) for _, _, seg in links]
+        want = [words.get(plain[a:bb].upper()) for a, bb in spans]
+        for k, (a, bb) in enumerate(spans):
+            if want[k] is None:
+                errs.append('%s: the bold word "%s" is not a link word of glossary.json (bold is only for link words)' % (where, plain[a:bb]))
+        if None not in want and got != want and used >= len(text):
+            bad = [plain[a:bb] for k, (a, bb) in enumerate(spans) if k >= len(got) or got[k] != want[k]]
+            errs.append('%s: the link word(s) %s are split by a line break or begin a line after a break in them, so the game would not make '
+                        'them links: reword so each bold word lies whole on one line' % (where, ', '.join('"%s"' % w for w in bad[:3])))
+        need = [d for d in info.get('needs', []) if d not in want]
+        if need:
+            errs.append('%s: this card has to contain, in bold, the link word of definition(s) %s (docs/clean_pack/texts.md)' % (where, ', '.join(map(str, need))))
+    if info.get('chars') and len(plain) < 0.5 * info['chars']:
+        WARNINGS.append('%s: %d characters, the original card had about %d (aim for 70%% to 110%%)' % (where, len(plain), info['chars']))
+    return errs
+
+
+def cat_texts(errors):
+    """The cards, the pop-up texts, the glossary and the two save prompts (docs/clean_pack/texts.md); sources in
+    src/texts/: cards.json, glossary.json, popups.json, prompts.json. The card layouts (type 17) come from
+    docs/clean_pack/data/card_layouts.json and are always built."""
+    try:
+        lay = data('card_layouts')
+    except OSError:
+        return
+    for cid, recs in lay['cards'].items():
+        yield 'SHARED/17/%s.bin' % cid, enc_card_layout(recs)
+    d = os.path.join(SRC, 'texts')
+    if not os.path.isdir(d):
+        return
+
+    def load(name):
+        path = os.path.join(d, name + '.json')
+        if not os.path.exists(path):
+            return None
+        try:
+            with open(path, encoding='utf-8') as f:
+                obj = json.load(f)
+        except ValueError as e:
+            errors.append('texts/%s.json: %s' % (name, e))
+            return None
+        if not isinstance(obj, dict):
+            errors.append('texts/%s.json: a JSON object' % name)
+            return None
+        return obj
+
+    adv, lh = clean_adv(), line_height()
+    texts = lay['texts']
+
+    def put(tid, plain, spans):
+        yield 'SHARED/10/%d.bin' % tid, enc_text(plain)
+        if tid not in NO_STYLE_RUNS:
+            yield 'SHARED/21/%d.bin' % tid, enc_styl(plain, spans)
+
+    # --- the two save prompts and the three unused notes (plain text; 128 and 130 are wrapped by the dialog)
+    prompts = load('prompts')
+    for key, s in (prompts or {}).items():
+        where = 'texts/prompts.json "%s"' % key
+        if not key.isdigit() or int(key) not in PROMPT_IDS:
+            errors.append('%s: the ids are %s' % (where, list(PROMPT_IDS)))
+            continue
+        tid = int(key)
+        plain, _, errs = check_markup_text(where, s, False)
+        if not errs and (tid in (128, 130) or len(plain) > 240):
+            if tid in (128, 130):
+                lines = wrap_prompt(plain, PROMPT_WIDTH)
+                if len(lines) > PROMPT_MAX_LINES:
+                    errs.append('%s: %d lines of %d px, the dialog holds %d: shorten it' % (where, len(lines), PROMPT_WIDTH, PROMPT_MAX_LINES))
+                if any(text_width(4, ln) > PROMPT_WIDTH for ln in lines):
+                    errs.append('%s: a word is wider than %d px' % (where, PROMPT_WIDTH))
+            else:
+                errs.append('%s: at most 240 characters (the note is never shown)' % where)
+        errors.extend(errs)
+        if not errs:
+            yield from put(tid, plain, [])
+
+    # --- the glossary: one entry (link word, pop-up definition) for each of the 26 ids
+    gl = load('glossary')
+    words, terms = {}, {}
+    for key, e in (gl or {}).items():
+        where = 'texts/glossary.json "%s"' % key
+        if not key.isdigit() or int(key) not in GLOSSARY_IDS:
+            errors.append('%s: the ids are %s' % (where, GLOSSARY_IDS))
+            continue
+        tid = int(key)
+        if not isinstance(e, dict) or set(e) != {'word', 'term', 'text'} or not all(isinstance(e[k], str) for k in e):
+            errors.append('%s: {"word": ..., "term": ..., "text": ...}' % where)
+            continue
+        bad = False
+        if not re.fullmatch(r"[A-Za-z][A-Za-z' -]{0,30}", e['word']) or e['word'] != e['word'].strip() or '  ' in e['word']:
+            errors.append('%s: "word" is 1 to 31 letters (space, apostrophe, hyphen inside), the form the card texts write in bold' % where)
+            bad = True
+        if identity_problem(e['word']) or identity_problem(e['term']):
+            errors.append('%s: contains a name the pack must not carry (ROADMAP A6)' % where)
+            continue
+        if not re.fullmatch(r"[A-Za-z][A-Za-z' -]{0,38}", e['term']) or e['term'] != e['term'].strip():
+            errors.append('%s: "term" is the bold head word of the pop-up, letters (space, apostrophe, hyphen inside), at most 39 characters' % where)
+            bad = True
+        plain, spans, errs = check_markup_text(where + ' text', e['text'], False)
+        errors.extend(errs)
+        if bad or errs:
+            continue
+        if e['word'].upper() in words:
+            errors.append('%s: the link word "%s" is also the word of definition %d' % (where, e['word'], words[e['word'].upper()]))
+            continue
+        words[e['word'].upper()] = tid
+        terms[tid] = (e['word'], '*%s* - %s' % (e['term'], e['text']))
+    # the definitions and the flowchart pop-ups, laid out POPUP_WIDTH px wide (Antipedia.Popup)
+    pops = load('popups')
+    pop_src = {tid: s for tid, (_, s) in terms.items()}
+    for key, s in (pops or {}).items():
+        where = 'texts/popups.json "%s"' % key
+        if not key.isdigit() or int(key) not in POPUP_IDS:
+            errors.append('%s: the ids are %d..%d' % (where, POPUP_IDS[0], POPUP_IDS[-1]))
+            continue
+        pop_src[int(key)] = s
+    for tid, s in sorted(pop_src.items()):
+        where = 'texts/%s "%d"' % ('popups.json' if tid in POPUP_IDS else 'glossary.json', tid)
+        plain, spans, errs = check_markup_text(where, s, tid in GLOSSARY_IDS)
+        if not errs and adv is None:
+            errs.append('%s: fonts 2 and 5 are not made yet, cannot check the layout' % where)
+        if not errs:
+            raw = enc_text(plain)
+            text, runs = ant_clean(raw, dec_styl(enc_styl(plain, spans))[0])
+            _, _, nlines, used, too_long = ant_layout(text, runs, 0, 0, POPUP_WIDTH, 10000, adv, lh)
+            if nlines > POPUP_MAX_LINES:
+                errs.append('%s: %d lines at %d px wide, at most %d (the original\'s longest pop-up is 9): shorten it' % (where, nlines, POPUP_WIDTH, POPUP_MAX_LINES))
+            if too_long:
+                errs.append('%s: a word is wider than %d px' % (where, POPUP_WIDTH))
+        errors.extend(errs)
+        if not errs:
+            yield from put(tid, plain, spans)
+    if gl is not None and len(terms) == len(GLOSSARY_IDS):
+        yield 'EXE/glossary.bin', enc_glossary([(tid, w) for tid, (w, _) in terms.items()])
+
+    # --- the cards: a caption and a text
+    cards = load('cards')
+    gloss_ok = len(terms) == len(GLOSSARY_IDS)
+    if cards and not gloss_ok:
+        WARNINGS.append('texts/cards.json: the bold (link) words are not checked until texts/glossary.json holds all %d valid definitions' % len(GLOSSARY_IDS))
+    for key, e in (cards or {}).items():
+        where = 'texts/cards.json card %s' % key
+        if not key.isdigit() or key not in lay['cards']:
+            errors.append('%s: no such card (the ids are 127..179 except as listed in texts.md)' % where)
+            continue
+        cid = int(key)
+        tids = [t for rec in lay['cards'][key] if rec[0] == 'T' for t in rec[2]]
+        if not isinstance(e, dict) or set(e) != ({'title', 'text'} if tids else {'title'}):
+            errors.append('%s: {"title": ..., "text": ...}%s' % (where, '' if tids else ' (this card has no text, only "title")'))
+            continue
+        title = e['title']
+        errs = []
+        if not isinstance(title, str) or not title or len(title) > CARD_TITLE_CHARS or title != title.strip() or any(
+                not 32 <= ord(c) < 127 or c in '_*\\' for c in title):
+            errs.append('%s title: 1 to %d printable ASCII characters, no underscore or asterisk, no spaces at the ends' % (where, CARD_TITLE_CHARS))
+        elif identity_problem(title):
+            errs.append('%s title: contains a name the pack must not carry (ROADMAP A6)' % where)
+        elif lay.get('labels', {}).get(key) and not title.lower().startswith(lay['labels'][key].lower()):
+            WARNINGS.append('%s title: "%s" differs from the label of the box that opens this card ("%s")' % (where, title, lay['labels'][key]))
+        if tids:
+            tid = tids[0]
+            info = texts[str(tid)]
+            plain, spans, errs2 = check_markup_text(where + ' text', e['text'], tid not in NO_STYLE_RUNS)
+            errs += errs2
+            if not errs2:
+                if adv is None:
+                    errs.append('%s: fonts 2 and 5 are not made yet, cannot check the layout' % where)
+                else:
+                    errs += card_text_problems(where + ' text', tid, info, plain, spans, words if gloss_ok else None, adv, lh)
+                if tid == 865 and len(plain.split('\n')) > 12:
+                    errs.append('%s text: at most 12 lines' % where)
+        errors.extend(errs)
+        if not errs:
+            yield 'SHARED/19/%d.bin' % cid, enc_card_name(title)
+            if tids:
+                yield from put(tids[0], plain, spans)
+
+
+def check_texts_roundtrip(zip_path):
+    """--roundtrip=<zip>: every text-category resource of the pack decoded and encoded again. Card layouts (17), captions (19)
+    and the glossary byte for byte; texts (10) and style runs (21) through the maker's markup (asterisks for bold) and back,
+    compared by what the game sees (Antipedia.Text: the cleaned text and its bold spans; for 128 / 130 the bytes up to the
+    first NUL) and, for the card texts, by the lines the game draws and the links it makes. Returns (counts, notes,
+    problems); notes say which texts are not byte-identical and why (the originals carry editor debris, a second NUL and
+    underline runs that the game does not draw differently)."""
+    counts = dict(texts=0, exact=0, view=0, layout=0, same_layout=0, layouts=0, names=0, glossary=0)
+    notes, problems = [], []
+    lay = data('card_layouts')
+    adv, lh = original_adv(), line_height()
+    with zipfile.ZipFile(zip_path) as z:
+        names = set(z.namelist())
+        for m in data('texts'):
+            tid = m['id']
+            raw = z.read('SHARED/10/%d.bin' % tid) if 'SHARED/10/%d.bin' % tid in names else None
+            if raw is None:
+                problems.append('SHARED/10/%d.bin: not in the pack' % tid)
+                continue
+            styl = z.read('SHARED/21/%d.bin' % tid) if 'SHARED/21/%d.bin' % tid in names else None
+            counts['texts'] += 1
+            try:
+                runs = dec_styl(styl)[0] if styl is not None else []
+                if styl is not None and {o[:4] for o in dec_styl(styl)[1]} != {STYL_FIXED}:
+                    notes.append('SHARED/21/%d.bin: style fields other than %s' % (tid, STYL_FIXED))
+                if tid in PROMPT_IDS:
+                    n = raw.find(b'\0')
+                    text, vruns = raw[:n if n >= 0 else len(raw)], []
+                else:
+                    text, vruns = ant_clean(raw, runs)
+                spans = bold_spans(vruns, len(text))
+                mk = markup_of(text, spans)
+                plain, spans2 = parse_markup(mk)
+            except (ValueError, struct.error) as e:
+                problems.append('texts %d: cannot be written as markup: %s' % (tid, e))
+                continue
+            raw2 = enc_text(plain)
+            styl2 = None if tid in NO_STYLE_RUNS else enc_styl(plain, spans2)
+            if tid in PROMPT_IDS:
+                text2, vruns2 = raw2[:raw2.find(b'\0')], []
+            else:
+                text2, vruns2 = ant_clean(raw2, dec_styl(styl2)[0] if styl2 else [])
+            if (text2, bold_spans(vruns2, len(text2))) != (text, spans):
+                problems.append('texts %d: the game would see something else after text -> markup -> text' % tid)
+                continue
+            counts['view'] += 1
+            if raw2 == raw and styl2 == styl:
+                counts['exact'] += 1
+            else:
+                why = []
+                if raw2 != raw:
+                    why.append('text bytes differ (%s)' % ', '.join(
+                        w for w, c in (('editor debris cleaned by the game', len(raw) > 0 and ant_clean(raw, runs)[0] != raw[:raw.find(b'\0')]),
+                                       ('a second NUL / DOS tail', raw.count(b'\0') > 1 or raw[-1:] != b'\0'),
+                                       ('Mac Roman character', any(c > 127 for c in raw))) if c) or 'other')
+                if styl2 != styl and styl is not None:
+                    why.append('style runs differ (%s)' % (
+                        'underline runs, which the game draws as plain text' if any(f not in (0, BOLD) for _, f in runs) else
+                        'positions moved by the cleaning' if ant_clean(raw, runs)[1] != runs else
+                        'an extra plain run with other font fields, which the game does not read'))
+                notes.append('text %d: not byte-identical: %s' % (tid, '; '.join(why)))
+            info = lay['texts'].get(str(tid))
+            if info and info['kind'] == 'card':
+                counts['layout'] += 1
+                t, l, b, r = info['rect']
+                a = ant_layout(text, vruns, l, t, r, b, adv, lh)
+                c2 = ant_layout(text2, vruns2, l, t, r, b, adv, lh)
+                if a == c2:
+                    counts['same_layout'] += 1
+                else:
+                    notes.append('text %d: the lines the game draws differ after the round trip (only where the original has underline runs or a word wraps oddly)' % tid)
+        for cid, recs in lay['cards'].items():
+            n = 'SHARED/17/%s.bin' % cid
+            if n not in names:
+                problems.append('%s: not in the pack' % n)
+                continue
+            d = z.read(n)
+            try:
+                same = dec_card_layout(d) == recs and enc_card_layout(recs) == d
+            except (ValueError, struct.error):
+                same = False
+            counts['layouts'] += same
+            if not same:
+                problems.append('%s: docs/clean_pack/data/card_layouts.json is not the pack\'s card (run tools/clean_pack/make_card_layouts.py)' % n)
+            n = 'SHARED/19/%s.bin' % cid
+            if n not in names:
+                problems.append('%s: not in the pack' % n)
+                continue
+            d = z.read(n)
+            title = d[:-1].decode('latin-1').replace('_', ' ')
+            if enc_card_name(title) == d:
+                counts['names'] += 1
+            else:
+                problems.append('%s: not byte-identical after decode + encode' % n)
+        if 'EXE/glossary.bin' not in names:
+            problems.append('EXE/glossary.bin: not in the pack')
+        else:
+            d = z.read('EXE/glossary.bin')
+            ents = dec_glossary(d)
+            e = enc_glossary(ents)
+            # byte-identical up to the end entry (whose word the game never compares)
+            if len(e) == len(d) and e[:-34] == d[:-34] and e[-2:] == d[-2:] and len(ents) == data('embedded')['glossary_entries']:
+                counts['glossary'] = len(ents)
+            else:
+                problems.append('EXE/glossary.bin: not byte-identical after decode + encode (end entry aside)')
+    return counts, notes, problems
+
+
+CATEGORIES = [cat_palette, cat_bitmaps, cat_cursors, cat_tiles, cat_sprites, cat_fonts, cat_balloon, cat_spiderlegs,
+              cat_version, cat_strings, cat_menus, cat_texts]
 
 
 def expected():
@@ -1076,16 +1717,26 @@ def main():
     if 'roundtrip' in opts:                                   # check the encoder against the originals, build nothing
         checked, problems = check_bitmap_roundtrip(opts['roundtrip'])
         n_lists, n_menus, text_problems = check_text_roundtrip(opts['roundtrip'])
-        for p in problems + text_problems:
+        counts, notes, prose_problems = check_texts_roundtrip(opts['roundtrip'])
+        for p in problems + text_problems + prose_problems:
             print('error:', p)
+        for n in notes:
+            print('note:', n)
         print('%d bitmaps checked through enc_bitmap, %d problems' % (checked, len(problems)))
         print('%d string lists and %d menu lists (SHARED/6/0) decoded and encoded back byte-identically, %d problems'
               % (n_lists, n_menus, len(text_problems)))
-        sys.exit(1 if problems or text_problems else 0)
+        print('%d texts (SHARED/10 + 21): the game sees the same text and bold words after text -> markup -> text for %d, '
+              'the same bytes for %d, the same lines and links on the card for %d of %d card texts; %d card layouts (17), %d '
+              'captions (19) and %d glossary entries (EXE/glossary.bin) byte-identical; %d problems'
+              % (counts['texts'], counts['view'], counts['exact'], counts['same_layout'], counts['layout'], counts['layouts'],
+                 counts['names'], counts['glossary'], len(prose_problems)))
+        sys.exit(1 if problems or text_problems or prose_problems else 0)
     errors, made = [], {}
     for cat in CATEGORIES:
         for name, blob in cat(errors):
             made[name] = blob
+    for w in WARNINGS:
+        print('warning:', w)
     for e in errors:
         print('error:', e)
     if errors:

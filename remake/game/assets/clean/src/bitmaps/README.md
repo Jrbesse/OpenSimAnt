@@ -256,3 +256,109 @@ Needs Python 3 with numpy and Pillow. Pillow's `ImageDraw` is used only on 8-bit
 ## Checks (assertions in `make_screens_bitmaps.py`)
 
 The nine groups of "The script's checks": sizes, characters, no `.`; the identity strings (`LETTERED`, no "SimAnt" outside "OpenSimAnt", no publisher / year, no lettering in the scenes and icons); the title (ring, cut, black share, wordmark height, no line on the seam, contrast); Select (flat 12 outside the allowed rectangles, tile rings and bevels, colour counts, caption inks, heading rows); About (ring, R, the bevel on at least 95 % of each side, the 8-px clearance, heading / footer rows, the card's margins and last row); the icons; 9100 / 9101 rows 0..14, 9110 / 9111 ring and difference; the patches of 9200 / 12000 (ring equality, pairwise differences, the yellow-ant rule, the constants `PATCHES`); all 24 distinct and not flat.
+
+
+# The yard, passes 4-5: the animals, the spider and the map-window actors (yard_bitmaps.md, groups F, G, H, I)
+
+64 files: the dog 8500..8511, 8600..8603; the cat 1300..1305, 1310..1312, 1320..1329; the bird 1250, 1251; the spider's bodies
+1000..1007 and beaten frames 1050..1053; the small spiders 1100..1107; the sneaker 1200..1203; the Map window's mower 1210, 1211; the
+marker 1400. Written by `make_yard_bitmaps.py` (passes 4 and 5 are listed in its `PASSES`); `python preview_yard_actors.py` writes
+`preview_yard_actors.png` (the animation strips at their offsets, the spider composite with the game's legs and fangs, the beaten frames,
+the Map-window actors on 4-px cells).
+
+| File | What |
+|---|---|
+| `yard_sprite.py` | a small software renderer: spheres and capsules in 3-D (`Pose`: heading, pitch, roll, spin), orthographic camera, z-buffer, light from the screen's top-left, cut to the bounding box and resampled to the exact sprite size (so every sprite is tight), 1-px black outline, single-pixel `marks` (eyes, collars) |
+| `yard_pass4.py` | the dog, the cat, the bird and their checks |
+| `yard_pass5.py` | the spider bodies (with the table recomputed from `spider/legs.json`), the beaten frames, the small spiders and the pass-5 checks |
+| `yard_mapactors.py` | the sneaker, the Map window's mower and the marker |
+| `preview_yard_actors.py` | the preview of these two passes |
+
+## Design (passes 4-5)
+
+- **One model per creature, many views.** The dog (white, brown patches and ears, a yellow collar of 1 to 3 pixels) and the cat (ginger, brown
+  stripes, white chest, muzzle and paws, a cyan 7 collar) are chains of shaded spheres posed in 3-D, so all headings and poses are one animal.
+  The left-walking cat 1303..1305 is the exact mirror image of 1300..1302 (as the spec says; so its light comes from the right). The startled
+  cat is the same cat seen from the front, arched, with bristling fur and an open mouth; the pounce frames 1322..1324 are the same cat springing at the viewer
+  with the claws out, 1321 / 1325 turn in the air, 1326..1329 are the tumbling cat rotated about the view axis. The bird is hand-drawn pixels (tan body, brown wings, orange beak).
+- **Per-frame tweaks.** The alignment rule (R = centroid + offset) is met by the plain model except for 8508 (head turned 30 degrees, tail raised)
+  and 8602 (thick raised tail); they are in `DOG_TWEAK`.
+- **The spider.** A tan cephalothorax (head and thorax in one, 18 px long) and a dark-brown abdomen with a dark dorsal stripe and a pale highlight
+  top-left (colours 10, 11, 12, 14, 15), a narrow waist, four pale eye pixels; seen from straight above, 36 px long and 14 wide on the axes; the diagonal bodies are stretched
+  along the axis (not squeezed) so they keep the width the leg table needs. The beaten frames carry the 1007 body unchanged (legs are drawn only outside it) with four sets of black legs: sprawled, bent, two curls.
+- **Map actors.** The small spiders are generated for 8 headings from one model (body 14, highlight 13, legs 15) and tuned to the spec's transparent counts. The sneaker
+  is white with a red toe cap and heel tab, dark-grey sole, black laces, a padded heel opening (1201..1203 are 1200 turned). The mower 1210 is point-symmetric (red deck,
+  orange rim, dark engine cover, four black wheels, slots, rivets) on a dark-green 9 mat; 1211 is 1210 turned by 90 degrees. The marker is a black ring, a red 3 ring, a white centre with a black cross-hair.
+- **Colour choices the spec left open.** The sneaker colours (white / red / dark grey) should be used by the person of pass 3; the mower colours (red 3 deck, dark engine 14, black wheels)
+  should be the yard mower 8100..8802's machine; the sign 1260 / house colours are pass 1's.
+
+## Checks (assertions in `check_pass4` / `check_pass5`)
+
+Sizes, masks, colour sets (dog 0, 1, 10, 11, 12, 15; cat 0, 2, 3, 4, 7, 10, 12, 15; spider 10..15; small spiders 13..15); tightness; dog alignment and collar (1 to 3 px, visible in profile and resting);
+cat walking centroid and back line, mirror, startled bottom centre and feet, pounce centroid and the arc of the box centres; bird alignment; colour 1 only on the dog; the spider table recomputed from `legs.json`,
+attach points and fang bases, mirror symmetry (at least 85 %), the beaten frames' body identical and the centre opaque; the small spiders' transparent counts and centroids; the sneakers' sizes; the mower's point symmetry and
+rotation; the marker.
+
+
+# The encyclopedia's pictures (`SHARED_<id>.pix`, 40 one-bit bitmaps; spec `docs/clean_pack/encyclopedia_bitmaps.md`)
+
+Made 2026-11-01 by an isolated agent from the spec only. Rebuild everything with `python make_ency_bitmaps.py` (from any folder, no
+arguments): it draws the 40 pictures, runs every assertion of the spec's "The script's checks" (sizes, only `0` / `f`, boxed labels on
+their rectangles with the lettering centred and 2 px clear of the outline, no overlapping or unlisted outlined rectangle, leader tips
+inside the named part and no leader through a box, the cut rows / columns white, 540's left 16 columns empty above the ground row,
+880's arrows on their boxes and never through another box, 170 / 160's white border and word, the forbidden-word list) and writes the files.
+`python ency_preview.py all` writes `preview_ency.png` (the contact sheet at 2x, then every card of the placement table at 2x with the
+text rectangles hatched grey, the navigation strip darker, the link rectangles red).
+
+| File | What it is |
+|---|---|
+| `ency_lib.py` | the canvas `Cv` (1-bit, optional transform so any drawing runs at any scale, rotation or mirrored), tone patterns, the label face, `box` (boxed label), `leader`, the file writer |
+| `ency_ant.py` | **the one ant model** (`draw_ant`, `place`, `fit`, `on_ground`): worker, soldier, winged ant, queen and every small ant of the scenes are parameter sets of it |
+| `ency_insects.py` | termite, bee, wasp, larva, egg, pupa, seed, aphid, leaf, hexagonal cell |
+| `ency_p1.py` .. `ency_p5.py` | the five passes (p1 menus and small items, p2 ant bodies and 200, p3 head / antennae / thorax / inside, p4 insects and species, p5 behaviour, life cycles, flowchart) |
+| `ency_check.py` | the assertions; `make_ency_bitmaps.py` the driver; `ency_preview.py` the preview |
+
+## Design
+
+- **Line weights:** every contour is 1 px; the heavier 2-px stroke is used only for ground lines, femurs, the antennae's scape / funiculus and
+  tubes of the gut. Leaders are 1 px ending in a 2 x 2 dot with a small white halo so it shows on a dark tone.
+- **Tones** (registered to the picture, a 4 x 4 ordered dither): 0 white; 2/16 very light; 4/16 light (25 %); 8/16 mid (checkerboard); 12/16 dark
+  (3 : 1 mesh); 16/16 black; plus diagonal hatches (every 3rd or 4th diagonal) and a cross hatch for the compound eyes. Rounded forms (head,
+  thorax, gaster, leaves) use a gradient of these levels, lighter at the upper left, darker at the lower right. Small ants (body length under
+  45 px) use 62 % of the tone levels so they stay legible.
+- **The ant model:** local units of one body length, facing left; head 17 % (ellipse), thorax 30 % (three lobes, sutures), one-node waist, gaster 40 %
+  (egg-shaped, banded for the queen), elbowed antennae (scape, bend, funiculus; the far one dashed), six legs in a tripod stride (the far three
+  dashed and lighter), eye, mandibles (closed or open and toothed). Soldier = head scale 1.75 with hatching and open toothed jaws; winged ant = bigger
+  thorax, two veined wings (front pair longer); queen = small head, wing scars, gaster 1.9 x long and high with segment lines and an egg.
+- **Label face:** my own 1-px-stroke pixel face (`ency_lib.py`): capital height 7 (`b7`, boxes 11-12 high), 8 (`b8`, boxes 13 and higher, also for a
+  one-word label in a tall box), 6 for the two-line labels (`r6`, pitch 8) and for plain captions. Narrow forms of `Q`, `u`, `n` are used only for
+  "Queen" in 510's 28-px box. It is regular, not bold (a bold face would not fit the spec's narrow boxes).
+- **Boxed label:** the outline is the rectangle's outermost pixels, white inside, the word centred; the box is drawn last so it erases whatever is
+  under it.
+
+## The words in the pictures (a later text batch must match them)
+
+| Picture | Words |
+|---|---|
+| 150 | `Social insects`, `Ant anatomy`, `Life cycle`, `Castes`, `Behavior`, `Common species`, `Ant facts`, `Game strategy` |
+| 400 | `Worker`, `Soldier`, `Replete`, `Male`, `New queen`, `Queen` |
+| 500 | `Communication`, `Foraging`, `Scent trails`, `Food sharing`, `Nest building`, `Brood care`, `Fighting`, `Herding aphids` |
+| 600 | `Carpenter ants`, `Harvester ants`, `Leafcutter ants`, `Weaver ants`, `Army ants`, `Fire ants` |
+| 700 | `Ant life cycle`, `Colony life cycle` |
+| 850 | `Overall goals`, `Gathering food`, `Warfare`, `Full game`, `Experimental game`, `Keyboard shortcuts`, `Colony flowchart` |
+| 170 / 160 | `Next` / `Back` (white on a solid black button) |
+| 200 | `Head`, `Thorax`, `Abdomen` |
+| 210 | `Eyes`, `Ocelli`, `Maxillae`, `Antennae`, `Mouth` |
+| 230 | `Mouth` over `pouch` (two lines), `Crop`, `Midgut` |
+| 300 | `Ants`, `Termites`, `Bees`, `Wasps` |
+| 510 | `Queen's` over `chamber` (two lines), `Queen`, `Brood`, `Brood`, `Nurseries` |
+| 520 | `Antennae` |
+| 530 | `Pheromone` |
+| 550 | `Honeydew`, `Aphid` (singular: "Aphids" does not fit 29 px) |
+| 610 | `Larvae` |
+| 710 | `Egg`, `Larva`, `Pupa`, `Spin`, `Hatch` ("Emerge" does not fit 31 px) |
+| 880 | `Foraging ants`, `Food collected`, `Food stored`, `Food eaten`, `Digging ants`, `Nest size`, `Colony health`, `Nursing ants`, `Egg production`, `Colony population`, `Starvation`, `Predation`, `Fights`; hint caption (unboxed) `click a box for` / `an explanation` |
+| plain unboxed captions | 220: `claws`, `notch`; 720: `founding`, `growth`, `spreading` |
+
+Open choices / deviations: 129 is entirely white; 21000..21003 are an up arrow, a down arrow, a right arrow and a diamond bullet; 170's and 160's
+corners are rounded by one pixel; 880's three death boxes join a bar at x 223..224 that feeds one arrow into F10; the spare 128 is 440's drawing scaled up.
