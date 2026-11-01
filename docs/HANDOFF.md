@@ -28,6 +28,12 @@ compared with the original's on the same game State (24 captures, 21 pixel-ident
 - **B3 fixed:** f_0c73d ported (reference + C#, 12 emulator cases); its step table DS:1B9A..1BA1 was missing from the
   game tables (`SpiderFoodSteps` added): the default start would have looped forever. Lesson: a port that reads DS
   must have its bytes in `gen_game_tables.py` (the `--deps` runs never reached this path).
+- **B5 done:** the Experimental menu (f_67010; the Edit window's button is a twin, f_67a24), palette f_680a4 and drag
+  loop f_76f4a checked in the emulator: 10 differences fixed in Main.cs (the game now freezes in every pop-up, as the
+  original's shared pop-up code does: only the palette and the mode 1 menu were observed, watch the others);
+  `tools/ref/test_experimental.py`; new flags `--exp-menu-edit`, `--exp-hover=x,y`. Open: Escape in the palette.
+- **The clean FM patches** (16, isolated Sonnet, `src/sounds/`): `OpenSimAnt.Replay --songs <pack.zip> <dir>` renders
+  the songs on them (~55-85% of the original's level; effect 17 ~10x quieter): the owner should listen.
 **Next:** the sound makers (the 35 WAV effects; the 30 songs, perhaps in 2-3 batches), then a complete
 `clean_pack.zip` and A5 (CI game with no originals: add `python tools/clean_pack/build.py` to release.yml before the
 export; screenshots of every window), B2 / B4 / B6 / B7, polish (630, font 3, sprite legs), C.
