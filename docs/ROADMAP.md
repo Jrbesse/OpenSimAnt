@@ -19,20 +19,20 @@ and add a row to the log. New work found on the way goes into the table as it sh
 
 | Area | Done | Left (jobs) | What is left |
 |---|---|---|---|
-| A1 asset layer + encoders | layer, launcher, bitmap / tile / sprite / font / balloon / legs / palette / version / strings + menus / texts + style runs + cards + glossary encoders | 4 | encoders: layouts, sound bank + effects, songs + cues; the export's `include_filter` |
-| A4 bitmaps (252) | all 252 made (2026-11-01: the yard's passes 3-5, 102; the SimAntipedia's 40) | 1 | check in the game: the yard's people, animals, spider, map actors, door / room patches; the SimAntipedia pictures (540, 630 the weakest) |
-| A4 layouts (37) | (measured) | 2 | spec, maker |
-| A4 text | strings + menus (113 lists; spec, maker); texts spec `texts.md` + encoders (2026-11-01) | 3 | reword `texts.md` (67 six-word runs shared with the original, `tools/clean_pack/overlap.py`), `strings.md` (11) and `encyclopedia_bitmaps.md` (1); the texts maker; a maker revision of `src/strings` tutorial / messages lines that share runs |
-| A4 sound (57 effects, instruments) | (measured) | 2 | spec, maker |
-| A4 music (30 songs, 33 cues) | (measured) | 2 | spec, maker |
-| A5 integration | launcher | 3 | CI game with no originals; clean screenshots of every window; similarity review |
-| A6 identity | name, rename; title / about pictures; the Edit caption says OpenSimAnt on the clean pack | 1 | audit: no SimAnt / Maxis marks in the pack; the engine's own English fallbacks (file dialog, overwrite alert, "Click on a black colony") |
-| B confirm and polish | B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused | 9 | B2..B7 (6); polish: font 3 cramped, sprite legs ragged, house screens tables-vs-EXE |
+| A1 asset layer + encoders | layer, launcher, every encoder (bitmaps ... texts, glossary; 2026-11-01 afternoon: layouts, sound bank + effects, songs + cues, engine strings); the export's `include_filter` (done 2026-10-30) | 0 | |
+| A4 bitmaps (252) | all 252 made and checked in the game (2026-11-01 afternoon: yard actors, spider, map actors, SimAntipedia pictures) | 0 | (630 redo: under B polish) |
+| A4 layouts (37) | spec `layouts.md`, measured data, encoder, the 12 words (2026-11-01 afternoon) | 0 | |
+| A4 text | strings + menus; texts (53 cards, glossary, pop-ups, prompts) made 2026-11-01 afternoon; all specs and made text at 0 shared runs | 0 | |
+| A4 sound (57 effects, instruments) | spec `sounds.md`, encoder, the 16 FM patches (2026-11-01 afternoon) | 2 | the 35 WAV effects maker; a listening pass on the clean patches / effects (effect 17 ~10x quieter) |
+| A4 music (30 songs, 33 cues) | spec `music.md`, encoder, cues built (2026-11-01 afternoon) | 3 | the 30 songs (2..3 maker batches) |
+| A5 integration | launcher | 3 | CI game with no originals (build.py in release.yml before the export); clean screenshots of every window; similarity review |
+| A6 identity | name, rename; title / about pictures; Edit caption; 2026-11-01 afternoon: the audit (no marks in the pack), the engine's own strings an asset (`EXE/engine_strings.json`) | 0 | |
+| B confirm and polish | B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused; afternoon: **B3** (f_0c73d + its missing table) | 9 | B2, B4, B5, B6, B7 (5); polish: font 3 cramped, sprite legs ragged, house screens tables-vs-EXE, the SimAntipedia picture 630 |
 | C release | | 5 | public repo, licences, legal review, player README, tagged v1.0.0 |
-| **Total** | | **32** | B1 (the owner's test builds) is the owner's, not counted |
+| **Total** | | **22** | B1 (the owner's test builds) is the owner's, not counted |
 
-Pace so far: 6..10 jobs per 5-hour window (art makers cost the most), so **about 5 to 7 sessions** to version 1, plus
-whatever the reviews find.
+Pace so far: 9..13 jobs per 5-hour window with at most 3 agents at once (art makers cost the most), so **about 3 to
+4 sessions** to version 1, plus whatever the reviews find.
 
 | Session | Jobs done | Jobs left | Est. sessions left |
 |---|---|---|---|
@@ -41,6 +41,7 @@ whatever the reviews find.
 | 2026-11-01 (start) | | 35 | 4..6 |
 | 2026-11-01 (end) | 9 (5 agents in parallel: yard passes 3-5, SimAntipedia pictures, texts spec + encoders, 3 engine findings; +1 found and fixed: the glossary; +3 found open: rewording) in ~92% of the window | 32 | 4..5 |
 | 2026-11-01 afternoon (start) | | 32 | 4..5 |
+| 2026-11-01 afternoon (end) | 14 (12 agents, at most 3 at once: bitmaps checked, 3 specs + made text reworded, texts maker, layouts spec / encoder / maker, sound + music specs and encoders, FM patches, A6 audit + engine strings, B3; include_filter ticked; +3 found: music as 2..3 batches, a sound listening pass, 630) in ~85% of the window | 22 | 3..4 |
 
 ## Where things stand (2026-10-30)
 
@@ -139,15 +140,15 @@ the original files make the clean assets from those specs.
   - [x] fonts 0..5 (newly drawn bitmap fonts with the same metrics): spec `docs/clean_pack/fonts.md`, `src/fonts/`
         (2026-10-31, an isolated agent; the build checks every advance; checked in the game). Left for the similarity
         review / polish: font 3 (the small serif) is cramped, some symbols (& % ~ braces) are plain;
-  - [ ] window layouts: re-authored in our own format from the measured geometry (rectangles, item types and
+  - [x] window layouts (2026-11-01 afternoon: layouts.md, data/window_layouts.json, encoder, src/layouts/texts.json; checked in the game): re-authored in our own format from the measured geometry (rectangles, item types and
         ids; functional data, see `ART_PLAN.md` section 2);
-  - [ ] text: every string list (messages, ratings, ant states, credits, menus), the save prompts, the tutorial
+  - [x] text (2026-11-01 afternoon: the texts maker, src/texts/; all text at 0 shared runs): every string list (messages, ratings, ant states, credits, menus), the save prompts, the tutorial
         (56 steps), speech-balloon lines, and the 53 SimAntipedia cards with their pictures, all new writing;
         *2026-10-31 evening:* the string lists and menus done: spec `strings.md` (113 lists: system, balloons,
         messages, the tutorial's 57 steps; 6 never-read lists excluded), encoder (round trip of all 119 lists and the
         menus), `src/strings/` + `src/menus/` by an isolated agent (checked in the game). Left: the texts (type 10:
         SimAntipedia cards, save prompts), the glossary and style runs;
-  - [ ] sound effects (57), FM instrument patches, and 30 new songs with their cue list.
+  - [ ] sound effects (57), FM instrument patches, and 30 new songs with their cue list. *2026-11-01 afternoon:* specs sounds.md / music.md, encoders, cues built, the 16 FM patches made (src/sounds/). Left: the 35 WAV effects, the 30 songs, a listening pass.
 - [ ] **A5. Integration.** *The launcher is done (2026-10-30): at every start, "Original look" (the player's copy)
       or "Open assets" (the clean pack, enabled once it exists); `--original` / `--clean` skip it.* Left: a CI job plays games with no original files; screenshots of every
       window with the clean pack; a similarity review of the pack against the originals (by the spec side) before

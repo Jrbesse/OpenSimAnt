@@ -1,11 +1,36 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-11-01 (all bitmaps made, the texts spec, the glossary fix; see the first dated entry). Before that 2026-10-31, evening (specs for all remaining bitmaps, the strings, the screens; burn-down in ROADMAP; see the first dated entry). Before that 2026-10-31 afternoon (fonts and all 74 UI bitmaps by subagents). Before that 2026-10-31 (map tiles and ant sprites by subagents). Before that 2026-10-30, end of the 10-29 night session (the window layout solver f_25595; the long-run
+old transcript. Last updated 2026-11-01 afternoon (text, layouts and every encoder done, B3; only the sounds left in the pack; see the first dated entry). Before that 2026-11-01 (all bitmaps made, the texts spec, the glossary fix). Before that 2026-10-31, evening (specs for all remaining bitmaps, the strings, the screens; burn-down in ROADMAP; see the first dated entry). Before that 2026-10-31 afternoon (fonts and all 74 UI bitmaps by subagents). Before that 2026-10-31 (map tiles and ant sprites by subagents). Before that 2026-10-30, end of the 10-29 night session (the window layout solver f_25595; the long-run
 check: no divergence in 200,000 ticks; test builds for Windows / macOS / Linux; 38 screen captures identical but for
 timing; the owner's first play-test: it plays like the original). Before that, 2026-10-24: the remake's screens
 compared with the original's on the same game State (24 captures, 21 pixel-identical, the other 3 off by redraw timing);
 2026-10-20: the original's screens through a VGA model in the emulator, and the handler audit.
+
+**2026-11-01 afternoon: text and layouts finished, every encoder done, B3 fixed; the clean pack lacks only the sounds
+(Sonnet / Haiku agents, at most 3 at once, Opus reviewing).**
+- **Checked in the game** (dev pack): the yard's person, dog, mower, the spider, the Map window's actors, the
+  SimAntipedia pictures (630 army ants is weak: redo in polish; 540 acceptable).
+- **Text done:** `texts.md`, `strings.md`, `encyclopedia_bitmaps.md` reworded (overlap.py 0); the tutorial / message
+  lines reworded (isolated Haiku); **the texts maker** (isolated Sonnet: `src/texts/` 53 cards, 26 glossary entries,
+  13 pop-ups, the save prompts; one rewording round for 21 shared runs; checked in the game, cards 130 / 140).
+- **Window layouts:** spec `layouts.md`, `tools/clean_pack/make_layouts.py` -> `data/window_layouts.json` (numbers and
+  ids only), encoder (all 34 layouts byte-identical with their dead bytes, tables 128 / 129 / 131), the 12 words by an
+  isolated Haiku (`src/layouts/texts.json`, checked in the game: file dialog, Behavior Control, Population History).
+- **Sound and music:** specs `sounds.md` / `music.md` (only 35 of the 57 samples are reachable, the drums are FM, 16 FM
+  patches, 30 songs as MIDI); encoders in build.py (57 samples, the bank, 33 cues byte-identical; 30 songs through a
+  port of the sequencer). `build.py` without `--fallback` now lists only `EXE/soundbank.bin`, `SOUND/5` (35),
+  `SOUND/20` (30).
+- **A6:** no foreign marks in the pack's sources; **the engine's own alert / file dialog strings are an asset**
+  (`OriginalFiles.EngineString`: SIMANT.EXE DS offsets with the player's files, `EXE/engine_strings.json` from
+  `src/strings/engine.json` in a pack; the original look's overwrite alert is pixel-identical again; the drive error
+  follows f_6c566). `original_pack.zip` was re-exported (it now carries `EXE/engine_strings.json`).
+- **B3 fixed:** f_0c73d ported (reference + C#, 12 emulator cases); its step table DS:1B9A..1BA1 was missing from the
+  game tables (`SpiderFoodSteps` added): the default start would have looped forever. Lesson: a port that reads DS
+  must have its bytes in `gen_game_tables.py` (the `--deps` runs never reached this path).
+**Next:** the sound makers (the 35 WAV effects; the 30 songs, perhaps in 2-3 batches), then a complete
+`clean_pack.zip` and A5 (CI game with no originals: add `python tools/clean_pack/build.py` to release.yml before the
+export; screenshots of every window), B2 / B4 / B6 / B7, polish (630, font 3, sprite legs), C.
 
 **2026-11-01: every bitmap made, the texts spec, four engine fixes (5 Sonnet agents in parallel, Opus reviewing).**
 - **Made** (isolated makers): the yard's passes 3-5 (102: the person and mower, the door / room patches, the dog, cat,
