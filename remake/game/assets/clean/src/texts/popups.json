@@ -1,0 +1,15 @@
+{
+  "950": "The share of your workers that go out looking for food. Set it in the Behavior Control window. When colony health starts to fall, send out more foragers.",
+  "951": "The share of your workers that dig. Dig more and the nest grows; a bigger nest is safer to defend and holds more food. You set the share in the Behavior Control window.",
+  "952": "The share of your workers that look after the brood. Set it in the Behavior Control window. It is the safest job, because a nurse never has to leave the nest.",
+  "953": "Food drives the growth of your colony. Every item you bring home is one the red colony is denied, so winning the race for food gives you a lasting lead in numbers.",
+  "954": "While colony health is good, new food goes into storage instead of being eaten. A bigger nest has more room for it. Once health drops, the nurses start eating from the stores.",
+  "955": "Collected food is either eaten or stored, depending on colony health. Every ant needs a certain amount to live, soldiers and queens more than others, so a bigger population eats more.",
+  "956": "The size of your nest affects how much food it can store, how well it can be defended and, a little, how fast eggs are laid.",
+  "957": "The colony's level of nourishment. It rises when more food comes in than is needed and falls when food runs short. Low health means fewer eggs and more starvation.",
+  "958": "How fast the queen lays eggs, and so how fast your colony grows. It falls sharply when health is below half, or when fewer than a fifth of the ants are nursing.",
+  "959": "The number of ants. It rises as eggs hatch and grow up, and falls when ants die or fly off to mate. Try to outgrow the red colony.",
+  "960": "Ants that die of hunger. Hunger comes from low colony health, and low health comes from too little food.",
+  "961": "Ants lost to spiders and ant lions. Try luring a spider to the red colony. You can wall in an ant lion near your colony with pebbles, or build a snare for the red ants by combining pebbles with an ant lion.",
+  "962": "Ants killed in fights, mostly with the red ants but also with the human. If you are losing most fights (see the Status window), raise soldier production in the Caste Control window."
+}
