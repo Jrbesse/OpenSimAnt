@@ -1,0 +1,11 @@
+{
+  "caption_load": "Open a Saved Game",
+  "caption_save": "Save Your Game",
+  "overwrite": "Replace the existing file?\n%s",
+  "saved": "%s\nGame saved",
+  "read_error": "That file could not be read\nNo game was loaded",
+  "not_found": "That file was not found",
+  "drive_error": "Drive %c is not available",
+  "no_files": "(empty)",
+  "yard_choose": "Pick one of your black colonies to go on."
+}

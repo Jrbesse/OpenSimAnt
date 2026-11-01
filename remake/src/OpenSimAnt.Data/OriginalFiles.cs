@@ -154,6 +154,34 @@ public sealed class OriginalFiles
     public readonly byte[] Flat;
     /// <summary>The version line (Ctrl+Alt+V), the string at DS:0064's far pointer.</summary>
     public readonly string VersionLine;
+
+    /// <summary>The engine's own texts (the alerts and the file dialog's words) and where the executable keeps them: the
+    /// offset in DS of a NUL-terminated string. `%s` / `%c` stand for the path / drive letter. These are functional data
+    /// (addresses); the words are read from the player's SIMANT.EXE, or from the pack's EXE/engine_strings.json. A key
+    /// with no entry here has no counterpart in the executable (<see cref="EngineString"/> gives "" for it on the
+    /// player's files): "yard_choose" is the status line STR# 1010 entry 20 says in both modes.</summary>
+    public static readonly (string Key, int Ds)[] EngineStringAddresses =
+    {
+        ("caption_load", 0x274d),   // f_6c1a0: the file dialog's caption when loading
+        ("read_error", 0x2757),     // f_6c1a0: a file that is not a game (two lines)
+        ("caption_save", 0x27fb),   // f_6c328: the file dialog's caption when saving
+        ("overwrite", 0x2817),      // f_6c328: the alert before an existing file is replaced; %s = the path
+        ("saved", 0x2855),          // f_6c328: the notice after saving; %s = the path
+        ("drive_error", 0x2879),    // f_6c566: the alert for a drive that cannot be read; %c = its letter
+        ("no_files", 0x28ec),       // f_6c566: the list's only row when the folder has no games
+        ("not_found", 0x7be7),      // f_1c6cc(strerror(errno)) for a file that will not open (the C library's ENOENT text)
+    };
+    /// <summary>The keys of EXE/engine_strings.json that a complete clean pack carries (the addresses' keys, and the
+    /// fallback for STR# 1010 entry 20 which the executable has no copy of).</summary>
+    public static readonly string[] EngineStringKeys = EngineStringAddresses.Select(a => a.Key).Append("yard_choose").ToArray();
+
+    /// <summary>The engine's own texts by key (<see cref="EngineStringAddresses"/>).</summary>
+    public readonly Dictionary<string, string> EngineStrings = new();
+    /// <summary>One of the engine's own texts ("" if there is none).</summary>
+    public string EngineString(string key) => EngineStrings.GetValueOrDefault(key, "");
+    /// <summary>An engine text with its %s / %c (the path / the drive letter) filled in.</summary>
+    public string EngineString(string key, string arg) => EngineString(key).Replace("%s", arg).Replace("%c", arg);
+
     public readonly List<Resource> Hcegant;
     public readonly List<Resource> Shared;
     public readonly List<Resource> Sound;
@@ -171,6 +199,12 @@ public sealed class OriginalFiles
         int p = Seg.DS * 16 + 0x64, at = (Exe[p + 2] | Exe[p + 3] << 8) * 16 + (Exe[p] | Exe[p + 1] << 8), end = at;
         while (end < Exe.Length && Exe[end] != 0) end++;
         VersionLine = System.Text.Encoding.ASCII.GetString(Exe, at, end - at);
+        foreach (var (key, ds) in EngineStringAddresses)
+        {
+            int s = Seg.DS * 16 + ds, e = s;
+            while (e < Exe.Length && Exe[e] != 0) e++;
+            EngineStrings[key] = System.Text.Encoding.ASCII.GetString(Exe, s, e - s);
+        }
         Hcegant = ResourceArchive.Read(dir, "HCEGANT");
         Shared = File.Exists(FilePath(dir, "SHARED.DAT")) ? ResourceArchive.Read(dir, "SHARED") : new List<Resource>();
         Sound = File.Exists(FilePath(dir, "SOUND.DAT")) ? ResourceArchive.Read(dir, "SOUND") : new List<Resource>();
@@ -207,6 +241,9 @@ public sealed class OriginalFiles
                 else if (parts.Length == 2 && parts[0] == "FONT" && int.TryParse(stem, out int n)) FontFiles[n] = data;
                 else if (parts.Length == 2 && parts[0] == "EXE" && parts[1] == "version.txt")
                     version = System.Text.Encoding.UTF8.GetString(data).Trim();
+                else if (parts.Length == 2 && parts[0] == "EXE" && parts[1] == "engine_strings.json")
+                    foreach (var (k, v) in System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(data)!)
+                        EngineStrings[k] = v;
                 else if (parts.Length == 2 && parts[0] == "EXE") embedded[stem] = data;
             }
         Flat = EmbeddedAssets.BuildImage(a => embedded.GetValueOrDefault(a.Name));

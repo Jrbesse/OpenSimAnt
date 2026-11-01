@@ -195,9 +195,9 @@ public partial class Main : Node2D
                 if (a.Length > 2) AntipediaPress(a[1], a[2]);
             }
         if (OS.GetCmdlineUserArgs().Contains("--load-dialog")) OpenFileDialog(false);
-        if (OS.GetCmdlineUserArgs().Contains("--alert")) OpenAlert("Replace the existing file?\nC:\\MYCOLONY.ant", new[] { "\rYes", "\x1bNo" });
-        if (OS.GetCmdlineUserArgs().Contains("--saved")) OpenAlert("C:\\MYCOLONY.ant\nGame saved", null, null, true);
-        if (OS.GetCmdlineUserArgs().Contains("--error")) OpenAlert("That file could not be read\nNo game was loaded", null);
+        if (OS.GetCmdlineUserArgs().Contains("--alert")) OpenAlert(session.Files.EngineString("overwrite", "C:\\MYCOLONY.ant"), new[] { "\rYes", "\x1bNo" });
+        if (OS.GetCmdlineUserArgs().Contains("--saved")) OpenAlert(session.Files.EngineString("saved", "C:\\MYCOLONY.ant"), null, null, true);
+        if (OS.GetCmdlineUserArgs().Contains("--error")) OpenAlert(session.Files.EngineString("read_error"), null);
         foreach (var arg in OS.GetCmdlineUserArgs())                            // --alert-text=line|line: an alert with OK
             if (arg.StartsWith("--alert-text=")) OpenAlert(arg["--alert-text=".Length..].Replace('|', '\n'), null);
         if (OS.GetCmdlineUserArgs().Contains("--save-dialog")) { gameFile = "MYCOLONY.ANT"; OpenFileDialog(true); }
@@ -2324,10 +2324,10 @@ public partial class Main : Node2D
             if (!SaveGame(path)) { gameFile = null; return; }
             var then = afterSave;
             afterSave = null;
-            OpenAlert(ShownPath(path) + "\nGame saved", null, _ => then?.Invoke(), info: true);   // f_6c328: f_1c6e0
+            OpenAlert(session.Files.EngineString("saved", ShownPath(path)), null, _ => then?.Invoke(), info: true);   // f_6c328: f_1c6e0
         }
         if (System.IO.File.Exists(path))
-            OpenAlert("Replace the existing file?\n" + ShownPath(path), new[] { "\rYes", "\x1bNo" }, b => { if (b == 0) Write(); else OpenFileDialog(true); });
+            OpenAlert(session.Files.EngineString("overwrite", ShownPath(path)), new[] { "\rYes", "\x1bNo" }, b => { if (b == 0) Write(); else OpenFileDialog(true); });
         else Write();
     }
 
@@ -2347,11 +2347,11 @@ public partial class Main : Node2D
     void LoadFrom(string path)
     {
         gameFile = path;
-        if (!System.IO.File.Exists(path)) { OpenAlert("That file was not found", null, _ => LoadFailed()); return; }
+        if (!System.IO.File.Exists(path)) { OpenAlert(session.Files.EngineString("not_found"), null, _ => LoadFailed()); return; }
         if (!LoadGame(path))
         {
             session.St.Set16(Seg.G, 0xeac, 0xffff);
-            OpenAlert("That file could not be read\nNo game was loaded", null, _ => LoadFailed());
+            OpenAlert(session.Files.EngineString("read_error"), null, _ => LoadFailed());
             return;
         }
         loadFromSelect = false;
@@ -2573,7 +2573,7 @@ public partial class Main : Node2D
         rows = rows.Take(200).OrderBy(r => r.key.Length > 14 ? r.key[..14] : r.key, StringComparer.Ordinal).ToList();
         fileDirs = rows.Count(r => r.dir);
         foreach (var r in rows) fileRows.Add((r.text.Length > 14 ? r.text[..14] : r.text, r.name, r.dir));
-        if (fileRows.Count == 0) fileRows.Add(("(empty)", "(empty)", false));
+        if (fileRows.Count == 0) fileRows.Add((session.Files.EngineString("no_files"), session.Files.EngineString("no_files"), false));
     }
 
     void FileDialogDone(bool ok)
@@ -2623,7 +2623,7 @@ public partial class Main : Node2D
         else if (index >= 11 && index <= 18)                                 // A: .. H: (DS:2966 = item - 0x15CA)
         {
             char d = (char)('A' + index - 11);
-            if (!System.IO.Directory.Exists(d + ":\\")) { OpenAlert("That drive is not available", null); return; }
+            if (!System.IO.Directory.Exists(d + ":\\")) { OpenAlert(session.Files.EngineString("drive_error", d.ToString()), null); return; }
             fileDrive = d;
             FileScan(false);
         }
@@ -2697,7 +2697,7 @@ public partial class Main : Node2D
             bool sel = fileDrive == 'A' + i - 11;
             items[i] = items[i] with { Flags = sel ? items[i].Flags | 4 : items[i].Flags & ~4 };
         }
-        ui.DrawWindow(c, FileWin, 0, 0, fileSave ? "Save Your Game" : "Open a Saved Game",
+        ui.DrawWindow(c, FileWin, 0, 0, session.Files.EngineString(fileSave ? "caption_save" : "caption_load"),
                       skipItems: fileSave ? null : items.Where(i => i.State == 5).Select(i => i.Id).ToHashSet());
         var f0 = ui.Font(0);
         if (fileSave)                                                            // load: no name box (f_22e5a / f_2313e)
@@ -3437,7 +3437,7 @@ public partial class Main : Node2D
             st.Set16(Seg.G, 0xc20, 1);
             yardChoose = true;
             session.St.Set16(Seg.G, 0x35c, 2);
-            ShowStatus(session.Files.Strings(1010)?[20] ?? "Pick one of your black colonies to go on.", -1, true);
+            ShowStatus(session.Files.Strings(1010)?[20] ?? session.Files.EngineString("yard_choose"), -1, true);
         }
         if (!zOrder.Contains(YardWin) && zOrder.Contains(MapWin)) Swap(MapWin, YardWin);  // f_01823: f_211af(0x100, 0x1900)
         else Front(YardWin);

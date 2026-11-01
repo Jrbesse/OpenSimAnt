@@ -28,12 +28,15 @@ public static class ExportPack
             foreach (var (k, v) in f.FontFiles) Add($"FONT/{k}.bin", v);
             foreach (var a in EmbeddedAssets.All) Add($"EXE/{a.Name}.bin", EmbeddedAssets.Extract(f.Exe, a));
             Add("EXE/version.txt", System.Text.Encoding.UTF8.GetBytes(f.VersionLine));
+            Add("EXE/engine_strings.json", System.Text.Encoding.UTF8.GetBytes(
+                System.Text.Json.JsonSerializer.Serialize(f.EngineStrings, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })));
         }
         Console.WriteLine($"{n} files -> {outFile} (original data: for testing only, never ship it)");
         // the pack must load back to the same resources
         var p = new OriginalFiles(File.ReadAllBytes(outFile));
         bool same = p.Hcegant.Count == f.Hcegant.Count && p.Shared.Count == f.Shared.Count && p.Sound.Count == f.Sound.Count
-                    && p.Flat.AsSpan().SequenceEqual(f.Flat) && p.VersionLine == f.VersionLine;
+                    && p.Flat.AsSpan().SequenceEqual(f.Flat) && p.VersionLine == f.VersionLine
+                    && p.EngineStrings.Count == f.EngineStrings.Count && f.EngineStrings.All(kv => p.EngineString(kv.Key) == kv.Value);
         Console.WriteLine(same ? "reloaded: the same resources and image" : "reloaded: DIFFERENT");
         return same ? 0 : 1;
     }
