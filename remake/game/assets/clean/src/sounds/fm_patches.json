@@ -1,0 +1,588 @@
+{
+  "patches": [
+    {
+      "id": "fm25",
+      "instruments": [
+        25
+      ],
+      "velocity_offset": 0,
+      "feedback": 2,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 1,
+        "sustain": 1,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 1,
+        "level": 22,
+        "attack": 13,
+        "decay": 6,
+        "sustain_level": 7,
+        "release": 6
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 1,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 0,
+        "level": 6,
+        "attack": 12,
+        "decay": 5,
+        "sustain_level": 3,
+        "release": 5
+      },
+      "note": "Clear, singing lead with light vibrato: bright on the attack, mellowing, a long tail."
+    },
+    {
+      "id": "fm53",
+      "instruments": [
+        53
+      ],
+      "velocity_offset": -4,
+      "feedback": 1,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 1,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 1,
+        "level": 32,
+        "attack": 7,
+        "decay": 5,
+        "sustain_level": 8,
+        "release": 5
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 0,
+        "level": 12,
+        "attack": 7,
+        "decay": 5,
+        "sustain_level": 4,
+        "release": 5
+      },
+      "note": "Round, soft chord voice that fades in over ~30 ms and has a long smooth tail."
+    },
+    {
+      "id": "fm3",
+      "instruments": [
+        3
+      ],
+      "velocity_offset": 0,
+      "feedback": 2,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 0,
+        "level": 28,
+        "attack": 15,
+        "decay": 8,
+        "sustain_level": 10,
+        "release": 8
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 0,
+        "level": 4,
+        "attack": 14,
+        "decay": 6,
+        "sustain_level": 5,
+        "release": 5
+      },
+      "note": "Warm, round bass: firm attack, strong fundamental, medium-long tail."
+    },
+    {
+      "id": "fm54",
+      "instruments": [
+        54
+      ],
+      "velocity_offset": -4,
+      "feedback": 0,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 3,
+        "ksl": 1,
+        "level": 16,
+        "attack": 15,
+        "decay": 10,
+        "sustain_level": 15,
+        "release": 10
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 0,
+        "level": 6,
+        "attack": 15,
+        "decay": 8,
+        "sustain_level": 6,
+        "release": 6
+      },
+      "note": "Plucked marimba / harp-like voice: sharp attack, quick decay, short ring."
+    },
+    {
+      "id": "fm35",
+      "instruments": [
+        35
+      ],
+      "effect_key": 30,
+      "velocity_offset": -8,
+      "feedback": 4,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 0,
+        "level": 14,
+        "attack": 15,
+        "decay": 11,
+        "sustain_level": 15,
+        "release": 11
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 0,
+        "level": 0,
+        "attack": 15,
+        "decay": 7,
+        "sustain_level": 10,
+        "release": 7
+      },
+      "note": "Deep drum thump with a touch of click; as the stamp a heavy low thud, ~0.2 s."
+    },
+    {
+      "id": "fm46",
+      "instruments": [
+        46
+      ],
+      "velocity_offset": -10,
+      "feedback": 7,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 14,
+        "ksl": 0,
+        "level": 8,
+        "attack": 15,
+        "decay": 9,
+        "sustain_level": 15,
+        "release": 9
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 2,
+        "ksl": 0,
+        "level": 6,
+        "attack": 15,
+        "decay": 8,
+        "sustain_level": 15,
+        "release": 8
+      },
+      "note": "Noisy snare / clap crack, fast attack, ~0.12 s."
+    },
+    {
+      "id": "fm50",
+      "instruments": [
+        50
+      ],
+      "velocity_offset": -20,
+      "feedback": 5,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 12,
+        "ksl": 0,
+        "level": 12,
+        "attack": 15,
+        "decay": 11,
+        "sustain_level": 15,
+        "release": 11
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 1,
+        "level": 14,
+        "attack": 15,
+        "decay": 10,
+        "sustain_level": 15,
+        "release": 10
+      },
+      "note": "Very short, dry high tick (about 30 ms), quiet."
+    },
+    {
+      "id": "fm51",
+      "instruments": [
+        51
+      ],
+      "velocity_offset": -6,
+      "feedback": 0,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 2,
+        "ksl": 0,
+        "level": 20,
+        "attack": 15,
+        "decay": 10,
+        "sustain_level": 15,
+        "release": 10
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 0,
+        "level": 6,
+        "attack": 15,
+        "decay": 7,
+        "sustain_level": 15,
+        "release": 7
+      },
+      "note": "Pitched tom / log drum: fast attack, clear fundamental, ~0.25 s fall."
+    },
+    {
+      "id": "fm48",
+      "instruments": [
+        48
+      ],
+      "velocity_offset": -28,
+      "feedback": 7,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 15,
+        "ksl": 0,
+        "level": 10,
+        "attack": 10,
+        "decay": 8,
+        "sustain_level": 15,
+        "release": 8
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 6,
+        "ksl": 1,
+        "level": 16,
+        "attack": 10,
+        "decay": 8,
+        "sustain_level": 15,
+        "release": 8
+      },
+      "note": "Short noisy swish with a soft attack, ~0.12 s, kept low in the mix."
+    },
+    {
+      "id": "fm0",
+      "instruments": [
+        0
+      ],
+      "velocity_offset": -8,
+      "feedback": 2,
+      "connection": 1,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 3,
+        "ksl": 0,
+        "level": 14,
+        "attack": 15,
+        "decay": 8,
+        "sustain_level": 15,
+        "release": 8
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 1,
+        "multiple": 1,
+        "ksl": 0,
+        "level": 8,
+        "attack": 15,
+        "decay": 5,
+        "sustain_level": 15,
+        "release": 5
+      },
+      "note": "Glockenspiel / small bell: bright strike, clear pitch, ring of about 0.5 to 1 s."
+    },
+    {
+      "id": "fm9",
+      "instruments": [
+        9
+      ],
+      "effect_key": 70,
+      "velocity_offset": -12,
+      "feedback": 7,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 15,
+        "ksl": 0,
+        "level": 14,
+        "attack": 11,
+        "decay": 7,
+        "sustain_level": 15,
+        "release": 7
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 3,
+        "ksl": 0,
+        "level": 12,
+        "attack": 11,
+        "decay": 8,
+        "sustain_level": 15,
+        "release": 8
+      },
+      "note": "Airy puff / hiss, softly starting and falling away, ~0.12 s; light enough to repeat."
+    },
+    {
+      "id": "fm15",
+      "instruments": [
+        15,
+        16
+      ],
+      "effect_key": 69,
+      "velocity_offset": -6,
+      "feedback": 0,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 2,
+        "ksl": 0,
+        "level": 16,
+        "attack": 15,
+        "decay": 10,
+        "sustain_level": 15,
+        "release": 10
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 0,
+        "level": 6,
+        "attack": 15,
+        "decay": 9,
+        "sustain_level": 15,
+        "release": 9
+      },
+      "note": "Clean short bright blip, ~0.07 s."
+    },
+    {
+      "id": "fm17",
+      "instruments": [
+        17
+      ],
+      "effect_key": 67,
+      "velocity_offset": -8,
+      "feedback": 3,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 5,
+        "ksl": 0,
+        "level": 16,
+        "attack": 15,
+        "decay": 11,
+        "sustain_level": 15,
+        "release": 11
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 0,
+        "level": 18,
+        "attack": 15,
+        "decay": 9,
+        "sustain_level": 15,
+        "release": 9
+      },
+      "note": "Small dry scrape-tick, soft and unobtrusive, ~0.06 s (the dig family's base)."
+    },
+    {
+      "id": "fm18",
+      "instruments": [
+        18
+      ],
+      "effect_key": 60,
+      "velocity_offset": -8,
+      "feedback": 3,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 5,
+        "ksl": 0,
+        "level": 28,
+        "attack": 15,
+        "decay": 11,
+        "sustain_level": 15,
+        "release": 11
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 0,
+        "level": 18,
+        "attack": 15,
+        "decay": 9,
+        "sustain_level": 6,
+        "release": 8
+      },
+      "note": "Same family as fm17 but lower and duller (a fifth below, little brightness), ~0.08 s."
+    },
+    {
+      "id": "fm19",
+      "instruments": [
+        19
+      ],
+      "effect_key": 72,
+      "velocity_offset": -4,
+      "feedback": 3,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 5,
+        "ksl": 0,
+        "level": 10,
+        "attack": 15,
+        "decay": 11,
+        "sustain_level": 15,
+        "release": 11
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 0,
+        "level": 10,
+        "attack": 15,
+        "decay": 8,
+        "sustain_level": 8,
+        "release": 7
+      },
+      "note": "Same family, brighter and longer: a small cheerful pop, ~0.15 s."
+    },
+    {
+      "id": "fm30",
+      "instruments": [
+        30
+      ],
+      "effect_key": 48,
+      "velocity_offset": -6,
+      "feedback": 3,
+      "connection": 0,
+      "modulator": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 3,
+        "ksl": 0,
+        "level": 14,
+        "attack": 15,
+        "decay": 12,
+        "sustain_level": 15,
+        "release": 12
+      },
+      "carrier": {
+        "tremolo": 0,
+        "vibrato": 0,
+        "sustain": 0,
+        "ksr": 0,
+        "multiple": 1,
+        "ksl": 0,
+        "level": 4,
+        "attack": 15,
+        "decay": 8,
+        "sustain_level": 15,
+        "release": 8
+      },
+      "note": "Dull stone knock: short hollow body with a bit of click, ~0.12 s."
+    }
+  ]
+}

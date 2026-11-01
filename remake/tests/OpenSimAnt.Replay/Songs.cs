@@ -2,7 +2,7 @@ using OpenSimAnt.Data;
 
 namespace OpenSimAnt.Replay;
 
-/// <summary>--songs [game dir] [out dir]: render every song (SOUND type 18 entries) and every sound effect
+/// <summary>--songs [game dir or pack .zip] [out dir]: render every song (SOUND type 18 entries) and every sound effect
 /// through the original's driver and an OPL2 (OpenSimAnt.Data.SoundMixer) to 16-bit WAV files, for listening. They
 /// are made from the player's own files: never commit them (the default folder is the git-ignored
 /// remake/build/songs).</summary>
@@ -12,7 +12,9 @@ public static class Songs
 
     public static int Run(string gameDir, string outDir)
     {
-        var files = new OriginalFiles(gameDir);
+        // a game folder, or a pack (.zip: e.g. a dev pack, to hear the songs on the clean pack's FM patches)
+        var files = gameDir.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
+            ? new OriginalFiles(File.ReadAllBytes(gameDir)) : new OriginalFiles(gameDir);
         Directory.CreateDirectory(outDir);
         var ids = files.Of("SOUND", 18).Select(r => r.Id).OrderBy(x => x).ToList();
         foreach (int id in ids)
