@@ -19,17 +19,17 @@ and add a row to the log. New work found on the way goes into the table as it sh
 
 | Area | Done | Left (jobs) | What is left |
 |---|---|---|---|
-| A1 asset layer + encoders | layer, launcher, bitmap / tile / sprite / font / balloon / legs / palette / version encoders | 6 | encoders: strings + menus, texts + style runs + cards, glossary, layouts, sound bank + effects, songs + cues; the export's `include_filter` |
-| A4 bitmaps (252) | cursors, tiles, sprites, fonts, balloon, legs, palette; 74 UI bitmaps | 6 | yard maker x 2 (114); screens / scenes spec + maker (24); SimAntipedia pictures spec + maker (SHARED 40) |
+| A1 asset layer + encoders | layer, launcher, bitmap / tile / sprite / font / balloon / legs / palette / version / strings + menus encoders | 5 | encoders: texts + style runs + cards, glossary, layouts, sound bank + effects, songs + cues; the export's `include_filter` |
+| A4 bitmaps (252) | cursors, tiles, sprites, fonts, balloon, legs, palette; 74 UI, 12 yard (passes 1-2), 24 screens / scenes; specs for all 252 | 2 | yard maker passes 3-5 (102); SimAntipedia pictures maker (SHARED 40, `encyclopedia_bitmaps.md`) |
 | A4 layouts (37) | (measured) | 2 | spec, maker |
-| A4 text | (measured: 119 string lists, 94 texts, 53 cards, 6 menus) | 6 | spec + maker each: strings and menus; tutorial and balloon lines; SimAntipedia cards, glossary, style runs |
+| A4 text | strings + menus (113 lists incl. the tutorial and balloons; spec, maker) | 2 | spec + maker: the texts (type 10: SimAntipedia cards, save prompts), glossary, style runs; reconcile the encyclopedia pictures' label words |
 | A4 sound (57 effects, instruments) | (measured) | 2 | spec, maker |
 | A4 music (30 songs, 33 cues) | (measured) | 2 | spec, maker |
 | A5 integration | launcher | 3 | CI game with no originals; clean screenshots of every window; similarity review |
-| A6 identity | name, rename | 1 | audit: no SimAnt / Maxis marks in the pack (the title / about pictures come with the screens spec) |
-| B confirm and polish | B3 hang fix; 8200 / 8201 House-view-only (2026-10-31) | 9 | B2..B7 (6); polish: font 3 cramped, sprite legs ragged, house screens tables-vs-EXE |
+| A6 identity | name, rename; title / about pictures; the Edit caption says OpenSimAnt on the clean pack | 1 | audit: no SimAnt / Maxis marks in the pack; the engine's own English fallbacks (file dialog, overwrite alert, "Click on a black colony") |
+| B confirm and polish | B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons 9150..9156 (2026-10-31) | 11 | B2..B7 (6); polish: font 3 cramped, sprite legs ragged, house screens tables-vs-EXE; found 2026-10-31: the tutorial's closing box (list 11112 never shown, `Tutorial.cs` maps step 56 to 11110), the History graph's labels (list 1050, not drawn; also check 10044, the ant lion's box) |
 | C release | | 5 | public repo, licences, legal review, player README, tagged v1.0.0 |
-| **Total** | | **42** | B1 (the owner's test builds) is the owner's, not counted |
+| **Total** | | **35** | B1 (the owner's test builds) is the owner's, not counted |
 
 Pace so far: 6..10 jobs per 5-hour window (art makers cost the most), so **about 5 to 7 sessions** to version 1, plus
 whatever the reviews find.
@@ -37,6 +37,7 @@ whatever the reviews find.
 | Session | Jobs done | Jobs left | Est. sessions left |
 |---|---|---|---|
 | 2026-10-31 evening (start) | (baseline) | 42 | 5..7 |
+| 2026-10-31 evening (end) | 9 (+2 found and fixed, +2 found open), in ~85% of the window | 35 | 4..6 |
 
 ## Where things stand (2026-10-30)
 
@@ -126,8 +127,11 @@ the original files make the clean assets from those specs.
         `docs/clean_pack/ui_bitmaps.md` (74 bitmaps: chrome, menus, toolbars, panels, help overlays, the game-over and
         win screens, tutorial pictures, encyclopedia buttons, start-up cards); passes 1-2 made (46, `src/bitmaps/`,
         checked in the game); the yard / actors spec `docs/clean_pack/yard_bitmaps.md` (114, see the yard items above;
-        ready for a maker, after the UI batch). Left: the title / select / about screens (2000s, 3000s), the scenes
-        (9000s, 12000s), SHARED type 2 (40);
+        ready for a maker, after the UI batch). *2026-10-31 evening:* all 74 UI bitmaps made; the yard's passes 1-2
+        (12: house outside / inside, lawn, strips, toolbar; checked in the Yard and House views); the screens / scenes
+        spec `screens_bitmaps.md` and its 24 bitmaps (title, Select a Game, about box, the player's-ant pictures, death
+        icons, ant lion and spider scenes; checked in the game); the SimAntipedia pictures spec
+        `encyclopedia_bitmaps.md` (SHARED 40, ready for a maker). Left: the yard's passes 3-5, the SimAntipedia maker;
   - [x] mouse cursors (types 7 / 8): the pilot, 2026-10-30 (`src/cursors/`, checked in the game on a dev pack);
   - [x] fonts 0..5 (newly drawn bitmap fonts with the same metrics): spec `docs/clean_pack/fonts.md`, `src/fonts/`
         (2026-10-31, an isolated agent; the build checks every advance; checked in the game). Left for the similarity
@@ -136,6 +140,10 @@ the original files make the clean assets from those specs.
         ids; functional data, see `ART_PLAN.md` section 2);
   - [ ] text: every string list (messages, ratings, ant states, credits, menus), the save prompts, the tutorial
         (56 steps), speech-balloon lines, and the 53 SimAntipedia cards with their pictures, all new writing;
+        *2026-10-31 evening:* the string lists and menus done: spec `strings.md` (113 lists: system, balloons,
+        messages, the tutorial's 57 steps; 6 never-read lists excluded), encoder (round trip of all 119 lists and the
+        menus), `src/strings/` + `src/menus/` by an isolated agent (checked in the game). Left: the texts (type 10:
+        SimAntipedia cards, save prompts), the glossary and style runs;
   - [ ] sound effects (57), FM instrument patches, and 30 new songs with their cue list.
 - [ ] **A5. Integration.** *The launcher is done (2026-10-30): at every start, "Original look" (the player's copy)
       or "Open assets" (the clean pack, enabled once it exists); `--original` / `--clean` skip it.* Left: a CI job plays games with no original files; screenshots of every

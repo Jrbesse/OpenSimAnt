@@ -1,11 +1,36 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-10-31, afternoon (fonts and all 74 UI bitmaps by subagents; see the first dated entry). Before that 2026-10-31 (map tiles and ant sprites by subagents). Before that 2026-10-30, end of the 10-29 night session (the window layout solver f_25595; the long-run
+old transcript. Last updated 2026-10-31, evening (specs for all remaining bitmaps, the strings, the screens; burn-down in ROADMAP; see the first dated entry). Before that 2026-10-31 afternoon (fonts and all 74 UI bitmaps by subagents). Before that 2026-10-31 (map tiles and ant sprites by subagents). Before that 2026-10-30, end of the 10-29 night session (the window layout solver f_25595; the long-run
 check: no divergence in 200,000 ticks; test builds for Windows / macOS / Linux; 38 screen captures identical but for
 timing; the owner's first play-test: it plays like the original). Before that, 2026-10-24: the remake's screens
 compared with the original's on the same game State (24 captures, 21 pixel-identical, the other 3 off by redraw timing);
 2026-10-20: the original's screens through a VGA model in the emulator, and the handler audit.
+
+**2026-10-31 evening: the burn-down, four specs / makers in parallel, two engine fixes (Sonnet subagents, Opus reviewing).**
+- **Burn-down** (the owner's request): `docs/ROADMAP.md` "Burn-down" counts the jobs left per area (a job = one spec,
+  maker run, encoder, fix or check, ~10% of a 5-hour window by subagent) with a session log. **Update it at the start and
+  end of every session.** Tonight: 42 -> 35 jobs, estimate 4..6 sessions.
+- **Specs:** `docs/clean_pack/screens_bitmaps.md` (24: title, Select a Game, about box with our wording, the
+  player's-ant pictures, death icons, ant lion / spider scenes), `encyclopedia_bitmaps.md` (SHARED 40, all 1-plane card
+  pictures with boxed labels on the cards' link rectangles; 7 are never shown; 18 ids the cards name do not exist in the
+  original either), `strings.md` (113 string lists incl. the tutorial and balloons, the menus) + build.py
+  `cat_strings` / `cat_menus` (round trip of all 119 lists and the menus byte-identical). Every bitmap now has a spec.
+- **Made** (isolated makers): the yard's passes 1-2 (12; `yard_scene.py` is the drawing program pass 3 crops from), the
+  24 screens / scenes, the strings and menus (`src/strings/`, `src/menus/`). Checked in the game: Yard and House views,
+  Select a Game, a message box, menus. The dev pack now has 242 clean files.
+- **Fixes:** the indoor figure 8200 / 8201 only in the House view (f_6fc6e); the deaths' message boxes (events 5..10)
+  show their cause icons 9150..9156 (f_75d01 passes them; C# + Python; 161 tests pass); the Edit caption says
+  OpenSimAnt on the clean pack. New flag `--yard-view=n` (0 Yard, 1 House, 2 Strat, 3 Graphic).
+- **Found, open** (in the burn-down): the tutorial's closing box (list 11112 never shown; `Tutorial.cs` maps step 56 to
+  11110: check against f_ the tutorial uses); the History graph's labels (list 1050) are not drawn; the ant lion's
+  message 10044 is not shown (a picture instead: check); the engine's own English fallbacks (file dialog, overwrite
+  alert) still carry the original's wording.
+- Usage: 4 agents in parallel took the window 2% -> 49% in 25 min; the session ended at ~85%. Text makers are cheap
+  (~120k tokens, no image views); art makers ~250-320k.
+**Next:** the yard maker passes 3-5 (people, animals, spider, map actors; import `yard_scene.render_world` for the
+patches), the SimAntipedia pictures maker, then the texts spec (type 10 cards, save prompts, glossary, style runs; make
+the encyclopedia pictures' label words match), layouts, sound, music.
 
 **2026-10-31 afternoon: fonts and the UI bitmaps done, the yard spec written (all by Sonnet subagents, Opus reviewing).**
 - **Fonts** (`src/fonts/`, isolated maker, ~200k tokens, 4 image views): all six; `build.py` accepts every advance;
