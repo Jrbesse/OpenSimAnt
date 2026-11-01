@@ -82,7 +82,7 @@ def swarm_cat(n_occ):
 
 
 def spider_at(state=None, mode=None, near=True, off=(3, 0), g=(), t=(), swarm=False, prey=None,
-              crowd=0, tile=None, yellow=None, cursor=None, ring=False):
+              crowd=0, tile=None, yellow=None, cursor=None, ring=False, plant=()):
     """pre hook: an active spider near a surface ant (in 1/16 tiles), optional state / mode / globals."""
     from simant_ref.state import SIM, T as TT
 
@@ -128,6 +128,9 @@ def spider_at(state=None, mode=None, near=True, off=(3, 0), g=(), t=(), swarm=Fa
                         set8(SIM, 0x6180 + x * 64 + y, 0x10)
         if tile is not None:
             set8(SIM, 0x180 + sa * 64 + sb, tile)
+        for da, db, v in plant:                 # extra surface tiles around the spider (clipped to the map)
+            if 0 <= sa + da <= 127 and 0 <= sb + db <= 63:
+                set8(SIM, 0x180 + (sa + da) * 64 + sb + db, v)
         if yellow is not None:
             set16(G, 0x47c, sa + yellow[0])
             set16(G, 0x48a, sb + yellow[1])
@@ -198,6 +201,13 @@ CHECKS = [
     ('spider beaten end house 2', 0x0ce63, world.spider, 5, spider_at(5, g=[(0x109a, 1), (0xf24, 1)], tile=0x10)),
     ('spider beaten end house 3', 0x0ce63, world.spider, 5, spider_at(5, g=[(0x109a, 1), (0xf24, 1)], tile=0x20)),
     ('spider beaten end house 4', 0x0ce63, world.spider, 5, spider_at(5, g=[(0x109a, 1), (0xf24, 1)], tile=0x50)),
+    # f_0c73d: furniture tile (0x27..0x3f) under the beaten spider; the walk's direction is the room G:0F3A
+    ('spider beaten furniture room 1', 0x0ce63, world.spider, 5, spider_at(5, g=[(0x109a, 1), (0xf24, 1), (0xf3a, 1)], tile=0x30, plant=[(1, 0, 0x30), (2, 0, 0x2a), (3, 0, 2)])),
+    ('spider beaten furniture room 2', 0x0ce63, world.spider, 5, spider_at(5, g=[(0x109a, 1), (0xf24, 1), (0xf3a, 2)], tile=0x27, plant=[(0, 1, 0x3f), (0, 2, 1)])),
+    ('spider beaten furniture room 0', 0x0ce63, world.spider, 5, spider_at(5, g=[(0x109a, 1), (0xf24, 1), (0xf3a, 0)], tile=0x3f)),
+    ('spider beaten furniture room 3', 0x0ce63, world.spider, 5, spider_at(5, g=[(0x109a, 1), (0xf24, 1), (0xf3a, 3)], tile=0x38)),
+    ('spider beaten furniture room 1 blocked', 0x0ce63, world.spider, 5, spider_at(5, g=[(0x109a, 1), (0xf24, 1), (0xf3a, 1)], tile=0x30, plant=[(d, 0, 0x30) for d in range(1, 130)])),
+    ('spider beaten furniture room 2 blocked', 0x0ce63, world.spider, 5, spider_at(5, g=[(0x109a, 1), (0xf24, 1), (0xf3a, 2)], tile=0x30, plant=[(0, d, 0x2f) for d in range(1, 70)])),
     ('spider player', 0x0ce63, world.spider, 60, spider_at(1, g=[(0xa06, 1), (0x6ac, 0)], cursor=(15, 4))),
     ('spider player charging', 0x0ce63, world.spider, 60, spider_at(1, g=[(0xa06, 1), (0x6ac, 0), (0xa8e, 1)],
                                                                   cursor=(-20, -3))),

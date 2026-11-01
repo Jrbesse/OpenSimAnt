@@ -162,8 +162,11 @@ the original files make the clean assets from those specs.
 - [ ] **B1. The owner's test builds** on Windows / macOS / Linux (run 41019086870) and longer games: fix what
       they find first.
 - [ ] **B2. Walk the tutorial's 56 steps** in the game (by hand or by script).
-- [ ] **B3. A possible crash:** `World.SpiderDropFood` throws for a beaten spider over house furniture
-      (`f_0c73d` not ported, `remake/src/OpenSimAnt.Sim/World.cs`). Port it, or show it cannot happen.
+- [x] **B3. A possible crash:** `World.SpiderDropFood` threw for a beaten spider over house furniture
+      (`f_0c73d` was not ported). Done 2026-11-01: `f_0c73d` ported (`world._spider_food_on_furniture`,
+      `World.SpiderFoodOnFurniture`): the path is reachable (house, surface tile 0x27..0x3f). Checked in the emulator:
+      six new `test_world.py` cases ("spider beaten furniture ...": rooms 0..3, food found, walk blocked to the map
+      edge) are byte-identical over 6 snapshots; every line of the new function ran (`linecov.py`).
 - [x] **A hang found 2026-10-30** (by the `--deps` runs): a patch seed of 0 (1 in 32,767, in the original too)
       froze the random generator and hung the terrain generator. Fixed as a marked DIVERGENCE (SIM_NOTES, "New
       game", SetupPatch).

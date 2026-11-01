@@ -55,6 +55,8 @@ TABLES = [
     ('DS', 0x1b62, 0x1b66, 'PanelPercent', 'the panels\' "show percent" flags at start-up'),
     ('DS', 0x1b72, 0x1b9a, 'FightTables', 'fights: class per ant type DS:1B72, odds [4][4] DS:1B82, the corpse tile by '
                                           'heading DS:1B92'),
+    ('DS', 0x1b9a, 0x1ba2, 'SpiderFoodSteps', 'f_0c73d: the (a, b) step per house room (a DS:1B9A, b DS:1B9E) when a '
+                                              'beaten spider\'s food lands on furniture; 0xFF ends the walk'),
     ('DS', 0x1ba2, 0x1bab, 'RedJobByCaste', 'a red ant\'s job after a fight it won, by caste'),
     ('DS', 0x1bb2, 0x1bba, 'EntranceRing', 'the tiles around a nest entrance, by heading'),
     ('DS', 0x2448, 0x26c6, 'YardActors', 'the yard layer: the dog\'s steps and sprites (DS:2448..), the walking '

@@ -738,6 +738,10 @@ Still to do:
    Also ported and verified: the **spider** (`f_0ce63` + helpers, `world.spider`, 37 scenarios; see the
    comment block in world.py: 1/16-tile position G:0F12/0F34, states G:0FB8 0..5, prey G:0FFC, modes
    G:06AC 7/8, beaten when > 8 cells of the 4x4 block a-1..a+2, b-1..b+2 are occupied (f_0db10 loops -1..2, sic; > 4: flees), drops food when it finally leaves).
+   `f_0c692` (the drop, also the player-spider's) on house furniture (surface tile 0x27..0x3f, G:0F24 == 1) calls `f_0c73d`: from
+   the tile it walks (a += DS:1B9A[G:0F3A], b += DS:1B9E[G:0F3A], both added as unsigned bytes, so rooms 0 and 3, whose
+   step is 0xFF, stop at once) until a tile below 4 becomes food ((t + 6) * 4, G:1040++) or the walk leaves the map;
+   the drop counts as done either way (no crash; checked by test_world.py 'spider beaten furniture').
    With G:0A06 == 1 the player is the spider (ported, partly covered).
    Still to do:
    - SimStep's overlay calls are vector thunks: `f_2f7a8` → sec8 `f_68513`, `f_2f79e` → `BlackNestLoop`,

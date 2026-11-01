@@ -549,6 +549,32 @@ public static class World
         return res;
     }
 
+    /// <summary>
+    /// f_0c73d: the tile at (a, b) is house furniture (0x27..0x3f). Walk from it in the room's direction
+    /// (DS:1B9A[G:0F3A] added to a, DS:1B9E[G:0F3A] added to b, both as unsigned bytes: 0xFF ends the walk
+    /// at once) until a tile below 4 is found and turn that into food ((t + 6) * 4), or the walk leaves
+    /// the map (a 0..127, b 0..63). The caller reports success whether or not food was placed.
+    /// </summary>
+    static void SpiderFoodOnFurniture(State st, int a, int b)
+    {
+        bool more = true;
+        while (more)
+        {
+            int t = st.Grid(SURFACE, a, b);
+            if (t < 4)
+            {
+                st.SetGrid(SURFACE, a, b, ((t + 6) * 4) & 0xff);
+                st.Inc16(G, 0x1040);
+                more = false;
+            }
+            int room = st.U16(G, 0xf3a);
+            b += st.U8(0x55b3, 0x1b9e + room);
+            a += st.U8(0x55b3, 0x1b9a + room);
+            if (a < 0 || a > 0x7f) more = false;
+            if (b < 0 || b > 0x3f) more = false;
+        }
+    }
+
     /// <summary>f_0c692: a beaten spider leaves food behind.</summary>
     public static int SpiderDropFood(State st, int a, int b)
     {
@@ -561,7 +587,11 @@ public static class World
                 {
                     if (t < 0x18 || t > 0x26)
                     {
-                        if (t < 0x40) throw new NotImplementedException("f_0c73d (spider food on house furniture)");
+                        if (t < 0x40)
+                        {
+                            SpiderFoodOnFurniture(st, a, b);                    // f_0c73d
+                            return 1;
+                        }
                         return 0;
                     }
                     st.SetGrid(SURFACE, a, b, t + 1);

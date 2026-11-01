@@ -3,7 +3,7 @@ weather (SIMANT.EXE segments 0894, 1be8, 1e2e, 892c).
 
 Screen-only side effects (status line text, dirty-cell marks, sounds) go to st.player.effect.
 """
-from .state import SIM, G, T
+from .state import SIM, G, T, DS
 from . import colony as co
 from . import nestgrid as ng
 from . import pheromones as ph
@@ -502,6 +502,27 @@ def sf_place_corpse(st, a, b, red):
     place_corpse(st, a, b, red)
 
 
+def _spider_food_on_furniture(st, a, b):
+    """f_0c73d: the tile at (a, b) is house furniture (0x27..0x3f). Walk from it in the room's direction
+    (DS:1B9A[G:0F3A] added to a, DS:1B9E[G:0F3A] added to b, both as unsigned bytes: 0xFF ends the walk
+    at once) until a tile below 4 is found and turn that into food ((t + 6) * 4), or the walk leaves
+    the map (a 0..127, b 0..63). The caller reports success whether or not food was placed."""
+    more = True
+    while more:
+        t = st.grid(SURFACE, a, b)
+        if t < 4:
+            st.set_grid(SURFACE, a, b, ((t + 6) * 4) & 0xff)
+            st.inc16(G, 0x1040)
+            more = False
+        room = st.u16(G, 0xf3a)
+        b += st.u8(DS, 0x1b9e + room)
+        a += st.u8(DS, 0x1b9a + room)
+        if a < 0 or a > 0x7f:
+            more = False
+        if b < 0 or b > 0x3f:
+            more = False
+
+
 def spider_drop_food(st, a, b):
     """f_0c692: a beaten spider leaves food behind."""
     t = st.grid(SURFACE, a, b)
@@ -510,7 +531,8 @@ def spider_drop_food(st, a, b):
             if t < 8 or t > 0x17:
                 if t < 0x18 or t > 0x26:
                     if t < 0x40:
-                        raise NotImplementedError('f_0c73d (spider food on house furniture)')
+                        _spider_food_on_furniture(st, a, b)                 # f_0c73d
+                        return 1
                     return 0
                 st.set_grid(SURFACE, a, b, t + 1)
                 st.inc16(G, 0x1040)
