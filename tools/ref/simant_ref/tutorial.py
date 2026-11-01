@@ -67,6 +67,7 @@ def run(st):
 
 # the steps' messages (STR# id, picture), steps 1..56; None where a step does more (see show)
 _TEXT = {i + 1: (0x2af8 + 2 * i, 0) for i in range(0x38)}
+_TEXT[0x38] = (0x2b68, 0)       # the closing box: f_0e4e4 case 56 pushes 0x2B68 (steps 55's two variants take 0x2B64 / 0x2B66)
 _TEXT.update({2: (0x2afa, 0x4268), 5: (0x2b00, 0x4269), 11: (0x2b0c, 0x4276), 13: (0x2b10, 0x426a),
               14: (0x2b12, 0x426a), 17: (0x2b18, 0x4275), 18: (0x2b1a, 0x426b), 21: (0x2b20, 0x426c),
               33: (0x2b38, 0x426d), 36: (0x2b3e, 0x426e), 38: (0x2b42, 0x426f), 39: (0x2b44, 0x4270),

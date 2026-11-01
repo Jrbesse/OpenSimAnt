@@ -1116,7 +1116,8 @@ Game mode G:0EAC = 0. Starting it (`game.start_game`) sets the step T:07A4 = 1 a
 0 (the message again). Both routines switch on step - 1 through jump tables right after the jump (CS base 0x0E2E0;
 Ghidra garbles them), 56 steps.
 
-`f_0e4e4`: a message box `f_2f6ea(picture, STR# 0x2AF8 + 2 (step - 1), 1)` (SHARED STR# 11000..11112; pictures
+`f_0e4e4`: a message box `f_2f6ea(picture, STR# 0x2AF8 + 2 (step - 1), 1)` (SHARED STR# 11000..11112; step 56, the closing box, is the one off the rule: case 56 at 0e925 pushes 0x2B68 = 11112, as
+55's two variants take 0x2B64 / 0x2B66; pictures
 HCEGANT 17000..17014 for steps 2, 5, 11, 13, 14, 17, 18, 21, 33, 36, 38..41, 43..48, 50; step 55 shows 0x2B64 or
 0x2B66 by G:1074, i.e. which nest step 54 found). Setups: steps 3 / 4 the target G:0204 = nest capacity G:0224 + 2 /
 10; 7 / 26 G:1074 = yellow a + b and the target = clock3 + 0x258; 8, 30, 43, 46, 50 G:1074 = 0; 9 G:1074 = the Edit
@@ -1664,16 +1665,23 @@ added a pixel at a time; the last row sits 1 px higher. The remake draws it (`Ma
   - Otherwise: y = bottom - v / div, with div the smallest that brings M / div <= H.
 - (decoded 2026-10-19, `Main.DrawHistoryWindow`) `f_795ec(series, no_label, slot)` plots one line per
   series: ring T:082A[k], k = (s & 1) * 5 + (s >> 1) (the 10 buttons are 5 measures x 2 colonies), scaled
-  together with the other colony's ring T:0852[k]. All 64 entries from (G:04F4 - T:0828) & 63: point 0 at the
+  together with the other colony's ring T:0852[k]. The scale M looks at the newest T:0828 entries, from
+  (G:04F4 - T:0828) & 63; the plot runs over all 64 ring slots from G:04F4 (the oldest, or never written) to
+  G:04F4 - 1 (the newest, at the right; corrected 2026-11-01, it had started at G:04F4 - T:0828): point 0 at the
   graph's left, point i at left + slot + i * w / 64 (truncated toward zero); y as above (mult when M < H:
   the largest with M * mult < H; else the smallest div with M / div <= H; values not clamped). The lines go
   through the driver's DS:916C (0x32F69: left to right, the ends swapped if needed, both drawn; the longer
   axis steps every pixel, x when dx >= dy; the error starts at 0, adds the shorter span and moves the shorter
   axis once it passes half the longer one, then loses the longer span; x < 0 is skipped). The colour is
   DS:2EE8[DS:8C26[s]] (0x43, 0x46, 0x49, 0x45). The
-  caller draws every slot's line (flag 1), then every label (flag 0): the last value ("%d", DS:2EFA) in font
-  3 at the last point, its top half the text height above it, framed 1 px out in the same colour
-  (`f_9128(colour, 0, colour)`).
+  Each call draws its line and then its label (a later series' line runs over an earlier label): in font 3 at
+  the last point (point 63), its top half the text height above it, framed 1 px out in the same colour
+  (`f_9128(colour, 0, colour)`), clipped by the window. **The flag (bp+8) picks the text** (corrected
+  2026-11-01): flag 0 is the series' name, STR# 1050[k] (G:02BA, loaded by f_07680: BPop, BFood, BHealth, SFood,
+  Expired, RPop, RFood, RHealth, Eaten, Killed), flag 1 the newest value "%d" (DS:2EFA). The normal draw
+  `f_7959a(3)` (also after every new sample, `f_798c8`) clears the graph item to colour 0 (`f_22200`) and draws
+  every slot with flag 0; a press on the graph (0x150E, `f_792d2`) clears the same way, draws with flag 1 and waits
+  for the button to go up (`f_20262`), then redraws with `f_7959a(3)`.
 - The series (`f_79373`): four slots DS:2EF0 (0x8000 empty, all empty at start-up); a new series goes into
   slot 0 and pushes the others down, a fifth evicts slot 3 (its button released); removing one closes the gap.
   Its colour DS:8C26[s] is the lowest free bit of DS:2EF8 (0xF at start), given back when it goes.

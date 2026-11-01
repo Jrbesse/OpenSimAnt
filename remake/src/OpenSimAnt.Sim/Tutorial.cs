@@ -40,7 +40,7 @@ public static class Tutorial
     }
 
     /// <summary>The steps' message boxes (STR# id, picture), where a step has a picture; the others show
-    /// 0x2AF8 + 2 (step - 1) without one.</summary>
+    /// 0x2AF8 + 2 (step - 1) without one (step 56: 0x2B68).</summary>
     static readonly Dictionary<int, (int text, int picture)> Pictures = new()
     {
         [2] = (0x2afa, 0x4268), [5] = (0x2b00, 0x4269), [11] = (0x2b0c, 0x4276), [13] = (0x2b10, 0x426a),
@@ -61,7 +61,9 @@ public static class Tutorial
             Box(st, st.U16(G, 0x1074) == 0 ? 0x2b64 : 0x2b66);
             return;
         }
-        var (text, picture) = Pictures.TryGetValue(step, out var p) ? p : (0x2af8 + 2 * (step - 1), 0);
+        // Step 56 (the closing box) is the one step off the 0x2AF8 + 2 (step - 1) rule: f_0e4e4 case 56 (0e925) pushes
+        // 0x2B68 (list 11112), since step 55's two variants take 0x2B64 and 0x2B66 (11108, 11110).
+        var (text, picture) = step == 0x38 ? (0x2b68, 0) : Pictures.TryGetValue(step, out var p) ? p : (0x2af8 + 2 * (step - 1), 0);
         Box(st, text, picture);
         switch (step)
         {

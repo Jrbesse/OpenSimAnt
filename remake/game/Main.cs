@@ -271,6 +271,7 @@ public partial class Main : Node2D
                 session.St.Set16(Seg.T, 0x7c8, int.Parse(arg["--map-content=".Length..]));
             else if (arg.StartsWith("--series="))                           // --series=a,b,..: History buttons pressed in turn
                 foreach (var s in arg["--series=".Length..].Split(',')) ToggleSeries(int.Parse(s));
+            else if (arg == "--history-values") historyHeld = true;         // the graph's labels as while the graph is pressed (f_795ec flag 1)
         Redraw();
     }
 
@@ -2874,17 +2875,22 @@ public partial class Main : Node2D
             var b = ItemRect(HistoryWin, 3 + s);
             clip.Invert(b.l, b.t, b.r, b.b);
         }
-        // f_795ec(series, no label, slot): one line per series, T:082A[k] (k = (s & 1) * 5 + (s >> 1)), scaled with
-        // the other colony's ring T:0852[k]; all 64 entries from (G:04F4 - T:0828) & 63, point 0 at the graph's
-        // left, point i at left + slot + i * w / 64; the lines through the driver (DS:916C, a line routine taken as
-        // Bresenham), then the labels: the last value ("%d", font 3) at the last point, framed.
+        // f_795ec(series, flag, slot): one line per series, T:082A[k] (k = (s & 1) * 5 + (s >> 1)), scaled with
+        // the other colony's ring T:0852[k] (the scale looks at the newest T:0828 entries, from (G:04F4 - T:0828) &
+        // 63); the plot itself runs over all 64 ring slots from G:04F4 (the oldest, or never written) to G:04F4 - 1
+        // (the newest): point 0 at the graph's left, point i at left + slot + i * w / 64; the lines through the driver
+        // (DS:916C, a line routine taken as Bresenham), then the label, framed 1 px out in the series' colour, in font 3
+        // at the last point, its top half the font's height above it: flag 0 (f_7959a, the normal draw, after the
+        // graph item is cleared to black) the series' name STR# 1050[k]; flag 1 (the click on the graph, while the
+        // button is held) the newest value ("%d", DS:2EFA).
         var g = ItemRect(HistoryWin, HistoryGraph);
-        int count = st.S16(Seg.T, 0x828), start = (st.U8(Seg.G, 0x4f4) - count) & 0x3f;
+        int count = st.S16(Seg.T, 0x828), start = (st.U8(Seg.G, 0x4f4) - count) & 0x3f, first = st.U8(Seg.G, 0x4f4) & 0x3f;
         int h = g.b - g.t - 16, w = g.r - g.l - 0x40, bottom = g.b - 8;
-        int V(int ring, int i) => st.S16(Seg.G, ring + 2 * ((start + i) & 0x3f));
+        int V(int ring, int i) => st.S16(Seg.G, ring + 2 * ((start + i) & 0x3f));      // the scale's entries
+        int P(int ring, int i) => st.S16(Seg.G, ring + 2 * ((first + i) & 0x3f));      // the plotted points
+        var names = session.Files.Strings(1050);
         var area = clip.Clip(g.l, g.t, g.r, g.b);
         var font = ui.Font(3) ?? ui.Font(2);
-        var labels = new List<(int x, int y, string text, uint colour)>();
         for (int slot = 0; slot < 4; slot++)
         {
             int s = historySlots[slot];
@@ -2901,7 +2907,7 @@ public partial class Main : Node2D
                 else while (max / div > h) div++;
             }
             uint colour = session.Art.Palette[st.U8(Seg.DS, 0x2ee8 + 2 * historyColour[s]) & 15];
-            int Y(int i) => bottom - (div == 1 ? V(ring, i) * mult : V(ring, i) / div);
+            int Y(int i) => bottom - (div == 1 ? P(ring, i) * mult : P(ring, i) / div);
             int px = g.l, py = Y(0);
             for (int i = 1; i < 64; i++)
             {
@@ -2910,14 +2916,13 @@ public partial class Main : Node2D
                 px = x;
                 py = y;
             }
-            labels.Add((px, py, V(ring, 63).ToString(), colour));
-        }
-        foreach (var (x, y, text, colour) in historyHeld ? new() : labels)
-        {
-            int top = y - font.Height / 2, tw = font.Width(text);
-            area.Fill(x - 1, top - 1, x + tw + 1, top + font.Height + 1, session.Art.Palette[0]);
-            font.Draw(area, x, top, text, colour);
-            area.Frame(x - 1, top - 1, x + tw + 1, top + font.Height + 1, colour);
+            // the label follows its own line (each f_795ec call draws both), so a later series' line runs over it;
+            // the window clip (f_1e6e4), not the graph item, limits it
+            string label = historyHeld ? P(ring, 63).ToString() : names != null && k < names.Length ? names[k] : "";
+            int top = py - font.Height / 2, tw = font.Width(label);
+            clip.Fill(px - 1, top - 1, px + tw + 1, top + font.Height + 1, session.Art.Palette[0]);
+            font.Draw(clip, px, top, label, colour);
+            clip.Frame(px - 1, top - 1, px + tw + 1, top + font.Height + 1, colour);
         }
         if (help)
         {
@@ -2958,7 +2963,7 @@ public partial class Main : Node2D
     void HistoryWindowClick(int index)
     {
         if (index == 13) help = helpHeld = true;                               // 0x150D: f_2f74e(0x150F), while held
-        else if (index == 14) historyHeld = true;                              // 0x150E: the plot without labels while held, then f_7959a(3)
+        else if (index == 14) historyHeld = true;                              // 0x150E: the plot with the newest values as labels while held (flag 1), then f_7959a(3) (the names)
         else if (index >= 3 && index <= 12)
         {
             ToggleSeries(index - 3);
