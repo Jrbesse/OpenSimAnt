@@ -1,0 +1,10 @@
+{
+  "titles": ["File", "Window", "View", "Options", "Speed"],
+  "menus": [
+    ["About", "---", "New Game", "Open Game", "Save Game", "Save As", "---", "Quit"],
+    ["Edit", "Map", "Behavior", "Caste", "History", "Info", "Status"],
+    ["Yard", "House", "Strategic", "Graphic", "---", "Surface", "Black Nest", "Red Nest"],
+    ["Tracking", "Music", "Sounds", "Events", "Advice", "Balloons"],
+    ["Pause", "---", "Slow", "Normal", "Fast", "Turbo"]
+  ]
+}
