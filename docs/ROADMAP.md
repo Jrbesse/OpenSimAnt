@@ -37,7 +37,7 @@ whatever the reviews find.
 | Session | Jobs done | Jobs left | Est. sessions left |
 |---|---|---|---|
 | 2026-10-31 evening (start) | (baseline) | 42 | 5..7 |
-| 2026-10-31 evening (end) | 9 (+2 found and fixed, +2 found open), in ~85% of the window | 35 | 4..6 |
+| 2026-10-31 evening (end) | 9 (+2 found and fixed, +2 found open), in ~80% of the window | 35 | 4..6 |
 
 ## Where things stand (2026-10-30)
 

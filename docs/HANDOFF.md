@@ -26,7 +26,7 @@ compared with the original's on the same game State (24 captures, 21 pixel-ident
   11110: check against f_ the tutorial uses); the History graph's labels (list 1050) are not drawn; the ant lion's
   message 10044 is not shown (a picture instead: check); the engine's own English fallbacks (file dialog, overwrite
   alert) still carry the original's wording.
-- Usage: 4 agents in parallel took the window 2% -> 49% in 25 min; the session ended at ~85%. Text makers are cheap
+- Usage: 4 agents in parallel took the window 2% -> 49% in 25 min; the session ended at ~80%. Text makers are cheap
   (~120k tokens, no image views); art makers ~250-320k.
 **Next:** the yard maker passes 3-5 (people, animals, spider, map actors; import `yard_scene.render_world` for the
 patches), the SimAntipedia pictures maker, then the texts spec (type 10 cards, save prompts, glossary, style runs; make
