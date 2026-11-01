@@ -1,7 +1,7 @@
 {
   "10000": ["Relocating to a new yard square", "only works in the Full Game."],
   "10002": ["Your colony is too small to survive", "such a trip. Let it grow bigger", "before you try again."],
-  "10004": ["There is no black colony", "on the square you picked."],
+  "10004": ["No black colony lives", "on the square you picked."],
   "10006": ["Your ant is heading out", "to that spot in the yard."],
   "10007": ["Your ant is heading in", "to that spot in the house."],
   "10010": ["The black queen of this patch has died!"],
