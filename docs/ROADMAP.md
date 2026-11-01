@@ -27,9 +27,9 @@ and add a row to the log. New work found on the way goes into the table as it sh
 | A4 music (30 songs, 33 cues) | spec `music.md`, encoder, cues built (2026-11-01 afternoon) | 3 | the 30 songs (2..3 maker batches) |
 | A5 integration | launcher | 3 | CI game with no originals (build.py in release.yml before the export); clean screenshots of every window; similarity review |
 | A6 identity | name, rename; title / about pictures; Edit caption; 2026-11-01 afternoon: the audit (no marks in the pack), the engine's own strings an asset (`EXE/engine_strings.json`) | 0 | |
-| B confirm and polish | B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused; afternoon: **B3** (f_0c73d + its missing table) | 9 | B2, B4, B5, B6, B7 (5); polish: font 3 cramped, sprite legs ragged, house screens tables-vs-EXE, the SimAntipedia picture 630 |
+| B confirm and polish | B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused; afternoon: **B3** (f_0c73d + its missing table), **B5** (the Experimental menu / palette / drag loop: 10 differences fixed, emulator-checked) | 8 | B2, B4, B6, B7 (4); polish: font 3 cramped, sprite legs ragged, house screens tables-vs-EXE, the SimAntipedia picture 630 |
 | C release | | 5 | public repo, licences, legal review, player README, tagged v1.0.0 |
-| **Total** | | **22** | B1 (the owner's test builds) is the owner's, not counted |
+| **Total** | | **21** | B1 (the owner's test builds) is the owner's, not counted |
 
 Pace so far: 9..13 jobs per 5-hour window with at most 3 agents at once (art makers cost the most), so **about 3 to
 4 sessions** to version 1, plus whatever the reviews find.
@@ -41,7 +41,7 @@ Pace so far: 9..13 jobs per 5-hour window with at most 3 agents at once (art mak
 | 2026-11-01 (start) | | 35 | 4..6 |
 | 2026-11-01 (end) | 9 (5 agents in parallel: yard passes 3-5, SimAntipedia pictures, texts spec + encoders, 3 engine findings; +1 found and fixed: the glossary; +3 found open: rewording) in ~92% of the window | 32 | 4..5 |
 | 2026-11-01 afternoon (start) | | 32 | 4..5 |
-| 2026-11-01 afternoon (end) | 14 (12 agents, at most 3 at once: bitmaps checked, 3 specs + made text reworded, texts maker, layouts spec / encoder / maker, sound + music specs and encoders, FM patches, A6 audit + engine strings, B3; include_filter ticked; +3 found: music as 2..3 batches, a sound listening pass, 630) in ~85% of the window | 22 | 3..4 |
+| 2026-11-01 afternoon (end) | 15 (13 agents, at most 3 at once: bitmaps checked, 3 specs + made text reworded, texts maker, layouts spec / encoder / maker, sound + music specs and encoders, FM patches, A6 audit + engine strings, B3, B5; include_filter ticked; +3 found: music as 2..3 batches, a sound listening pass, 630) in ~85% of the window | 21 | 3..4 |
 
 ## Where things stand (2026-10-30)
 
@@ -173,7 +173,20 @@ the original files make the clean assets from those specs.
       game", SetupPatch).
 - [ ] **B4. Ant Info on a held click:** the remake opens it; whether the original does is unconfirmed (the
       emulator capture never showed it, HANDOFF "Where this stopped").
-- [ ] **B5. Handler audit:** the Experimental menu `f_67010` and its map tools `f_76f4a` against the shell.
+- [x] **B5. Handler audit:** the Experimental menu `f_67010` (and its twin for the Edit window's button,
+      `f_67a24`) and the map tools' drag loop `f_76f4a` against the shell. Done 2026-11-01, read from the code
+      (`adis.py` / `decomp.py`, SIM_NOTES "The tool palette", "Map tools") and checked against the original in the
+      emulator (scenarios with mouse events: hover / hold / click mode, the tutorial, right click, a long drag, the
+      RNG frozen while held). Fixed in the shell: the menu does nothing in the tutorial; the Edit button's palette
+      opens beside the button (not above the Map's); the palette's option palettes open on hover beside the entry
+      (no hold time), store the option on hover, and letting go takes the last entry hovered; Start Game places the
+      yellow ant again (`f_6b7d0`, was missing); the Experimental buttons' bitmap stays 5107 until a tool is picked;
+      the drag loop follows the pointer beyond the map item (patch-limited), a right press applies once, Ctrl+click
+      is not Ant Info there, tools >= 5 and moves respect the patch test, and the game stands still while the loop
+      (and any pop-up) runs. New `tools/ref/test_experimental.py` (enter, then Start Game, 8 contexts, byte
+      identical; in `record_all.sh`); the tool functions themselves were already covered by `test_tools.py`. Emulator
+      captures of the palette, its option palettes and the Edit button's palette match the remake pixel for pixel
+      but for the mouse cursor. Left as DIVERGENCEs: the 6-tick double-click wait before the loop starts.
 - [ ] **B6. Screen details:** the hourglass cursor; the colours of message boxes and scenes (window 26) on a real
       screen; the two undecoded bytes of each colour scheme.
 - [ ] **B7. Audio fidelity:** compare `OpenSimAnt.Replay --songs` with DOSBox; the sample / FM balance

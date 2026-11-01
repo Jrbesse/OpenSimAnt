@@ -31,6 +31,7 @@ TAG= run test_savefile test_savefile &
 wait
 TAG= run test_cheats test_cheats &
 TAG= run test_tools test_tools &
+TAG= run test_experimental test_experimental &
 TAG= run test_debug test_debug &
 TAG= run test_markers test_markers &
 TAG= run test_balloons test_balloons &

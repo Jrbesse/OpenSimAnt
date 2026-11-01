@@ -185,6 +185,10 @@ public partial class Main : Node2D
         if (OS.GetCmdlineUserArgs().Contains("--trails")) session.St.Set16(Seg.DS, 0x2994, 1);
         if (OS.GetCmdlineUserArgs().Contains("--report")) popReport = true;
         if (OS.GetCmdlineUserArgs().Contains("--exp-menu")) ExperimentalMenu();
+        if (OS.GetCmdlineUserArgs().Contains("--exp-menu-edit")) ExperimentalMenu(true);      // the Edit window's button
+        foreach (var arg in OS.GetCmdlineUserArgs())                            // --exp-hover=x,y: the pointer there on the palette
+            if (arg.StartsWith("--exp-hover=") && arg["--exp-hover=".Length..].Split(',') is { Length: 2 } eh && popup == ToolMenu)
+                PaletteHover(new Vector2(int.Parse(eh[0]), int.Parse(eh[1])));
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--antipedia"))                              // --antipedia[=card][,x,y: hold the button there]
             {
@@ -419,7 +423,8 @@ public partial class Main : Node2D
         }
         int ran = 0;
         bool running = !frozen && !session.Over && !yardChoose && modal < 0 && menuOpen < 0 && !miniMap && !helpHeld && winPhase == 0
-                       && !Presenting;
+                       && !Presenting && !toolDrag && popup < 0;                  // f_76f4a's loop / a pop-up's loop (f_2379b,
+                                                                                  // f_680a4): the main loop waits inside them
         if (!running || session.Paused) mapLive = true;                   // the Map window follows the game while it stands
         if (running && (ran = session.Advance(delta)) > 0)
         {
@@ -437,7 +442,6 @@ public partial class Main : Node2D
         }
         if (modal != GameOverWin) gameOverSong = false;
         ToolPoll();
-        ToolHold(delta);
         PendingClick(delta);
         ScrollPoll(delta);
         FilePoll(delta);
@@ -955,7 +959,7 @@ public partial class Main : Node2D
         ui.DrawDecorations(win, ui.Layouts[EditWin], dx, dy);                         // the grow box stays above the map's last row
         {
             var ti = ItemRect(EditWin, 7);                                             // the Experimental button's tool icon
-            ui.DrawBitmap(win, (st.U16(Seg.G, 0xeac) == 3 ? 5100 + Math.Clamp(st.U16(Seg.G, 0x104c), 0, 7) : 5107), ti.l, ti.t);
+            ui.DrawBitmap(win, ToolIcon(st), ti.l, ti.t);
             if (view is >= 1 and <= 3)                                                 // f_01976: items 8..10, the view shown
             {
                 var vb = ItemRect(EditWin, 7 + view);
@@ -1096,7 +1100,7 @@ public partial class Main : Node2D
                 st.Set16(Seg.G, index == 17 ? 0xfba : 0xffe, (b - (int)mb.Position.Y) * 100 / (b - t));
                 break;
             }
-            case 7: ExperimentalMenu(); break;
+            case 7: ExperimentalMenu(true); break;                                   // f_2f744 → f_67a24
             case 8: SetView(1); break;
             case 9: SetView(2); break;
             case 10: SetView(3); break;
@@ -1118,15 +1122,15 @@ public partial class Main : Node2D
         int a = (int)(mb.Position.X - m.l) / Cell + originA, b = (int)(mb.Position.Y - m.t) / Cell + originB;
         if (a >= MapRenderer.Width(view) || b >= MapRenderer.Height) return;
         var st = session.St;
+        if (st.U16(Seg.G, 0xeac) == 3)                                             // Experimental: f_74fe0 → f_76f4a, either button
+        {
+            if (mb.ButtonIndex is MouseButton.Left or MouseButton.Right) ToolPress(a, b, mb);
+            return;
+        }
         if (mb.CtrlPressed || antInfoArmed)                                        // the Ant Info tool
         {
             antInfoArmed = false;
             OpenAntInfo(a, b);
-            return;
-        }
-        if (st.U16(Seg.G, 0xeac) == 3)                                             // Experimental: the map tools
-        {
-            if (mb.ButtonIndex == MouseButton.Left) ToolPress(a, b, mb);
             return;
         }
         int target = st.U16(Seg.G, 0x105e);
@@ -1414,7 +1418,7 @@ public partial class Main : Node2D
         {
             // the Experimental button shows the current tool's icon 5100 + G:104C in every game (the original's screen)
             var ti = ItemRect(MapWin, 23);
-            ui.DrawBitmap(win, (st.U16(Seg.G, 0xeac) == 3 ? 5100 + Math.Clamp(st.U16(Seg.G, 0x104c), 0, 7) : 5107), ti.l, ti.t);
+            ui.DrawBitmap(win, ToolIcon(st), ti.l, ti.t);
             // f_01976: the button of the view shown (0x105 + G:032E) highlighted (f_22fae, the XOR), and with a scent map
             // shown (f_01781: T:07C8 4 / 5 / 8 / 6 / 7 from 0x109..0x10D) its button too (the original's screen)
             int gv = st.U16(Seg.G, 0x32e);
@@ -1582,6 +1586,15 @@ public partial class Main : Node2D
             var (l, t, r, b) = ui.Layouts[popup].Items[popupHover].Rect;
             c.Invert(l + popupOff.dx, t + popupOff.dy, r + popupOff.dx, b + popupOff.dy);
         }
+        if (popup == ToolMenu && flyout >= 0)                                          // its option palette beside it
+        {
+            ui.DrawWindow(c, flyout, flyOff.dx, flyOff.dy, null);
+            if (flyHover >= 2 && flyHover < ui.Layouts[flyout].Items.Count)
+            {
+                var (l, t, r, b) = ui.Layouts[flyout].Items[flyHover].Rect;
+                c.Invert(l + flyOff.dx, t + flyOff.dy, r + flyOff.dx, b + flyOff.dy);
+            }
+        }
     }
 
     int PopupEntry(Vector2 p)
@@ -1594,6 +1607,7 @@ public partial class Main : Node2D
     /// entry runs it (press-and-hold, or a second click); a press outside closes the menu.</summary>
     void PopupInput(InputEvent ev)
     {
+        if (popup == ToolMenu) { PaletteInput(ev); return; }                       // f_680a4
         if (ev is InputEventMouseMotion mm) popupHover = PopupEntry(mm.Position);
         else if (ev is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left)
         {
@@ -1601,7 +1615,6 @@ public partial class Main : Node2D
             var (l, t, r, b) = ui.Layouts[popup].Rect;
             bool inside = Inside((l + popupOff.dx, t + popupOff.dy, r + popupOff.dx, b + popupOff.dy), mb.Position);
             if (mb.Pressed && (!inside || popup == 11)) popup = -1;
-            else if (mb.Pressed && popup == ToolMenu && entry >= 0) ToolMenuPress(entry);
             else if (!mb.Pressed && entry >= 0)
             {
                 int cmd = PopupCommands[popup][entry - 2];
@@ -1615,19 +1628,6 @@ public partial class Main : Node2D
                 {
                     popup = -1;
                     EnterExperimental();
-                    return;
-                }
-                if (popup == ToolMenu)
-                {
-                    popup = -1;
-                    toolHold = -1;
-                    ToolChoice(cmd);
-                    return;
-                }
-                if (popup >= 12 && popup <= 17)
-                {
-                    popup = -1;
-                    session.St.Set8(Seg.T, 0x7b6 + optionTool, cmd);
                     return;
                 }
                 if (cmd == 2 && mb.ShiftPressed) cmd = 3;
@@ -1870,52 +1870,100 @@ public partial class Main : Node2D
     }
 
     // ------------------------------------------------------------------------------- the Experimental menu, the tools
-    // f_67010 (the Map toolbar's 0x117, thunk 0x2f88e) opens a pop-up above item 0x117 by the game mode G:0EAC:
+    // Two handlers, one for each button: f_67010 (the Map toolbar's 0x117, thunk 0x2f88e) opens its pop-up centred
+    // over item 0x117 and 4 px above it; f_67a24 (the Edit window's button 7, thunk 0x2f744) opens it at the button's
+    // right edge + 2, its top. The pop-up depends on the game mode G:0EAC (any other mode, the tutorial's 0, does
+    // nothing):
     // - 1, a Quick Game: layout 10 ("EXPERIMENTAL MODE"); choosing it sets G:0EAC = 3, lifts the yellow ant off
     //   the map (f_11918), G:0A06 = 2, f_0cdb0 (the per-patch globals), a redraw and sound 2;
     // - 2, the Full Game: layout 11 ("not available in the full game");
-    // - 3, Experimental: the tool palette, layout 9 (bitmap 5000; f_680a4): entries 0..6 pick the map tool G:104C
-    //   (Ant Info, Barriers, Dig / Fill, Add Ants, Add Food, Drop Trails, Insecticide) through f_2f8a2, and 7
-    //   (Start Game) makes it a Quick Game again (G:0EAC = 1), puts the yellow ant back on the map when the
-    //   surface is shown (f_119b4 with 0xFF) and plays voice 0x2AFB. The toolbar then shows tool icon 5100 +
-    //   G:104C in item 0x117 (not drawn here).
-    // In the Experimental game a press on the Edit window's map runs the drag loop f_76f4a: the previous point
-    // G:09FC / G:09FE starts at the cell and the tool is applied there (MapTools.ApplyTool = f_770f6); when the
-    // cell under the held button changes, the previous point becomes the old cell and the tool is applied at the
-    // new one; tools >= 5 are also applied on every poll (here every frame), with G:106C ^= 1, and G:0A9C counts
-    // the polls. Holding a tool's entry opens its option palette (layouts 12..17 by their bitmaps 5001..5006:
-    // Walls / Rocks, Dig / Fill, Black / Red, 1 / 20 pieces, the five scent maps, Spray / Stream).
+    // - 3, Experimental: the tool palette, layout 9 (bitmap 5000; f_680a4), kept open while the button is held (see
+    //   PaletteInput): the entry under the pointer is the choice, the pointer over entries 1..6 opens that tool's
+    //   option palette beside it at once (layouts 12..17 by their bitmaps 5001..5006: Walls / Rocks, Dig / Fill,
+    //   Black / Red, 1 / 20 pieces, the five scent maps, Spray / Stream; the option under the pointer is stored in
+    //   T:07B6 + tool as soon as the pointer is over it). Letting go anywhere takes the last entry the pointer was
+    //   on (the current tool if none). The choice 0..6 sets the map tool G:104C (f_2f8a2), and 7 (Start Game) makes
+    //   it a Quick Game again: G:0EAC = 1, f_2f8ac = f_6b7d0 (the yellow ant back in the black nest, health 100),
+    //   the yellow ant put on the map again when the surface is shown (f_119b4 with 0xFF), voice 0x2AFB, and G:104C
+    //   = 7. The toolbar buttons then show tool icon 5100 + G:104C.
+    // In the Experimental game a press on the Edit window's map runs the drag loop f_76f4a (checked against the
+    // original in the emulator, 2026-11-01): the previous point G:09FC / G:09FE starts at the cell and the tool is
+    // applied there (MapTools.ApplyTool = f_770f6) when the cell is in the patch (f_10f7e); while the left button
+    // is the only one held, the cell under the pointer (from G:110C / G:110E, DS:19BE / DS:19C0 and the origin,
+    // C division: not limited to the map item, only to the patch) is followed: when it changes the previous point
+    // becomes the old cell and the tool is applied at the new one; tools >= 5 are also applied on every poll (here
+    // every frame), with G:106C ^= 1, and G:0A9C counts the polls. The game does not run meanwhile (the main loop
+    // is inside f_74fe0). A right-button press applies the tool once, with no loop.
+    // DIVERGENCE: f_74fe0 first waits up to 6 clock ticks for a second click when the first was a left one on the
+    // active Edit window (a double click restarts at the second event's cell); a press here starts at once.
     const int ToolMenu = 9;
     bool toolDrag;
     (int a, int b) toolCell;
-    static readonly int[] OptionWindows = { -1, 12, 15, 16, 17, 13, 14 };
-    int optionTool = -1;
-    double toolHold = -1;
-    (int l, int t, int r, int b) holdEntry;
+    static readonly int[] OptionWindows = { -1, 12, 15, 16, 17, 13, 14 };            // DS:2438, by tool
+    int palCur = -1;                                                                // f_680a4's [bp-4]: the tool the pointer was last on
+    int flyout = -1, flyHover = -1;                                                 // the option palette open beside it
+    (int dx, int dy) flyOff;
+    ulong paletteOpened;                                                            // the press that opened it, Time.GetTicksMsec
+    bool paletteClickMode;                                                          // let go within 2 ticks: a pick by the next press
+    bool toolIconDefault;                                                           // a Quick Game's button bitmap until a tool is picked
 
-    /// <summary>A press on a tool entry of the palette starts the hold timer for its options.</summary>
-    void ToolMenuPress(int entry)
+    /// <summary>The toolbar buttons' bitmap (f_25ca8(item, 5100 + G:104C) after each pick; the layout's own 5107 before).</summary>
+    int ToolIcon(State st) => st.U16(Seg.G, 0xeac) == 3 && !toolIconDefault ? 5100 + Math.Clamp(st.U16(Seg.G, 0x104c), 0, 7) : 5107;
+
+    /// <summary>f_680a4's hover step: the entry the pointer is on becomes the current tool (the old option palette
+    /// closes; entries 1..6 open theirs), the option the pointer is on in an open option palette is stored.</summary>
+    void PaletteHover(Vector2 p)
     {
-        optionTool = entry - 2;
-        toolHold = optionTool is > 0 and < 7 ? 0 : -1;
-        var (l, t, r, b) = ui.Layouts[ToolMenu].Items[entry].Rect;
-        holdEntry = (l + popupOff.dx, t + popupOff.dy, r + popupOff.dx, b + popupOff.dy);
+        var st = session.St;
+        if (flyout >= 0)
+        {
+            int fe = ui.HitTest(flyout, flyOff.dx, flyOff.dy, (int)p.X, (int)p.Y);
+            if (fe >= 2 && fe - 2 < PopupCommands[flyout].Length)
+            {
+                flyHover = fe;
+                st.Set8(Seg.T, 0x7b6 + palCur, fe - 2);
+                return;
+            }
+        }
+        int e = PopupEntry(p);
+        if (e < 2 || e - 2 > 7 || e - 2 == palCur) return;
+        palCur = e - 2;
+        popupHover = e;
+        flyout = -1;                                                                // the old one closes
+        if (palCur is < 1 or > 6) return;                                           // Ant Info and Start Game have none
+        flyout = OptionWindows[palCur];
+        var (l, t, r, b) = ui.Layouts[ToolMenu].Items[e].Rect;
+        l += popupOff.dx; t += popupOff.dy; r += popupOff.dx;
+        var (fl, ft, fr, fb) = ui.Layouts[flyout].Rect;
+        int w = fr - fl, x = w + r + 1 >= ScreenW ? l - w : r;                      // right of the entry, else left of it
+        flyOff = (x - fl, t - ft);
+        int opt = st.U8(Seg.T, 0x7b6 + palCur);
+        flyHover = opt == 0xff ? -1 : 2 + opt;
     }
 
-    /// <summary>Each frame: a tool entry held for a third of a second opens that tool's option palette beside it,
-    /// with the current option (T:07B6 + tool) highlighted.</summary>
-    void ToolHold(double delta)
+    /// <summary>The palette's mouse events (f_680a4 with f_202b8: let go after the grace of 2 ticks ends it, taking the
+    /// current tool; let go sooner and it stays open for a click: a press on an entry takes that tool, elsewhere the
+    /// current one).</summary>
+    void PaletteInput(InputEvent ev)
     {
-        if (toolHold < 0) return;
-        if (!Input.IsMouseButtonPressed(MouseButton.Left) || popup != ToolMenu) { toolHold = -1; return; }
-        toolHold += delta;
-        if (toolHold < 0.33) return;
-        toolHold = -1;
-        session.St.Set16(Seg.G, 0x104c, optionTool);
-        popup = OptionWindows[optionTool];
-        var (l, t, r, b) = ui.Layouts[popup].Rect;
-        popupOff = (Math.Min(holdEntry.r, ScreenW - (r - l)) - l, Math.Min(holdEntry.t, ScreenH - (b - t)) - t);
-        popupHover = 2 + Math.Min(session.St.U8(Seg.T, 0x7b6 + optionTool), PopupCommands[popup].Length - 1);
+        if (ev is InputEventMouseMotion mm) { PaletteHover(mm.Position); return; }
+        if (ev is not InputEventMouseButton mb || mb.ButtonIndex != MouseButton.Left) return;
+        if (mb.Pressed)
+        {
+            if (!paletteClickMode) return;
+            PaletteHover(mb.Position);
+            int e = PopupEntry(mb.Position);
+            PaletteClose(e >= 2 && e - 2 <= 7 ? e - 2 : palCur);
+        }
+        else if (Time.GetTicksMsec() - paletteOpened < 110) paletteClickMode = true;
+        else PaletteClose(palCur);
+    }
+
+    void PaletteClose(int tool)
+    {
+        popup = -1;
+        flyout = -1;
+        ToolChoice(tool);
     }
 
     void EnterExperimental()
@@ -1927,6 +1975,7 @@ public partial class Main : Node2D
         st.Set16(Seg.G, 0xa06, 2);
         NewGame.ResetPatchGlobals(st);                                                  // f_0cdb0
         st.Hooks.Effect(st, "sound", 2, 0x7e);
+        toolIconDefault = true;                                                         // no f_25ca8 on this path
     }
 
     void ToolChoice(int si)
@@ -1935,6 +1984,7 @@ public partial class Main : Node2D
         if (si == 7)                                                                    // Start Game
         {
             st.Set16(Seg.G, 0xeac, 1);
+            NewGame.PlaceYellow(st);                                                    // f_2f8ac = f_6b7d0
             if (st.U16(Seg.G, 0x32e) == 1)
             {
                 var (v, a, b) = session.Yellow;
@@ -1943,62 +1993,93 @@ public partial class Main : Node2D
             st.Hooks.Effect(st, "voice", 0x2afb);
         }
         st.Set16(Seg.G, 0x104c, si);                                                    // f_2f8a2
+        toolIconDefault = false;                                                        // f_25ca8: 5100 + G:104C
     }
 
-    /// <summary>The pop-up of f_67010, centred over the Map window's item 0x117 and 4 px above it.</summary>
-    void ExperimentalMenu()
+    /// <summary>f_67010 (fromEdit false: the Map window's button) / f_67a24 (the Edit window's button 7).</summary>
+    void ExperimentalMenu(bool fromEdit = false)
     {
-        int mode = session.St.U16(Seg.G, 0xeac);
+        var st = session.St;
+        int mode = st.U16(Seg.G, 0xeac);
+        if (mode is < 1 or > 3) return;                                                 // the tutorial: nothing
         popup = mode == 3 ? ToolMenu : mode == 2 ? 11 : 10;
-        var item = ItemRect(MapWin, 23);
         var (l, t, r, b) = ui.Layouts[popup].Rect;
-        int x = Math.Clamp((item.l + item.r - (r - l)) / 2, 0, ScreenW - (r - l)), y = Math.Max(0, item.t - (b - t) - 4);
+        int x, y;
+        if (fromEdit)
+        {
+            var it = ItemRect(EditWin, 7);
+            (x, y) = (it.r + 2, it.t);
+        }
+        else
+        {
+            var it = ItemRect(MapWin, 23);
+            (x, y) = ((it.l + it.r - (r - l)) / 2, it.t - (b - t) - 4);
+        }
+        x = Math.Clamp(x, 0, ScreenW - (r - l));
+        y = Math.Clamp(y, 0, ScreenH - (b - t));
         popupOff = (x - l, y - t);
-        popupHover = mode == 3 ? 2 + Math.Clamp(session.St.U16(Seg.G, 0x104c), 0, 7) : -1;
+        popupHover = -1;
+        flyout = -1;
+        paletteOpened = Time.GetTicksMsec();
+        paletteClickMode = false;
+        if (mode == 3)
+        {
+            palCur = Math.Clamp(st.U16(Seg.G, 0x104c), 0, 7);                           // f_21ac6(G:104C + 0x902)
+            popupHover = 2 + palCur;
+        }
     }
 
     static int Kbd(InputEventWithModifiers m) => (m.ShiftPressed ? 2 : 0) | (m.CtrlPressed ? 4 : 0) | (m.AltPressed ? 8 : 0);
 
-    (int a, int b)? EditCell(Vector2 p)
+    /// <summary>f_76f4a's cell under a point: (x - G:110C) / DS:19BE + G:0508 by C division (towards zero), whether or
+    /// not the point is over the map item; the caller checks the patch (f_10f7e).</summary>
+    (int a, int b) ToolCellAt(Vector2 p)
     {
         var m = ItemRect(EditWin, EditMapItem);
-        if (!Inside(m, p)) return null;
-        int a = (int)(p.X - m.l) / Cell + originA, b = (int)(p.Y - m.t) / Cell + originB;
-        return a < MapRenderer.Width(view) && b < MapRenderer.Height ? (a, b) : null;
+        return (((int)p.X - m.l) / Cell + originA, ((int)p.Y - m.t) / Cell + originB);
     }
 
+    bool CellInView(int a, int b) => Player.InView(session.St.U16(Seg.G, 0x32e), a, b);        // f_10f7e(G:032E, a, b)
+
+    /// <summary>f_76f4a(a, b) starts: the previous point is the cell, the tool applies there when it is in the patch;
+    /// with the left button only, the loop that follows the pointer goes on (ToolMove / ToolPoll).</summary>
     void ToolPress(int a, int b, InputEventMouseButton mb)
     {
         var st = session.St;
+        if (st.U16(Seg.G, 0x32e) == 0) return;                                         // f_76f4a: not in the yard
         st.BiosKbd = Kbd(mb);
         st.Set16(Seg.G, 0x9fc, a);
         st.Set16(Seg.G, 0x9fe, b);
-        MapTools.ApplyTool(st, a, b);
-        toolDrag = true;
+        if (CellInView(a, b)) MapTools.ApplyTool(st, a, b);
+        toolDrag = mb.ButtonIndex == MouseButton.Left;                                 // f_0122c() == 1: the left button alone
         toolCell = (a, b);
     }
 
     void ToolMove(Vector2 p, InputEventWithModifiers m)
     {
-        if (EditCell(p) is not var (a, b) || (a, b) == toolCell) return;
+        var (a, b) = ToolCellAt(p);
+        if ((a, b) == toolCell) return;
         var st = session.St;
         st.BiosKbd = Kbd(m);
         st.Set16(Seg.G, 0x9fc, toolCell.a);
         st.Set16(Seg.G, 0x9fe, toolCell.b);
         toolCell = (a, b);
-        MapTools.ApplyTool(st, a, b);
+        if (CellInView(a, b)) MapTools.ApplyTool(st, a, b);
     }
 
-    /// <summary>Each frame while the button is held: tools >= 5 apply again (pheromone, insecticide).</summary>
+    /// <summary>Each frame while the button is held: tools >= 5 apply again (pheromone, insecticide) at the cell in
+    /// the patch; the shift keys are read afresh (f_770f6 reads the BIOS flags each time).</summary>
     void ToolPoll()
     {
         if (!toolDrag) return;
         var st = session.St;
+        if (!Input.IsMouseButtonPressed(MouseButton.Left)) { toolDrag = false; return; }
         st.Set16(Seg.G, 0xa9c, st.U16(Seg.G, 0xa9c) + 1);
-        if (st.U16(Seg.G, 0x104c) >= 5)
+        st.BiosKbd = (Input.IsKeyPressed(Key.Shift) ? 2 : 0) | (Input.IsKeyPressed(Key.Ctrl) ? 4 : 0) | (Input.IsKeyPressed(Key.Alt) ? 8 : 0);
+        if (st.U16(Seg.G, 0x104c) >= 5 && CellInView(toolCell.a, toolCell.b))
         {
-            st.Set16(Seg.G, 0x106c, st.U16(Seg.G, 0x106c) ^ 1);
             MapTools.ApplyTool(st, toolCell.a, toolCell.b);
+            st.Set16(Seg.G, 0x106c, st.U16(Seg.G, 0x106c) ^ 1);
         }
     }
 
@@ -4193,6 +4274,7 @@ public partial class Main : Node2D
     void Restart(int mode)
     {
         session.NewGame(mode);
+        toolIconDefault = false;
         lastMessage = "";
         SetView(session.Yellow.view);
         CenterOnYellow();                                                      // f_725b6: f_034c4(G:047C, G:048A)

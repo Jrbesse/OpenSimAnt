@@ -1252,14 +1252,23 @@ The map's mouse handler `f_74fe0` → `f_76f4a` → `f_770f6(a, b)` applies tool
 in the view on screen G:032E (1 surface, 2 black nest, 3 red nest). Rocks and dig run from the previous
 point (G:09FC, G:09FE) to the click.
 
-`f_76f4a(a, b)` is the drag loop (UI, not ported):
+`f_76f4a(a, b)` is the drag loop (UI, not ported; audited 2026-11-01, with the emulator):
+- It is only entered from `f_74fe0` (the Edit map's handler) in Experimental (G:0EAC == 3), by either mouse
+  button, before anything else there (Ctrl is not special). `f_74fe0` first waits up to 6 clock ticks for a second
+  click when the first was a left one and the Edit window is the active one (`f_23612(0)`).
 - Only when G:032E != 0. The previous point is first set to (a, b), and the tool is applied if (a, b)
-  is in the view.
-- Then, while the button is down (`f_0122c`), it reads the mouse (`f_201f0`) and turns it into a cell:
-  through the yard-map rect G:10D2 / cell size G:3856 when `f_23612(0x100)`, otherwise through the patch
-  window G:110C / DS:19BE + the view origin G:0508.
-- When the cell changes, the previous point becomes the old cell and the tool is applied at the new one.
-- Tools >= 5 (pheromone, insecticide) are also applied on every poll, and G:106C ^= 1.
+  is in the patch (`f_10f7e`: surface 128 x 64, nests 64 x 64).
+- Then, while the **left button alone** is down (`f_0122c() == 1`: a right-button press applies the tool once and
+  leaves), it reads the mouse (`f_201f0`) and turns it into a cell: through the Map window's rect G:10D2 / cell
+  size G:3856 when that window is the active one (`f_23612(0x100)`; not reachable from the Edit map's click),
+  otherwise (x - G:110C) / DS:19BE + the view origin G:0508 (C division). The mouse need not be over the map item:
+  the loop follows the pointer anywhere, limited only by the patch test.
+- When the cell changes, the previous point becomes the old cell and the tool is applied at the new one (if in the
+  patch).
+- Tools >= 5 (pheromone, insecticide) are also applied on every poll (at the pointer's cell, if in the patch), and
+  then G:106C ^= 1.
+- The game does not run while the loop does: the main loop is inside `f_74fe0` (`f_771cf` only redraws the Edit /
+  Map windows; `f_01325` is empty). Checked: the RNG does not move while the button is held.
 - G:0A9C counts the polls. Option bytes T:07B7..T:07BC belong to tools 1..6. Alt (0000:0417 bit 3)
 reverses food, pheromone, rocks and dig.
 
@@ -1609,22 +1618,34 @@ Window 6 (6000) is the scent-layer menu (Off, Alarm, B-Nest, B-Trail, R-Nest, R-
 
 - Window 9 (bitmap 5000) has eight hotspots, 0x902..0x909: a click selects the map tool G:104C =
   item - 0x902 (see "Map tools").
-- Holding the button opens the tool's options palette (windows 10..17, bitmaps 5010, 5011, 5001..5006;
-  "openSub" in the debug output). Releasing on entry e stores e - 2 in T:07B6 + tool: the option bytes
-  T:07B7..T:07BC.
-- Keys 0x0D / 0x1B end the palette loop (`f_1f610`).
+- (Audited 2026-11-01 against the original in the emulator, `tools/re` scenarios.) The loop `f_680a4(x, y)` runs
+  while the button is held (`f_202b8`: after a grace of 2 clock ticks, a release ends it; let go sooner and the
+  menu stays open until the next press) and returns `cur`, the entry the pointer was last on (G:104C at first), so
+  letting go outside every entry still takes the last one; the caller then does `f_2f8a2(cur)`. The game does not
+  run meanwhile (the sim's RNG is frozen). The pointer moving onto an entry 1..6 opens that tool's options palette
+  at once, no hold time (windows 12, 15, 16, 17, 13, 14 from the table DS:2438; right of the entry, or left of it
+  when `w + right + 1 >= DS:3DB2`, at the entry's top; the current option highlighted), closing the old one; moving
+  onto an option stores it in T:07B6 + cur straight away (hover, not release). Entry 0 and 7 have none. Keys: 0x0D
+  returns `cur`, 0x1B returns -1 (`f_1f610`).
 - The option palettes by their bitmaps: window 12 (5001) Walls / Rocks = tool 1, 15 (5002) Dig / Fill = 2,
   16 (5003) Black / Red = 3, 17 (5004) 1 Piece / 20 Pieces = 4, 13 (5005) Black Nest / Black Trail / Red
   Nest / Red Trail / Alarm = 5, 14 (5006) Spray / Stream = 6.
 
-The palette is a pop-up of the Experimental menu `f_67010` (Map toolbar 0x117 via thunk 0x2f88e), placed
-centred over item 0x117 and 4 px above it, by the game mode G:0EAC:
-- 1: window 10 ("EXPERIMENTAL MODE"). Choosing it: `f_2f8a2(G:104C)`, G:0EAC = 3, `f_11918(view, a, b,
-  G:04C2, G:0496)` lifts the yellow ant off the map, G:0A06 = 2, `f_0cdb0()`, a redraw, sound 2 (0x7E).
+The palette is a pop-up of the Experimental menu: `f_67010` (Map toolbar 0x117 via thunk 0x2f88e), placed
+centred over item 0x117 and 4 px above it, and `f_67a24` (the Edit window's button 7, thunk 0x2f744), the same
+code placed at that button's right edge + 2, its top (`f_252d8(7)` = the rect of item 7 of window 0). By the game
+mode G:0EAC (any other, the tutorial's 0, does nothing):
+- 1: window 10 ("EXPERIMENTAL MODE", `f_2379b`: a release on its entry, or a press on it, picks; a press outside
+  closes it after a quick click; a release outside after a hold leaves it open). Choosing it: `f_2f8a2(G:104C)`,
+  G:0EAC = 3, `f_11918(view, a, b, G:04C2, G:0496)` lifts the yellow ant off the map, G:0A06 = 2, `f_0cdb0()`,
+  the caption `f_03bfd`, sound 2 (0x7E). No `f_25ca8`: the buttons keep their bitmap (5107).
 - 2: window 11 ("Experimental Mode is not available in the full game.").
-- 3: window 9 through `f_2f8b6`. Entry 7 (Start Game): G:0EAC = 1, and on the surface (G:032E == 1)
-  `f_119b4(..., 0xFF)` puts the yellow ant back, voice 0x2AFB. Then `f_2f8a2(entry)`, and item 0x117 shows
-  bitmap 5100 + G:104C (the current tool's icon).
+- 3: window 9 through `f_2f8b6` (`f_680a4`). Entry 7 (Start Game): G:0EAC = 1, **`f_2f8ac` = `f_6b7d0`** (the
+  yellow ant placed again: `NewGame.PlaceYellow`, health 100, alarm trail off), and on the surface (G:032E == 1)
+  `f_119b4(..., 0xFF)` puts the yellow ant back, `f_03bfd`, voice 0x2AFB. Then `f_2f8a2(choice)` (G:104C = 7
+  after Start Game), and the open Edit / Map windows' buttons (items 7 / 0x117) get bitmap 5100 + G:104C
+  (`f_25ca8`).
+- Checked in the emulator 2026-11-01: `test_experimental.py` (enter, then start, in eight contexts, byte for byte).
 
 ### The Ant Info window (window 29, `f_67c1c(a, b, view)` via thunk 0x2f8fc, map tool 0)
 
