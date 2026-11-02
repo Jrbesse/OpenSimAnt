@@ -107,33 +107,75 @@ def harvest620():
 
 
 # ------------------------------------------------------------------------------------------------------ 630
+def _army_ant(cv, ox, oy, s, pose, load):
+    """one army-ant worker marching left, drawn straight in picture pixels (the shared ant model is too thin at this size):
+    (ox, oy) = the body centre at the ground row, s = scale (1.0 = 50 px from the jaw tips to the gaster tip).  No eye; the head is
+    the biggest part (a little wider than tall, white) with two long hooked black mandibles reaching well past it, a narrower and
+    longer white thorax, a small black waist node, a black gaster with one white glint, five long walking legs (the far ones
+    dashed); load = None / 'larva' / 'prey' held in the jaws, in front of the head."""
+    def P(p, y=None):
+        x, y = p if y is None else (p, y)
+        return (ox + x * s, oy + y * s)
+
+    def pl(pts, v=1, dash=None):
+        cv.pline([P(p) for p in pts], v, dash)
+    by = -19.0                                  # the body axis, above the ground row
+    hip = by + 3.0
+    if pose == 'a':
+        near = [[(-5, hip), (-10, -9), (-13, 0)], [(-1, hip), (2, -9), (-1, 0)], [(3, hip), (9, -9), (12, 0)]]
+        far = [[(-4, hip), (-7, -8), (-6, 0)], [(4, hip), (6, -8), (15, 0)]]
+    else:
+        near = [[(-5, hip), (-8, -9), (-8, 0)], [(-1, hip), (0, -9), (-5, 0)], [(3, hip), (7, -9), (14, 0)]]
+        far = [[(-4, hip), (-11, -9), (-15, 0)], [(4, hip), (9, -9), (8, 0)]]
+    for leg in far:                                 # far legs: dashed
+        pl(leg + [(leg[-1][0] - 2, leg[-1][1])], 1, (2, 2))
+    for leg in near:
+        pl(leg + [(leg[-1][0] - 2, leg[-1][1])], 1)
+    # back to front: gaster (black), waist and node, thorax, head, mandibles
+    cv.ell(*P((13.5, by + 0.5)), 5.9 * s, 4.6 * s, K_, 1, n=20)
+    cv.put(*P((11.5, by - 2)), 0)
+    cv.put(*P((12.5, by - 2.5)), 0)
+    pl([(4.5, by + 0.5), (8, by + 0.5)], 1)
+    cv.ell(*P((6.2, by - 1.4)), 1.2 * s, 1.5 * s, K_, 1, n=8)           # the waist node
+    cv.poly([P(p) for p in ((-6.5, by - 1.5), (-4.5, by - 3), (0, by - 3.2), (3, by - 2), (4.5, by + 0.3), (3, by + 2.5), (-3, by + 3), (-6, by + 2.2))],
+            W_, 1, smooth=4)
+    cv.ell(*P((-12.5, by + 0.3)), 6.6 * s, 5.4 * s, W_, 1, n=22)       # the head: biggest part, no eye
+    # two long hooked black mandibles (sickles that cross at the tips: the upper hooks down, the lower hooks up)
+    cv.poly([P(p) for p in ((-18, by - 1.2), (-23, by - 3.2), (-28, by - 1.2), (-30.5, by + 3.2), (-27.5, by + 1.6), (-23, by - 0.2), (-18, by + 1.5))], K_, 1)
+    cv.poly([P(p) for p in ((-18, by + 3.4), (-23, by + 5.8), (-28, by + 4.4), (-30.5, by + 0.6), (-27.5, by + 2.6), (-23, by + 3.2), (-18, by + 1.8))], K_, 1)
+    # short elbowed antennae
+    pl([(-15, by - 5), (-18, by - 8.5), (-22, by - 8.5)])
+    pl([(-12, by - 5.3), (-13.5, by - 9.5), (-17.5, by - 11.5)], 1, (2, 1))
+    mx, my = P((-30, by + 3.2))
+    if load == 'larva':                       # a pale grub: a white curved oval with its segment lines and a head dot
+        lx, ly = mx - 3.2, my + 1.5
+        cv.ell(lx, ly, 4.0, 2.5, W_, 1, rot=0.3, n=16)
+        for k in (-1, 1):
+            cv.line((lx + k * 1.3 - 0.4, ly - 1.8 + 0.3 * k), (lx + k * 1.3 + 0.2, ly + 1.8 + 0.3 * k), 1)
+        cv.put(lx - 2.6, ly - 0.2, 1)
+    elif load == 'prey':                      # a piece of prey: a mid-tone oval with a groove and dangling legs
+        lx, ly = mx - 3.6, my + 1.2
+        cv.ell(lx, ly, 4.2, 2.8, MD, 1, n=14)
+        cv.line((lx - 3.6, ly), (lx + 3.6, ly), 0)
+        for k in (-2, 0, 2):
+            cv.line((lx + k, ly + 2.8), (lx + k - 1, ly + 5.5), 1)
+
+
 def army630():
+    """a double file of five army ants marching left: a back rank of two smaller ants above a dotted ground line, a front rank of
+    three on a solid 2 px ground line; every ant is a separate silhouette (3 px gaps); one ant carries prey, two carry a larva"""
     cv = Cv(112, 65, 'SHARED_630')
-    sp_n = dict(hs=1.25, leg=1.25, eye=False, mand='open', ant=0.6, gh=0.9, gl=0.9)
-    gf, gn = 31, 60
-    for x in range(0, 112, 6):
-        cv.put(x, gf + 1, 1)
-    for i in range(3):
-        cx = 22 + i * 36
-        A.on_ground(cv, sp_n, 20, cx, gf)
-        if i == 1:
-            ox, oy = cx, gf - A.feet_y(sp_n, 20)
-            mx, my = A.mouth(20, ox, oy)
-            I.larva(cv, mx - 3, my + 1, 1.2, False, 0.8)
-    cv.rect(0, gn + 1, 112, gn + 3, K_, None)
-    for i in range(4):
-        cx = 20 + i * 25
-        sp = dict(sp_n, pose='stand') if i % 2 else sp_n
-        A.on_ground(cv, sp, 28, cx, gn)
-        ox, oy = cx, gn - A.feet_y(sp, 28)
-        mx, my = A.mouth(28, ox, oy)
-        if i == 1:
-            I.larva(cv, mx - 5, my + 1, 1.8, False, 0.8)
-        if i == 3:
-            cv.ell(mx - 5, my + 2, 5, 3.2, MD, 1, n=12)
-            for k in (-3, 0, 3):
-                cv.line((mx - 5 + k, my + 5), (mx - 5 + k - 1, my + 7), 1)
-    return cv, 'army ants on the march: two files of big-headed, long-legged workers, some carrying larvae or prey'
+    gb, gf = 33, 60
+    for x in range(1, 112, 4):
+        cv.put(x, gb + 1, 1)
+    _army_ant(cv, 44, gb, 0.6, 'b', 'larva')
+    _army_ant(cv, 92, gb, 0.6, 'a', None)
+    cv.rect(0, gf + 1, 112, gf + 3, K_, None)
+    for x in (10, 33, 62, 85, 104):
+        cv.put(x, gf + 4, 1)
+    for cx, pose, load in ((20, 'a', None), (58, 'b', 'larva'), (99, 'a', 'prey')):
+        _army_ant(cv, cx, gf, 0.62, pose, load)
+    return cv, 'army ants on the march: a double file of five big-headed, long-legged workers, two carrying larvae, one carrying prey'
 
 
 # ------------------------------------------------------------------------------------------------------ 640

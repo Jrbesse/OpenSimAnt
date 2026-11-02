@@ -318,6 +318,13 @@ text rectangles hatched grey, the navigation strip darker, the link rectangles r
 | `ency_p1.py` .. `ency_p5.py` | the five passes (p1 menus and small items, p2 ant bodies and 200, p3 head / antennae / thorax / inside, p4 insects and species, p5 behaviour, life cycles, flowchart) |
 | `ency_check.py` | the assertions; `make_ency_bitmaps.py` the driver; `ency_preview.py` the preview |
 
+`SHARED_630` was redrawn on 2026-11-01 (the first version, three tiny ants over a noisy strip, was too small to read; a second one with overlapping ants
+read as a caterpillar): `ency_p4.py` `army630()` now draws a double file of five army ants marching left (two on a dotted back ground line at scale 0.6, three on a
+solid 2 px ground line at 0.62, each about 30 px from head to gaster, every ant a separate silhouette with a 2..4 px gap to the next) with a dedicated pixel-space ant,
+`_army_ant()`, because the shared ant model is too thin at this size: the biggest part is a white head with no eye, two long black hooked mandibles reach well past it, then a
+narrower, longer white thorax, a small black waist node, a black gaster with a white glint, three solid legs and two dashed far legs in two alternating walking poses; two ants
+carry a white outlined larva and one a piece of prey (a mid-tone oval with a groove and legs), held in the jaws in front of the head. Every other picture is byte-identical to before.
+
 ## Design
 
 - **Line weights:** every contour is 1 px; the heavier 2-px stroke is used only for ground lines, femurs, the antennae's scape / funiculus and
