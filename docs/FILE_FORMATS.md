@@ -136,7 +136,7 @@ item record
 
 Every item starts with `f_220e4`: its **colour scheme** is the byte at +26 (+27 when the word at +24 has bit 2),
 an index into the table at G:46E2, which start-up (`f_210d0`) copies from HCEGANT type 0 id 129 (16 schemes of 6
-bytes: foreground, foreground, background, a second background, two bytes not decoded). Fills (`f_22170`) are a
+bytes: foreground, foreground, background, a second background, two bytes the program never reads). Fills (`f_22170`) are a
 50% checker when bytes 2 and 3 differ: byte 3 where x + y is odd, byte 2 where even (the captions' dark / light
 grey, scheme 1); else byte 2 solid (checked on the original's screen, `tools/re/screens.py`).
 The colours are palette indices: e.g. scheme 1 (captions) cyan on dark grey, 3 black on white (fields, lists), 4

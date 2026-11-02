@@ -20,19 +20,19 @@ and add a row to the log. New work found on the way goes into the table as it sh
 | Area | Done | Left (jobs) | What is left |
 |---|---|---|---|
 | A1 asset layer + encoders | layer, launcher, every encoder (bitmaps ... texts, glossary; 2026-11-01 afternoon: layouts, sound bank + effects, songs + cues, engine strings); the export's `include_filter` (done 2026-10-30) | 0 | |
-| A4 bitmaps (252) | all 252 made and checked in the game (2026-11-01 afternoon: yard actors, spider, map actors, SimAntipedia pictures) | 0 | (630 redo: under B polish) |
+| A4 bitmaps (252) | all 252 made and checked in the game (2026-11-01 afternoon: yard actors, spider, map actors, SimAntipedia pictures); evening: 630 (army ants) redrawn | 0 | |
 | A4 layouts (37) | spec `layouts.md`, measured data, encoder, the 12 words (2026-11-01 afternoon) | 0 | |
 | A4 text | strings + menus; texts (53 cards, glossary, pop-ups, prompts) made 2026-11-01 afternoon; all specs and made text at 0 shared runs | 0 | |
-| A4 sound (57 effects, instruments) | spec `sounds.md`, encoder, the 16 FM patches (2026-11-01 afternoon) | 2 | the 35 WAV effects maker; a listening pass on the clean patches / effects (effect 17 ~10x quieter) |
-| A4 music (30 songs, 33 cues) | spec `music.md`, encoder, cues built (2026-11-01 afternoon) | 3 | the 30 songs (2..3 maker batches) |
-| A5 integration | launcher | 3 | CI game with no originals (build.py in release.yml before the export); clean screenshots of every window; similarity review |
+| A4 sound (57 effects, instruments) | spec `sounds.md`, encoder, the 16 FM patches (2026-11-01 afternoon); evening: the 35 effects, the loudness balance (by rendering: fm25 / fm53 / fm54 / fm17 louder) | 0 | (the owner's listening: `remake/build/clean_songs`) |
+| A4 music (30 songs, 33 cues) | spec `music.md`, encoder, cues built (2026-11-01 afternoon); evening: the 30 songs (2 batches), the stings' velocities raised after a render | 0 | |
+| A5 integration | launcher; 2026-11-01 evening: **the clean pack complete** (810 files); release.yml builds it and plays 6 screens on it under xvfb (not yet run on GitHub); 14 windows drawn from the clean pack locally, no errors | 1 | similarity review (and watch the first CI run) |
 | A6 identity | name, rename; title / about pictures; Edit caption; 2026-11-01 afternoon: the audit (no marks in the pack), the engine's own strings an asset (`EXE/engine_strings.json`) | 0 | |
-| B confirm and polish | B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused; afternoon: **B3** (f_0c73d + its missing table), **B5** (the Experimental menu / palette / drag loop: 10 differences fixed, emulator-checked) | 8 | B2, B4, B6, B7 (4); polish: font 3 cramped, sprite legs ragged, house screens tables-vs-EXE, the SimAntipedia picture 630 |
+| B confirm and polish | 2026-11-01 evening: **B2** (tutorial walk, step 46 fixed), **B4** (Ant Info: closes on release), **B6** (hourglass never shown, scheme bytes never read), font 3 and 630 polished; B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused; afternoon: **B3** (f_0c73d + its missing table), **B5** (the Experimental menu / palette / drag loop: 10 differences fixed, emulator-checked) | 4 | the right-click / Shift "act" question (B4 found; the owner decides); B7; polish: sprite legs ragged, house screens tables-vs-EXE |
 | C release | | 5 | public repo, licences, legal review, player README, tagged v1.0.0 |
-| **Total** | | **21** | B1 (the owner's test builds) is the owner's, not counted |
+| **Total** | | **10** | B1 (the owner's test builds) is the owner's, not counted |
 
-Pace so far: 9..13 jobs per 5-hour window with at most 3 agents at once (art makers cost the most), so **about 3 to
-4 sessions** to version 1, plus whatever the reviews find.
+Pace so far: 9..15 jobs per 5-hour window with at most 3 agents at once (art makers and emulator work cost the most),
+so **about 1 to 2 sessions** to version 1, plus whatever the reviews find and the owner's listening / play-test.
 
 | Session | Jobs done | Jobs left | Est. sessions left |
 |---|---|---|---|
@@ -42,6 +42,8 @@ Pace so far: 9..13 jobs per 5-hour window with at most 3 agents at once (art mak
 | 2026-11-01 (end) | 9 (5 agents in parallel: yard passes 3-5, SimAntipedia pictures, texts spec + encoders, 3 engine findings; +1 found and fixed: the glossary; +3 found open: rewording) in ~92% of the window | 32 | 4..5 |
 | 2026-11-01 afternoon (start) | | 32 | 4..5 |
 | 2026-11-01 afternoon (end) | 15 (13 agents, at most 3 at once: bitmaps checked, 3 specs + made text reworded, texts maker, layouts spec / encoder / maker, sound + music specs and encoders, FM patches, A6 audit + engine strings, B3, B5; include_filter ticked; +3 found: music as 2..3 batches, a sound listening pass, 630) in ~85% of the window | 21 | 3..4 |
+| 2026-11-01 evening (start) | | 21 | 3..4 |
+| 2026-11-01 evening (end) | 12 (8 agents, at most 3 at once: sound effects, the 30 songs in 2 batches, the loudness balance, A5's CI step and clean screenshots, 630, font 3, B2, B4, B6; +1 found: the right-click / Shift question) in ~78% of the window | 10 | 1..2 |
 
 ## Where things stand (2026-10-30)
 
@@ -148,7 +150,7 @@ the original files make the clean assets from those specs.
         messages, the tutorial's 57 steps; 6 never-read lists excluded), encoder (round trip of all 119 lists and the
         menus), `src/strings/` + `src/menus/` by an isolated agent (checked in the game). Left: the texts (type 10:
         SimAntipedia cards, save prompts), the glossary and style runs;
-  - [ ] sound effects (57), FM instrument patches, and 30 new songs with their cue list. *2026-11-01 afternoon:* specs sounds.md / music.md, encoders, cues built, the 16 FM patches made (src/sounds/). Left: the 35 WAV effects, the 30 songs, a listening pass.
+  - [x] sound effects (57), FM instrument patches, and 30 new songs with their cue list. *2026-11-01 afternoon:* specs sounds.md / music.md, encoders, cues built, the 16 FM patches made (src/sounds/). *Evening:* the 35 effects, the 30 songs (2 batches), the loudness balanced by rendering; **the clean pack is complete**. Left: the owner's listening.
 - [ ] **A5. Integration.** *The launcher is done (2026-10-30): at every start, "Original look" (the player's copy)
       or "Open assets" (the clean pack, enabled once it exists); `--original` / `--clean` skip it.* Left: a CI job plays games with no original files; screenshots of every
       window with the clean pack; a similarity review of the pack against the originals (by the spec side) before
@@ -162,7 +164,10 @@ the original files make the clean assets from those specs.
 
 - [ ] **B1. The owner's test builds** on Windows / macOS / Linux (run 41019086870) and longer games: fix what
       they find first.
-- [ ] **B2. Walk the tutorial's 56 steps** in the game (by hand or by script).
+- [x] **B2. Walk the tutorial's 56 steps** in the game (by hand or by script). Done 2026-11-01 evening: the box table
+      matches an emulator run of `f_0e4e4` (56 steps; `TutorialWalkTests.cs` walks them on the real SimStep, both nests);
+      fixed step 46 (never advanced: the population graphs' hold must set G:1074, `f_7179d`), the missing picture's 1 x 1
+      box, and a message box now ends the tick loop (`f_71b1a` blocks). The Godot input of each step is not scripted.
 - [x] **B3. A possible crash:** `World.SpiderDropFood` threw for a beaten spider over house furniture
       (`f_0c73d` was not ported). Done 2026-11-01: `f_0c73d` ported (`world._spider_food_on_furniture`,
       `World.SpiderFoodOnFurniture`): the path is reachable (house, surface tile 0x27..0x3f). Checked in the emulator:
@@ -171,8 +176,10 @@ the original files make the clean assets from those specs.
 - [x] **A hang found 2026-10-30** (by the `--deps` runs): a patch seed of 0 (1 in 32,767, in the original too)
       froze the random generator and hung the terrain generator. Fixed as a marked DIVERGENCE (SIM_NOTES, "New
       game", SetupPatch).
-- [ ] **B4. Ant Info on a held click:** the remake opens it; whether the original does is unconfirmed (the
-      emulator capture never showed it, HANDOFF "Where this stopped").
+- [x] **B4. Ant Info on a held click:** done 2026-11-01 evening, emulator-confirmed: a left press held 6 ticks on a
+      non-yellow ant or brood opens it, and it closes on release (`f_202b8`; the shell waited for a click: fixed);
+      `screens.py` antinfo / antinfo_gone pixel-identical. **Found:** only a double click "acts" in the Edit window
+      (event +7 & 0x60); the shell also acts on a single right click or Shift+click: the owner decides (HANDOFF).
 - [x] **B5. Handler audit:** the Experimental menu `f_67010` (and its twin for the Edit window's button,
       `f_67a24`) and the map tools' drag loop `f_76f4a` against the shell. Done 2026-11-01, read from the code
       (`adis.py` / `decomp.py`, SIM_NOTES "The tool palette", "Map tools") and checked against the original in the
@@ -187,8 +194,9 @@ the original files make the clean assets from those specs.
       identical; in `record_all.sh`); the tool functions themselves were already covered by `test_tools.py`. Emulator
       captures of the palette, its option palettes and the Edit button's palette match the remake pixel for pixel
       but for the mouse cursor. Left as DIVERGENCEs: the 6-tick double-click wait before the loop starts.
-- [ ] **B6. Screen details:** the hourglass cursor; the colours of message boxes and scenes (window 26) on a real
-      screen; the two undecoded bytes of each colour scheme.
+- [x] **B6. Screen details:** the hourglass cursor (never shown by the original: its one cursor load asks for id 4,
+      which does not exist); the two undecoded bytes of each colour scheme (never read). Done 2026-11-01 evening by
+      code reading. Not checkable here: the colours of message boxes and scenes (window 26) on a real screen.
 - [ ] **B7. Audio fidelity:** compare `OpenSimAnt.Replay --songs` with DOSBox; the sample / FM balance
       (`SoundMixer.SampleGain`). Not modelled: AdLib mode.
 - Accepted differences (not bugs): capture diffs from animation / redraw timing; the marked DIVERGENCEs in the

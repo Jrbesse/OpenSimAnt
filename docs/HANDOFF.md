@@ -1,11 +1,54 @@
 # Handoff: SimAnt reverse engineering and reference port
 
 Snapshot of where things stand, written so a fresh Claude Code session can continue without re-reading the
-old transcript. Last updated 2026-11-01 afternoon (text, layouts and every encoder done, B3; only the sounds left in the pack; see the first dated entry). Before that 2026-11-01 (all bitmaps made, the texts spec, the glossary fix). Before that 2026-10-31, evening (specs for all remaining bitmaps, the strings, the screens; burn-down in ROADMAP; see the first dated entry). Before that 2026-10-31 afternoon (fonts and all 74 UI bitmaps by subagents). Before that 2026-10-31 (map tiles and ant sprites by subagents). Before that 2026-10-30, end of the 10-29 night session (the window layout solver f_25595; the long-run
+old transcript. Last updated 2026-11-01 evening (**the clean pack complete**: sound effects and the 30 songs; A5's CI step; B2, B4; see the first dated entry). Before that 2026-11-01 afternoon (text, layouts and every encoder done, B3). Before that 2026-11-01 (all bitmaps made, the texts spec, the glossary fix). Before that 2026-10-31, evening (specs for all remaining bitmaps, the strings, the screens; burn-down in ROADMAP; see the first dated entry). Before that 2026-10-31 afternoon (fonts and all 74 UI bitmaps by subagents). Before that 2026-10-31 (map tiles and ant sprites by subagents). Before that 2026-10-30, end of the 10-29 night session (the window layout solver f_25595; the long-run
 check: no divergence in 200,000 ticks; test builds for Windows / macOS / Linux; 38 screen captures identical but for
 timing; the owner's first play-test: it plays like the original). Before that, 2026-10-24: the remake's screens
 compared with the original's on the same game State (24 captures, 21 pixel-identical, the other 3 off by redraw timing);
 2026-10-20: the original's screens through a VGA model in the emulator, and the handler audit.
+
+**2026-11-01 evening: the clean pack is complete (810 files), so the game runs with no original files; B2 and B4
+done (Sonnet agents, at most 3 at once, Opus reviewing).**
+- **Sound effects** (isolated Sonnet, `src/sounds/make_sounds.py`): the 35 `sfx_<id>.wav`, lengths and peaks as the
+  table, no SNR warnings; `preview.wav` has them all in a row.
+- **The 30 songs** (two isolated Sonnet batches in parallel: A = 10001, 10006..10010; B = the ambient themes and the
+  22 short pieces; `src/music/make_music.py` runs both). Rendered with `OpenSimAnt.Replay --songs <clean_pack.zip>
+  remake/build/clean_songs`: lengths right, but the solo stings were 4..10x quieter than the full pieces, so (notes
+  sent back to the maker, numbers from the clean renders only) their velocities went to 105..127 and the patches fm53
+  (chords), fm54 (pluck), fm25 (lead) and fm17 (the dig sound) were made louder: song peaks now 3.4k..12.9k (the
+  original's 1.7k..10.4k), fx 17 ~1.8x quieter than the original's (was ~10x). **Nobody has listened yet**: the owner
+  should play `remake/build/clean_songs/*.wav` (rebuild with the command above) and the game on `--clean`.
+- **A5:** `release.yml` now runs `python tools/clean_pack/build.py` before the export and plays six screens on the
+  clean pack under `xvfb-run` (no original files on the runner; artifact `clean-screens`; fails on an exception or "is
+  missing"). **Not yet run on GitHub** (nothing pushed this session): watch the first run. Locally 14 windows drawn from
+  the clean pack, no errors. `clean_pack.zip` is now a build product (`.gitignore`; remake/README).
+- **Polish:** SimAntipedia picture 630 redrawn (isolated, two review rounds: five separate army ants with a larva and
+  prey; acceptable, the black jaws mirror the black gaster a little); font 3 redrawn by hand (a 1-pixel gap, open
+  counters, & % ~ { } @ # $; checked in the population report).
+- **B2 (the tutorial walked):** the box table (lists, pictures) matches an emulator run of f_0e4e4 on all 56 steps
+  (`TutorialWalkTests.cs` walks them on the real SimStep for both nests). Fixed: **step 46 could never advance** (holding
+  the population graphs must set G:1074, f_7179d's first act); a missing picture (17014) sizes the box 1 x 1 (f_20d09);
+  a message box now ends `GameSession.Advance`'s tick loop (f_71b1a blocks the tick). `--tutorial-boxes` logs every box.
+  Not scripted: the Godot mouse / key input of each step.
+- **B4 (Ant Info on a held click), emulator-confirmed:** a left press held 6 ticks on a non-yellow ant or brood opens it
+  (brood is in the occupancy grid; the 10-29 attempts failed because workers walked off before the handler ran, and
+  overlay hooks at flat + base do fire); **it closes on release** (f_202b8, 2-tick grace f_2029f): the shell kept it
+  until the next click, fixed (`AntInfoPoll`); value lines in the scheme colours. `screens.py` captures antinfo /
+  antinfo_gone: 0 pixels differ. **Open, for the owner:** in the original only a **double click** (either button,
+  event byte +7 & 0x60) "acts" in the Edit window; a single right click or Shift+click is a plain click (walk, or Ant
+  Info when held). The shell's `EditMapClick` treats Right / Shift as act too (Main.cs `bool act = ...`). Making it
+  faithful changes controls the owner has played with: ask first.
+- **B6 (code reading):** the original **never shows the hourglass**: its only cursor load, f_1b3a9, is called once at
+  start-up (0x74bc0) with id 4, which does not exist, so it returns without installing anything (DS:3D10..3D1F stay 0
+  after boot; f_1b44b, the twin for the DS:3D18 pair, has no callers; no int 33h call sets a shape): the arrow is the
+  mouse driver's own, the shell's 8/0 a stand-in; nothing to add. **Bytes +4 / +5 of each colour scheme are never
+  read** (every reference to G:46E2 and the DS:8CEE pointer reads +0..+3; FILE_FORMATS updated). Left of B6: the
+  message boxes' and scenes' colours on a real screen (needs real hardware; not counted).
+- Housekeeping: `tools/re/build_flat.py` run from the repo root writes `build/` there (original-derived, not ignored):
+  run it from `tools/re` or delete the folder after.
+**Next:** the owner listens (songs, effects) and plays on `--clean`; push and watch the release workflow's clean run;
+the right-click / Shift question above; B6 leftovers, B7, the similarity review (A5), polish (sprite legs, house
+screens tables-vs-EXE), then C (licences, player README, the release).
 
 **2026-11-01 afternoon: text and layouts finished, every encoder done, B3 fixed; the clean pack lacks only the sounds
 (Sonnet / Haiku agents, at most 3 at once, Opus reviewing).**
@@ -571,9 +614,9 @@ are all in the roadmap.
    shell's switch. Effects the sim emits that the shell still ignores on purpose: redraws, "anim_timer", "music" 0 / 1
    (`f_00ed0` is empty), "joke" (`f_0125f` is empty), "yard_map" (a Map redraw), "scroll" (the spider player: follow).
 3. Tutorial: walk all 56 steps by hand or by script (message boxes now close after 15 s, as in the original).
-4. Open screen details: the hourglass cursor (id 1) is never shown (the shell has no slow operations); the scenes'
+4. Open screen details: the hourglass cursor (id 1) is never shown, by the original either (2026-11-01 evening, B6); the scenes'
    (window 26) and message boxes' (f_71b1a) colours are not checked on a real screen (the yellow ant's death box was
-   not on screen at the polls tried: they run on the clock); the two undecoded bytes of each colour scheme. (Done: the
+   not on screen at the polls tried: they run on the clock); the two undecoded bytes of each colour scheme are never read (B6). (Done: the
    XOR fill, index ^ 15; the library alerts' colours and geometry.)
 5. **Audio fidelity** (unchanged): listen to `OpenSimAnt.Replay --songs` against DOSBox; the DAC / FM balance
    (`SoundMixer.SampleGain`). Not modelled: AdLib mode.
