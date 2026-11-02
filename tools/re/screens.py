@@ -19,6 +19,7 @@ from emu import SimEmu  # noqa: E402
 from vga import VGA  # noqa: E402
 
 
+SIM = 0x3e1d
 LO, HI = 0x3d570, 0x62000                         # simant_ref.state: the State's memory
 
 
@@ -174,9 +175,9 @@ def main():
         click(e, 600, 470)                            # (the menu can stay open after the release: a click closes it)
     else:
         print('   (the yellow ant is not in the Edit window: no popup capture)')
-    # (Ant Info, tried 2026-10-29 and taken out: holds on brood, the queen, a walking worker and a worker made to rest
-    # (SIM:B8F7 + i = 13), captured while held and after the release, never showed window 29 in the original; see the
-    # handoff. The ant lists: simant_ref.player.ANTS[2], x SIM:B50D, y SIM:B702, type SIM:BAEC, count G:0DA8.)
+    ant_info(e, v, out)
+    # (Ant Info: the 2026-10-29 attempts never saw window 29; it does show, see ant_info below. The ant lists:
+    # simant_ref.player.ANTS[2], x SIM:B50D, y SIM:B702, type SIM:BAEC, count G:0DA8.)
     # (tried 2026-10-29: the yellow ant starved (G:0F78 = T:0C16 = 0) dies and takes over a worker within 400 polls, but
     # its death box / scene was not on screen at 400 / 800 / 1600 polls: they run on the clock and time out)
     # the Experimental game: File > New, DON'T SAVE, then Experimental in Select a Game
@@ -210,6 +211,54 @@ def main():
     run(e, 300, 600_000_000)
     shot(e, v, os.path.join(out, 'gameover.png'))
     print('wrote', out)
+
+
+def ant_info(e, v, out):
+    """Ant Info (ROADMAP B4, checked 2026-11-01): press and hold the left button on an ant of the black nest (a queen
+    first: she stays put; else brood, which is in the occupancy grid too) in the Edit window. f_74fe0 waits 6 clock
+    ticks, f_0122c says the button is still down, and f_2f8fc (= f_67c1c at its loaded address) opens window 29 over
+    the cell; it stays while the button is held (the game does not run) and goes at the release. Captures
+    antinfo (held) and antinfo_gone (after the release), with antinfo.cell for compare_screens.py."""
+    choose(e, 160, VIEW_BLACK)
+    click(e, 300, 33)                             # the Edit window to the front
+    e.mouse_event(1, 600, 470, 0)
+    run(e, 150, 300_000_000)
+    ox, oy = s16(e.w16(0x50f6, 0x508)), s16(e.w16(0x50f6, 0x50a))
+    cells = []
+    for i in range(22):
+        for j in range(21):
+            a, b = ox + i, oy + j
+            if 0 <= a < 64 and 0 <= b < 64:
+                o = e.read(SIM, 0x8180 + a * 64 + b, 1)[0]
+                if o and o not in (0xfe, 0xff):
+                    cells.append((a, b, o))
+    cells.sort(key=lambda c: (c[2] & 0x78) != 0x60)
+    print('   Ant Info: occupied cells', cells[:6])
+    for a, b, o in cells[:4]:
+        x, y = 64 + (a - ox) * 16 + 8, 41 + (b - oy) * 16 + 8
+        e.mouse_event(1, x, y, 0)
+        e.mouse_event(2, x, y, 1)
+        run(e, 200, 300_000_000)
+        now = e.read(SIM, 0x8180 + a * 64 + b, 1)[0]
+        print(f'   Ant Info: hold on cell ({a}, {b}) at ({x}, {y}): occupant {o:#x} -> {now:#x}')
+        if now == o:                              # still there: the window is up (the game is frozen inside it)
+            shot(e, v, os.path.join(out, 'antinfo.png'))
+            with open(os.path.join(out, 'antinfo.cell'), 'w') as f:
+                f.write(f'{a},{b}')
+            with open(os.path.join(out, 'antinfo.at'), 'w') as f:
+                f.write(f'{x},{y}')
+        e.mouse_event(4, x, y, 0)
+        run(e, 150, 300_000_000)
+        if now == o:
+            shot(e, v, os.path.join(out, 'antinfo_gone.png'))
+            with open(os.path.join(out, 'antinfo_gone.at'), 'w') as f:           # the mouse is still where it was released
+                f.write(f'{x},{y}')
+            e.mouse_event(1, 600, 470, 0)
+            run(e, 100, 300_000_000)
+            return
+        e.mouse_event(1, 600, 470, 0)
+        run(e, 100, 300_000_000)
+    print('   (no steady ant found in the Edit window: no Ant Info capture)')
 
 
 def save_captures(e, v, out):

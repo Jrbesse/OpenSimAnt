@@ -231,10 +231,7 @@ public partial class Main : Node2D
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--message=") && session.Files.Strings(int.Parse(arg["--message=".Length..])) is { } box)
                 OpenMessageBox(box);                                        // --message=<STR# id>: show a message box
-        if (OS.GetCmdlineUserArgs().Contains("--ant-info")) { var (_, ya, yb) = session.Yellow; SetView(session.Yellow.view); CenterOnYellow(); OpenAntInfo(ya, yb); }
-        foreach (var arg in OS.GetCmdlineUserArgs())                            // --ant-info=a,b: held on the ant in cell (a, b)
-            if (arg.StartsWith("--ant-info=") && arg["--ant-info=".Length..].Split(',') is { Length: 2 } ai)
-                OpenAntInfo(int.Parse(ai[0]), int.Parse(ai[1]));
+        if (OS.GetCmdlineUserArgs().Contains("--tutorial-boxes")) TutorialBoxes();   // every tutorial step's box: id, picture, rectangle
         if (OS.GetCmdlineUserArgs().Contains("--strat")) session.St.Set16(Seg.G, 0x35c, 2);
         foreach (var arg in OS.GetCmdlineUserArgs())                            // --yard-view=n: 0 Yard, 1 House, 2 Strat, 3 Graphic
             if (arg.StartsWith("--yard-view=")) session.St.Set16(Seg.G, 0x35c, int.Parse(arg["--yard-view=".Length..]));
@@ -270,6 +267,10 @@ public partial class Main : Node2D
         }
         if (screenshotSpider) { SetView(1); CenterOn(session.St.S16(Seg.G, 0xf12) >> 4, session.St.S16(Seg.G, 0xf34) >> 4); follow = false; }
         if (patchCentre is var (pca, pcb)) { SetView(1); CenterOn(pca, pcb); follow = false; }
+        if (OS.GetCmdlineUserArgs().Contains("--ant-info")) { var (_, ya, yb) = session.Yellow; SetView(session.Yellow.view); CenterOnYellow(); OpenAntInfo(ya, yb); }
+        foreach (var arg in OS.GetCmdlineUserArgs())                            // --ant-info=a,b (after the --state view and origin): held on the ant in cell (a, b)
+            if (arg.StartsWith("--ant-info=") && arg["--ant-info=".Length..].Split(',') is { Length: 2 } ai)
+                OpenAntInfo(int.Parse(ai[0]), int.Parse(ai[1]));
         foreach (var arg in OS.GetCmdlineUserArgs())
             if (arg.StartsWith("--map-content="))                           // --map-content=n: the Map window shows T:07C8 = n
                 session.St.Set16(Seg.T, 0x7c8, int.Parse(arg["--map-content=".Length..]));
@@ -416,6 +417,7 @@ public partial class Main : Node2D
     public override void _Process(double delta)
     {
         if (session == null) { ShotPoll(); return; }                       // the setup screen
+        if (modal == AntInfoWin) AntInfoPoll(delta);
         if (session.Hooks.YardMapWanted)                                   // the yellow ant died: pick a colony
         {
             session.Hooks.YardMapWanted = false;
@@ -1531,7 +1533,7 @@ public partial class Main : Node2D
                 break;
             }
             case 18: DebugCommands.RandomAction(st); break;                              // the Mystery Button (f_022bc)
-            case >= 24 and <= 30: popReport = true; break;                               // held: the population report
+            case >= 24 and <= 30: st.Set16(Seg.G, 0x1074, 1); popReport = true; break;   // held: the population report (f_7179d: G:1074 = 1; the tutorial's step 46 waits for it)
             case 19: Front(HistoryWin); break;                                           // 0x113 → f_792c7: f_21336(0x1500)
             case 20: OpenEfficiency(); break;
             case 22: st.Set16(Seg.G, 0x1074, 1); help = helpHeld = true; break;         // ?: G:1074 = 1, f_714ab(0x103) while held
@@ -2103,14 +2105,52 @@ public partial class Main : Node2D
     /// (layout 30) at that rectangle: f_21336 re-lays its items (UiArt.Relayout), the 3D frame 5 / 4 px outside,
     /// the fill 2 px inside, "Click here to continue" in (l + 2, b - 13, r - 1, b - 2). The picture (HCEGANT bitmap,
     /// the tutorial's 17000..) is centred at the top, then each line (f_20983) in a font-height row from there.</summary>
-    void DrawMessageBox(UiArt.Canvas c)
+    (int l, int t, int r, int b, int pw, int ph, int lineH) MessageBoxGeometry(string[] lines, int picture)
     {
         var f = ui.Font(4) ?? ui.Font(2);
-        var (pw, ph, _) = boxPicture != 0 ? ui.Bitmap(boxPicture) : (0, 0, null);
-        int lineH = f.Height, n = boxLines.Length;
-        int w = Math.Max(0x32, boxLines.Select(f.Width).DefaultIfEmpty(0).Max()) + 8;
+        var (pw, ph, _) = picture != 0 ? ui.Bitmap(picture) : (0, 0, null);
+        if (picture != 0 && ph == 0) pw = ph = 1;                             // f_20d09: a missing bitmap (the tutorial's 17014) is 1 x 1
+        int lineH = f.Height, n = lines.Length;
+        int w = Math.Max(0x32, lines.Select(f.Width).DefaultIfEmpty(0).Max()) + 8;
         int h = (ph > 0 ? ph + 2 : 0) + n * lineH + 8;
-        int t = (ScreenH - h) / 2, l = (ScreenW - w) / 2, r = l + w, b = t + h;
+        int t = (ScreenH - h) / 2, l = (ScreenW - w) / 2;
+        return (l, t, l + w, t + h, pw, ph, lineH);
+    }
+
+    /// <summary>--tutorial-boxes (B2): runs Tutorial.Run on each step 1..56 (55 for both nests) and logs the box it
+    /// shows: the string list, the picture, the rectangle f_71bb6 would give it, and whether it fits the screen.</summary>
+    void TutorialBoxes()
+    {
+        var st = session.St;
+        for (int step = 1; step <= 56; step++)
+            foreach (int nest in step == 55 ? new[] { 0, 1 } : new[] { 0 })
+            {
+                st.Set16(Seg.T, 0x7a4, step);
+                st.Set16(Seg.T, 0x7a6, 0);
+                st.Set16(Seg.T, 0x7a2, 7);                                   // the next call is an 8th one: it shows the step
+                st.Set16(Seg.G, 0x1074, nest);                               // step 55 shows 0x2B64 / 0x2B66 by it
+                session.Hooks.Effects.Clear();
+                Tutorial.Run(st);
+                var boxes = session.Hooks.Effects.Where(e => e.Name == "message_box").ToList();
+                if (boxes.Count != 1) GD.Print($"tutorial step {step}: {boxes.Count} boxes");
+                foreach (var e in boxes)
+                {
+                    int id = Convert.ToInt32(e.Args[0]), pic = e.Args.Length > 2 ? Convert.ToInt32(e.Args[2]) : 0;
+                    var lines = session.Files.Strings(id);
+                    if (lines == null) { GD.Print($"tutorial step {step}: list {id} MISSING"); continue; }
+                    lines = lines.Select(x => x.Replace("\n", " ")).ToArray();
+                    var (l, t, r, b, _, ph, _) = MessageBoxGeometry(lines, pic);
+                    bool fits = l >= 0 && t >= 0 && r <= ScreenW && b <= ScreenH;
+                    GD.Print($"tutorial step {step}: list {id} picture {pic} ({(pic != 0 && ui.Bitmap(pic).w == 0 ? "missing" : "ok")}) lines {lines.Length} "
+                             + $"box ({l}, {t}, {r}, {b}){(fits ? "" : " DOES NOT FIT")}");
+                }
+            }
+        session.Hooks.Effects.Clear();
+    }
+
+    void DrawMessageBox(UiArt.Canvas c)
+    {
+        var (l, t, r, b, pw, ph, lineH) = MessageBoxGeometry(boxLines, boxPicture);
         ui.DrawLayout(c, ui.Relayout(30, (l, t, r, b)));
         int y = t;
         if (ph > 0)
@@ -3233,6 +3273,23 @@ public partial class Main : Node2D
         y = Math.Clamp(y, 0, ScreenH - h);
         antInfoOff = (x - l, y - t);
         modal = AntInfoWin;
+        antInfoGrace = 2 / GameSession.ClockHz;                                    // f_2029f: the grace of 2 clock ticks
+        antInfoSeen = false;
+    }
+
+    // f_67c1c's wait (f_2029f / f_202b8, checked against the original in the emulator 2026-11-01): the game does not
+    // run while the window is up. Confirmed: a left press held on an ant (or brood) for 6 ticks opens it, with any
+    // of Shift / Ctrl / Alt down (they do not change the event); it closes when the button that is down is released
+    // (the Edit window's hold), and a hold released within the grace of 2 ticks (or a window opened with no button
+    // down) waits for the next click: its press and release. A right press never opens it (f_0122c must be 1).
+    double antInfoGrace;
+    bool antInfoSeen;
+
+    void AntInfoPoll(double delta)
+    {
+        if (antInfoGrace > 0) { antInfoGrace -= delta; return; }
+        if (Input.IsMouseButtonPressed(MouseButton.Left) || Input.IsMouseButtonPressed(MouseButton.Right)) antInfoSeen = true;
+        else if (antInfoSeen) modal = -1;                                          // f_214b5
     }
 
     void DrawAntInfo(UiArt.Canvas c)
@@ -3240,8 +3297,10 @@ public partial class Main : Node2D
         ui.DrawWindow(c, AntInfoWin, antInfoOff.dx, antInfoOff.dy, null);
         for (int i = 0; i < 3; i++)
         {
-            var (l, t, r, b) = ui.Layouts[AntInfoWin].Items[2 + i].Rect;
-            ui.DrawText(c, 2, 0, l + antInfoOff.dx, t + antInfoOff.dy, r + antInfoOff.dx, b + antInfoOff.dy, antInfoLines[i]);
+            var it = ui.Layouts[AntInfoWin].Items[2 + i];
+            var (l, t, r, b) = it.Rect;
+            var (fg, bg) = ui.SchemeOf(it);                                        // f_23943 in the item's own colours
+            ui.DrawValue(c, 2, l + antInfoOff.dx, t + antInfoOff.dy, r + antInfoOff.dx, b + antInfoOff.dy, antInfoLines[i], fg, bg);
         }
     }
 
@@ -4076,6 +4135,11 @@ public partial class Main : Node2D
             if (modal == AboutWin)
             {
                 AboutEvent();
+                return;
+            }
+            if (modal == AntInfoWin)                                            // f_202b8: its release ends it (AntInfoPoll)
+            {
+                if (antInfoGrace <= 0) antInfoSeen = true;
                 return;
             }
             if (modal >= 0)                                                     // a click closes the modal window

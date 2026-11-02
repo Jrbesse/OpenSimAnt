@@ -52,6 +52,8 @@ FLAGS = {
     'menu_speed': ['--history', '--panels', '--antipedia', '--map-front', '--menu=4', '--cursor=322,8'],
     'editfront': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front'],
     'popup': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--popup=@'],  # @: popup.at
+    'antinfo': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--ant-info=#'],  # #: antinfo.cell
+    'antinfo_gone': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front'],
     'newselect': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--select'],
     'exp': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--start-windows'],
     'expmenu': ['--history', '--panels', '--antipedia', '--map-front', '--edit-front', '--start-windows', '--map-front',
