@@ -12,6 +12,8 @@ public class SessionHooks : PlayerHooks
 {
     public readonly Queue<SimEffect> Effects = new();
     public bool GameOverShown, WinShown, YardMapWanted;
+    /// <summary>Message boxes raised so far (GameSession.Advance stops its tick loop at one: f_71b1a blocks the tick).</summary>
+    public int Boxes;
 
     public override void GameOver(State st)
     {
@@ -50,6 +52,7 @@ public class SessionHooks : PlayerHooks
         }
         else if (name is "anim_frame" or "anim_end") return;
         if (Markers.IsMarker(name) && args.Length == 3) Markers.Record(st, name, (int)args[0], (int)args[1], (int)args[2]);
+        if (name == "message_box") Boxes++;
         if (Effects.Count < 4096) Effects.Enqueue(new SimEffect(name, args));
     }
 }
@@ -202,10 +205,12 @@ public sealed class GameSession
             nextTick = now + (delay < 0 ? 0 : Math.Max(delay, FastDelay));
             if (St.U16(G, 0x47e) == 0 || (St.U16(G, 0xaa0) != 0 && St.S16(G, 0x105e) < 10))
             {
+                int boxes = Hooks.Boxes;
                 global::OpenSimAnt.Sim.Sim.SimStep(St);
                 Balloons.Run(St);
                 Ticks++;
                 steps++;
+                if (Hooks.Boxes != boxes) break;                       // a message box blocks the tick loop (f_71b1a)
             }
         }
         if (St.Clock3() >= nextTick) nextTick = St.Clock3();      // fell behind: don't try to catch up
