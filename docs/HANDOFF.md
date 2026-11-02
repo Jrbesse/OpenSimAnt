@@ -44,6 +44,8 @@ done (Sonnet agents, at most 3 at once, Opus reviewing).**
   mouse driver's own, the shell's 8/0 a stand-in; nothing to add. **Bytes +4 / +5 of each colour scheme are never
   read** (every reference to G:46E2 and the DS:8CEE pointer reads +0..+3; FILE_FORMATS updated). Left of B6: the
   message boxes' and scenes' colours on a real screen (needs real hardware; not counted).
+- **The house screens tables-vs-EXE:** all 26 house patches (`--original --seed=1234 --patch=N --ticks=300`, with and
+  without `--exe-state`) pixel-identical.
 - Housekeeping: `tools/re/build_flat.py` run from the repo root writes `build/` there (original-derived, not ignored):
   run it from `tools/re` or delete the folder after.
 **Next:** the owner listens (songs, effects) and plays on `--clean`; push and watch the release workflow's clean run;

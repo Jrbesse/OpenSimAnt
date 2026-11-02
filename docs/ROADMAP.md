@@ -27,9 +27,9 @@ and add a row to the log. New work found on the way goes into the table as it sh
 | A4 music (30 songs, 33 cues) | spec `music.md`, encoder, cues built (2026-11-01 afternoon); evening: the 30 songs (2 batches), the stings' velocities raised after a render | 0 | |
 | A5 integration | launcher; 2026-11-01 evening: **the clean pack complete** (810 files); release.yml builds it and plays 6 screens on it under xvfb (not yet run on GitHub); 14 windows drawn from the clean pack locally, no errors | 1 | similarity review (and watch the first CI run) |
 | A6 identity | name, rename; title / about pictures; Edit caption; 2026-11-01 afternoon: the audit (no marks in the pack), the engine's own strings an asset (`EXE/engine_strings.json`) | 0 | |
-| B confirm and polish | 2026-11-01 evening: **B2** (tutorial walk, step 46 fixed), **B4** (Ant Info: closes on release), **B6** (hourglass never shown, scheme bytes never read), font 3 and 630 polished; B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused; afternoon: **B3** (f_0c73d + its missing table), **B5** (the Experimental menu / palette / drag loop: 10 differences fixed, emulator-checked) | 4 | the right-click / Shift "act" question (B4 found; the owner decides); B7; polish: sprite legs ragged, house screens tables-vs-EXE |
+| B confirm and polish | 2026-11-01 evening: **B2** (tutorial walk, step 46 fixed), **B4** (Ant Info: closes on release), **B6** (hourglass never shown, scheme bytes never read), font 3 and 630 polished; B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused; afternoon: **B3** (f_0c73d + its missing table), **B5** (the Experimental menu / palette / drag loop: 10 differences fixed, emulator-checked); the house screens tables-vs-EXE (26 patches pixel-identical) | 3 | the right-click / Shift "act" question (B4 found; the owner decides); B7; polish: sprite legs ragged |
 | C release | | 5 | public repo, licences, legal review, player README, tagged v1.0.0 |
-| **Total** | | **10** | B1 (the owner's test builds) is the owner's, not counted |
+| **Total** | | **9** | B1 (the owner's test builds) is the owner's, not counted |
 
 Pace so far: 9..15 jobs per 5-hour window with at most 3 agents at once (art makers and emulator work cost the most),
 so **about 1 to 2 sessions** to version 1, plus whatever the reviews find and the owner's listening / play-test.
@@ -43,7 +43,7 @@ so **about 1 to 2 sessions** to version 1, plus whatever the reviews find and th
 | 2026-11-01 afternoon (start) | | 32 | 4..5 |
 | 2026-11-01 afternoon (end) | 15 (13 agents, at most 3 at once: bitmaps checked, 3 specs + made text reworded, texts maker, layouts spec / encoder / maker, sound + music specs and encoders, FM patches, A6 audit + engine strings, B3, B5; include_filter ticked; +3 found: music as 2..3 batches, a sound listening pass, 630) in ~85% of the window | 21 | 3..4 |
 | 2026-11-01 evening (start) | | 21 | 3..4 |
-| 2026-11-01 evening (end) | 12 (8 agents, at most 3 at once: sound effects, the 30 songs in 2 batches, the loudness balance, A5's CI step and clean screenshots, 630, font 3, B2, B4, B6; +1 found: the right-click / Shift question) in ~78% of the window | 10 | 1..2 |
+| 2026-11-01 evening (end) | 13 (8 agents, at most 3 at once: sound effects, the 30 songs in 2 batches, the loudness balance, A5's CI step and clean screenshots, 630, font 3, B2, B4, B6; the house screens tables-vs-EXE; +1 found: the right-click / Shift question) in ~78% of the window | 9 | 1..2 |
 
 ## Where things stand (2026-10-30)
 
