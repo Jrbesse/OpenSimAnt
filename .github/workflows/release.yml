@@ -67,6 +67,46 @@ jobs:
           if [ "$GITHUB_REF_TYPE" = tag ]; then version="$GITHUB_REF_NAME"; else version="build-${GITHUB_SHA::7}"; fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      # The clean asset pack (art, fonts, text, sounds, music made new: remake/game/assets/clean/src) is built from its
+      # sources here, so every package carries it and plays with no original files. build.py fails if anything is missing.
+      - name: Build the clean asset pack
+        run: python tools/clean_pack/build.py
+
+      # The runner has no original game files: start the game on the clean pack under a virtual screen and save a
+      # few screens (kept as the "clean-screens" artifact). A crash or a missing resource fails the run.
+      - name: Play on the clean pack
+        run: |
+          godot=~/godot/Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64/Godot_v${GODOT_VERSION}-stable_mono_linux.x86_64
+          "$godot" --headless --path remake/game --import
+          dotnet build remake/game/OpenSimAnt.csproj
+          mkdir -p shots
+          play() {
+            name=$1; shift
+            xvfb-run -a -s "-screen 0 1280x1024x24" "$godot" --path remake/game --rendering-driver opengl3 \
+              --audio-driver Dummy -- --clean "$@" --screenshot="$PWD/shots/$name.png" 2>&1 | tee "shots/$name.log"
+            test -s "shots/$name.png"
+            if grep -E "Unhandled exception|[A-Za-z.]*Exception:| is missing" "shots/$name.log"; then
+              echo "::error::$name: the game failed on the clean pack"; exit 1
+            fi
+          }
+          play title --title --frames=120
+          play game --seed=1234 --ticks=600
+          play yard --seed=1234 --ticks=300 --yard
+          play history --seed=1234 --ticks=600 --history
+          play antipedia --antipedia
+          play tutorial --tutorial=5
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: clean-screens
+          path: shots
+          retention-days: 30
+
       - name: Export
         run: |
           godot=~/godot/Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64/Godot_v${GODOT_VERSION}-stable_mono_linux.x86_64

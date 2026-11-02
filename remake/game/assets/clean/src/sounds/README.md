@@ -45,3 +45,11 @@ id order with 0.25 s of silence between. Run `python make_sounds.py` to regenera
 | 45 | a longer, drawn-out slurp with a gulp | the same family, slower sweep, then a low falling gulp thump |
 | 47 | a tiny dry tap | a short band-passed noise grain and a 760 Hz damped sine, a smaller bounce after 26 ms |
 | 49 | a short ripping, tearing rasp | band-limited noise gated by random stick-slip pulses in three rips |
+
+## Patch loudness change (spec side request, batch B review)
+
+Renders showed the stings that use only `fm53` (chords) and `fm54` (pluck) far quieter than the full pieces, and effect 17 far quieter than intended. Changed in `make_fm_patches.py` (and `fm_patches.json` regenerated), no other patch touched:
+- `fm53`: carrier level 12 -> 2 and `velocity_offset` -4 -> 0 (about 8 dB louder).
+- `fm54`: carrier level 6 -> 0, `velocity_offset` -4 -> 0 (about 8 dB louder), carrier decay 8 -> 7 so the pluck rings a little longer.
+- `fm17` (effect 17, the dig sound): carrier level 18 -> 6 (about 9 dB louder, still soft).
+- `fm25` (lead, channel 1): carrier level 6 -> 0 (about 4.5 dB louder) so the lead stays above the louder `fm53` chords and lead-only pieces match the others.

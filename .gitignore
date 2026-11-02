@@ -20,3 +20,6 @@ tools/re/build/
 # Python
 __pycache__/
 *.pyc
+
+# The clean asset pack, built from remake/game/assets/clean/src by tools/clean_pack/build.py (CI builds it before export)
+/remake/game/assets/clean/clean_pack.zip

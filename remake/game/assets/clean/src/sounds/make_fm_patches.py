@@ -42,16 +42,16 @@ PATCHES = [
     # that keys up to 88 stay singing instead of shrill.
     patch("fm25", [25], 2, 0,
           op(1, 22, 13, 6, 7, 6, vibrato=1, sustain=1, ksl=1),
-          op(1, 6, 12, 5, 3, 5, vibrato=1),
+          op(1, 0, 12, 5, 3, 5, vibrato=1),
           "Clear, singing lead with light vibrato: bright on the attack, mellowing, a long tail.",
           velocity_offset=0),
     # fm53, pad: low modulation index, a gentle attack (~30 ms), no tremolo or vibrato, so
     # that several notes at once blend smoothly; sits a little under the lead.
     patch("fm53", [53], 1, 0,
           op(1, 32, 7, 5, 8, 5, sustain=1, ksl=1),
-          op(1, 12, 7, 5, 4, 5),
+          op(1, 2, 7, 5, 4, 5),
           "Round, soft chord voice that fades in over ~30 ms and has a long smooth tail.",
-          velocity_offset=-4),
+          velocity_offset=0),
     # fm3, bass: 1:1 with a weak modulator that fades faster than the carrier = a firm
     # attack that settles into an almost pure, heavy fundamental; ~0.8 s tail.
     patch("fm3", [3], 2, 0,
@@ -63,9 +63,9 @@ PATCHES = [
     # woody marimba-like "tok" on top of a quick-decaying body, then a short ring.
     patch("fm54", [54], 0, 0,
           op(3, 16, 15, 10, 15, 10, ksl=1),
-          op(1, 6, 15, 8, 6, 6),
+          op(1, 0, 15, 7, 6, 6),
           "Plucked marimba / harp-like voice: sharp attack, quick decay, short ring.",
-          velocity_offset=-4),
+          velocity_offset=0),
     # fm35, kick and foot stamp: modulator feedback gives a very brief click, then a sine
     # body with a quick fall; effect_key 30 = 92 Hz, heavy for the stamp.
     patch("fm35", [35], 4, 0,
@@ -129,7 +129,7 @@ PATCHES = [
     # lower and duller (weaker modulation, quieter), 19 = higher, brighter, longer, cheerful.
     patch("fm17", [17], 3, 0,
           op(5, 16, 15, 11, 15, 11),
-          op(1, 18, 15, 9, 15, 9),
+          op(1, 6, 15, 9, 15, 9),
           "Small dry scrape-tick, soft and unobtrusive, ~0.06 s (the dig family's base).",
           effect_key=67, velocity_offset=-8),
     patch("fm18", [18], 3, 0,

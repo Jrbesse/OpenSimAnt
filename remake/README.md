@@ -44,7 +44,8 @@ Godot with `--path remake/game`. The game looks for the original files in `--gam
 executable's folder and up to two levels inside it, or the folders above the project / the executable. With
 **The launcher** (every start) asks which assets to use: "Original look" (the player's copy; "Change folder..." or, with
 none found, the system's folder picker) or "Open assets" (the clean pack `res://assets/clean/clean_pack.zip`, greyed out
-until it exists); the choice is kept in `user://settings.cfg` (`[launch] assets`) and has the focus next time.
+until it exists: build it from the sources with `python tools/clean_pack/build.py`; it is not in git, the release
+workflow builds it before the export); the choice is kept in `user://settings.cfg` (`[launch] assets`) and has the focus next time.
 `--original` / `--clean` skip it, `--pack=<zip>` names a pack, `--launcher` shows it in a screenshot run (which
 otherwise skips it, taking the original if there is one). `-- --screenshot=out.png` saves the screen after
 240 frames and quits; `--ticks=N` runs the game N ticks ahead first, `--history` opens the History graph.
