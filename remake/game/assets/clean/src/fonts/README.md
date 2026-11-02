@@ -29,10 +29,20 @@ monospaced faces. The four proportional faces therefore look like one family; on
 - **font2** (16 x 10, regular sans): 1-pixel strokes, capitals rows 1..7, x-height rows 3..7, descenders rows 8..9,
   row 0 only for the dollar sign's stroke ends. Digits are 5 pixels of ink in the 6-pixel advance (tabular).
   Double-storey `a`, single-storey `g`, open squarish shapes with cut corners.
-- **font3** (16 x 10, small serif): the same skeletons at capital height 6 (rows 2..7), x-height 4 (rows 4..7) and the
-  narrower advances, plus small serifs added by a post pass: feet and flags on the stems of `I H N M K L P R B D E F` and
-  of `i l j r p`, and the top flags of the lowercase stems. `T Y V A X W Z` and the round letters get none (at 1 pixel
-  per stroke they read better plain).
+- **font3** (16 x 10, small serif): since the 2026-11-01 polish every ASCII glyph (33..126) and the ellipsis and the
+  two dashes are **hand-drawn pixel by pixel** (`HAND3` / `h3()` in `make_fonts.py`), not made from skeletons: the
+  skeleton pass left the narrow letters cramped, the counters filled in and the symbols plain. The rules: ink at most
+  advance - 1 wide wherever the shape allows (a clear 1-pixel gap between letters; only `_` runs the full advance so
+  underlines join), capitals and digits rows 2..7, x-height rows 4..7, **ascenders (b d f h k l) from row 1**,
+  descenders to row 9, dots of `i` / `j` on row 2 with a clear row beneath, parentheses and brackets rows 1..9. The
+  serif character is kept as small flags and feet that do not close a counter: symmetric feet on `A H I J K L M N P R B
+  D E F Y X`, top flags on the lowercase stems (`b d h k l`), but no one-sided feet on lowercase stems (they
+  read as a hook: `i` looked like `j`). `a` is single-storey, `e` keeps a 1-pixel counter above its bar, `T` has a
+  2-pixel stem, `$` runs rows 1..8, `% & @ # ~ { }` are drawn properly (`%` with two hollow 3 x 3 rings and a diagonal,
+  `&` with a closed top loop, `@` an a in a ring, `{ }` with the pointed middle). The 4x sample line is in
+  `font3_sample_4x.png`. The advances, ascent and missing advance are unchanged (fixed by the game); fonts 0, 1, 2, 4,
+  5 are byte-identical to before. The bullet, copyright, trademark and quote marks (codes 165..213 except 201, 208,
+  209) still come from the skeleton pass.
 - **font4** (16 x 15, large semi-bold sans): 2-pixel stems, 1-pixel horizontals, 2-pixel corner cuts; capitals rows
   3..11, x-height rows 5..11, descenders rows 12..14, digits 7 pixels of ink in the advance 8. The 217-character
   picture leaves 217..223 empty; codes 17..20 are empty as the spec permits.
@@ -55,6 +65,6 @@ descender letters within one pixel of the spec; font0 ink only in columns 0..7, 
 
 ## Known limits
 
-The faces are skeleton-made and not hand-tuned pixel by pixel: the ampersand, the percent sign, the braces and the
-tilde are plain, and the narrow serif face (font3) has very small counters at its width. Everything is one colour with
-no anti-aliasing, as the spec asks.
+Fonts 0, 1, 2, 4 and 5 are skeleton-made and not hand-tuned pixel by pixel: their ampersand, percent sign, braces and
+tilde are plain. Font 3 is hand-drawn (see above) but at 3 pixels of ink the `a` and `e` stay close cousins and the
+counters are one pixel. Everything is one colour with no anti-aliasing, as the spec asks.
