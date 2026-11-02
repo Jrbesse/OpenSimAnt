@@ -34,10 +34,15 @@ done (Sonnet agents, at most 3 at once, Opus reviewing).**
   (brood is in the occupancy grid; the 10-29 attempts failed because workers walked off before the handler ran, and
   overlay hooks at flat + base do fire); **it closes on release** (f_202b8, 2-tick grace f_2029f): the shell kept it
   until the next click, fixed (`AntInfoPoll`); value lines in the scheme colours. `screens.py` captures antinfo /
-  antinfo_gone: 0 pixels differ. **Open, for the owner:** in the original only a **double click** (either button,
-  event byte +7 & 0x60) "acts" in the Edit window; a single right click or Shift+click is a plain click (walk, or Ant
-  Info when held). The shell's `EditMapClick` treats Right / Shift as act too (Main.cs `bool act = ...`). Making it
-  faithful changes controls the owner has played with: ask first.
+  antinfo_gone: 0 pixels differ.
+- **The owner's rule (2026-11-01): for this version every control matches the original exactly, no shell extras.**
+  Done: in the Edit window only a **double click** (either button, the second press within the 6-tick wait, at its
+  cell) acts; a single right press is a plain click at once (no wait), Shift / Ctrl / Alt change nothing, no
+  Ctrl+click Ant Info (`EditMapClick` / `EditMapResolve`); the file dialog's scroll arrows jump on a right press or
+  double click, not Shift (f_24971 tests +7 & 0x68); Tab is f_68086 (Edit window active: the Map window, else the Edit
+  window); removed the shell's keys (plain arrows, Ctrl+1/2/3, + / -, Esc for the SimAntipedia / yard, F1, F8 / F9,
+  F12: `--status` stays as a flag). Not live-tested with a real mouse: the owner should try a click, a double click,
+  a right click and a hold in the Edit window.
 - **B6 (code reading):** the original **never shows the hourglass**: its only cursor load, f_1b3a9, is called once at
   start-up (0x74bc0) with id 4, which does not exist, so it returns without installing anything (DS:3D10..3D1F stay 0
   after boot; f_1b44b, the twin for the DS:3D18 pair, has no callers; no int 33h call sets a shape): the arrow is the
@@ -49,7 +54,7 @@ done (Sonnet agents, at most 3 at once, Opus reviewing).**
 - Housekeeping: `tools/re/build_flat.py` run from the repo root writes `build/` there (original-derived, not ignored):
   run it from `tools/re` or delete the folder after.
 **Next:** the owner listens (songs, effects) and plays on `--clean`; push and watch the release workflow's clean run;
-the right-click / Shift question above; B6 leftovers, B7, the similarity review (A5), polish (sprite legs, house
+B6 leftovers, B7, the similarity review (A5), polish (sprite legs, house
 screens tables-vs-EXE), then C (licences, player README, the release).
 
 **2026-11-01 afternoon: text and layouts finished, every encoder done, B3 fixed; the clean pack lacks only the sounds

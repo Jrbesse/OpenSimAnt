@@ -11,7 +11,8 @@ namespace OpenSimAnt.Game;
 /// Windows move by their caption and come to the front on a click.
 ///
 /// Edit window: the original's clicks (f_74fe0). Keys: the original's (f_74386: letters go to the cheat matcher, the
-/// key table DS:2CBE, f_76aeb), plus the shell's own non-letter keys (arrows, + / -, Ctrl+1..3, Tab, F1, F8 / F9, F12).
+/// key table DS:2CBE, f_76aeb, 8414:0383's Ctrl / Alt / Tab / Backspace keys), and nothing else: every control is the
+/// original's (the owner's rule for this version).
 /// remake/README.md lists every control.
 /// </summary>
 public partial class Main : Node2D
@@ -39,7 +40,7 @@ public partial class Main : Node2D
     byte[] rgba;
     Label status, message;
     int view = 1, originA, originB;
-    bool follow = true, help, helpHeld, antInfoArmed;
+    bool follow = true, help, helpHeld;
     string lastMessage = "";
     string screenshot;
     bool tutorialShot, screenshotSpider;
@@ -1129,32 +1130,32 @@ public partial class Main : Node2D
             if (mb.ButtonIndex is MouseButton.Left or MouseButton.Right) ToolPress(a, b, mb);
             return;
         }
-        if (mb.CtrlPressed || antInfoArmed)                                        // the Ant Info tool
-        {
-            antInfoArmed = false;
-            OpenAntInfo(a, b);
-            return;
-        }
+        if (mb.ButtonIndex is not (MouseButton.Left or MouseButton.Right)) return;
+        // f_74fe0: "act" is the event byte +7 & 0x60, set by a second press of either button while a left press
+        // waits (up to 6 ticks): a double click, taken at the second press's cell. A single right press does not
+        // wait and is a plain click (+7 = 0x08 is not tested), and Shift / Ctrl / Alt change nothing (they only
+        // reach the event's word +2): checked in the emulator, 2026-11-01. There is no Ctrl+click shortcut.
+        if (pendingClick is not null) { pendingClick = null; EditMapResolve(a, b, true, false, mb.Position); return; }
+        if (mb.ButtonIndex == MouseButton.Right) { EditMapResolve(a, b, false, false, mb.Position); return; }
+        pendingClick = (a, b, mb.Position, 0);                                      // wait for a second press
+    }
+
+    void EditMapResolve(int a, int b, bool act, bool held, Vector2 at)
+    {
+        var st = session.St;
         int target = st.U16(Seg.G, 0x105e);
-        bool act = mb.ButtonIndex == MouseButton.Right || mb.DoubleClick || mb.ShiftPressed;   // event byte +7 & 0x60
         if (target == 0xa) { Commands.ExchangeClick(st, view, a, b); return; }       // Exchange: pick the ant to become
         if (target == 0xb)
         {
             if (view <= 1 && st.U16(Seg.G, 0xa06) == 1) Commands.SpiderClick(st, a, b, act ? 1 : 0);
             return;
         }
-        if (!act && mb.ButtonIndex == MouseButton.Left)
-        {
-            pendingClick = (a, b, mb.Position, 0);                                  // wait for a second click
-            return;
-        }
-        pendingClick = null;
-        MapAction(a, b, true, false, mb.Position);
+        MapAction(a, b, act, held, at);
     }
 
     // f_74fe0, the Edit map's mouse handler outside the Experimental game and the pick-a-target modes. A left press
-    // waits up to 6 clock ticks for a second one (a double click; the right button counts as one at once, and here
-    // Shift too): that makes it an action. Then, without one: on the yellow ant (f_134b8 at its own view) a button
+    // waits up to 6 clock ticks for a second press of either button (a double click): that makes it an action; a
+    // right press does not wait and is a plain click. Then, without one: on the yellow ant (f_134b8 at its own view) a button
     // still held opens its menu (f_2f8e8 → f_67e93), a released one recentres on it (f_01c03, G:1074 = 1); a held
     // press on another ant shows Ant Info (f_2f8fc); otherwise a walk (mode G:0A8E = 0). With one: another ant (not
     // the yellow one, caste > 7) becomes the target to meet (f_11327 → G:07C0; mode 4 for a colony-mate, 3 for an
@@ -1170,7 +1171,9 @@ public partial class Main : Node2D
         pendingClick = p;
         if (p.waited < 6 / GameSession.ClockHz) return;
         pendingClick = null;
-        MapAction(p.a, p.b, false, Input.IsMouseButtonPressed(MouseButton.Left), p.at);
+        // f_0122c: DS:9120 & 3 == 1, the left button alone still down
+        bool held = Input.IsMouseButtonPressed(MouseButton.Left) && !Input.IsMouseButtonPressed(MouseButton.Right);
+        EditMapResolve(p.a, p.b, false, held, p.at);
     }
 
     void MapAction(int a, int b, bool act, bool held, Vector2 at)
@@ -2408,7 +2411,6 @@ public partial class Main : Node2D
         }
     }
 
-    void QuickSave() => SaveGame(ProjectSettings.GlobalizePath("user://quicksave.ANT"));
 
     bool SaveGame(string path)
     {
@@ -2766,7 +2768,7 @@ public partial class Main : Node2D
             if (fileRows.Count <= visible) return;
             int dir = at.Y < t + ah ? -1 : at.Y > b - ah ? 1 : 0;
             if (dir == 0) return;
-            if (mb.DoubleClick || mb.ShiftPressed || mb.ButtonIndex == MouseButton.Right) { fileFirst = dir < 0 ? 0 : fileRows.Count - visible; return; }
+            if (mb.DoubleClick || mb.ButtonIndex == MouseButton.Right) { fileFirst = dir < 0 ? 0 : fileRows.Count - visible; return; }
             fileArrow = dir;
             fileArrowWait = 0;
             FileArrowStep();
@@ -3952,7 +3954,7 @@ public partial class Main : Node2D
     }
 
     /// <summary>The shell's status lines (a stand-in for the original's message window) in the game's font 2.</summary>
-    // The shell's debug lines (tick, populations, speed, its own messages): not in the original, so off unless F12
+    // The shell's debug lines (tick, populations, speed, its own messages): not in the original, so off unless --status
     // (or --status) turns them on.
     bool showStatus;
     int sceneArg, timedModal = -1;
@@ -4210,13 +4212,6 @@ public partial class Main : Node2D
             if (OriginalKey(k)) return;
             switch (k.Keycode)
             {
-                case Key.Key1 when k.CtrlPressed: SetView(1); break;                // the views (the original's are Ctrl+8 / 9 / 0)
-                case Key.Key2 when k.CtrlPressed: SetView(2); break;
-                case Key.Key3 when k.CtrlPressed: SetView(3); break;
-                case Key.Left when !k.CtrlPressed: Scroll(-4, 0); break;
-                case Key.Right when !k.CtrlPressed: Scroll(4, 0); break;
-                case Key.Up when !k.CtrlPressed: Scroll(0, -4); break;
-                case Key.Down when !k.CtrlPressed: Scroll(0, 4); break;
                 case Key.Insert or Key.Space or Key.Delete:                                // f_2024b: Insert and Space the left button, Delete the right
                 {
                     var mp = GetViewport().GetMousePosition();
@@ -4225,21 +4220,11 @@ public partial class Main : Node2D
                     Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = button, Pressed = false, Position = mp, GlobalPosition = mp });
                     break;
                 }
-                case Key.Equal or Key.KpAdd: session.Speed++; break;
-                case Key.Minus or Key.KpSubtract: session.Speed--; break;
-                case Key.Escape:
-                    if (zOrder.Contains(TextWin)) zOrder.Remove(TextWin);
-                    else if (zOrder.Contains(YardWin)) CloseYard();
+                case Key.Tab:                                                              // 8414:0383 → f_2f8f2 → f_68086
+                    if (zOrder.Count > 0 && zOrder[^1] == EditWin) ShowMap();              // f_23612(0): the Edit window active → f_0148a
+                    else Front(EditWin);                                                   // else f_03370
                     break;
-                case Key.Tab:                                                              // the Map window: front / close
-                    if (zOrder.Contains(MapWin) && zOrder[^1] != MapWin) Front(MapWin);
-                    else if (zOrder.Contains(MapWin)) zOrder.Remove(MapWin);
-                    else Front(MapWin);
-                    break;
-                case Key.F1: help = !help; break;                                          // the help overlays
-                case Key.F8: QuickSave(); break;
-                case Key.F12: showStatus = !showStatus; break;                              // the shell's debug lines                                           // quick save (F5 is the Options menu now)
-                case Key.F9: QuickLoad(); break;                                           // load
+                // Only the original's keys: no shell shortcuts (the owner, 2026-11-01: every control as the original's).
             }
         }
     }
@@ -4323,7 +4308,6 @@ public partial class Main : Node2D
 
     /// <summary>The Experimental menu (layout 10) at the mouse; in an Experimental game the button shows / hides the
     /// tool palette.</summary>
-    void QuickLoad() => LoadGame(ProjectSettings.GlobalizePath("user://quicksave.ANT"));
 
     bool LoadGame(string path)
     {

@@ -56,17 +56,20 @@ window** (the whole map, the toolbar and the population report), plus the Behavi
 and Efficiency Score windows and the yellow ant's pop-up menu. Drag a window by its caption; a click brings it
 to the front. The menu bar across the top is the original's (SHARED type 6). The game's timed messages (the advisor,
 refusals, the yard's notices) appear centred at the top of the Edit window's map, as `f_15e2c` / `f_038a6` show
-them; message boxes follow Options > Events. The shell's own debug lines (tick, populations, speed) are off; F12 (or `--status`) shows them below the windows.
+them; message boxes follow Options > Events. The shell's own debug lines (tick, populations, speed) are off; `--status` shows them below the windows.
+
+**Every control is the original's** (the owner's rule for this version, 2026-11-01): the shell adds no keys or
+clicks of its own.
 
 Mouse:
 
 | Where | Action |
 |---|---|
 | Menu bar (top) | the original's pull-down menus (SHARED type 6): File, Window, View, Options, Speed. Press on a title and release on an item, or click a title, then an item; ► marks the speed and the Options that are on |
-| Edit window map | as the original's f_74fe0: click: walk there; double click (or right click, or Shift+click): act: pick up / drop / eat on the surface, dig or pick up / drop in a nest, meet or fight the ant clicked; press and hold on an ant or brood for 6 ticks: Ant Info, shown while the button is held (Ctrl+click opens it at once, until the next click: a shell extra) |
+| Edit window map | as the original's f_74fe0: click (either button; Shift / Ctrl / Alt change nothing): walk there; double click (either button, the second press within 6 ticks): act: pick up / drop / eat on the surface, dig or pick up / drop in a nest, meet or fight the ant clicked; press and hold the left button on an ant or brood for 6 ticks: Ant Info, shown while the button is held |
 | on the yellow ant | quick click: recentre on it; press and hold: its menu (recruit, release, exchange; a queen: dig hole, start brood; the spider: chase, hunt); release on an entry |
 | Edit tool strip | MAP (a quick click: the Map window; held / released elsewhere: the whole-map pop-up, click or drag in it to move the view), ? (the help overlay while held), Surface / Black / Red nest, go to the yellow ant / spider / queens, PAUSE, SCENT (the scent menu); a click on the yellow / black health bar sets the yellow ant's health warning / the colony's hunger warning (the marks on the bars) |
-| Map window | press (and drag) on the map to look there, right click to send the yellow ant there to act (f_6726a); toolbar: Yard (Full Game), the views, scent layers, Behavior / Caste Control, Center on Yellow, the Mystery Button, History, Efficiency Score, Ant Info (the SimAntipedia: click a picture's labels or the BACK / PREVIOUS / TOP bar to change cards, hold the button on a bold word for its definition; Escape or a click outside closes it) |
+| Map window | press (and drag) on the map to look there, right click to send the yellow ant there to act (f_6726a); toolbar: Yard (Full Game), the views, scent layers, Behavior / Caste Control, Center on Yellow, the Mystery Button, History, Efficiency Score, Ant Info (the SimAntipedia: click a picture's labels or the BACK / PREVIOUS / TOP bar to change cards, hold the button on a bold word for its definition; a click outside closes it) |
 | Behavior / Caste Control | click or drag in the triangle; Auto / Manual |
 | History window | the series buttons (up to four at once) |
 | Experimental button (Map toolbar, Edit strip) | Quick Game: switch to Experimental; Experimental: the tool palette (hold a tool for its options; Start Game returns to a Quick Game), then press / drag on the Edit map |
@@ -94,18 +97,9 @@ Keys:
 | Space or Insert, Delete | the left / right mouse button at the pointer (the original's keyboard mouse, f_2024b); pause with the PAUSE button or Speed > Pause |
 | Ctrl + arrows / keypad (Home / PgUp / End / PgDn diagonals), the mouse at the screen's edge | scroll the Edit window while held (f_74140, f_0113e) |
 | Ctrl+G / J / K | Options: AutoTrack / Music (the songs, through the original's driver on an emulated OPL2: see "Sound" below) / Sound Effects (T:07A8 / T:07AA / T:07AC); Events, Messages and Silly (speech balloons, off at start-up as in the original) are in the menu |
-| Tab | Map window (front / hide) |
+| Tab | with the Edit window in front: the Map window (opened or brought to the front); else the Edit window (f_68086) |
 | letters | typed into the cheat matcher first, as the original does (f_74386 → f_6a920: "heal", "jeff", ...; SIM_NOTES "Cheat codes") |
-| **The shell's own keys** (no letters: those are the cheats') | |
-| Arrows | scroll |
-| Ctrl+1 / 2 / 3 | surface / black nest / red nest |
-| + / - | speed |
-| F1 | the help overlays (File > New is Select a Game, File > About the about box) |
-| Esc | closes the SimAntipedia and the yard window |
-| F8 / F9 | quick save / load (the original's .ANT format, in Godot's user:// folder) |
 | Ctrl / Ctrl+Shift / Ctrl+Alt (+Shift) on the Map window's Center on Yellow button | the original's hidden debug actions (f_6f733): drop food; add black / red ants (left / right half; with Alt kill them); clear all food |
-| F12 | the shell's debug lines (tick, populations, speed, its messages) below the windows |
-| N / M / K | new Quick Game / Full Game / Experimental game |
 
 Build checks: `-- --ticks=N --screenshot=out.png`, plus `--history`, `--panels`, `--efficiency`, `--popup`,
 `--map-front`, `--map-content=n` (the Map window shows T:07C8 = n: 4..8 the scent maps), `--series=a,b` (History buttons pressed), `--history-values` (the History graph as while it is pressed: the newest values as labels, not the series' names), `--help-overlay`, `--yard`, `--strat`, `--scent-menu`, `--ant-info`, `--select`, `--report`,
