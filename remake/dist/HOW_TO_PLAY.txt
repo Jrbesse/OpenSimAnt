@@ -7,13 +7,17 @@ WHAT YOU NEED
 
   * Windows 10 or 11 (64-bit), macOS 12 or newer (Apple Silicon or Intel), or a 64-bit
     Linux desktop (x86_64).
-  * Your own copy of the original DOS version of SimAnt. The remake does not include
-    any of the original game: it reads the art, sounds and rules from your copy.
-    The folder you need has these files in it (upper or lower case names both work):
+  * Nothing else. The remake comes with its own art, text, sound and music -- new work
+    made for OpenSimAnt, called the open assets -- so you do not need the original game.
+
+    If you do own the DOS version of SimAnt, you can play with the original's look
+    instead: point the game at your copy and it uses the original's art, text, sound and
+    music. That folder has these files in it (upper or lower case names both work):
 
         SIMANT.EXE   HCEGANT.DAT   HCEGANT.NDX   SHARED.DAT   SHARED.NDX   SOUND.DAT   SOUND.NDX
 
-    (Only the first three are required. Without SHARED and SOUND there are no menus or sounds.)
+    (Only the first three are required. Without SHARED and SOUND there are no menus or
+    sounds.) This is optional: the open assets need no files at all.
 
 STARTING THE GAME
 
@@ -41,26 +45,37 @@ STARTING THE GAME
        (Keep the "data_..." folder next to it: the game needs it.)
 
   Then, on every system:
-    3. The game starts with a choice: "Original look: use my copy of SimAnt" or
-       "Open assets: no original files needed" (the open assets are still being made, so that
-       button stays grey for now). The first time you choose the original look, the game asks
-       where your SimAnt files are: pick the folder with SIMANT.EXE in it (picking the folder
-       just above it works too). The game remembers it; "Change folder..." picks another one.
-       Press Enter to repeat your last choice.
+    3. The game starts with a choice: "Open assets: no original files needed" (the game's
+       own art, text, sound and music) or "Original look: use my copy of SimAnt" (your own
+       copy of the original, as above). Press Enter to repeat your last choice. With the
+       original look the game asks, the first time, where your SimAnt files are: pick the
+       folder with SIMANT.EXE in it (picking the folder just above it works too). It
+       remembers the folder; "Change folder..." picks another one.
 
        Shortcut: if you copy your SimAnt files into the same folder as the game (or into a
        folder next to it; on macOS, next to OpenSimAnt.app), the game finds them by itself and
-       skips this step.
+       skips the question. This only matters for the original look.
 
 PLAYING
 
   The screen works like the original game: the menus are along the top, and the game starts
-  at the title screen. Click on the map to walk the yellow ant, double-click (or right-click)
-  to pick up, drop, dig or fight. Press and hold on the yellow ant for its menu.
+  at the title screen.
 
-  Keyboard (as in the original): Space or Insert is the left mouse button and Delete the right one;
-  pause with the PAUSE button or the Speed menu. Also: + and - change the speed, arrow keys scroll,
-  F follows the yellow ant.
+  Mouse: click on the map to walk the yellow ant there (either button). Double-click (either
+  button) to act on what you clicked: pick up, drop, eat, dig, meet or fight. Press and hold
+  the left button on an ant or a brood for the Ant Info of it; it goes away when you let go.
+  Press and hold on the yellow ant for its own menu.
+
+  Keyboard (as in the original): Space or Insert is the left mouse button and Delete the
+  right one. Pause with the PAUSE button, the Speed menu or Shift+0; Shift+1 to Shift+4 set
+  the speed Slow, Normal, Fast and Ultra. The arrow keys (and the numeric keypad) scroll the
+  map while Control is held down; Home goes back to the yellow ant. The keys 1, 2, 3, 4, X
+  and 0 give the yellow ant its orders (recruit, release, exchange, alarm trail); the menus
+  show their own letters underlined.
+
+  The open assets are new art, text, sound and music, close to the original but not copies
+  of it, so some screens and sounds will differ from what you remember. If something looks
+  broken or missing on them, that is a bug in this build.
 
   Saved games are kept in:
     Windows:  %APPDATA%\Godot\app_userdata\OpenSimAnt
@@ -73,7 +88,11 @@ IF SOMETHING GOES WRONG
 
   * Choosing the folder says the files aren't there: make sure the folder really has
     SIMANT.EXE, HCEGANT.DAT and HCEGANT.NDX in it. The Windows version of SimAnt has
-    different files and won't work; it has to be the DOS version.
+    different files and won't work; it has to be the DOS version. (If you only want to
+    play, choose "Open assets" instead: it needs no files.)
+
+  * Something on the open assets looks wrong or missing: that is a bug in this build, not
+    something you did. Tell whoever sent you this, and say which screen it is.
 
   * To choose a different SimAnt folder, delete settings.cfg from the saved-games folder
     above and start the game again.
