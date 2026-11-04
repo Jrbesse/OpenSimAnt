@@ -7,7 +7,33 @@
     <Nullable>disable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <!-- remake/Directory.Build.props sets ImplicitUsings=enable, which injects
+         `global using System.IO` and `global using System.Threading` into this
+         assembly. addons/godot_mcp is written for Godot.NET.Sdk's default
+         (implicit usings OFF): its files import Godot but deliberately not
+         System.IO/System.Threading, so the globals make `FileAccess` and
+         `Timer` ambiguous (CS0104, 43 errors across the addon).
+
+         Dropping just these two keeps System, Collections.Generic, Linq and
+         Tasks for our own code, and survives `install-plugin` re-downloading
+         the addon. Main.cs imports System.IO explicitly instead.
+         Revisit if upstream ever fully qualifies Godot.FileAccess/Godot.Timer. -->
+    <Using Remove="System.IO" />
+    <Using Remove="System.Threading" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\src\OpenSimAnt.Sim\OpenSimAnt.Sim.csproj" />
     <ProjectReference Include="..\src\OpenSimAnt.Data\OpenSimAnt.Data.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="com.IvanMurzak.ReflectorNet" Version="5.5.1" />
+    <PackageReference Include="com.IvanMurzak.McpPlugin" Version="8.14.0" />
+    <PackageReference Include="com.IvanMurzak.Rql" Version="0.3.0" Condition="'$(Configuration)' != 'ExportDebug' and '$(Configuration)' != 'ExportRelease'" />
+    <PackageReference Include="com.IvanMurzak.CodeExec" Version="0.4.0" Condition="'$(GodotMcpCodeExecInGame)' == 'true' or ('$(Configuration)' != 'ExportDebug' and '$(Configuration)' != 'ExportRelease')" />
+    <PackageReference Include="com.IvanMurzak.CodeExec.Roslyn" Version="0.4.0" Condition="'$(GodotMcpCodeExecInGame)' == 'true' or ('$(Configuration)' != 'ExportDebug' and '$(Configuration)' != 'ExportRelease')" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" Condition="'$(GodotMcpCodeExecInGame)' == 'true' or ('$(Configuration)' != 'ExportDebug' and '$(Configuration)' != 'ExportRelease')" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="addons/godot_mcp/extensions.catalog.json" LogicalName="Godot-MCP.extensions.catalog.json" />
   </ItemGroup>
 </Project>

@@ -5,3 +5,20 @@ obj/
 .godot/
 *.user
 .vs/
+
+# Godot-MCP (IvanMurzak/Godot-MCP). The addon and the per-RID server binary are
+# downloads, not sources: `godot-cli install-plugin <game> --with-server`
+# restores both, pinned to the CLI version.
+game/addons/godot_mcp/
+game/.ai-game-dev/
+game/.godot-mcp/
+
+# MCP client config. godot-cli derives the port and the /p/<pin> route from the
+# project's absolute path, so this differs per clone. Regenerate with:
+#   godot-cli configure game --agent claude-code
+game/.mcp.json
+game/.claude/
+
+# Godot's import metadata for the clean-pack SOURCE assets. The game loads
+# assets/clean/clean_pack.zip, so these are incidental to opening the editor.
+game/assets/clean/src/**/*.import
