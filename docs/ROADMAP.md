@@ -25,11 +25,11 @@ and add a row to the log. New work found on the way goes into the table as it sh
 | A4 text | strings + menus; texts (53 cards, glossary, pop-ups, prompts) made 2026-11-01 afternoon; all specs and made text at 0 shared runs | 0 | |
 | A4 sound (57 effects, instruments) | spec `sounds.md`, encoder, the 16 FM patches (2026-11-01 afternoon); evening: the 35 effects, the loudness balance (by rendering: fm25 / fm53 / fm54 / fm17 louder) | 0 | (the owner's listening: `remake/build/clean_songs`) |
 | A4 music (30 songs, 33 cues) | spec `music.md`, encoder, cues built (2026-11-01 afternoon); evening: the 30 songs (2 batches), the stings' velocities raised after a render | 0 | |
-| A5 integration | launcher; 2026-11-01 evening: **the clean pack complete** (810 files); release.yml builds it and plays 6 screens on it under xvfb (not yet run on GitHub); 14 windows drawn from the clean pack locally, no errors | 1 | similarity review (and watch the first CI run) |
+| A5 integration | launcher; 2026-11-01 evening: **the clean pack complete** (810 files); release.yml builds it and plays 6 screens on it under xvfb; **2026-11-04: that CI run is watched and green** (run 41920221727: pack built from source, 810 files / 0 missing, six screens drawn from it with no original files, "the clean pack res://assets/clean/clean_pack.zip" in every log); 14 windows drawn from the clean pack locally, no errors | 1 | similarity review |
 | A6 identity | name, rename; title / about pictures; Edit caption; 2026-11-01 afternoon: the audit (no marks in the pack), the engine's own strings an asset (`EXE/engine_strings.json`) | 0 | |
 | B confirm and polish | 2026-11-01 evening: **B2** (tutorial walk, step 46 fixed), **B4** (Ant Info: closes on release), **B6** (hourglass never shown, scheme bytes never read), font 3 and 630 polished; B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused; afternoon: **B3** (f_0c73d + its missing table), **B5** (the Experimental menu / palette / drag loop: 10 differences fixed, emulator-checked); the house screens tables-vs-EXE (26 patches pixel-identical); every control as the original's (the owner's rule: the Edit window's double click, no shell keys) | 2 | B7; polish: sprite legs ragged |
-| C release | | 5 | public repo, licences, legal review, player README, tagged v1.0.0 |
-| **Total** | | **8** | B1 (the owner's test builds) is the owner's, not counted |
+| C release | player README (2026-11-04) | 4 | public repo, licences, legal review, tagged v1.0.0 |
+| **Total** | | **7** | B1 (the owner's test builds) is the owner's, not counted |
 
 Pace so far: 9..15 jobs per 5-hour window with at most 3 agents at once (art makers and emulator work cost the most),
 so **about 1 to 2 sessions** to version 1, plus whatever the reviews find and the owner's listening / play-test.
@@ -44,6 +44,8 @@ so **about 1 to 2 sessions** to version 1, plus whatever the reviews find and th
 | 2026-11-01 afternoon (end) | 15 (13 agents, at most 3 at once: bitmaps checked, 3 specs + made text reworded, texts maker, layouts spec / encoder / maker, sound + music specs and encoders, FM patches, A6 audit + engine strings, B3, B5; include_filter ticked; +3 found: music as 2..3 batches, a sound listening pass, 630) in ~85% of the window | 21 | 3..4 |
 | 2026-11-01 evening (start) | | 21 | 3..4 |
 | 2026-11-01 evening (end) | 13 (8 agents, at most 3 at once: sound effects, the 30 songs in 2 batches, the loudness balance, A5's CI step and clean screenshots, 630, font 3, B2, B4, B6; the house screens tables-vs-EXE; +1 found and fixed: the controls made the original's exactly) in ~80% of the window | 8 | 1..2 |
+| 2026-11-04 evening (start) | | 8 | 1..2 |
+| 2026-11-04 evening (end) | 1 (the player README: `HOW_TO_PLAY.txt` no longer says the original is needed and lists the controls the shell really has; the README's status and the release notes' first-run paragraph say the clean pack ships. A5's CI watch: the first clean-pack `release.yml` run is green — pack built from source, six screens played on it with no original files. Baseline on eagle1: Release build clean, 165 tests pass, 27 trace files / 229,778 calls ALL OK) | 7 | 1 |
 
 ## Where things stand (2026-10-30)
 
@@ -211,8 +213,13 @@ the original files make the clean assets from those specs.
 - [ ] A review of the name ("OpenSimAnt" contains the trademark "SimAnt", ART_PLAN section 2; projects like
       OpenRCT2 / OpenTTD are the precedent), the clean pack, the game tables in source (A2) and the docs by someone qualified
       (`ART_PLAN.md` note).
-- [ ] README and `remake/dist/HOW_TO_PLAY.txt` rewritten for players: no original files needed; how to use your
-      own copy for the original look.
+- [x] README and `remake/dist/HOW_TO_PLAY.txt` rewritten for players: no original files needed; how to use your
+      own copy for the original look. **Done 2026-11-04.** Both said the original game was required and that the
+      open-assets button was still grey; `HOW_TO_PLAY.txt` also listed controls the shell does not have (`+` / `-`
+      for speed, bare arrows to scroll, `F` to follow: the shell reads Shift+0..4 for pause and speed, Ctrl+arrows
+      for scrolling and Home to follow — `Main.cs` `_UnhandledInput`, and the owner's no-extra-controls rule). The
+      release notes' first-run paragraph was stale the same way. Checked against `Main.cs` (the launcher's
+      `packOk` gate at `_Ready`, `ShowLauncher`) and the replay of the clean pack in CI (run 41920221727).
 - [ ] A tagged release (`v1.0.0`) with the three builds.
 
 ## After version 1
