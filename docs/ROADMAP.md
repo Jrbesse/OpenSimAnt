@@ -66,6 +66,16 @@ so **about 1 to 2 sessions** to version 1, plus whatever the reviews find and th
 | 2026-11-04 evening (start) | | 8 | 1..2 |
 | 2026-11-04 evening (end) | 1 (the player README: `HOW_TO_PLAY.txt` no longer says the original is needed and lists the controls the shell really has; the README's status and the release notes' first-run paragraph say the clean pack ships. A5's CI watch: the first clean-pack `release.yml` run is green — pack built from source, six screens played on it with no original files. Baseline on eagle1: Release build clean, 165 tests pass, 27 trace files / 229,778 calls ALL OK) | 7 | 1 |
 
+Next: **B9** (the Map window's black interior) -- it is the first job on the visual line added 2026-11-04, so run
+that line end to end. On the Hermes box, in `~/work/SimAnt-Evolved`: `sh tools/shots.sh game yard`, then give the
+`vision` tool `remake/build/shots/game.png` and ask whether the right-hand window's interior is solid black or
+shows map art (`docs/NIGHTLY.md` "Visual checks"). That reproduces the symptom in about 20 seconds and needs
+nothing from eagle1. It is already known not to be the clean pack, so what is left is the fidelity question, and
+that half *does* need eagle1: compare the same game against the original's memory replay (`--state=`,
+`tools/re/pngdiff.py`, remake/README "Build checks"). Black there too means it is the original's behaviour and
+gets a note under the fidelity rule; otherwise it is a renderer bug. B8 (the vacuous `test_terrain.trace` row) is
+the other open check and does not block it.
+
 ## Where things stand (2026-10-30)
 
 Done and checked:
