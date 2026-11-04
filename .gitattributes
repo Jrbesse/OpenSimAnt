@@ -1,0 +1,5 @@
+# Shell scripts keep LF everywhere. `core.autocrlf=true` on the Windows box (eagle1) would
+# otherwise check them out with CRLF, and a `#!/bin/sh` shebang is a "bad interpreter" error
+# on the machines these actually run on -- `tools/ref/record_all.sh` on the emulator host,
+# `tools/shots.sh` on a Linux box or in CI. Both are already stored LF; this pins it.
+*.sh text eol=lf
