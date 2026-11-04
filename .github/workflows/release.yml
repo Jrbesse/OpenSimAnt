@@ -177,9 +177,10 @@ jobs:
             Privacy & Security > **Open Anyway**). The app is signed ad hoc, not by an Apple developer.
           - **Linux (x86_64)**: OpenSimAnt-...-linux.tar.gz. `tar xzf` it and run `OpenSimAnt/OpenSimAnt.x86_64`.
 
-          The first time, click **Find my game folder...** and pick the folder from your own copy of the original DOS
-          game (the one with SIMANT.EXE in it). HOW_TO_PLAY.txt in each package has the details. No original game
-          data is included.
+          On the first screen, choose **Open assets** to play with the remake's own art, text, sound and music: it
+          needs nothing else. If you own the original DOS game, **Original look** plays with your copy instead (pick
+          the folder with SIMANT.EXE in it). HOW_TO_PLAY.txt in each package has the details. No original game data
+          is included.
           EOF
           files="dist/OpenSimAnt-${GITHUB_REF_NAME}-windows.zip dist/OpenSimAnt-${GITHUB_REF_NAME}-macos.zip dist/OpenSimAnt-${GITHUB_REF_NAME}-linux.tar.gz"
           # A release made on GitHub's web page creates the tag (and so starts this run) itself: add the files to it.

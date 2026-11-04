@@ -31,21 +31,30 @@ publisher.
   (200,000 ticks) stay identical to the original.
 - The Godot remake is complete with the player's own files: every window, menu, panel, the yard, the
   SimAntipedia, the tutorial, sound and music, compared screen by screen with the original.
-- **Next: a clean-room asset pack**, so the game runs with no original files at all. What is left before
-  version 1 is listed in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+- **The clean-room asset pack is complete** (810 assets: art, layouts, fonts, text, sound effects and
+  music), made by makers who worked from written specs and never saw the originals. The release
+  workflow builds the pack, plays six screens on it with no original files present, and ships it in
+  every package. What is left before version 1 -- the similarity review, and the release itself
+  (licence, name review, player README) -- is listed in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Using it
 
-You need your own copy of the original DOS game. Put its files in the repository root (they are
-git-ignored), then:
+You don't need the original game any more. Build the remake's own assets and start it on them:
 
 ```
-python -I tools/extract.py                          # optional: browse the art, text and sounds in extracted/
-cd remake && dotnet build game/OpenSimAnt.csproj       # then open remake/game in Godot 4.6 (.NET) and run
+python tools/clean_pack/build.py                     # the open asset pack, from remake/game/assets/clean/src
+cd remake && dotnet build game/OpenSimAnt.csproj     # then open remake/game in Godot 4.6 (.NET) and run
 ```
+
+The game starts on a launcher: "Open assets" (the pack just built, no original files needed) or
+"Original look". If you own the DOS version and want the original's look, put its files in the
+repository root (they are git-ignored), or pick the folder on that screen; `--clean` and `--original`
+skip the launcher. `python -I tools/extract.py` browses the art, text and sounds of your own copy in
+`extracted/`.
 
 Test builds for Windows, macOS and Linux (no Godot or .NET needed) come from tagged releases; see "Test builds for players"
-in `remake/README.md`. On first run the game asks for the folder with your copy of the original files.
+in `remake/README.md`. Each package carries the pack, so it plays with no original files at all; the
+first screen offers the open assets or, if you have them, your own copy of the original files.
 
 The verification setup (emulator snapshots, traces) is described in `docs/HANDOFF.md` and
 `remake/README.md`.
