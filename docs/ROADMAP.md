@@ -29,7 +29,7 @@ and add a row to the log. New work found on the way goes into the table as it sh
 | A6 identity | name, rename; title / about pictures; Edit caption; 2026-11-01 afternoon: the audit (no marks in the pack), the engine's own strings an asset (`EXE/engine_strings.json`) | 0 | |
 | B confirm and polish | 2026-11-01 evening: **B2** (tutorial walk, step 46 fixed), **B4** (Ant Info: closes on release), **B6** (hourglass never shown, scheme bytes never read), font 3 and 630 polished; B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused; afternoon: **B3** (f_0c73d + its missing table), **B5** (the Experimental menu / palette / drag loop: 10 differences fixed, emulator-checked); the house screens tables-vs-EXE (26 patches pixel-identical); every control as the original's (the owner's rule: the Edit window's double click, no shell keys) | 2 | B7 (owner); polish: sprite legs ragged |
 | C release | player README (2026-11-04) | 4 | public repo, licences, legal review (owner decisions); tagged v1.0.0 |
-| Checks found 2026-11-04 | | 2 | **B8** `test_terrain.trace` replays 0/0 calls: a vacuous green row (record a real terrain trace, or say in the replay's output that the row proves nothing); **B9** the Map window's interior draws black on the clean pack in CI's `game` shot while the yard shot shows map art: compare it with the original's memory replay (`--state=`, `tools/re/pngdiff.py`) and fix or mark it |
+| Checks found 2026-11-04 | | 2 | **B8** `test_terrain.trace` replays 0/0 calls: a vacuous green row (record a real terrain trace, or say in the replay's output that the row proves nothing); **B9** the Map window's interior draws black in the `game` shot while the yard shot shows map art -- on the clean pack *and* on the original files (2026-11-04, `tools/shots.ps1`), so not a clean-pack bug: compare it with the original's memory replay (`--state=`, `tools/re/pngdiff.py`) and fix or mark it |
 | **Total** | | **9** | B1 (the owner's test builds) is the owner's, not counted |
 
 ### The order (checked at the start of every session, before any work)
@@ -224,11 +224,14 @@ the original files make the clean assets from those specs.
       calls, so the row proves nothing while looking exactly like a pass (the replay's own count is the tell, and
       nobody reads it). Either record a real terrain trace (`tools/ref/record_all.sh`) or make the replay print the
       call count as a warning on an empty file; do not leave a zero row counted as evidence. Found 2026-11-04.
-- [ ] **B9. The Map window's interior on the clean pack.** In CI's `game` shot (`--seed=1234 --ticks=600`) the Map
-      window's map area is entirely black, where the `--yard` shot of the same run shows map art. Compare the same
-      game against the original's memory replay (`--state=`, `tools/re/pngdiff.py`, remake/README "Build checks"):
-      if the original is black there too it is the original's behaviour and gets a note, not a fix (fidelity rule);
-      if not, it is a clean-pack or renderer bug. Found 2026-11-04.
+- [ ] **B9. The Map window's interior draws black.** In the `game` shot (`--seed=1234 --ticks=600`) the Map
+      window's map area is entirely black, where the `--yard` shot of the same run shows map art. **Not a clean-pack
+      bug:** both shots were rendered on eagle1 on 2026-11-04 with `tools/shots.ps1 -Only game,yard` and again with
+      `-Clean`, and the interior is black in both -- the owner's original files reproduce it exactly as the clean
+      pack does, and the yard renders fully in both. What is left is the fidelity question: compare the same game
+      against the original's memory replay (`--state=`, `tools/re/pngdiff.py`, remake/README "Build checks"). If the
+      original is black there too it is the original's behaviour and gets a note, not a fix (fidelity rule); if not,
+      it is a renderer bug. Found and narrowed 2026-11-04.
 - Accepted differences (not bugs): capture diffs from animation / redraw timing; the marked DIVERGENCEs in the
   code (UI randomness on its own generator so drawing never changes the game; crashes in the original turned into
   safe behaviour). The help screens are empty in the DOS version too.
