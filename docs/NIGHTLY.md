@@ -67,29 +67,31 @@ dotnet run --project tests/OpenSimAnt.Replay -c Release --no-build -- --quiet   
 
 ## Visual checks
 
-A screen can be judged inside the session. It needs neither the owner nor a pushed branch.
+A screen can be judged inside the session -- no owner, no eagle1, no pushed branch. Two steps:
 
-1. **Render.** On `eagle1`, through `script-execute` (the box has Windows PowerShell 5.1, no `pwsh`):
-   `powershell -NoProfile -ExecutionPolicy Bypass -File tools\shots.ps1 -Only game,yard` (add `-Clean` for the
-   clean pack). PNGs and logs land in `remake/build/shots/`, which is git-ignored, and the script exits non-zero if
-   a screen produced no PNG or its log holds an exception or a missing resource. The screens and seeds are
-   `release.yml`'s, so a local frame and a `clean-screens` frame are the same frame.
-2. **Get it to the model.** The `vision` tool reads a **local path**, and its SSRF guard blocks the tailnet range
-   (`100.64.0.0/10`) outright -- a `...ts.net` URL is refused, and `eagle1` runs no SSH. Serve the shot from
-   `eagle1` with the `http.server` trick (`godot-mcp-bridge` §"Editing files outside res://") and `curl` it to a
-   local file first. `tools/shots.sh` on the Hermes box skips the hop entirely (xvfb + `--rendering-driver
-   opengl3`, clean pack only, so no Maxis file ever leaves `eagle1`).
-3. **Ask something falsifiable.** `vision` answers through a sub-call that returns text, so the question decides
-   what the answer is worth: "is the interior of the window titled 'Map' solid black?", never "does this look
-   right". `region` crops to one window. Put the question *and* the answer in the log row -- that is the evidence.
+1. **Render.** In the clone: `sh tools/shots.sh game yard` (any of `title game yard history antipedia
+   tutorial`; no argument renders all six). PNGs and logs land in `remake/build/shots/`, git-ignored, a
+   few seconds a screen. A non-zero exit is a failure to report, not a frame to judge: a screen made no
+   PNG, or its log held an exception or a missing resource.
+2. **Ask.** Give the `vision` tool the PNG's **local path** (a tailnet URL is refused by its SSRF guard)
+   and one falsifiable question -- "is the interior of the right-hand window solid black, or does it show
+   map art?", never "does this look right". Put the question *and* the answer in the log row; that is the
+   evidence.
 
-The three `screenshot-*` bridge tools stay blank and always will (`AGENTS.md` §5): they photograph the editor's
-empty scene, not the running game. Do not file them as broken.
+The Hermes box has what this needs: `/opt/godot` (4.6.2 mono), `/opt/dotnet` (SDK 8.0.427) and xvfb, with
+`$GODOT` and the `dotnet` path set by `/etc/profile.d/dotnet.sh`. These are the clean pack's screens, the
+same six and the same seeds `release.yml` renders, so a local frame and a `clean-screens` frame are the
+same frame. The original files never leave eagle1, so a comparison that needs them is `tools/shots.ps1`
+there, through the bridge -- the one visual check that still needs eagle1.
+
+`screenshot-*` on the bridge stays blank and always will (`AGENTS.md` §5): it photographs the editor's
+empty scene, not the running game. Do not file it as broken.
 
 ## Reading and writing
 
 - **Read** from the Linux clone at `~/work/SimAnt-Evolved` (fast, whole files). Refresh it with `git pull` after
-  the branch is pushed. It is a read path only; commits are made on `eagle1`.
+  the branch is pushed. Never commit from it -- commits are made on `eagle1`. It does render: `tools/shots.sh`
+  builds and draws there ("Visual checks"), and its output is git-ignored, so `git status` in the clone stays clean.
 - **Write small text files** on `eagle1` through `script-execute` (base64 or a tailnet `http.server`), then verify
   **SHA-256 against the local file** -- see `godot-mcp-bridge` §"Editing files outside res://".
 - **Code under `res://`** goes through `script-create` / `script-update` + `script-build`, then an assertion.
