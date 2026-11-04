@@ -32,6 +32,7 @@ Where it stands: the simulation is byte-identical with the original in the emula
 | `docs/HANDOFF.md` | Goals, repo map, the verification method, what is ported, next steps. |
 | `docs/ROADMAP.md` | Burn-down in *jobs*, tracks A/B/C, the per-session log. |
 | `docs/FILE_FORMATS.md`, `docs/ART_PLAN.md`, `docs/RECREATION_PLAN.md`, `docs/PLAYTEST.md` | Asset formats; the clean-room asset plan and specs; the overall plan; the owner's play-test checklist. |
+| `docs/NIGHTLY.md` | The protocol the automated nightly sessions follow (branch, gate, commits, the handoff to the next session). |
 | `docs/clean_pack/*.md` | 12 written specs of the clean assets — words only, so makers who never see the originals can build them. |
 | `tools/*.py` | Asset extraction: archives, bitmaps, palette, MIDI, sound, `tiles.py` for map tiles / ant sprites. |
 | `tools/re/` | Reverse-engineering tooling: `build_flat.py`, `adis.py`, `decomp.py`, `emu.py` (Unicorn), `symbols.json`. Generated output in `tools/re/build/` is git-ignored. |
@@ -125,7 +126,13 @@ The editor on the Windows box (`eagle1`) runs the Godot-MCP addon (0.34.0 / serv
 
 ## 9. Opening a session
 
-1. `docs/ROADMAP.md`: the burn-down table and the last log row.
-2. `docs/HANDOFF.md` "How verification works", if you will touch the simulation.
-3. `docs/SIM_NOTES.md` "Status and TODO", before porting anything.
-4. If you will touch the Godot project: confirm the bridge answers (`rql-query 'editor'`), and that `git status` is clean before you start.
+1. `docs/ROADMAP.md`: the burn-down table and the last log row -- **and then "The order"**, before choosing any
+   work. A job whose prerequisite is open waits, even if it is the smaller one; a prerequisite that is
+   agent-doable goes to the top of the session. Answer the five questions there in this session's log row.
+2. Anything the session finds and does not fix becomes a row on the burn-down **before the session ends**.
+   A finding with no row is lost.
+3. `docs/HANDOFF.md` "How verification works", if you will touch the simulation.
+4. `docs/SIM_NOTES.md` "Status and TODO", before porting anything.
+5. If you will touch the Godot project: confirm the bridge answers (`rql-query 'editor'`), and that `git status` is clean before you start.
+6. Nightly sessions (the automated ones) follow `docs/NIGHTLY.md`: the same opening, plus the build / test gate,
+   the commit rule and the handoff they must leave for the session after them.

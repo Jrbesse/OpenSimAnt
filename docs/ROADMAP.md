@@ -27,9 +27,28 @@ and add a row to the log. New work found on the way goes into the table as it sh
 | A4 music (30 songs, 33 cues) | spec `music.md`, encoder, cues built (2026-11-01 afternoon); evening: the 30 songs (2 batches), the stings' velocities raised after a render | 0 | |
 | A5 integration | launcher; 2026-11-01 evening: **the clean pack complete** (810 files); release.yml builds it and plays 6 screens on it under xvfb; **2026-11-04: that CI run is watched and green** (run 41920221727: pack built from source, 810 files / 0 missing, six screens drawn from it with no original files, "the clean pack res://assets/clean/clean_pack.zip" in every log); 14 windows drawn from the clean pack locally, no errors | 1 | similarity review |
 | A6 identity | name, rename; title / about pictures; Edit caption; 2026-11-01 afternoon: the audit (no marks in the pack), the engine's own strings an asset (`EXE/engine_strings.json`) | 0 | |
-| B confirm and polish | 2026-11-01 evening: **B2** (tutorial walk, step 46 fixed), **B4** (Ant Info: closes on release), **B6** (hourglass never shown, scheme bytes never read), font 3 and 630 polished; B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused; afternoon: **B3** (f_0c73d + its missing table), **B5** (the Experimental menu / palette / drag loop: 10 differences fixed, emulator-checked); the house screens tables-vs-EXE (26 patches pixel-identical); every control as the original's (the owner's rule: the Edit window's double click, no shell keys) | 2 | B7; polish: sprite legs ragged |
-| C release | player README (2026-11-04) | 4 | public repo, licences, legal review, tagged v1.0.0 |
-| **Total** | | **7** | B1 (the owner's test builds) is the owner's, not counted |
+| B confirm and polish | 2026-11-01 evening: **B2** (tutorial walk, step 46 fixed), **B4** (Ant Info: closes on release), **B6** (hourglass never shown, scheme bytes never read), font 3 and 630 polished; B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused; afternoon: **B3** (f_0c73d + its missing table), **B5** (the Experimental menu / palette / drag loop: 10 differences fixed, emulator-checked); the house screens tables-vs-EXE (26 patches pixel-identical); every control as the original's (the owner's rule: the Edit window's double click, no shell keys) | 2 | B7 (owner); polish: sprite legs ragged |
+| C release | player README (2026-11-04) | 4 | public repo, licences, legal review (owner decisions); tagged v1.0.0 |
+| Checks found 2026-11-04 | | 2 | **B8** `test_terrain.trace` replays 0/0 calls: a vacuous green row (record a real terrain trace, or say in the replay's output that the row proves nothing); **B9** the Map window's interior draws black on the clean pack in CI's `game` shot while the yard shot shows map art: compare it with the original's memory replay (`--state=`, `tools/re/pngdiff.py`) and fix or mark it |
+| **Total** | | **9** | B1 (the owner's test builds) is the owner's, not counted |
+
+### The order (checked at the start of every session, before any work)
+
+The table is a set of jobs, not a queue: the *order* is a prerequisite order, and a session that starts work
+without checking it is how a prerequisite gets left behind. At the start of every session, read the "What is
+left" cells and answer these in writing in the session's log row:
+
+1. **Is any job blocked by a job that is still open?** (Examples: the similarity review needs the *check* rows
+   closed first, because it reads their evidence; the tagged release needs the licence and the name review; a
+   spec has to land before its maker runs.) If a prerequisite is open and is agent-doable, it goes to the top
+   of this session's list even if it is not the smallest job.
+2. **Is any open job actually two jobs?** Split it, so the next session can pick up the half that is ready.
+3. **Does any open job need the owner** (his test builds B1, his ears B7, his decisions on the name / licence /
+   going public, any visual judgement the agent cannot make)? Mark it `(owner)` in the cell and never schedule
+   it as agent work.
+4. **Is anything found but not written down?** Every issue a session spots becomes a row before the session
+   ends -- this is how the list stays honest. A finding with no row is a finding lost.
+5. **Do the counts still add up?** The Total row equals the sum of the Left cells.
 
 Pace so far: 9..15 jobs per 5-hour window with at most 3 agents at once (art makers and emulator work cost the most),
 so **about 1 to 2 sessions** to version 1, plus whatever the reviews find and the owner's listening / play-test.
@@ -199,8 +218,17 @@ the original files make the clean assets from those specs.
 - [x] **B6. Screen details:** the hourglass cursor (never shown by the original: its one cursor load asks for id 4,
       which does not exist); the two undecoded bytes of each colour scheme (never read). Done 2026-11-01 evening by
       code reading. Not checkable here: the colours of message boxes and scenes (window 26) on a real screen.
-- [ ] **B7. Audio fidelity:** compare `OpenSimAnt.Replay --songs` with DOSBox; the sample / FM balance
+- [ ] **B7. Audio fidelity (owner):** compare `OpenSimAnt.Replay --songs` with DOSBox; the sample / FM balance
       (`SoundMixer.SampleGain`). Not modelled: AdLib mode.
+- [ ] **B8. A vacuous green test.** `OpenSimAnt.Replay` prints `test_terrain.trace: 0/0 OK` -- the file records no
+      calls, so the row proves nothing while looking exactly like a pass (the replay's own count is the tell, and
+      nobody reads it). Either record a real terrain trace (`tools/ref/record_all.sh`) or make the replay print the
+      call count as a warning on an empty file; do not leave a zero row counted as evidence. Found 2026-11-04.
+- [ ] **B9. The Map window's interior on the clean pack.** In CI's `game` shot (`--seed=1234 --ticks=600`) the Map
+      window's map area is entirely black, where the `--yard` shot of the same run shows map art. Compare the same
+      game against the original's memory replay (`--state=`, `tools/re/pngdiff.py`, remake/README "Build checks"):
+      if the original is black there too it is the original's behaviour and gets a note, not a fix (fidelity rule);
+      if not, it is a clean-pack or renderer bug. Found 2026-11-04.
 - Accepted differences (not bugs): capture diffs from animation / redraw timing; the marked DIVERGENCEs in the
   code (UI randomness on its own generator so drawing never changes the game; crashes in the original turned into
   safe behaviour). The help screens are empty in the DOS version too.
