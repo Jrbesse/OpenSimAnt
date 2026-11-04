@@ -34,6 +34,12 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" Condition="'$(GodotMcpCodeExecInGame)' == 'true' or ('$(Configuration)' != 'ExportDebug' and '$(Configuration)' != 'ExportRelease')" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="addons/godot_mcp/extensions.catalog.json" LogicalName="Godot-MCP.extensions.catalog.json" />
+    <!-- install-plugin writes this reference. remake/.gitignore ignores
+         game/addons/godot_mcp/ (the addon is per-checkout, never committed),
+         so a fresh clone, CI included, has no such file and the build
+         failed with CS1566: Error reading resource 'Godot-MCP.extensions.catalog.json'.
+         Embed it only when it is actually there. -->
+    <EmbeddedResource Include="addons/godot_mcp/extensions.catalog.json" LogicalName="Godot-MCP.extensions.catalog.json"
+                      Condition="Exists('addons/godot_mcp/extensions.catalog.json')" />
   </ItemGroup>
 </Project>
