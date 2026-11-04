@@ -39,9 +39,10 @@ Hermes host, whose clock is UTC.
 
 - Take work from the **top of the prerequisite order**, not the smallest job. A job whose prerequisite is open
   waits; an agent-doable prerequisite jumps the queue.
-- **Agent-doable only.** Anything marked `(owner)` in the burn-down -- his test builds, his ears on the audio, the
-  name / licence / going-public decisions, and any visual judgement an agent cannot make (`screenshot-*` returns a
-  blank frame on this project; the scene root draws procedurally) -- is reported, never attempted.
+- **Agent-doable only.** Anything marked `(owner)` in the burn-down -- his test builds, his ears on the audio, and
+  the name / licence / going-public decisions -- is reported, never attempted. **Screen work is no longer in that
+  set:** the game renders its own frames (`tools/shots.ps1`) and the `vision` tool reads them -- see "Visual
+  checks" below. A `(owner)` row for a screen now needs a reason beyond "an agent cannot see it".
 - **Timebox ~90 minutes of work.** One job done and verified beats three half-done. Stop with the tree
   consistent, commit what is verified, and leave the rest as a row.
 - **Every issue spotted gets a row before the session ends**, with the evidence that found it. This includes
@@ -58,10 +59,32 @@ dotnet run --project tests/OpenSimAnt.Replay -c Release --no-build -- --quiet   
 ```
 
 - Read the replay's **per-file call counts**, not just the verdict: a `0/0 OK` row is vacuous (B8 is exactly this).
-- For shell / UI work there is no trace: name the comparison (`--state=` + `tools/re/pngdiff.py`, a CI
-  `clean-screens` artifact, a named screen flag) and say what it showed. Never write "looks right".
+- For shell / UI work there is no trace: name the comparison (`tools/shots.ps1` + the question you asked `vision`,
+  `--state=` + `tools/re/pngdiff.py`, a CI `clean-screens` artifact) and say what it showed. Never write
+  "looks right".
 - Heavy reference suites (`tools/ref/record_all.sh`, `test_*.py`) run for minutes: start them detached with a log
   and poll, do not block a tool call on them.
+
+## Visual checks
+
+A screen can be judged inside the session. It needs neither the owner nor a pushed branch.
+
+1. **Render.** On `eagle1`, through `script-execute` (the box has Windows PowerShell 5.1, no `pwsh`):
+   `powershell -NoProfile -ExecutionPolicy Bypass -File tools\shots.ps1 -Only game,yard` (add `-Clean` for the
+   clean pack). PNGs and logs land in `remake/build/shots/`, which is git-ignored, and the script exits non-zero if
+   a screen produced no PNG or its log holds an exception or a missing resource. The screens and seeds are
+   `release.yml`'s, so a local frame and a `clean-screens` frame are the same frame.
+2. **Get it to the model.** The `vision` tool reads a **local path**, and its SSRF guard blocks the tailnet range
+   (`100.64.0.0/10`) outright -- a `...ts.net` URL is refused, and `eagle1` runs no SSH. Serve the shot from
+   `eagle1` with the `http.server` trick (`godot-mcp-bridge` §"Editing files outside res://") and `curl` it to a
+   local file first. `tools/shots.sh` on the Hermes box skips the hop entirely (xvfb + `--rendering-driver
+   opengl3`, clean pack only, so no Maxis file ever leaves `eagle1`).
+3. **Ask something falsifiable.** `vision` answers through a sub-call that returns text, so the question decides
+   what the answer is worth: "is the interior of the window titled 'Map' solid black?", never "does this look
+   right". `region` crops to one window. Put the question *and* the answer in the log row -- that is the evidence.
+
+The three `screenshot-*` bridge tools stay blank and always will (`AGENTS.md` §5): they photograph the editor's
+empty scene, not the running game. Do not file them as broken.
 
 ## Reading and writing
 
