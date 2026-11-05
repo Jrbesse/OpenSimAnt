@@ -32,6 +32,7 @@ Hermes host, whose clock is UTC.
 - **Session 1 opens it**, after the branch is pushed and only if the branch has a commit of its own. Title
   `Nightly <date>`, base `master`, head `nightly/<date>`. A night that changed nothing gets no PR, and the session
   says so instead.
+- Anything only the owner's box can settle (it needs his original files) goes under **Needs eagle1** in the body.
 - **Session 2 rewrites the body** so it describes the finished night: what changed (a bullet per job with the
   evidence and the command), the gate results, the base it stacked on, what is still open, and the line that says
   the merge is the owner's. Re-runs use `gh pr edit`, never a second PR.
@@ -41,7 +42,8 @@ Hermes host, whose clock is UTC.
 
 - The reviewer profile wakes on the PR, not a clock: `nightly_review_gate.py` fires it only when an open nightly PR
   has a head SHA that has not been reviewed and the head has settled (10 minutes). It reviews the diff against the
-  PR's real base, re-derives what it can locally (`dotnet build` / `dotnet test` / `tools/shots.sh` + `vision`),
+  PR's real base, re-derives what it can locally (`dotnet build` / `dotnet test` / the replay / `tools/shots.sh` +
+  `vision`),
   labels each session claim VERIFIED / CLAIMED / UNSUPPORTED, and posts one review with up to a dozen inline
   comments. `post_pr_review.py` posts it and records the reviewed SHA; a comment that cannot be anchored is moved
   into the summary rather than dropped.
@@ -59,16 +61,15 @@ Hermes host, whose clock is UTC.
 
 ## Opening (10 minutes, in this order)
 
-1. **Lock.** Session 1 writes `nightly.lock` (with its start time) into `<repo>/remake/build/` on `eagle1` and
+1. **Lock.** Session 1 writes `nightly.lock` (with its start time) into `remake/build/` in the sessions' clone and
    removes it at the end. Session 2 refuses to start if the lock is under 4 hours old (session 1 has overrun) and
    says so in the log row instead of racing it.
-2. **Bridge.** `rql-query 'editor'` on the Godot-MCP endpoint must answer (`godot-mcp-bridge` skill). The editor is
-   the server: if it is closed, build and test still work through `script-execute` (plain `dotnet`), but anything
-   needing the live editor does not. Do not restart the editor; that is the owner's box.
+2. **Bridge.** `rql-query 'editor'` on the Godot-MCP endpoint must answer (`godot-mcp-bridge` skill, `AGENTS.md`
+   §5). The editor runs on the Hermes box as a service and restarts itself; if the check fails, wait 2 minutes and
+   retry once. Still failing is the night's finding.
 3. **`AGENTS.md` §9** then **`docs/ROADMAP.md`**: the burn-down, the last log row, and **"The order"**. Answer its
    five questions in this session's log row *before* choosing work.
-4. **`git status`** on `eagle1` must be clean apart from the known `remake/game/project.godot` phantom (CRLF, no
-   content change). If something else is modified, say what and do not build on it.
+4. **`git status`** in the clone must be clean. If something is modified, say what and do not build on it.
 
 ## Choosing work
 
@@ -76,14 +77,14 @@ Hermes host, whose clock is UTC.
   waits; an agent-doable prerequisite jumps the queue.
 - **Agent-doable only.** Anything marked `(owner)` in the burn-down -- his test builds, his ears on the audio, and
   the name / licence / going-public decisions -- is reported, never attempted. **Screen work is no longer in that
-  set:** the game renders its own frames (`tools/shots.ps1`) and the `vision` tool reads them -- see "Visual
+  set:** the game renders its own frames (`tools/shots.sh`, or the live editor) and the `vision` tool reads them -- see "Visual
   checks" below. A `(owner)` row for a screen now needs a reason beyond "an agent cannot see it".
 - **Timebox ~90 minutes of work.** One job done and verified beats three half-done. Stop with the tree
   consistent, commit what is verified, and leave the rest as a row.
 - **Every issue spotted gets a row before the session ends**, with the evidence that found it. This includes
   vacuous tests, stale docs, and anything the session chose not to fix.
 
-## The verification gate (on `eagle1`, in `<repo>/remake`)
+## The verification gate (on the Hermes box, in `remake/`)
 
 Nothing is "done" because it compiles. Before committing:
 
@@ -94,7 +95,12 @@ dotnet run --project tests/OpenSimAnt.Replay -c Release --no-build -- --quiet   
 ```
 
 - Read the replay's **per-file call counts**, not just the verdict: a `0/0 OK` row is vacuous (B8 is exactly this).
-- For shell / UI work there is no trace: name the comparison (`tools/shots.ps1` + the question you asked `vision`,
+- The traces (`remake/build/traces`, git-ignored, game memory) are a read-only copy from eagle1, linked into every
+  clone on the Hermes box. Re-recording them still happens on eagle1 (`tools/ref/record_all.sh` needs the emulator
+  setup); after that they are copied over again.
+- A few unit tests need the owner's original files and pass as placeholders named `(no traces)` or
+  `(no game files)` when they are absent. Those are **Needs eagle1**, never a pass.
+- For shell / UI work there is no trace: name the comparison (`tools/shots.sh` + the question you asked `vision`,
   `--state=` + `tools/re/pngdiff.py`, a CI `clean-screens` artifact) and say what it showed. Never write
   "looks right".
 - Heavy reference suites (`tools/ref/record_all.sh`, `test_*.py`) run for minutes: start them detached with a log
@@ -116,31 +122,35 @@ A screen can be judged inside the session -- no owner, no eagle1, no pushed bran
 The Hermes box has what this needs: `/opt/godot` (4.6.2 mono), `/opt/dotnet` (SDK 8.0.427) and xvfb, with
 `$GODOT` and the `dotnet` path set by `/etc/profile.d/dotnet.sh`. These are the clean pack's screens, the
 same six and the same seeds `release.yml` renders, so a local frame and a `clean-screens` frame are the
-same frame. The original files never leave eagle1, so a comparison that needs them is `tools/shots.ps1`
-there, through the bridge -- the one visual check that still needs eagle1.
+same frame. The original files never leave eagle1, so a comparison that needs them (`tools/shots.ps1`,
+`--state=` + `tools/re/pngdiff.py`, instrumenting the game on the original files) is listed under **Needs
+eagle1** in the PR: sessions cannot reach that box.
+
+**The live game.** For a screen that needs input to reach, use the editor on the Hermes box: `rql-mutate 'editor |
+call PlayScene("res://Main.tscn")'`, drive it with `DISPLAY=:99 xdotool mousemove X Y click 1` (or `xdotool key
+<key>`), capture with `godot-shot /tmp/<name>.png`, ask `vision` the same kind of question, then `rql-mutate 'editor
+| call StopScene()'`. The editor draws on a virtual 1280x1024 display with software GL, so the frame is real.
 
 `screenshot-*` on the bridge stays blank and always will (`AGENTS.md` §5): it photographs the editor's
 empty scene, not the running game. Do not file it as broken.
 
 ## Reading and writing
 
-- **Read** from the Linux clone at `~/work/SimAnt-Evolved` (fast, whole files). Refresh it with `git pull` after
-  the branch is pushed. Sessions read here and commit on `eagle1`; the fixer edits here and pushes from here, so it
-  fetches and checks out the PR head first and never rebases shared history. It does render: `tools/shots.sh`
-  builds and draws there ("Visual checks"), and its output is git-ignored, so `git status` in the clone stays clean.
-- **Write small text files** on `eagle1` through `script-execute` (base64 or a tailnet `http.server`), then verify
-  **SHA-256 against the local file** -- see `godot-mcp-bridge` §"Editing files outside res://".
-- **Code under `res://`** goes through `script-create` / `script-update` + `script-build`, then an assertion.
+- **Everything happens in the sessions' clone** at `~/work/SimAnt-Evolved` on the Hermes box: read, edit, build,
+  test, commit and push there. The live editor has that clone open, so `script-build` builds what the session just
+  wrote. The fixer has its own clone (`~/work/SimAnt-Fix`) and the reviewer its own (`~/work/SimAnt-Review`).
+- **Code under `res://`** can also go through `script-create` / `script-update` + `script-build`, then an assertion.
+- Render output (`remake/build/shots/`) and the traces are git-ignored, so `git status` stays clean.
 
 ## Committing
 
-On `eagle1`, in the repo, with the repo-local identity (never override it):
+In the sessions' clone, with the owner's identity (never override it):
 
 ```
-git -C <repo> checkout -B nightly/YYYY-MM-DD <base>          # session 1: <base> = newest open nightly PR's head, else origin/master
-git -C <repo> add <files> && git -C <repo> commit -F <msgfile>
-set GIT_TERMINAL_PROMPT=0 && git -C <repo> push -u origin nightly/YYYY-MM-DD
-git ls-remote origin refs/heads/nightly/YYYY-MM-DD            # confirm, do not trust the exit code alone
+git checkout -B nightly/YYYY-MM-DD <base>          # session 1: <base> = newest open nightly PR's head, else origin/master
+git add <files> && git commit -F <msgfile>
+GIT_TERMINAL_PROMPT=0 git push -u origin nightly/YYYY-MM-DD
+git ls-remote origin refs/heads/nightly/YYYY-MM-DD  # confirm, do not trust the exit code alone
 ```
 
 - Small, reviewable commits, each stating **what was verified and with which command**.
