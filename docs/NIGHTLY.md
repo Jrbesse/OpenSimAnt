@@ -49,9 +49,11 @@ Hermes host, whose clock is UTC.
   PR author's own account and GitHub does not let anyone approve or request changes on their own PR. A second
   account's token in `GH_REVIEWER_TOKEN` upgrades the review to a real `REQUEST_CHANGES`.
 - The fixer (`nightly_fix_gate.py`, same 20-minute cadence) acts on anything unprocessed: reviewer findings, and
-  every owner comment unless it reads as a question or a scope decision. It edits on the Linux clone, runs build and
-  the unit tests (and the replay when simulation behaviour moved), pushes to the PR branch, replies per comment, and
-  acks the ids. Caps: 4 wakes per PR per day, and it never force-pushes, rebases shared history, merges, or approves.
+  every owner comment unless it reads as a question or a scope decision. It has its **own clone** at
+  `~/work/SimAnt-Fix` -- never the sessions' `~/work/SimAnt-Evolved`, whose working tree other jobs and the operator
+  use. There it edits, runs build and the unit tests (and the replay when simulation behaviour moved), pushes to the
+  PR branch, replies per comment, and acks the ids. Caps: 4 wakes per PR per day, and it never force-pushes, rebases
+  shared history, merges, or approves.
 - Review never blocks the owner: he can merge a PR with open comments, and the next night stacks on whatever state
   `master` is in.
 
