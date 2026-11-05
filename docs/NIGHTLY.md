@@ -26,9 +26,14 @@ knowing:
 - A night can be reviewed more than once, later reviews covering later tips. The verdict file always names the SHA
   it covers; anything committed after that SHA is unreviewed and the morning report says so.
 
-The verdict is published to the owner's channel and written to `~/work/nightly-review/<date>.md`. It is the
-reviewer's own words, not a summary: verdict, the SHA, per-job VERIFIED / CLAIMED / UNSUPPORTED, disagreements,
-findings, and what only `eagle1` can settle.
+The reviewer writes `~/work/nightly-review/<date>.md` and nothing else -- it has no share of the bot token and no
+write access to the branch it is judging. Publishing is a separate dev-side job: it commits the verdict to the
+**`reviews` branch** as `docs/nightly-review/<date>.md` and posts the verdict, the SHA, the VERIFIED / CLAIMED /
+UNSUPPORTED counts and that link to the owner's channel. It stays quiet until a verdict it has not already
+published appears, so a night produces one message per verdict, not one per poll.
+
+Read a night's review at
+`https://github.com/Jrbesse/SimAnt-Evolved/blob/reviews/docs/nightly-review/<date>.md`.
 
 ## Branch discipline
 
