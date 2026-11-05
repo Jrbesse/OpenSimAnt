@@ -48,7 +48,7 @@ public partial class Main : Node2D
     (int a, int b)? patchCentre;                                            // --patch: the surface cell to show
     int shotFrames = 240;
     readonly List<string> frontArgs = new(OS.GetCmdlineUserArgs());        // --history, --panels, --map-front, --antipedia, --yard
-    bool frozen;
+    bool frozen, stateFronted, stateFrontWarned;
     string stateMessage;                                                   // --state: the timed message to show                                                            // --state: the game does not run
     int frames;
 
@@ -3981,7 +3981,21 @@ public partial class Main : Node2D
         st.Set16(Seg.G, 0x50a, originB);
         st.Set16(Seg.G, 0x10e0, Cols);
         st.Set16(Seg.G, 0x10de, Rows);
-        st.Set16(Seg.DS, 0x5702, (modal >= 0 ? modal : zOrder.Count > 0 ? zOrder[^1] : 0) << 8);   // the active window (f_23612)
+        if (!frozen) st.Set16(Seg.DS, 0x5702, (modal >= 0 ? modal : zOrder.Count > 0 ? zOrder[^1] : 0) << 8);   // the active window (f_23612)
+        if (frozen && !stateFronted && zOrder.Count > 1)                               // --state: the stack the original held
+        {
+            int front = st.U16(Seg.DS, 0x5702) >> 8;                                  // DS:5702 is the active window (f_23612)
+            if (zOrder.Contains(front))
+            {
+                if (zOrder[^1] != front) Front(front);
+                stateFronted = true;
+            }
+            else if (!stateFrontWarned)                                           // a bad --state capture must not look like a fidelity difference
+            {
+                stateFrontWarned = true;
+                Console.Error.WriteLine($"--state: active window {front} (DS:5702) is not in the shell's stack [{string.Join(", ", zOrder)}] -- the frame shows the shell's stack instead");
+            }
+        }
         var canvas = new UiArt.Canvas(argb, ScreenW, ScreenH);
         var modes = session.Files.Strings(1001);                       // STR# 1001 (G:0324): the game modes' names
         int gm = st.U16(Seg.G, 0xeac);
