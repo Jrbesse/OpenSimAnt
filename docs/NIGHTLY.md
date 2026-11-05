@@ -4,23 +4,58 @@ Two automated sessions run every night and one report goes out in the morning. T
 moving and to hand the next session a clean start: build, fix, test, review, commit, and write down what the next
 session picks up.
 
+Each night ends as a **pull request** against `master`. The PR is where review happens: an automated reviewer posts
+a review with inline comments, and a fixer acts on those comments and on the owner's. The owner merges.
+
 | When (Central) | What | Where it lands |
 |---|---|---|
-| 01:00 | Nightly session 1 | a commit on `nightly/<date>` |
-| 05:00 | Nightly session 2 | a commit on `nightly/<date>` |
-| 07:00 | Morning report | the owner's Discord channel |
+| 01:00 | Nightly session 1 | commits on `nightly/<date>`, then the PR is opened |
+| 04:00 | Nightly session 2 | commits on the same branch, PR body rewritten |
+| every 20 min, 05:00-22:00 | Review + fixer | a review posted on the PR; fixes pushed to its branch |
+| 07:00 | Morning report | the owner's Discord channel: open PRs, CI, verdicts |
 
 Central time is the owner's clock (`eagle1`, UTC-6 in winter). The jobs are Hermes cron jobs; the Cron runs on the
 Hermes host, whose clock is UTC.
 
 ## Branch discipline
 
-- Work goes on **`nightly/YYYY-MM-DD`** (the Central date at the session's start), branched from `origin/master`.
-  **Never push `master`**. The owner reads the morning report and says when to merge; the merge is a fast-forward
-  and is done by hand, not by a session.
-- Session 2 reuses the same branch as session 1 (so a night is one reviewable diff). If `origin/master` moved
-  during the day, rebase the branch onto it at the start of the session and say so in the log row.
+- Work goes on **`nightly/YYYY-MM-DD`** (the Central date at the session's start). **Never push `master`**.
+- **Stack, do not wait.** If an open PR already has a `nightly/*` head, tonight's branch is cut from the newest
+  such PR's head commit, not from `master`. Unmerged nights therefore stay continuous, and once the older PR merges,
+  GitHub reduces the newer PR's diff to its own work. If nothing is open, cut from `origin/master`.
+- Session 2 reuses the same branch as session 1 (a night is one reviewable diff). If `origin/master` moved during
+  the day, rebase at the start of the session and say so in the log row.
 - A day with no nightly branch means no session ran. Say that in the report; do not invent progress.
+
+## The pull request
+
+- **Session 1 opens it**, after the branch is pushed and only if the branch has a commit of its own. Title
+  `Nightly <date>`, base `master`, head `nightly/<date>`. A night that changed nothing gets no PR, and the session
+  says so instead.
+- **Session 2 rewrites the body** so it describes the finished night: what changed (a bullet per job with the
+  evidence and the command), the gate results, the base it stacked on, what is still open, and the line that says
+  the merge is the owner's. Re-runs use `gh pr edit`, never a second PR.
+- Nobody pastes review comments into chat. The PR thread is the record.
+
+## Review and fixes
+
+- The reviewer profile wakes on the PR, not a clock: `nightly_review_gate.py` fires it only when an open nightly PR
+  has a head SHA that has not been reviewed and the head has settled (10 minutes). It reviews the diff against the
+  PR's real base, re-derives what it can locally (`dotnet build` / `dotnet test` / `tools/shots.sh` + `vision`),
+  labels each session claim VERIFIED / CLAIMED / UNSUPPORTED, and posts one review with up to a dozen inline
+  comments. `post_pr_review.py` posts it and records the reviewed SHA; a comment that cannot be anchored is moved
+  into the summary rather than dropped.
+- The verdict is carried in the review's first line (`CHANGES` or `MERGE`), because the agent authenticates as the
+  PR author's own account and GitHub does not let anyone approve or request changes on their own PR. A second
+  account's token in `GH_REVIEWER_TOKEN` upgrades the review to a real `REQUEST_CHANGES`.
+- The fixer (`nightly_fix_gate.py`, same 20-minute cadence) acts on anything unprocessed: reviewer findings, and
+  every owner comment unless it reads as a question or a scope decision. It has its **own clone** at
+  `~/work/SimAnt-Fix` -- never the sessions' `~/work/SimAnt-Evolved`, whose working tree other jobs and the operator
+  use. There it edits, runs build and the unit tests (and the replay when simulation behaviour moved), pushes to the
+  PR branch, replies per comment, and acks the ids. Caps: 4 wakes per PR per day, and it never force-pushes, rebases
+  shared history, merges, or approves.
+- Review never blocks the owner: he can merge a PR with open comments, and the next night stacks on whatever state
+  `master` is in.
 
 ## Opening (10 minutes, in this order)
 
@@ -90,7 +125,8 @@ empty scene, not the running game. Do not file it as broken.
 ## Reading and writing
 
 - **Read** from the Linux clone at `~/work/SimAnt-Evolved` (fast, whole files). Refresh it with `git pull` after
-  the branch is pushed. Never commit from it -- commits are made on `eagle1`. It does render: `tools/shots.sh`
+  the branch is pushed. Sessions read here and commit on `eagle1`; the fixer edits here and pushes from here, so it
+  fetches and checks out the PR head first and never rebases shared history. It does render: `tools/shots.sh`
   builds and draws there ("Visual checks"), and its output is git-ignored, so `git status` in the clone stays clean.
 - **Write small text files** on `eagle1` through `script-execute` (base64 or a tailnet `http.server`), then verify
   **SHA-256 against the local file** -- see `godot-mcp-bridge` §"Editing files outside res://".
@@ -101,7 +137,7 @@ empty scene, not the running game. Do not file it as broken.
 On `eagle1`, in the repo, with the repo-local identity (never override it):
 
 ```
-git -C <repo> checkout -B nightly/YYYY-MM-DD origin/master   # session 1
+git -C <repo> checkout -B nightly/YYYY-MM-DD <base>          # session 1: <base> = newest open nightly PR's head, else origin/master
 git -C <repo> add <files> && git -C <repo> commit -F <msgfile>
 set GIT_TERMINAL_PROMPT=0 && git -C <repo> push -u origin nightly/YYYY-MM-DD
 git ls-remote origin refs/heads/nightly/YYYY-MM-DD            # confirm, do not trust the exit code alone
@@ -125,5 +161,12 @@ output. The report reads those; it does not re-derive them.
 
 ## What the morning report says
 
-What landed (per job, with the evidence), what is left and in which order, what needs the owner's decision, and
-whether the branch is ready to merge. Issued at 07:00 Central to the owner's Discord channel.
+One block per open PR: CI state, the review verdict, how many inline comments are open and how many are already
+fixed, what landed (per job, with the evidence), and what needs the owner's decision. Then the pipeline state
+(session 1, session 2, review, fixer) and what the next night starts from. It points at the PRs and does not restate
+the review: the code discussion lives on GitHub. Issued at 07:00 Central to the owner's Discord channel.
+
+## Discord's job, and GitHub's
+
+Discord carries facts, not review: the morning report, a session failure, a PR opened, a CI verdict, a review
+landed. Every code question, finding and fix is written on the PR.
