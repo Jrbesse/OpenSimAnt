@@ -29,9 +29,9 @@ and add a row to the log. New work found on the way goes into the table as it sh
 | A6 identity | name, rename; title / about pictures; Edit caption; 2026-11-01 afternoon: the audit (no marks in the pack), the engine's own strings an asset (`EXE/engine_strings.json`) | 0 | |
 | B confirm and polish | 2026-11-01 evening: **B2** (tutorial walk, step 46 fixed), **B4** (Ant Info: closes on release), **B6** (hourglass never shown, scheme bytes never read), font 3 and 630 polished; B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused; afternoon: **B3** (f_0c73d + its missing table), **B5** (the Experimental menu / palette / drag loop: 10 differences fixed, emulator-checked); the house screens tables-vs-EXE (26 patches pixel-identical); every control as the original's (the owner's rule: the Edit window's double click, no shell keys) | 2 | B7 (owner); polish: sprite legs ragged |
 | C release | player README (2026-11-04) | 4 | public repo, licences, legal review (owner decisions); tagged v1.0.0 |
-| Checks found 2026-11-04 | | 1 | **B8** `test_terrain.trace` replays 0/0 calls: a vacuous green row (record a real terrain trace, or say in the replay's output that the row proves nothing) |
-| Checks found 2026-11-05 | | 1 | **B10** `--state=` renders the Map window's content wrong: `mapnest.state` draws the 128-cell surface map where the original's screen draws the 64-cell nest map (see the row in Track B) |
-| **Total** | | **9** | B1 (the owner's test builds) is the owner's, not counted |
+| Checks found 2026-11-04 | | 0 | **B8 closed** in session 2: a trace that records no calls now prints `0/0 -- WARNING: the file records no calls, this row proves nothing` plus a closing warning, so `test_terrain.trace` cannot pass as evidence |
+| Checks found 2026-11-05 | | 1 | **B11** `--state=` restores only the *active* window: `mapnest.state`'s History window is missing (or, with `--history`, plotless) — 25587 px of the frame (see the row in Track B). **B10 closed** in session 2 (the Map window's content was the window stack) |
+| **Total** | | **8** | B1 (the owner's test builds) is the owner's, not counted |
 
 ### The order (checked at the start of every session, before any work)
 
@@ -67,16 +67,16 @@ so **about 1 to 2 sessions** to version 1, plus whatever the reviews find and th
 | 2026-11-04 evening (start) | | 8 | 1..2 |
 | 2026-11-04 evening (end) | 1 (the player README: `HOW_TO_PLAY.txt` no longer says the original is needed and lists the controls the shell really has; the README's status and the release notes' first-run paragraph say the clean pack ships. A5's CI watch: the first clean-pack `release.yml` run is green — pack built from source, six screens played on it with no original files. Baseline on eagle1: Release build clean, 165 tests pass, 27 trace files / 229,778 calls ALL OK) | 7 | 1 |
 | 2026-11-05 nightly session 1 | 1 closed + 1 found. **B9 closed**: the Map window's black interior is the original's own — the map image is one byte per cell stretched 4 px, so a 64-cell nest map is a 256-px strip (x 192..448) in a 512-px item and the margins are black; the original's `mapnest.png` row y=210 is the same three runs (black 64..192, brown 192..448, black 448..576) and the remake's render differs from it in the right margin by 0/32768 px. Reproduced on the Hermes box first (`sh tools/shots.sh game yard`, exit 0, 11.5 s, clean pack in both logs). **B10 found**: `--state=mapnest.state` paints the 128-cell surface map across the item (left margin 32768/32768 differ; strip 18627/65536 with 16-px grey banding) where the original shows the 64-cell nest; `--map-content=2` changes nothing; `quick.state` still matches in 0/307200. Gate on eagle1: Release build 0 errors / 3 warnings, 165 tests pass, 27 traces ALL OK (only `test_terrain.trace` 0/0 — B8 reconfirmed). Order answers: (1) B9 was the first open job and is closed; B8 then B10 are next, neither blocked; (2) B9 was one job, **B10 splits in two** — why the state's Map content is ignored, and the 16-px banding inside the strip; (3) B7 and B1 are (owner), the Track C name / licence / legal decisions are (owner), nothing else needs him; (4) B10 added, the 0/0 terrain trace already had B8; (5) counts 1 + 2 + 4 + 1 + 1 = 9. | 9 | 1 |
+| 2026-11-05 nightly session 2 | 2 closed + 1 found. **B10 closed** — it was the **window stack, not the map**: instrumented `DrawMapWindow` on eagle1, whose numbers were right all along (`content=2 mv=2 mw=64`, item 64..576 x 82..338, nest at 192..448); the shell drew the **Edit window after the Map window** (z-order 19,18,1,0) and its 16-px map grid filled 64..418 with brown, while the state says `DS:5702 = 0x0100` (the Map is the active window, as the original's screen shows). Fix in `Main.cs`: in `--state` mode raise `DS:5702 >> 8` once before the first draw, and stop the shell overwriting `DS:5702` with its own stack. Map item **51395 → 0 of 131072 px** vs `mapnest.png`; whole frame 98432 → 25587 (15956 with `--history`); `quick.state` unchanged but for the original capture's own pointer at (600,470). **B8 closed** — a trace that records no calls now prints `0/0 -- WARNING: the file records no calls, this row proves nothing` plus a closing warning, so `test_terrain.trace` cannot pass as evidence (a real terrain trace is still worth recording). **B11 found**: the rest of the `mapnest.state` frame is the History window, which the state does not restore (it holds only the active window). Gate on eagle1 (both commits): Release build 0 errors / 3 addon warnings, 165 tests pass, 27 traces / 229778 calls ALL OK. Order answers: (1) B10 and B8 were the top two and neither was blocked; B9's closure (session 1) unblocked the visual line, so B10 went first. The similarity review (A5) still waits on the check rows. (2) B10 was one job — both halves had one cause — but the `--state` window stack is bigger than the Map window, so the rest splits off as B11. (3) B7, B1 and Track C's name / licence / legal decisions stay (owner); nothing else needs him. (4) B11 added. (5) A5 1 + B 2 + C 4 + B11 1 = 8, and B8 closes at 0. | 8 | 1 |
 
-Next: **B10** (`--state=` renders the Map window's content wrong) -- start on eagle1 with
-`godot --path remake\game --audio-driver Dummy -- --state=tools\re\build\screens\mapnest.state --screenshot=remake\build\mapnest.state.png`,
-then `python tools\re\pngdiff.py tools\re\build\screens\mapnest.png remake\build\mapnest.state.png 64 82 576 338`.
-It needs nothing from the owner. Why it matters: `--state=` is the visual oracle every state-based screen
-comparison rests on, and `quick.state` still matches in 0 of 307200 pixels, so the fault is in how the Map
-window's content (T:07C8 / view G:032E) is taken from a frozen state, not in the state path itself. Two halves:
-the content (surface drawn where the nest belongs), and the 16-px grey column banding inside the strip. B8 (the
-vacuous `test_terrain.trace` row) is the smaller job beside it: make the replay print a warning on a 0-call
-trace, or record a real terrain trace with `tools/ref/record_all.sh`.
+Next: **B11** (`--state=` restores only the active window: the History window is missing) -- start on eagle1
+with `godot --path remake\game --audio-driver Dummy -- --state=tools\re\build\screens\mapnest.state --history
+--screenshot=remake\build\mapnest.hist.png`, then `python tools\re\pngdiff.py tools\re\build\screens\mapnest.png
+remake\build\mapnest.hist.png` (15956 px now, all in the History window). It needs nothing from the owner.
+Why it matters: `--state=` is the visual oracle every state-based screen comparison rests on, and the state holds
+only `DS:5702` (the active window), so every window beyond the colony-panel set (History here) has to be inferred
+from a state flag or opened by the comparison itself. Beside it: recording a real `test_terrain.trace`
+(`tools/ref/record_all.sh`) so the terrain row carries calls at all -- B8 only made its emptiness visible.
 
 ## Where things stand (2026-10-30)
 
@@ -232,10 +232,12 @@ the original files make the clean assets from those specs.
       code reading. Not checkable here: the colours of message boxes and scenes (window 26) on a real screen.
 - [ ] **B7. Audio fidelity (owner):** compare `OpenSimAnt.Replay --songs` with DOSBox; the sample / FM balance
       (`SoundMixer.SampleGain`). Not modelled: AdLib mode.
-- [ ] **B8. A vacuous green test.** `OpenSimAnt.Replay` prints `test_terrain.trace: 0/0 OK` -- the file records no
-      calls, so the row proves nothing while looking exactly like a pass (the replay's own count is the tell, and
-      nobody reads it). Either record a real terrain trace (`tools/ref/record_all.sh`) or make the replay print the
-      call count as a warning on an empty file; do not leave a zero row counted as evidence. Found 2026-11-04.
+- [x] **B8. A vacuous green test.** `OpenSimAnt.Replay` printed `test_terrain.trace: 0/0 OK` -- the file records no
+      calls, so the row proved nothing while looking exactly like a pass. **Closed 2026-11-05 (nightly session 2):**
+      a trace that records no calls (and no `--func` filter) now prints
+      `test_terrain.trace: 0/0 -- WARNING: the file records no calls, this row proves nothing`, plus a closing
+      `WARNING: N trace file(s) replayed no calls ... they are not evidence` line before the verdict, so the row
+      can no longer be read as evidence. The real terrain trace is still worth recording (`tools/ref/record_all.sh`).
 - [x] **B9. The Map window's interior draws black — the original's, not a bug.** In the `game` shot (`--seed=1234
       --ticks=600`) the Map window's map area is black, where the `--yard` shot of the same run shows map art. **Not
       a clean-pack bug** (2026-11-04: both files on eagle1 reproduced it). **Closed 2026-11-05**: the black is the
@@ -248,15 +250,26 @@ the original files make the clean assets from those specs.
       black). Reproduced on the Hermes box first: `sh tools/shots.sh game yard` → exit 0, 11.5 s, both PNGs, `the
       clean pack` in both logs; pixel grid of `game.png`: brown nest map at x 192..448, black at 448..576. Note it,
       do not fix it (fidelity rule). Found and narrowed 2026-11-04, closed 2026-11-05.
-- [ ] **B10. `--state=` draws the wrong Map window content.** With `--state=tools/re/build/screens/mapnest.state`
-      the remake paints the **128-cell surface** map across the whole item (x 64..576) where the original's
-      `mapnest.png` paints the **64-cell nest** map in the strip 192..448: the left margin (64..192) differs in all
-      32768 pixels (original black, remake brown), and the strip differs in 18627 of 65536 (the remake's 16-px
-      column banding in (64,64,64) / (129,129,129) where the original is solid brown). `--map-content=2` does not
-      change the frame (byte-identical PNG). The state path itself is sound — `quick.state` still matches its
-      original screen in **0 of 307200 pixels**. Command: `godot --path remake/game -- --state=<scr>/mapnest.state
-      --screenshot=out.png`, then `python tools/re/pngdiff.py <scr>/mapnest.png out.png [l t r b]`. Found
-      2026-11-05.
+- [x] **B10. `--state=` draws the wrong Map window content.** With `--state=tools/re/build/screens/mapnest.state`
+      the remake painted the Map window's item (x 64..576) with the Edit window showing through: the left margin
+      (64..192) was brown (nest dirt) instead of the original's black, and the strip 192..448 was broken by
+      16-px grey column bands. `--map-content=2` changed nothing (byte-identical PNG). **Closed 2026-11-05
+      (nightly session 2): it was the window stack, not the map.** Instrumented `DrawMapWindow` on eagle1: the
+      numbers were right all along (`content=2 mv=2 mw=64 m=64,82,576,338`, fill and nest drawn correctly). The
+      shell's z-order was `19,18,1,0` — the **Edit window drawn after (over) the Map window**, its 16-px map grid
+      filling 64..418 with brown, while the state says `DS:5702 = 0x0100` (the Map is the active, front window,
+      as the original's screen shows). Fix (`Main.cs`): with `--state`, raise the state's active window
+      (`DS:5702 >> 8`) once, before the first draw, and stop overwriting `DS:5702` from the shell's own stack in
+      frozen mode. Verified on eagle1: map item **0 of 131072 px** differ from `mapnest.png` (was 51395), and
+      `quick.state` is unchanged but for the original's own mouse pointer at (600,470). Whole frame 98432 ->
+      25587 px (15956 with `--history`; the rest is the History window -- B11 -- and that pointer).
+- [ ] **B11. `--state=` does not restore the whole window stack, and the History graph is not plotted.** After
+      B10 the remaining 25587 px of the `mapnest.state` frame (x 260..640, y 200..480) are the **History window**:
+      the original's capture has it open with a plotted graph and its labels; the remake only shows it with
+      `--history` (25587 -> 15956 px), and even then a scrollbar/label strip (x 570..630, y 220..380) and the
+      label row (y 380..450) still differ. The state holds only the *active* window (`DS:5702`); the rest of the
+      stack is not in the mirrored memory, so open windows beyond the colony-panel set are not inferred. Found
+      2026-11-05, by `--state=` after B10.
 - Accepted differences (not bugs): capture diffs from animation / redraw timing; the marked DIVERGENCEs in the
   code (UI randomness on its own generator so drawing never changes the game; crashes in the original turned into
   safe behaviour). The help screens are empty in the DOS version too.
