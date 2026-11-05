@@ -41,6 +41,7 @@ for (int i = 0; i < args.Length; i++)
 if (paths.Count == 0) paths.Add(TracePaths.DefaultDir());
 var files = paths.SelectMany(p => Directory.Exists(p) ? (IEnumerable<string>)Directory.GetFiles(p, "*.trace").OrderBy(x => x) : new[] { p }).ToList();
 bool allOk = true;
+int empty = 0;                                                          // trace files that record no calls (B8)
 foreach (var file in files)
 {
     var rep = new Replayer { MaxNotes = notes };
@@ -50,7 +51,12 @@ foreach (var file in files)
         rep.Run(rec);
     }
     int calls = rep.Stats.Values.Sum(s => s.Calls), ok = rep.Stats.Values.Sum(s => s.Ok);
-    Console.WriteLine($"{Path.GetFileName(file)}: {ok}/{calls} OK");
+    if (calls == 0 && filter == null)                                       // an empty trace: a green row with no input
+    {
+        empty++;
+        Console.WriteLine($"{Path.GetFileName(file)}: 0/0 -- WARNING: the file records no calls, this row proves nothing");
+    }
+    else Console.WriteLine($"{Path.GetFileName(file)}: {ok}/{calls} OK");
     foreach (var (f, s) in rep.Stats.OrderBy(k => k.Key))
     {
         if (s.Ok == s.Calls && quiet) continue;
@@ -60,6 +66,7 @@ foreach (var file in files)
         if (s.Ok != s.Calls) allOk = false;
     }
 }
+if (empty > 0) Console.WriteLine($"WARNING: {empty} trace file(s) replayed no calls (the 0/0 rows above); they are not evidence -- record a real trace or delete the file");
 Console.WriteLine(allOk ? "ALL OK" : "SOME FAILURES");
 return allOk ? 0 : 1;
 
