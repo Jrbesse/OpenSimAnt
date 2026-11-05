@@ -29,7 +29,8 @@ and add a row to the log. New work found on the way goes into the table as it sh
 | A6 identity | name, rename; title / about pictures; Edit caption; 2026-11-01 afternoon: the audit (no marks in the pack), the engine's own strings an asset (`EXE/engine_strings.json`) | 0 | |
 | B confirm and polish | 2026-11-01 evening: **B2** (tutorial walk, step 46 fixed), **B4** (Ant Info: closes on release), **B6** (hourglass never shown, scheme bytes never read), font 3 and 630 polished; B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused; afternoon: **B3** (f_0c73d + its missing table), **B5** (the Experimental menu / palette / drag loop: 10 differences fixed, emulator-checked); the house screens tables-vs-EXE (26 patches pixel-identical); every control as the original's (the owner's rule: the Edit window's double click, no shell keys) | 2 | B7 (owner); polish: sprite legs ragged |
 | C release | player README (2026-11-04) | 4 | public repo, licences, legal review (owner decisions); tagged v1.0.0 |
-| Checks found 2026-11-04 | | 2 | **B8** `test_terrain.trace` replays 0/0 calls: a vacuous green row (record a real terrain trace, or say in the replay's output that the row proves nothing); **B9** the Map window's interior draws black in the `game` shot while the yard shot shows map art -- on the clean pack *and* on the original files (2026-11-04, `tools/shots.ps1`), so not a clean-pack bug: compare it with the original's memory replay (`--state=`, `tools/re/pngdiff.py`) and fix or mark it |
+| Checks found 2026-11-04 | | 1 | **B8** `test_terrain.trace` replays 0/0 calls: a vacuous green row (record a real terrain trace, or say in the replay's output that the row proves nothing) |
+| Checks found 2026-11-05 | | 1 | **B10** `--state=` renders the Map window's content wrong: `mapnest.state` draws the 128-cell surface map where the original's screen draws the 64-cell nest map (see the row in Track B) |
 | **Total** | | **9** | B1 (the owner's test builds) is the owner's, not counted |
 
 ### The order (checked at the start of every session, before any work)
@@ -65,16 +66,17 @@ so **about 1 to 2 sessions** to version 1, plus whatever the reviews find and th
 | 2026-11-01 evening (end) | 13 (8 agents, at most 3 at once: sound effects, the 30 songs in 2 batches, the loudness balance, A5's CI step and clean screenshots, 630, font 3, B2, B4, B6; the house screens tables-vs-EXE; +1 found and fixed: the controls made the original's exactly) in ~80% of the window | 8 | 1..2 |
 | 2026-11-04 evening (start) | | 8 | 1..2 |
 | 2026-11-04 evening (end) | 1 (the player README: `HOW_TO_PLAY.txt` no longer says the original is needed and lists the controls the shell really has; the README's status and the release notes' first-run paragraph say the clean pack ships. A5's CI watch: the first clean-pack `release.yml` run is green — pack built from source, six screens played on it with no original files. Baseline on eagle1: Release build clean, 165 tests pass, 27 trace files / 229,778 calls ALL OK) | 7 | 1 |
+| 2026-11-05 nightly session 1 | 1 closed + 1 found. **B9 closed**: the Map window's black interior is the original's own — the map image is one byte per cell stretched 4 px, so a 64-cell nest map is a 256-px strip (x 192..448) in a 512-px item and the margins are black; the original's `mapnest.png` row y=210 is the same three runs (black 64..192, brown 192..448, black 448..576) and the remake's render differs from it in the right margin by 0/32768 px. Reproduced on the Hermes box first (`sh tools/shots.sh game yard`, exit 0, 11.5 s, clean pack in both logs). **B10 found**: `--state=mapnest.state` paints the 128-cell surface map across the item (left margin 32768/32768 differ; strip 18627/65536 with 16-px grey banding) where the original shows the 64-cell nest; `--map-content=2` changes nothing; `quick.state` still matches in 0/307200. Gate on eagle1: Release build 0 errors / 3 warnings, 165 tests pass, 27 traces ALL OK (only `test_terrain.trace` 0/0 — B8 reconfirmed). Order answers: (1) B9 was the first open job and is closed; B8 then B10 are next, neither blocked; (2) B9 was one job, **B10 splits in two** — why the state's Map content is ignored, and the 16-px banding inside the strip; (3) B7 and B1 are (owner), the Track C name / licence / legal decisions are (owner), nothing else needs him; (4) B10 added, the 0/0 terrain trace already had B8; (5) counts 1 + 2 + 4 + 1 + 1 = 9. | 9 | 1 |
 
-Next: **B9** (the Map window's black interior) -- it is the first job on the visual line added 2026-11-04, so run
-that line end to end. On the Hermes box, in `~/work/SimAnt-Evolved`: `sh tools/shots.sh game yard`, then give the
-`vision` tool `remake/build/shots/game.png` and ask whether the right-hand window's interior is solid black or
-shows map art (`docs/NIGHTLY.md` "Visual checks"). That reproduces the symptom in about 20 seconds and needs
-nothing from eagle1. It is already known not to be the clean pack, so what is left is the fidelity question, and
-that half *does* need eagle1: compare the same game against the original's memory replay (`--state=`,
-`tools/re/pngdiff.py`, remake/README "Build checks"). Black there too means it is the original's behaviour and
-gets a note under the fidelity rule; otherwise it is a renderer bug. B8 (the vacuous `test_terrain.trace` row) is
-the other open check and does not block it.
+Next: **B10** (`--state=` renders the Map window's content wrong) -- start on eagle1 with
+`godot --path remake\game --audio-driver Dummy -- --state=tools\re\build\screens\mapnest.state --screenshot=remake\build\mapnest.state.png`,
+then `python tools\re\pngdiff.py tools\re\build\screens\mapnest.png remake\build\mapnest.state.png 64 82 576 338`.
+It needs nothing from the owner. Why it matters: `--state=` is the visual oracle every state-based screen
+comparison rests on, and `quick.state` still matches in 0 of 307200 pixels, so the fault is in how the Map
+window's content (T:07C8 / view G:032E) is taken from a frozen state, not in the state path itself. Two halves:
+the content (surface drawn where the nest belongs), and the 16-px grey column banding inside the strip. B8 (the
+vacuous `test_terrain.trace` row) is the smaller job beside it: make the replay print a warning on a 0-call
+trace, or record a real terrain trace with `tools/ref/record_all.sh`.
 
 ## Where things stand (2026-10-30)
 
@@ -234,14 +236,27 @@ the original files make the clean assets from those specs.
       calls, so the row proves nothing while looking exactly like a pass (the replay's own count is the tell, and
       nobody reads it). Either record a real terrain trace (`tools/ref/record_all.sh`) or make the replay print the
       call count as a warning on an empty file; do not leave a zero row counted as evidence. Found 2026-11-04.
-- [ ] **B9. The Map window's interior draws black.** In the `game` shot (`--seed=1234 --ticks=600`) the Map
-      window's map area is entirely black, where the `--yard` shot of the same run shows map art. **Not a clean-pack
-      bug:** both shots were rendered on eagle1 on 2026-11-04 with `tools/shots.ps1 -Only game,yard` and again with
-      `-Clean`, and the interior is black in both -- the owner's original files reproduce it exactly as the clean
-      pack does, and the yard renders fully in both. What is left is the fidelity question: compare the same game
-      against the original's memory replay (`--state=`, `tools/re/pngdiff.py`, remake/README "Build checks"). If the
-      original is black there too it is the original's behaviour and gets a note, not a fix (fidelity rule); if not,
-      it is a renderer bug. Found and narrowed 2026-11-04.
+- [x] **B9. The Map window's interior draws black — the original's, not a bug.** In the `game` shot (`--seed=1234
+      --ticks=600`) the Map window's map area is black, where the `--yard` shot of the same run shows map art. **Not
+      a clean-pack bug** (2026-11-04: both files on eagle1 reproduced it). **Closed 2026-11-05**: the black is the
+      original's own. The Map window's item is 512 px wide (64..576) but the map image is one colour byte per cell
+      stretched 4 px (`f_6efd6`), so only a 128-cell surface map fills it; a 64-cell nest map is a 256-px strip
+      centred in it (x 192..448) with black margins either side, and `DrawMapWindow` fills the item black first for
+      exactly that reason. Measured on the original's own capture `tools/re/build/screens/mapnest.png`, row y=210:
+      black 64..192, brown (85,44,4) 192..448, black 448..576 — the same three runs as the remake's. The remake's
+      `--state=mapnest.state` render differs from that capture in the right margin by **0 of 32768 pixels** (both
+      black). Reproduced on the Hermes box first: `sh tools/shots.sh game yard` → exit 0, 11.5 s, both PNGs, `the
+      clean pack` in both logs; pixel grid of `game.png`: brown nest map at x 192..448, black at 448..576. Note it,
+      do not fix it (fidelity rule). Found and narrowed 2026-11-04, closed 2026-11-05.
+- [ ] **B10. `--state=` draws the wrong Map window content.** With `--state=tools/re/build/screens/mapnest.state`
+      the remake paints the **128-cell surface** map across the whole item (x 64..576) where the original's
+      `mapnest.png` paints the **64-cell nest** map in the strip 192..448: the left margin (64..192) differs in all
+      32768 pixels (original black, remake brown), and the strip differs in 18627 of 65536 (the remake's 16-px
+      column banding in (64,64,64) / (129,129,129) where the original is solid brown). `--map-content=2` does not
+      change the frame (byte-identical PNG). The state path itself is sound — `quick.state` still matches its
+      original screen in **0 of 307200 pixels**. Command: `godot --path remake/game -- --state=<scr>/mapnest.state
+      --screenshot=out.png`, then `python tools/re/pngdiff.py <scr>/mapnest.png out.png [l t r b]`. Found
+      2026-11-05.
 - Accepted differences (not bugs): capture diffs from animation / redraw timing; the marked DIVERGENCEs in the
   code (UI randomness on its own generator so drawing never changes the game; crashes in the original turned into
   safe behaviour). The help screens are empty in the DOS version too.
