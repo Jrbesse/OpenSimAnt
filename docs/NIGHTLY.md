@@ -6,12 +6,29 @@ session picks up.
 
 | When (Central) | What | Where it lands |
 |---|---|---|
+| 00:50, 03:50 | Preflight: would tonight's jobs be refused? | the owner's channel, **only** when a job would be blocked |
 | 01:00 | Nightly session 1 | a commit on `nightly/<date>` |
-| 05:00 | Nightly session 2 | a commit on `nightly/<date>` |
+| 04:00 | Nightly session 2 | commits on the same `nightly/<date>` |
+| 05:00-09:59, every 15 min | Review, **gated** (see below) | `~/work/nightly-review/<date>.md`, published to the owner's channel |
 | 07:00 | Morning report | the owner's Discord channel |
 
 Central time is the owner's clock (`eagle1`, UTC-6 in winter). The jobs are Hermes cron jobs; the Cron runs on the
 Hermes host, whose clock is UTC.
+
+## The review is gated, not clocked
+
+The reviewer runs every 15 minutes through the morning but only **wakes** when there is something new to read: a
+`nightly/<date>` tip that has not been reviewed yet and has been quiet for ten minutes. Two consequences worth
+knowing:
+
+- A session that overruns does not produce a verdict that says "no branch" -- the gate simply waits, and the
+  review lands when the work settles. An empty night never produces a verdict file at all.
+- A night can be reviewed more than once, later reviews covering later tips. The verdict file always names the SHA
+  it covers; anything committed after that SHA is unreviewed and the morning report says so.
+
+The verdict is published to the owner's channel and written to `~/work/nightly-review/<date>.md`. It is the
+reviewer's own words, not a summary: verdict, the SHA, per-job VERIFIED / CLAIMED / UNSUPPORTED, disagreements,
+findings, and what only `eagle1` can settle.
 
 ## Branch discipline
 
@@ -127,3 +144,7 @@ output. The report reads those; it does not re-derive them.
 
 What landed (per job, with the evidence), what is left and in which order, what needs the owner's decision, and
 whether the branch is ready to merge. Issued at 07:00 Central to the owner's Discord channel.
+
+It also reports the pipeline itself: one line per stage (session 1, session 2, review) with ok / blocked /
+did-not-run and the reason. A stage that was refused by the scheduler is named with the scheduler's own error text,
+and a review whose SHA predates the branch tip is labelled unreviewed rather than passed off as a verdict.
