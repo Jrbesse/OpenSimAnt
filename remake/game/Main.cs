@@ -48,7 +48,7 @@ public partial class Main : Node2D
     (int a, int b)? patchCentre;                                            // --patch: the surface cell to show
     int shotFrames = 240;
     readonly List<string> frontArgs = new(OS.GetCmdlineUserArgs());        // --history, --panels, --map-front, --antipedia, --yard
-    bool frozen, stateFronted;
+    bool frozen, stateFronted, stateFrontWarned;
     string stateMessage;                                                   // --state: the timed message to show                                                            // --state: the game does not run
     int frames;
 
@@ -3989,6 +3989,11 @@ public partial class Main : Node2D
             {
                 if (zOrder[^1] != front) Front(front);
                 stateFronted = true;
+            }
+            else if (!stateFrontWarned)                                           // a bad --state capture must not look like a fidelity difference
+            {
+                stateFrontWarned = true;
+                Console.Error.WriteLine($"--state: active window {front} (DS:5702) is not in the shell's stack [{string.Join(", ", zOrder)}] -- the frame shows the shell's stack instead");
             }
         }
         var canvas = new UiArt.Canvas(argb, ScreenW, ScreenH);

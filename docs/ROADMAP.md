@@ -29,7 +29,7 @@ and add a row to the log. New work found on the way goes into the table as it sh
 | A6 identity | name, rename; title / about pictures; Edit caption; 2026-11-01 afternoon: the audit (no marks in the pack), the engine's own strings an asset (`EXE/engine_strings.json`) | 0 | |
 | B confirm and polish | 2026-11-01 evening: **B2** (tutorial walk, step 46 fixed), **B4** (Ant Info: closes on release), **B6** (hourglass never shown, scheme bytes never read), font 3 and 630 polished; B3 hang fix; 8200 / 8201 House-view-only; the deaths' cause icons; 2026-11-01: the tutorial's closing box 11112, the History graph's labels 1050 (and its plot start), the glossary read one entry off, 10044 confirmed unused; afternoon: **B3** (f_0c73d + its missing table), **B5** (the Experimental menu / palette / drag loop: 10 differences fixed, emulator-checked); the house screens tables-vs-EXE (26 patches pixel-identical); every control as the original's (the owner's rule: the Edit window's double click, no shell keys) | 2 | B7 (owner); polish: sprite legs ragged |
 | C release | player README (2026-11-04) | 4 | public repo, licences, legal review (owner decisions); tagged v1.0.0 |
-| Checks found 2026-11-04 | | 0 | **B8 closed** in session 2: a trace that records no calls now prints `0/0 -- WARNING: the file records no calls, this row proves nothing` plus a closing warning, so `test_terrain.trace` cannot pass as evidence |
+| Checks found 2026-11-04 | | 0 | **B8 closed** in session 2: a trace that records no calls now prints `0/0 -- WARNING: the file records no calls, this row proves nothing` plus a closing warning, so `test_terrain.trace` cannot pass as evidence — and since 2026-11-05 the verdict (exit 1, `SOME FAILURES`) and the xUnit row fail on it too |
 | Checks found 2026-11-05 | | 1 | **B11** `--state=` restores only the *active* window: `mapnest.state`'s History window is missing (or, with `--history`, plotless) — 25587 px of the frame (see the row in Track B). **B10 closed** in session 2 (the Map window's content was the window stack) |
 | **Total** | | **8** | B1 (the owner's test builds) is the owner's, not counted |
 
@@ -76,7 +76,7 @@ remake\build\mapnest.hist.png` (15956 px now, all in the History window). It nee
 Why it matters: `--state=` is the visual oracle every state-based screen comparison rests on, and the state holds
 only `DS:5702` (the active window), so every window beyond the colony-panel set (History here) has to be inferred
 from a state flag or opened by the comparison itself. Beside it: recording a real `test_terrain.trace`
-(`tools/ref/record_all.sh`) so the terrain row carries calls at all -- B8 only made its emptiness visible.
+(`tools/ref/record_all.sh`) so the terrain row carries calls at all -- B8 now fails the run on an empty one.
 
 ## Where things stand (2026-10-30)
 
@@ -237,7 +237,11 @@ the original files make the clean assets from those specs.
       a trace that records no calls (and no `--func` filter) now prints
       `test_terrain.trace: 0/0 -- WARNING: the file records no calls, this row proves nothing`, plus a closing
       `WARNING: N trace file(s) replayed no calls ... they are not evidence` line before the verdict, so the row
-      can no longer be read as evidence. The real terrain trace is still worth recording (`tools/ref/record_all.sh`).
+      can no longer be read as evidence. **Completed 2026-11-05 (fixer, PR #3):** the count now reaches the verdict --
+      an empty trace, or a `--func` that matched nothing (`0/0 with --func '...'`), ends `SOME FAILURES`, exit 1,
+      unless `--allow-empty` asks for the deliberate case; and `ReplayTests.TraceMatches` (the row CI runs) fails on
+      the same file instead of passing vacuously. The real terrain trace is still worth recording
+      (`tools/ref/record_all.sh`).
 - [x] **B9. The Map window's interior draws black — the original's, not a bug.** In the `game` shot (`--seed=1234
       --ticks=600`) the Map window's map area is black, where the `--yard` shot of the same run shows map art. **Not
       a clean-pack bug** (2026-11-04: both files on eagle1 reproduced it). **Closed 2026-11-05**: the black is the
@@ -268,8 +272,14 @@ the original files make the clean assets from those specs.
       the original's capture has it open with a plotted graph and its labels; the remake only shows it with
       `--history` (25587 -> 15956 px), and even then a scrollbar/label strip (x 570..630, y 220..380) and the
       label row (y 380..450) still differ. The state holds only the *active* window (`DS:5702`); the rest of the
-      stack is not in the mirrored memory, so open windows beyond the colony-panel set are not inferred. Found
+      stack is not in the mirrored memory, so open windows beyond the colony-panel set are not inferred. A `--state`
+      capture whose active window is not in the shell's stack now says so on stderr instead of quietly drawing the
+      shell's stack (fixer, 2026-11-05), so a bad capture is diagnosable. Found
       2026-11-05, by `--state=` after B10.
+- **`yard` is not a stable pixel oracle** (found 2026-11-05 by the nightly reviewer): three renders of
+  `--seed=1234 --ticks=300 --yard` gave two identical and one differing by 217 px in a single 23×17 sprite box at
+  (373,150)..(395,166) — the yard's dog. `game` and `history` were reproducible (0/307200 px, twice). Re-render
+  before believing a small `yard` diff; do not file it as a regression without a second run.
 - Accepted differences (not bugs): capture diffs from animation / redraw timing; the marked DIVERGENCEs in the
   code (UI randomness on its own generator so drawing never changes the game; crashes in the original turned into
   safe behaviour). The help screens are empty in the DOS version too.
