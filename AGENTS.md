@@ -73,24 +73,25 @@ Byte-exactness has sharp edges worth knowing before you "fix" something: 16-bit 
 
 ## 5. The Godot editor bridge
 
-The editor on the Windows box (`eagle1`) runs the Godot-MCP addon (0.34.0 / server 9.3.0) and exposes 14 tools. The editor **is** the server — close it and the bridge is gone. Facts below were verified by direct probe on 2026-11-04; older docs are wrong about several of them.
+Since 2026-11-05 the editor runs **on the Hermes box** (the agent's Linux container), not on the owner's Windows box (`eagle1`). It is a systemd service (`godot-editor.service`) on the sessions' clone `~/work/SimAnt-Evolved`, drawing on a virtual display (`:99`, 1280x1024, software GL). It runs the Godot-MCP addon (0.34.0 / server 9.3.0, the linux-x64 build) and exposes 14 tools. The editor **is** the server: if it stops, systemd restarts it within seconds, a watchdog restarts it after ~15 minutes without an answer, and it is restarted fresh at 00:40 Central before the nightly sessions.
 
-- **Endpoint:** `http://eagle1.tail2d7f30.ts.net:27785/p/293d4f7c`. The port is derived from the project's absolute path and the route is `/p/<pin>` — **do not hardcode either**; `godot-cli status` prints the truth.
+- **Endpoint:** `http://127.0.0.1:25901/mcp`, loopback only. The port is derived from the project's absolute path, so it changes if the clone moves; `godot-cli status <project>` prints the truth. (The `/p/<pin>` route is only needed when one server hosts several projects.)
 - **Tools:** `script-create`, `script-update`, `script-read`, `script-delete`, `script-attach-to-node`, `script-build`, `script-validate`, `script-execute`, `rql-query`, `rql-mutate`, `rql-schema`, `screenshot-viewport`, `screenshot-camera`, `screenshot-isolated`. There is no `play_scene`, no `reflection-method-*`, no `console-get-logs`.
 - **Everything that is not `script-*` / `screenshot-*` is RQL**, by upstream policy: `source | stage | stage`. `rql-schema` with no argument lists the sources.
-- **Restart** (PowerShell, on the box): set `GODOT_MCP_CONNECTION_MODE=Custom`, `GODOT_MCP_HOST=http://localhost:27785`, `GODOT_MCP_START_SERVER=true`, `DOTNET_ThreadPool_ThreadsToKeepAlive=-1` **in that shell only** — never at User scope, where a stale value silently overrides every later fix — then `Start-Process godot -ArgumentList '--editor','--path',$P`.
-- **The loop:** `script-read` → `script-create`/`script-update` → `script-build` → `rql-mutate 'editor | call PlayScene("res://Main.tscn")'` → `rql-query 'gameLog | where LogType != "Info" | first 20'` → `script-execute` to assert → `rql-mutate 'editor | call StopScene()'`.
+- **Restart** is automatic; agents cannot run `systemctl`. If `rql-query 'editor'` fails, wait 2 minutes and retry once, then report it.
+- **The loop:** `script-read` → `script-create`/`script-update` → `script-build` → `rql-mutate 'editor | call PlayScene("res://Main.tscn")'` → `rql-query 'gameLog | where LogType != "Info" | first 20'` → look at it (below) → `script-execute` to assert → `rql-mutate 'editor | call StopScene()'`.
 - **A call during a pending assembly reload fails with a retryable error.** Wait a few seconds and retry; that is not a failed build.
 - **`script-build` succeeding means only that the compiler agreed.** Assert with `script-execute` or `gameLog`.
-- **`screenshot-*` capture the editor viewport, not the running game.** `Main.tscn` is a bare `Node2D` with no children — the shell draws everything procedurally at runtime — so those frames are blank, and no fix to those three tools would change it: they photograph the edited scene, and the edited scene is empty. **Visual checks use the game's own capture instead — `tools/shots.ps1`** (`--screenshot=<png>`, handled by `Main.cs` `ShotPoll`, over the same six named screens and seeds `release.yml` renders); `tools/shots.sh` is the GPU-less form (xvfb + `--rendering-driver opengl3`, clean pack only). **Never `--headless` for a frame** — that is the dummy renderer, and it really does save a blank image.
-- **The endpoint is deliberately unauthenticated**; tailnet membership is the access control. Send no `Authorization` header. If calls start returning 401/403, someone changed that — look for `GODOT_MCP_AUTH_OPTION` / `GODOT_MCP_TOKEN` in the editor's environment.
-- `godot-cli install-plugin` needs `--with-server`, and a GUI editor starts no server without `GODOT_MCP_START_SERVER=true` (undocumented upstream).
+- **`screenshot-*` capture the editor viewport, not the running game.** `Main.tscn` is a bare `Node2D` with no children — the shell draws everything procedurally at runtime — so those frames are blank, and no fix to those three tools would change it. **To see the running game,** capture the virtual display while it plays: `godot-shot /tmp/<name>.png`, driven with `DISPLAY=:99 xdotool ...`, then give the PNG to `vision`. For the six named screens, `tools/shots.sh` renders the game's own capture (`--screenshot=<png>`, handled by `Main.cs` `ShotPoll`; xvfb + `--rendering-driver opengl3`, clean pack only). **Never `--headless` for a frame** — that is the dummy renderer, and it really does save a blank image.
+- **The endpoint is unauthenticated** and bound to loopback, so nothing off the box can reach it. Send no `Authorization` header.
+- `godot-cli install-plugin --path <project> --with-server` installs the addon and the matching server; `addons/godot_mcp/` and `.ai-game-dev/` are git-ignored, so a new clone needs it run once. The service sets `GODOT_MCP_START_SERVER=true` (undocumented upstream), without which an editor starts no server.
+- **Needs eagle1:** the owner's original files never leave that box, so anything that needs them (the original look, `tools/shots.ps1`, `--state=` + `pngdiff.py` against the original's memory, re-recording traces) is listed for the owner rather than attempted.
 
 ---
 
 ## 6. Toolchain rules
 
-- **`global.json` pins SDK 8.0.415 — keep it.** The machine default is 10.0.101, and a C# assembly reload on .NET 10 can crash or hang the editor. There is no .NET 7 on the box, so `-PinSdk 8.0.404` hard-fails.
+- **`global.json` pins SDK 8.0.415 — keep it** (with `rollForward: latestFeature`, the Hermes box's 8.0.427 satisfies it). eagle1's default is 10.0.101, and a C# assembly reload on .NET 10 can crash or hang the editor. There is no .NET 7 on eagle1, so `-PinSdk 8.0.404` hard-fails.
 - **Keep `ImplicitUsings` disabled.** With it enabled the addon fails to compile (CS0104 on bare `Timer` / `FileAccess`); filed upstream as IvanMurzak/Godot-MCP#474.
 - **Never put dev files under `remake/game/addons/godot_mcp/Runtime/`** — that directory ships in game builds.
 - **Never bump the `com.IvanMurzak.*` NuGet pins.** Upstream owns them; they are mirrored in four places.
@@ -120,7 +121,7 @@ The editor on the Windows box (`eagle1`) runs the Godot-MCP addon (0.34.0 / serv
 | `remake/README.md` | the C# layout, the replay workflow, how to run the game |
 | `docs/PLAYTEST.md` | what the owner checks, by section |
 
-**Known stale:** `docs/HANDOFF.md` and the setup notes predate the working toolchain. Specifically: there is no `SETUP.md` in this repo (referenced by older notes but never committed), and any instructions naming port `8080`, the route `/mcp`, `play_scene`, `reflection-method-*`, `console-get-logs`, or "MCP config hot-reloads" are wrong — §5 is the verified state.
+**Known stale:** `docs/HANDOFF.md` and the setup notes predate the working toolchain. Specifically: there is no `SETUP.md` in this repo (referenced by older notes but never committed), and any instructions naming port `8080` or `27785`, the eagle1 endpoint, `play_scene`, `reflection-method-*`, `console-get-logs`, or "MCP config hot-reloads" are wrong — §5 is the verified state.
 
 ---
 
