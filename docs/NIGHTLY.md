@@ -45,7 +45,7 @@ Hermes host, whose clock is UTC.
   labels each session claim VERIFIED / CLAIMED / UNSUPPORTED, and posts one review with up to a dozen inline
   comments. `post_pr_review.py` posts it and records the reviewed SHA; a comment that cannot be anchored is moved
   into the summary rather than dropped.
-- The review is posted by **`BishopExile`**, a separate account with write access to the repo, using the token in
+- The review is posted by **`Jrbesse-Reviewer`**, a separate account with write access to the repo, using the token in
   `GH_REVIEWER_TOKEN` (`~/.hermes/profiles/reviewer/.env`; the poster also accepts `gh_reviewer_token` in the
   profile directory, read at post time so no gateway restart is needed). So a CHANGES verdict is a real
   `REQUEST_CHANGES` and the PR's review decision reads `CHANGES_REQUESTED` -- GitHub refuses that from the PR's own
