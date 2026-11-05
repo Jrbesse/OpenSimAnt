@@ -47,9 +47,12 @@ Hermes host, whose clock is UTC.
   labels each session claim VERIFIED / CLAIMED / UNSUPPORTED, and posts one review with up to a dozen inline
   comments. `post_pr_review.py` posts it and records the reviewed SHA; a comment that cannot be anchored is moved
   into the summary rather than dropped.
-- The verdict is carried in the review's first line (`CHANGES` or `MERGE`), because the agent authenticates as the
-  PR author's own account and GitHub does not let anyone approve or request changes on their own PR. A second
-  account's token in `GH_REVIEWER_TOKEN` upgrades the review to a real `REQUEST_CHANGES`.
+- The review is posted by **`BishopExile`**, a separate account with write access to the repo, using the token in
+  `GH_REVIEWER_TOKEN` (`~/.hermes/profiles/reviewer/.env`; the poster also accepts `gh_reviewer_token` in the
+  profile directory, read at post time so no gateway restart is needed). So a CHANGES verdict is a real
+  `REQUEST_CHANGES` and the PR's review decision reads `CHANGES_REQUESTED` -- GitHub refuses that from the PR's own
+  author, which is why one account cannot do this alone. The verdict is repeated in the review's first line for the
+  report's benefit. The owner can still merge with changes requested: the approval is his.
 - The fixer (`nightly_fix_gate.py`, same 20-minute cadence) acts on anything unprocessed: reviewer findings, and
   every owner comment unless it reads as a question or a scope decision. It has its **own clone** at
   `~/work/SimAnt-Fix` -- never the sessions' `~/work/SimAnt-Evolved`, whose working tree other jobs and the operator
