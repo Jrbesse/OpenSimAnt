@@ -3987,6 +3987,13 @@ public partial class Main : Node2D
     /// <summary>A window the shell can draw as part of the stack.</summary>
     static bool StackWindow(int w) => w is EditWin or MapWin or HistoryWin or YardWin or TextWin or BehaviorWin or CasteWin;
 
+    /// <summary>
+    /// A modal the shell can put back from the capture's State alone (ROADMAP B13): the same window id the shell's
+    /// `modal` uses, drawn over the stack. The ones left out need something the State does not hold -- the Ant Info
+    /// window's cell, the file dialog's listing, the game-over window's rating -- and stay a stderr note.
+    /// </summary>
+    static bool StateModal(int w) => w is EfficiencyWin or SelectWin or TitleWin;
+
     /// <summary>The capture's stack, enforced every frame: a game-start or view event must not reorder it.</summary>
     void ApplyStateStack()
     {
@@ -4017,14 +4024,22 @@ public partial class Main : Node2D
             if (stack.Count > 0)
             {
                 stateStack = new List<int>();
+                int frontModal = -1;
                 for (int i = stack.Count - 1; i >= 0; i--)                     // back to front, as the shell draws it
                 {
-                    if (!StackWindow(stack[i]))
+                    if (StackWindow(stack[i]))
                     {
-                        Console.Error.WriteLine($"--state: window {stack[i]} (DS:5702) is not drawn by the shell; left out of the stack");
+                        if (!stateStack.Contains(stack[i])) stateStack.Add(stack[i]);
                         continue;
                     }
-                    if (!stateStack.Contains(stack[i])) stateStack.Add(stack[i]);
+                    // a modal sits above the stack: the frontmost one in the list is the one the capture shows (B13)
+                    if (StateModal(stack[i])) { frontModal = stack[i]; continue; }
+                    Console.Error.WriteLine($"--state: window {stack[i]} (DS:5702) is not drawn by the shell; left out of the stack");
+                }
+                if (frontModal >= 0)
+                {
+                    modal = frontModal;
+                    if (modal == EfficiencyWin) efficiency = OpenSimAnt.Sim.Game.Rating(st);
                 }
                 if (stateStack.Contains(TextWin) && card == null)              // the SimAntipedia's card (DS:2E26)
                 {
