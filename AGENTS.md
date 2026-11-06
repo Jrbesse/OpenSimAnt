@@ -73,7 +73,7 @@ Byte-exactness has sharp edges worth knowing before you "fix" something: 16-bit 
 
 ## 5. The Godot editor bridge
 
-Since 2026-11-05 the editor runs **on the Hermes box** (the agent's Linux container), not on the owner's Windows box (`eagle1`). It is a systemd service (`godot-editor.service`) on the sessions' clone `~/work/SimAnt-Evolved`, drawing on a virtual display (`:99`, 1280x1024, software GL). It runs the Godot-MCP addon (0.34.0 / server 9.3.0, the linux-x64 build) and exposes 14 tools. The editor **is** the server: if it stops, systemd restarts it within seconds, a watchdog restarts it after ~15 minutes without an answer, and it is restarted fresh at 00:40 Central before the nightly sessions.
+Since 2026-11-05 the editor runs **on the Hermes box** (the agent's Linux container), not on the owner's Windows box (`eagle1`). It is a systemd service (`godot-editor.service`) on the sessions' clone `~/work/SimAnt-Evolved`, drawing on a virtual display (`:99`, 1280x1024, software GL). It runs the Godot-MCP addon (0.35.0 / server 9.4.0, the linux-x64 build) and exposes 14 tools. **0.35.0 was promoted to the permanent pin on 2026-11-06** after a night of use (`com.IvanMurzak.McpPlugin` 8.19.0 in `remake/game/OpenSimAnt.csproj`) and it is now the known-good fallback copy; a newer release is tried as an experiment — see §10. The editor **is** the server: if it stops, systemd restarts it within seconds, a watchdog restarts it after ~15 minutes without an answer, and it is restarted fresh at 00:40 Central before the nightly sessions.
 
 - **Endpoint:** `http://127.0.0.1:25901/mcp`, loopback only. The port is derived from the project's absolute path, so it changes if the clone moves; `godot-cli status <project>` prints the truth. (The `/p/<pin>` route is only needed when one server hosts several projects.)
 - **Tools:** `script-create`, `script-update`, `script-read`, `script-delete`, `script-attach-to-node`, `script-build`, `script-validate`, `script-execute`, `rql-query`, `rql-mutate`, `rql-schema`, `screenshot-viewport`, `screenshot-camera`, `screenshot-isolated`. There is no `play_scene`, no `reflection-method-*`, no `console-get-logs`.
@@ -137,3 +137,34 @@ Since 2026-11-05 the editor runs **on the Hermes box** (the agent's Linux contai
 5. If you will touch the Godot project: confirm the bridge answers (`rql-query 'editor'`), and that `git status` is clean before you start.
 6. Nightly sessions (the automated ones) follow `docs/NIGHTLY.md`: the same opening, plus the build / test gate,
    the commit rule and the handoff they must leave for the session after them.
+
+---
+
+## 10. A new Godot-MCP release (the upgrade loop)
+
+The addon is environment, not repo: it lives in a git-ignored `res://addons/godot_mcp/`, and its NuGet pin is the
+only committed trace of it. A new upstream release is tried as an **experiment** for a night and promoted only
+after it has earned it. Nobody installs an addon by hand; `simant_mcp_envelope.py` owns all of it.
+
+- **Detection is automatic.** `godot_mcp_watch.py` (daily, 09:00) reads Ivan's releases; when the newest tag is
+  newer than the known-good copy it runs `upgrade <tag>` and says so in the digest. `upgrade` downloads
+  `godot-mcp-addon-<v>.zip`, takes the McpPlugin version the addon itself requires from its `nuget-deps.json`,
+  installs the addon, writes a temporary `remake/game/Directory.Build.targets` pin override (never in git),
+  builds, restarts the editor and probes. It is one command by hand too: `python3
+  ~/.hermes/profiles/dev/scripts/simant_mcp_envelope.py upgrade v0.36.0`.
+- **The night tests it.** The 00:45 preflight (`7b9ee2a44166`) waits up to 4 minutes for the staged addon; if it
+  does not come up it restores the known-good copy, restarts the editor, re-probes, and posts one line to
+  Discord. Sessions then run on whatever is healthy — a revert is a finding to record, not a failed session.
+  The PR body's `## MCP environment` section carries the addon and server version actually used.
+- **The morning decides.** `simant_mcp_envelope.py promote-check <pr>` answers READY / NOT READY from three
+  facts: the reviewer's verdict is MERGE, no `fallback` event fired that night, and the bridge is on the
+  experiment. The morning report states it; it never promotes.
+- **Promotion is a person's call**, and it is two steps: `promote --yes` (writes the pin into
+  `OpenSimAnt.csproj`, builds Release, retires the override, and leaves the change **uncommitted**), then snapshot
+  the new known-good (`cp -a` the addon into `~/work/mcp-addon-backups/<v>-<stamp>` and point
+  `LAST_KNOWN_GOOD` at it, or the next experiment would fall back to the old version), then land the csproj
+  change through a branch and a PR — never on master from the script.
+- **A failed experiment never gets left installed.** `upgrade` restores the known-good addon if the build
+  against the new pin breaks, and the preflight covers the case where it builds but does not serve.
+- Verified 2026-11-06: 0.35.0 promoted (pin 8.19.0, server 9.4.0, bridge healthy, `upgrade v0.35.0` re-stage
+  23 s end to end), and a fake newer tag fails safe (`Staging Godot-MCP 9.9.9 failed ... bridge stays on 0.35.0`).
