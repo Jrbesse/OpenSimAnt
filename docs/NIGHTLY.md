@@ -14,8 +14,8 @@ a review with inline comments, and a fixer acts on those comments and on the own
 | every 20 min, 05:00-22:00 | Review + fixer | a review posted on the PR; fixes pushed to its branch |
 | 07:00 | Morning report | the owner's Discord channel: open PRs, CI, verdicts |
 
-Central time is the owner's clock (`eagle1`, UTC-6 in winter). The jobs are Hermes cron jobs; the Cron runs on the
-Hermes host, whose clock is UTC.
+Central time is the owner's clock (`America/Chicago`, UTC-6 in winter). The jobs are Hermes cron jobs; the Cron runs
+on the Hermes host, whose clock is UTC.
 
 ## Branch discipline
 
@@ -32,7 +32,9 @@ Hermes host, whose clock is UTC.
 - **Session 1 opens it**, after the branch is pushed and only if the branch has a commit of its own. Title
   `Nightly <date>`, base `master`, head `nightly/<date>`. A night that changed nothing gets no PR, and the session
   says so instead.
-- Anything only the owner's box can settle (it needs his original files) goes under **Needs eagle1** in the body.
+- Anything only the **owner** can settle goes under **Needs the owner** in the body: playing the game, his ears on
+  the audio, the name / licence / legal decisions. Nothing that needs the original files belongs there -- they are on
+  the Hermes box (see "Reading and writing"), so those checks run in the session and their numbers go in the body.
 - **Session 2 rewrites the body** so it describes the finished night: what changed (a bullet per job with the
   evidence and the command), the gate results, the base it stacked on, what is still open, and the line that says
   the merge is the owner's. Re-runs use `gh pr edit`, never a second PR.
@@ -98,11 +100,13 @@ dotnet run --project tests/OpenSimAnt.Replay -c Release --no-build -- --quiet   
 ```
 
 - Read the replay's **per-file call counts**, not just the verdict: a `0/0 OK` row is vacuous (B8 is exactly this).
-- The traces (`remake/build/traces`, git-ignored, game memory) are a read-only copy from eagle1, linked into every
-  clone on the Hermes box. Re-recording them still happens on eagle1 (`tools/ref/record_all.sh` needs the emulator
-  setup); after that they are copied over again.
+- The traces (`remake/build/traces`, git-ignored, game memory) are recorded **on the Hermes box**:
+  `tools/ref/record_all.sh` drives the reference tests through the emulator and the original files, both of which are
+  here. Every clone sees the same copy through the `~/work/simant-traces` link, and that copy is read-only to agents --
+  a re-record is an operator action (write into a scratch tree and hand the files over), not something a session does
+  under another session's feet. A recorder run that captured nothing leaves no trace file at all.
 - A few unit tests need the owner's original files and pass as placeholders named `(no traces)` or
-  `(no game files)` when they are absent. Those are **Needs eagle1**, never a pass.
+  `(no game files)` when they are absent. Those are a finding, never a pass.
 - For shell / UI work there is no trace: name the comparison (`tools/shots.sh` + the question you asked `vision`,
   `--state=` + `tools/re/pngdiff.py`, a CI `clean-screens` artifact) and say what it showed. Never write
   "looks right".
@@ -111,7 +115,7 @@ dotnet run --project tests/OpenSimAnt.Replay -c Release --no-build -- --quiet   
 
 ## Visual checks
 
-A screen can be judged inside the session -- no owner, no eagle1, no pushed branch. Two steps:
+A screen can be judged inside the session -- no owner, no pushed branch. Two steps:
 
 1. **Render.** In the clone: `sh tools/shots.sh game yard` (any of `title game yard history antipedia
    tutorial`; no argument renders all six). PNGs and logs land in `remake/build/shots/`, git-ignored, a
@@ -125,9 +129,11 @@ A screen can be judged inside the session -- no owner, no eagle1, no pushed bran
 The Hermes box has what this needs: `/opt/godot` (4.6.2 mono), `/opt/dotnet` (SDK 8.0.427) and xvfb, with
 `$GODOT` and the `dotnet` path set by `/etc/profile.d/dotnet.sh`. These are the clean pack's screens, the
 same six and the same seeds `release.yml` renders, so a local frame and a `clean-screens` frame are the
-same frame. The original files never leave eagle1, so a comparison that needs them (`tools/shots.ps1`,
-`--state=` + `tools/re/pngdiff.py`, instrumenting the game on the original files) is listed under **Needs
-eagle1** in the PR: sessions cannot reach that box.
+same frame. **The original files are on the Hermes box too** -- read-only links in the sessions', reviewer's and
+fixer's clones -- so a comparison that needs them runs here and its numbers go in the PR: the original look (run the
+game without `--clean`, or `tools/shots.ps1` on the owner's box if the question is about his Windows build),
+`--state=` + `tools/re/pngdiff.py`, `tools/re/screens.py` to re-render the original's own screens, or instrumenting the
+game on the original files. Nothing on this line goes under Needs the owner any more.
 
 **The live game.** For a screen that needs input to reach, use the editor on the Hermes box: `rql-mutate 'editor |
 call PlayScene("res://Main.tscn")'`, drive it with `DISPLAY=:99 xdotool mousemove X Y click 1` (or `xdotool key
