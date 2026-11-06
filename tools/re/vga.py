@@ -105,11 +105,15 @@ class VGA:
         try:
             from fonts import Font
         except Exception:
+            print('vga: tools/fonts.py is missing, so the ROM font stand-ins are all blank: every font-0 glyph '
+                  '(the menu bar, window captions) is invisible in this capture', file=sys.stderr)
             return
+        missing = []
         for fid, rows_n, at in ((0, 14, 0), (1, 8, 0x1000)):
             try:
                 f = Font(fid)
             except OSError:
+                missing.append(fid)
                 continue
             table = bytearray(256 * rows_n)
             for c in range(256):
@@ -120,6 +124,10 @@ class VGA:
                         v |= rows[y][x] << (7 - x)
                     table[c * rows_n + y] = v
             uc.mem_write(self.ROM_FONT + at, bytes(table))
+        if missing:
+            print(f'vga: no stand-in ROM font for {missing} (tools/fonts.py reads extracted/shared/font/): every '
+                  f'font-0 glyph (the menu bar, window captions) will be blank in this capture -- '
+                  f'run "python tools/extract.py" first', file=sys.stderr)
 
     def int10(self, uc, ax, bx, cx, dx, es):
         """INT 10h AH=10h, the palette functions, and AX=1130h, the ROM font pointers; True if handled."""
