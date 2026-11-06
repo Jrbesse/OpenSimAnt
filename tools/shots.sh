@@ -2,8 +2,9 @@
 # tools/shots.sh - render the game's own screens to PNG on a machine with no GPU.
 #
 # The CI recipe from release.yml ("Play on the clean pack"), lifted out of CI so a session can
-# run it on demand instead of waiting for a pushed branch. Clean pack only: no Maxis file is
-# ever copied off eagle1, so this is the right place to check Track A's clean-pack screens.
+# run it on demand instead of waiting for a pushed branch. Clean pack only: no Maxis file ever
+# reaches the frame, so this is the right place to check Track A's clean-pack screens. (The
+# original look is the same command without --clean, below; the original files are on this box.)
 #
 #   GODOT=~/godot/Godot_v4.6.2-stable_mono_linux.x86_64 sh tools/shots.sh            # all
 #   GODOT=... sh tools/shots.sh game yard                                            # some
