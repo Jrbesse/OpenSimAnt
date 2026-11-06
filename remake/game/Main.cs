@@ -48,7 +48,8 @@ public partial class Main : Node2D
     (int a, int b)? patchCentre;                                            // --patch: the surface cell to show
     int shotFrames = 240;
     readonly List<string> frontArgs = new(OS.GetCmdlineUserArgs());        // --history, --panels, --map-front, --antipedia, --yard
-    bool frozen, stateFronted, stateFrontWarned;
+    bool frozen, stateStackDone, stateHistoryDone;
+    List<int> stateStack;                                                  // --state: the original's z-order (DS:5702)
     string stateMessage;                                                   // --state: the timed message to show                                                            // --state: the game does not run
     int frames;
 
@@ -892,7 +893,7 @@ public partial class Main : Node2D
         return l != null && k >= 0 && k < l.Length ? l[k] : "";
     }
 
-    (int dx, int dy) Off(int win) => offsets[win];
+    (int dx, int dy) Off(int win) => offsets.TryGetValue(win, out var o) ? o : (0, 0);
 
     /// <summary>Item `index` of window `win`'s layout, on screen (moved with the window).</summary>
     (int l, int t, int r, int b) ItemRect(int win, int index)
@@ -913,6 +914,7 @@ public partial class Main : Node2D
 
     void Front(int win)
     {
+        if (frozen && stateStackDone) return;                              // --state: the capture's stack stands (B11)
         zOrder.Remove(win);
         zOrder.Add(win);
     }
@@ -3973,6 +3975,71 @@ public partial class Main : Node2D
         status.Visible = message.Visible = false;
     }
 
+    /// <summary>A window the shell can draw as part of the stack.</summary>
+    static bool StackWindow(int w) => w is EditWin or MapWin or HistoryWin or YardWin or TextWin or BehaviorWin or CasteWin;
+
+    /// <summary>The capture's stack, enforced every frame: a game-start or view event must not reorder it.</summary>
+    void ApplyStateStack()
+    {
+        if (zOrder.Count == stateStack.Count && !zOrder.Where((w, i) => w != stateStack[i]).Any()) return;
+        zOrder.Clear();
+        zOrder.AddRange(stateStack);
+    }
+
+    /// <summary>
+    /// --state: put the frame back as the original held it. DS:5702 is the original's z-order (f_211af / f_21336):
+    /// 16-bit words of (window &lt;&lt; 8), the front window first, ended by 0x8000. The shell opens only the colony
+    /// panel set when a game starts, so a capture that also held the History window, the SimAntipedia or the yard
+    /// drew the shell's stack instead (ROADMAP B11). The History window's selected series (DS:2EF0, its colours
+    /// DS:8C26, the free-colour mask DS:2EF8) are restored the same way, or the graph stays empty.
+    /// </summary>
+    void RestoreStateFrame()
+    {
+        var st = session.St;
+        if (!stateStackDone)
+        {
+            var stack = new List<int>();
+            for (int i = 0; i < 32; i++)
+            {
+                int v = st.U16(Seg.DS, 0x5702 + 2 * i);
+                if (v == 0x8000) break;
+                stack.Add(v >> 8);
+            }
+            if (stack.Count > 0)
+            {
+                stateStack = new List<int>();
+                for (int i = stack.Count - 1; i >= 0; i--)                     // back to front, as the shell draws it
+                {
+                    if (!StackWindow(stack[i]))
+                    {
+                        Console.Error.WriteLine($"--state: window {stack[i]} (DS:5702) is not drawn by the shell; left out of the stack");
+                        continue;
+                    }
+                    if (!stateStack.Contains(stack[i])) stateStack.Add(stack[i]);
+                }
+                if (stateStack.Contains(TextWin) && card == null)              // the SimAntipedia's card (DS:2E26)
+                {
+                    antipedia ??= new Antipedia(session.Files, ui.Font);
+                    antipedia.Open();
+                    ShowCard(st.U16(Seg.DS, 0x2e26));
+                }
+                stateStackDone = true;
+            }
+        }
+        if (stateStack != null) ApplyStateStack();
+        if (!stateHistoryDone)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                int s = st.U16(Seg.DS, 0x2ef0 + 2 * i);                    // the plotted series, newest first; 0x8000 empty
+                historySlots[i] = s < 10 ? s : -1;
+            }
+            for (int s = 0; s < 10; s++) historyColour[s] = st.U8(Seg.DS, 0x8c26 + s);
+            historyFree = st.U16(Seg.DS, 0x2ef8);
+            stateHistoryDone = true;
+        }
+    }
+
     void Redraw()
     {
         var st = session.St;
@@ -3982,20 +4049,7 @@ public partial class Main : Node2D
         st.Set16(Seg.G, 0x10e0, Cols);
         st.Set16(Seg.G, 0x10de, Rows);
         if (!frozen) st.Set16(Seg.DS, 0x5702, (modal >= 0 ? modal : zOrder.Count > 0 ? zOrder[^1] : 0) << 8);   // the active window (f_23612)
-        if (frozen && !stateFronted && zOrder.Count > 1)                               // --state: the stack the original held
-        {
-            int front = st.U16(Seg.DS, 0x5702) >> 8;                                  // DS:5702 is the active window (f_23612)
-            if (zOrder.Contains(front))
-            {
-                if (zOrder[^1] != front) Front(front);
-                stateFronted = true;
-            }
-            else if (!stateFrontWarned)                                           // a bad --state capture must not look like a fidelity difference
-            {
-                stateFrontWarned = true;
-                Console.Error.WriteLine($"--state: active window {front} (DS:5702) is not in the shell's stack [{string.Join(", ", zOrder)}] -- the frame shows the shell's stack instead");
-            }
-        }
+        if (frozen) RestoreStateFrame();
         var canvas = new UiArt.Canvas(argb, ScreenW, ScreenH);
         var modes = session.Files.Strings(1001);                       // STR# 1001 (G:0324): the game modes' names
         int gm = st.U16(Seg.G, 0xeac);
@@ -4011,12 +4065,16 @@ public partial class Main : Node2D
                     argb[y * ScreenW + x] = session.Art.Palette[7];                      // the desktop: cyan (the original's screen)
             DrawStatus(canvas);
             foreach (int win in zOrder)
+            {
+                if (frames == 2 && System.Environment.GetEnvironmentVariable("OPENSIMANT_STATE_DEBUG") != null)
+                    Console.Error.WriteLine($"--state: draw {win} rect {(win == EditWin || win == YardWin || win == TextWin ? WindowRect(win) : default)}");
                 if (win == EditWin) { DrawEditWindow(canvas); DrawBalloon(canvas); DrawStatusMessage(canvas); }
                 else if (win == MapWin) DrawMapWindow(canvas);
                 else if (win == HistoryWin) DrawHistoryWindow(canvas);
                 else if (win == YardWin) DrawYardWindow(canvas);
                 else if (win == TextWin) DrawTextViewer(canvas);
                 else DrawControlWindow(canvas, win);
+            }
             if (popReport) DrawPopulationReport(canvas);
             if (miniMap) DrawMiniMap(canvas);
             DrawMenuBar(canvas);
