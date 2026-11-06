@@ -37,6 +37,7 @@ MAX_PER_FUNC = int(os.environ.get('TRACE_MAX', '4000'))
 
 class Recorder:
     def __init__(self, path):
+        self.path = path
         self.f = open(path, 'wb')
         self.f.write(b'SATR1')
         self.prev = 0
@@ -134,8 +135,19 @@ def main():
         r = mod.main()
     finally:
         rec.f.close()
-        print('[trace]', name, sum(rec.counts.values()), 'calls:',
-              ', '.join(f'{k} {v}' for k, v in sorted(rec.counts.items())))
+        calls = sum(rec.counts.values())
+        if calls == 0:
+            # A test that drives the emulator (test_terrain compares memory through generic_patch, never a State)
+            # records nothing, and an empty trace now fails the replay and the xUnit row (B8): leave no file at all
+            # rather than a green-looking one that proves nothing.
+            try:
+                os.remove(rec.path)
+                print('[trace]', name, 0, 'calls: no file written (nothing was recorded on a State)')
+            except OSError as ex:                      # a read-only traces copy: say why the empty file stayed
+                print('[trace]', name, 0, f'calls: could not remove the empty trace ({ex})')
+        else:
+            print('[trace]', name, calls, 'calls:',
+                  ', '.join(f'{k} {v}' for k, v in sorted(rec.counts.items())))
     sys.exit(0 if r in (None, True, 0) else 1)
 
 

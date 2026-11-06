@@ -893,7 +893,16 @@ public partial class Main : Node2D
         return l != null && k >= 0 && k < l.Length ? l[k] : "";
     }
 
-    (int dx, int dy) Off(int win) => offsets.TryGetValue(win, out var o) ? o : (0, 0);
+    /// <summary>A window's offset from its layout position; a window the shell keeps none for sits where the layout
+    /// puts it, said once on stderr so a missing entry reads as a bug and not as a fidelity difference.</summary>
+    (int dx, int dy) Off(int win)
+    {
+        if (offsets.TryGetValue(win, out var o)) return o;
+        if (frozen && offWarned.Add(win))
+            Console.Error.WriteLine($"--state: window {win} has no offset in the shell; drawn at its layout position");
+        return (0, 0);
+    }
+    readonly HashSet<int> offWarned = new();
 
     /// <summary>Item `index` of window `win`'s layout, on screen (moved with the window).</summary>
     (int l, int t, int r, int b) ItemRect(int win, int index)
@@ -4066,8 +4075,6 @@ public partial class Main : Node2D
             DrawStatus(canvas);
             foreach (int win in zOrder)
             {
-                if (frames == 2 && System.Environment.GetEnvironmentVariable("OPENSIMANT_STATE_DEBUG") != null)
-                    Console.Error.WriteLine($"--state: draw {win} rect {(win == EditWin || win == YardWin || win == TextWin ? WindowRect(win) : default)}");
                 if (win == EditWin) { DrawEditWindow(canvas); DrawBalloon(canvas); DrawStatusMessage(canvas); }
                 else if (win == MapWin) DrawMapWindow(canvas);
                 else if (win == HistoryWin) DrawHistoryWindow(canvas);
