@@ -1,6 +1,6 @@
 # Nightly sessions
 
-Two automated sessions run every night and one report goes out in the morning. They exist to keep the burn-down
+Two automated sessions run every night and one report goes out in the morning. They exist to keep the tracker
 moving and to hand the next session a clean start: build, fix, test, review, commit, and write down what the next
 session picks up.
 
@@ -24,7 +24,7 @@ on the Hermes host, whose clock is UTC.
   such PR's head commit, not from `master`. Unmerged nights therefore stay continuous, and once the older PR merges,
   GitHub reduces the newer PR's diff to its own work. If nothing is open, cut from `origin/master`.
 - Session 2 reuses the same branch as session 1 (a night is one reviewable diff). If `origin/master` moved during
-  the day, rebase at the start of the session and say so in the log row.
+  the day, rebase at the start of the session and say so in the PR body.
 - A day with no nightly branch means no session ran. Say that in the report; do not invent progress.
 
 ## The pull request
@@ -68,25 +68,24 @@ on the Hermes host, whose clock is UTC.
 
 1. **Lock.** Session 1 writes `nightly.lock` (with its start time) into `remake/build/` in the sessions' clone and
    removes it at the end. Session 2 refuses to start if the lock is under 4 hours old (session 1 has overrun) and
-   says so in the log row instead of racing it.
+   says so in the PR body instead of racing it.
 2. **Bridge.** `rql-query 'editor'` on the Godot-MCP endpoint must answer (`godot-mcp-bridge` skill, `AGENTS.md`
    §5). The editor runs on the Hermes box as a service and restarts itself; if the check fails, wait 2 minutes and
-   retry once. Still failing is the night's finding.
-3. **`AGENTS.md` §9** then **`docs/ROADMAP.md`**: the burn-down, the last log row, and **"The order"**. Answer its
-   five questions in this session's log row *before* choosing work.
+   retry once. Still failing is the night's finding -- file an issue before ending.
+3. **`AGENTS.md` §9** then **`docs/ROADMAP.md`**: the open issues and the PR body's **"The order"** section. Answer its five questions in the PR body *before* choosing work.
 4. **`git status`** in the clone must be clean. If something is modified, say what and do not build on it.
 
 ## Choosing work
 
 - Take work from the **top of the prerequisite order**, not the smallest job. A job whose prerequisite is open
   waits; an agent-doable prerequisite jumps the queue.
-- **Agent-doable only.** Anything marked `(owner)` in the burn-down -- his test builds, his ears on the audio, and
+- **Agent-doable only.** Anything carrying the `owner` label in the issue tracker -- his test builds, his ears on the audio, and
   the name / licence / going-public decisions -- is reported, never attempted. **Screen work is no longer in that
   set:** the game renders its own frames (`tools/shots.sh`, or the live editor) and the `vision` tool reads them -- see "Visual
-  checks" below. A `(owner)` row for a screen now needs a reason beyond "an agent cannot see it".
+  checks" below. An `owner` issue for a screen now needs a reason beyond "an agent cannot see it".
 - **Timebox ~90 minutes of work.** One job done and verified beats three half-done. Stop with the tree
-  consistent, commit what is verified, and leave the rest as a row.
-- **Every issue spotted gets a row before the session ends**, with the evidence that found it. This includes
+  consistent, commit what is verified, and leave the rest as an issue.
+- **Every finding gets a GitHub issue before the session ends**, with the evidence that found it. This includes
   vacuous tests, stale docs, and anything the session chose not to fix.
 
 ## The verification gate (on the Hermes box, in `remake/`)
@@ -123,7 +122,7 @@ A screen can be judged inside the session -- no owner, no pushed branch. Two ste
    PNG, or its log held an exception or a missing resource.
 2. **Ask.** Give the `vision` tool the PNG's **local path** (a tailnet URL is refused by its SSRF guard)
    and one falsifiable question -- "is the interior of the right-hand window solid black, or does it show
-   map art?", never "does this look right". Put the question *and* the answer in the log row; that is the
+   map art?", never "does this look right". Put the question *and* the answer in the PR body; that is the
    evidence.
 
 The Hermes box has what this needs: `/opt/godot` (4.6.2 mono), `/opt/dotnet` (SDK 8.0.427) and xvfb, with
@@ -168,7 +167,7 @@ git ls-remote origin refs/heads/nightly/YYYY-MM-DD  # confirm, do not trust the 
 
 ## The handoff the next session needs
 
-Before ending, add to `docs/ROADMAP.md`: this session's log row (jobs done, jobs left, the five order answers) and
+Before ending, add to the PR body: this session's summary (jobs done, jobs left, the five order answers) and
 one line the next session starts from:
 
 ```

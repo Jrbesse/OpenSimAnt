@@ -36,6 +36,8 @@ becomes its own issue before the session ends — a finding with no issue is a f
 The table below is the **last snapshot from when the burn-down moved into issues** (2026-11-06). It is history: do
 not update it. The session log beneath it is history too.
 
+The 11 jobs in this table map onto the 9 issues as: area C's four jobs became #22 and #23.
+
 | Area | Done | Left (jobs) | What is left |
 |---|---|---|---|
 | A1 asset layer + encoders | layer, launcher, every encoder (bitmaps ... texts, glossary; 2026-11-01 afternoon: layouts, sound bank + effects, songs + cues, engine strings); the export's `include_filter` (done 2026-10-30) | 0 | |
@@ -69,7 +71,8 @@ without checking it is how a prerequisite gets left behind. At the start of ever
    it as agent work.
 4. **Is anything found but not written down?** Every issue a session spots becomes a GitHub issue before the
    session ends -- this is how the list stays honest. A finding with no issue is a finding lost.
-5. **Do the counts still add up?** The Total row equals the sum of the Left cells.
+5. **Do the counts still add up?** The open issues match the last snapshot's jobs left, less the ones closed
+   since; if they do not, say why in the PR body.
 
 Pace so far: 9..15 jobs per 5-hour window with at most 3 agents at once (art makers and emulator work cost the most),
 so **about 1 to 2 sessions** to version 1, plus whatever the reviews find and the owner's listening / play-test.

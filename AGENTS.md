@@ -10,7 +10,7 @@ The contract for any agent working in this repo. Human-facing depth lives in `do
 
 **Formica** is a fully modern game built around the original's core loop, and starts only after OpenSimAnt is finished. Naming decided 2026-10-30: "OpenSimAnt" is the 1:1 remake (formerly called "Formica"); "Formica" now names the modern game (formerly "SimAnt: Evolved").
 
-Where it stands: the simulation is byte-identical with the original in the emulator, the screens, sound and modes are built, and the owner played it on 2026-10-29 — "it seems to play identical to the original". All of that still needs the player's own copy of the original; **Track A** removes that need, then Track C releases it. The burn-down in `docs/ROADMAP.md` is the plan and is **updated every session**.
+Where it stands: the simulation is byte-identical with the original in the emulator, the screens, sound and modes are built, and the owner played it on 2026-10-29 — "it seems to play identical to the original". All of that still needs the player's own copy of the original; **Track A** removes that need, then Track C releases it. Open work is tracked in **GitHub issues**; `docs/ROADMAP.md` is the last burn-down snapshot and its label rules, kept as history.
 
 ---
 
@@ -30,7 +30,7 @@ Where it stands: the simulation is byte-identical with the original in the emula
 |---|---|
 | `docs/SIM_NOTES.md` | **The knowledge base**: every decoded rule, memory layout, address. Read "Status and TODO" first, then the section for what you are porting. |
 | `docs/HANDOFF.md` | Goals, repo map, the verification method, what is ported, next steps. |
-| `docs/ROADMAP.md` | Burn-down in *jobs*, tracks A/B/C, the per-session log. |
+| `docs/ROADMAP.md` | History: the last burn-down snapshot and the label rules. Open work is GitHub issues. |
 | `docs/FILE_FORMATS.md`, `docs/ART_PLAN.md`, `docs/RECREATION_PLAN.md`, `docs/PLAYTEST.md` | Asset formats; the clean-room asset plan and specs; the overall plan; the owner's play-test checklist. |
 | `docs/NIGHTLY.md` | The protocol the automated nightly sessions follow (branch, gate, commits, the handoff to the next session). |
 | `docs/clean_pack/*.md` | 12 written specs of the clean assets — words only, so makers who never see the originals can build them. |
@@ -104,7 +104,7 @@ Since 2026-11-05 the editor runs **on the Hermes box** (the agent's Linux contai
 
 - **Every control is the original's.** The shell adds no keys and no clicks of its own (rule of 2026-11-01). New input is a bug, not a feature.
 - **The owner's rule is fidelity, not improvement.** When the original is odd, reproduce the oddity; note it, don't fix it.
-- Keep the burn-down honest: tick off what landed, add what you found, add a row to the session log — at the start and end of every session.
+- Keep the tracker honest: close what landed, file what you found, and put the session summary in the PR body — at the start and end of every session.
 - Commit in small, reviewable steps, each stating what was verified and with which command.
 - The clean-room rule is structural: sessions that study the originals write **specs in words only**; separate agents that never see the originals make the assets from those specs.
 
@@ -116,7 +116,7 @@ Since 2026-11-05 the editor runs **on the Hermes box** (the agent's Linux contai
 |---|---|
 | `docs/SIM_NOTES.md` → "Status and TODO", then the section for your subsystem | before porting any rule |
 | `docs/HANDOFF.md` | the verification method and what is ported |
-| `docs/ROADMAP.md` | what is left, and the current burn-down |
+| `docs/ROADMAP.md` | history: the last burn-down snapshot and the label rules; open work is GitHub issues |
 | `docs/ART_PLAN.md` §2, §8, §9 | the asset modes and the clean-room process |
 | `remake/README.md` | the C# layout, the replay workflow, how to run the game |
 | `docs/PLAYTEST.md` | what the owner checks, by section |
@@ -127,11 +127,11 @@ Since 2026-11-05 the editor runs **on the Hermes box** (the agent's Linux contai
 
 ## 9. Opening a session
 
-1. `docs/ROADMAP.md`: the burn-down table and the last log row -- **and then "The order"**, before choosing any
-   work. A job whose prerequisite is open waits, even if it is the smaller one; a prerequisite that is
-   agent-doable goes to the top of the session. Answer the five questions there in this session's log row.
-2. Anything the session finds and does not fix becomes a row on the burn-down **before the session ends**.
-   A finding with no row is lost.
+1. The **open issues** (`gh issue list --state open`) and the PR body's **"The order"** section, before
+   choosing any work. A job whose prerequisite is open waits, even if it is the smaller one; a prerequisite
+   that is agent-doable goes to the top of the session. Answer the five questions in the PR body.
+2. Anything the session finds and does not fix becomes a GitHub issue **before the session ends**.
+   A finding with no issue is lost.
 3. `docs/HANDOFF.md` "How verification works", if you will touch the simulation.
 4. `docs/SIM_NOTES.md` "Status and TODO", before porting anything.
 5. If you will touch the Godot project: confirm the bridge answers (`rql-query 'editor'`), and that `git status` is clean before you start.
