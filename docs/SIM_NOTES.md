@@ -1422,6 +1422,14 @@ the window shows the surface and DS:2994 is 0:
 
 On a 320-wide screen the factors halve.
 
+**The caption** (item 0x101) is `STR# 1000[T:07C8]` and only `f_01058` sets it — reached from `f_01781` (a scent layer
+or view change), from the tail of `f_01aec` (the toolbar's view buttons 0x106..0x108, which pass 1..3 through
+`f_01781` anyway) and from `f_01823` (the yard view modes, via the View menu `f_6e26d`). Opening or fronting the
+window (`f_2148a` / `f_215a5`) does not touch it. It is drawn in **font 0, the PC BIOS font** fetched through INT 10h
+AX=1130h, opaque in the item's background: the dark plate is 8 px per character, so "Black Nest View" is a 120-px box
+in the 512-px bar. That box is what a capture taken without a ROM font stand-in shows — an empty plate of exactly
+8 × length px (see B12 / B15 in ROADMAP), not a missing caption.
+
 ### The yard window (`f_702f7`; rendered by `render_view.render_yard`)
 
 `f_6fc36` → `f_6fac7` → `f_6fa6c` → `f_702f7(mode)`, from the yard map (`f_7650c` / `f_01823`) and the

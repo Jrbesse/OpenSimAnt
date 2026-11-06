@@ -31,8 +31,8 @@ and add a row to the log. New work found on the way goes into the table as it sh
 | C release | player README (2026-11-04) | 4 | public repo, licences, legal review (owner decisions); tagged v1.0.0 |
 | Checks found 2026-11-04 | | 0 | **B8 closed** in session 2: a trace that records no calls now prints `0/0 -- WARNING: the file records no calls, this row proves nothing` plus a closing warning, so `test_terrain.trace` cannot pass as evidence — and since 2026-11-05 the verdict (exit 1, `SOME FAILURES`) and the xUnit row fail on it too |
 | Checks found 2026-11-05 | | 0 | **B11 closed** 2026-11-06: `--state=` now rebuilds the original's whole z-order from `DS:5702` (the History window, the SimAntipedia and the yard included) — the `mapnest.state` frame went 27117 → 1629 px (master `bab30c0` vs this head), of which 1158 are the pre-existing menu-bar band, 372 the B12 caption and 99 the capture's own pointer. **B10 closed** in session 2 (the Map window's content was the window stack) |
-| Checks found 2026-11-06 | | 2 | **B12** with a window restored on top by `--state=`, the Map window's caption reads "Black Nest View" where the original's capture shows an empty caption bar (~372 px of the frame; see the row in Track B). **B13 closed** 2026-11-06 (nightly session 1): `--state=` now raises a restored front modal (24 / 2 / 3) into `modal` — `status.state` 60032 → 1952 px, `boot.state` 81713 → 935. **B14** the modals whose contents are not in the State (29, 31, 22, 4, 33) are still left out |
-| **Total** | | **9** | B1 (the owner's test builds) is the owner's, not counted |
+| Checks found 2026-11-06 | | 4 | **B12 closed** 2026-11-06 (nightly session 2): not a remake bug — the remake draws exactly what the original draws; the capture had no BIOS font (B15). **B13 closed** 2026-11-06 (nightly session 1): `--state=` now raises a restored front modal (24 / 2 / 3) into `modal` — `status.state` 60032 → 1952 px, `boot.state` 81713 → 935. **B14** the modals whose contents are not in the State (29, 31, 22, 4, 33) are still left out. **B15** the captures silently lost every font-0 (BIOS PC font) glyph — the standing "1158 px menu-bar band" — now guarded; the reference captures still need re-capturing. **B16** the surface capture differs by 256 px, **B17** yardfront by 3424 px (both found 2026-11-06 once the font band stopped masking them) |
+| **Total** | | **11** | B1 (the owner's test builds) is the owner's, not counted |
 
 ### The order (checked at the start of every session, before any work)
 
@@ -72,15 +72,19 @@ so **about 1 to 2 sessions** to version 1, plus whatever the reviews find and th
 
 | 2026-11-06 nightly session 1 | 1 closed + 1 found. **B13 closed** (see its row): `--state=` raises a restored front modal into `modal` (`StateModal`: 24 / 2 / 3; 24's figures come from `Game.Rating(st)`, a pure read of the capture's memory) — against a fresh `tools/re/screens.py` capture on the original files, `status.state` 60032 → 1952 of 307200 px, `boot.state` (front window 2) 81713 → 935; the five captures with no modal in their stack are untouched (`mapnest` 1530, `history` 1517, `panels` 2212, `yard` 4315, `yardfront` 4875, `quick` 1158), and 1158 of the 1952 is the pre-existing menu-bar band (`quick`'s entire diff). **B14 found**: the modals whose contents are not in the State (29 Ant Info 8340 px, 31 about 65706, 22 file dialog 63902, 4 game over 65261, 33 load prompt 54864) are still left out. The gate ran here: Release build 0 errors / 3 addon warnings, 164 tests pass, 26 traces ALL OK. Order answers: (1) B13 was the first open agent-doable job and was not blocked; B12 then A5's similarity review wait on nothing agent-side; (2) B13 was one job, and its remainder splits off as **B14** because 31 / 4 look rebuildable from the State while 29 / 22 / 33 need data the capture does not hold; (3) B7, B1 and Track C's name / licence / legal decisions stay (owner); nothing else needs him; (4) B14 added; (5) A5 1 + B 2 + C 4 + B12 1 + B14 1 = 9, unchanged because B13 closed as B14 arrived. | 9 | 1 |
 | 2026-11-06 manual session (headless pipeline test) | 1 closed + 2 found. **B11 closed** (see its row): `DS:5702` turned out to be the original's whole z-order list, so `--state=` now restores every open window — against `master` `bab30c0`, `mapnest` 27117 → 1629 px (the History window itself 0 px), `yard` 182707 → 4414, `panels` 84678 → 2311, `history` 59679 → 1616, `yardfront` 182406 → 4974, and no capture worse. The session also settled B8's leftover: `test_terrain` cannot record a trace (it drives the emulator, not a `State`), the empty file was removed from the traces copy, and the gate is green again (164 tests, 26 traces). **B12 found**: the Map window's caption says "Black Nest View" where the original's capture is blank. Order answers: (1) B11 was the first open agent-doable job and was not blocked; A5's similarity review now waits only on B12. (2) B11 was one job — the stack, the series and the card share one cause (the state's own z-order and selection words). (3) B7, B1 and Track C's name / licence / legal decisions stay (owner); nothing else needs him. (4) B12 added. (5) A5 1 + B 2 + C 4 + B12 1 = 8; **B13 added** by the PR review = 9. | 1 | 2 |
+| 2026-11-06 nightly session 2 | 1 closed + 1 half-done + 2 found. **B12 closed** — the remake was right and the *capture* was wrong: `f_01058` (from `f_01781`, from `f_01823` at the end of `f_01aec`, and from the View menu via `f_6e26d`) really does set the Map window's caption to `STR#1000[T:07C8]`, but the caption is drawn in font 0, the BIOS PC font, and `vga.rom_fonts()` was writing an all-zero stand-in because `extracted/shared/font/` did not exist in this clone — so every font-0 glyph in every capture (menu bar + captions) was invisible. After `python tools/extract.py` (1.6 s) and `python tools/re/screens.py tools/re/build/screens2`: `mapnest`, `mapfront`, `scent1`, `scent3`, `rednest`, `history`, `panels`, `quick` are **0 of 307200 px** against the remake's `--state` renders on the original files with `--cursor=600,470` (they were 1530 / 1530 / 2670 / 2390 / 1158 / 1517 / 2680 / 1158). **B15 half done**: the same failure now prints `vga: no stand-in ROM font for [0, 1] ... run "python tools/extract.py" first` — verified both ways with a boot capture (warning with the directory moved aside, silent restored); the other half is re-capturing the reference set and re-baselining the numbers that cite the 1158-px menu band. **B16 found** (`surface` 256 px, red / brown swap at x 476..567, y 94..237) and **B17 found** (`yardfront` 3424 px, the yard window's top; check `yard`'s known instability first). The gate ran here: Release build 0 errors / 3 addon warnings, 164 tests pass, 26 traces / 229778 calls ALL OK. Order answers: (1) B12 was the first open agent-doable job and was not blocked — and it turned out to be a capture defect, which unblocks **A5's similarity review**, now the top job; (2) B12 was one job that split into the remake question (no code change needed) and the capture question (**B15**); (3) B7, B1 and Track C's name / licence / legal decisions stay (owner); nothing else needs him; (4) B15, B16, B17 added; (5) A5 1 + B 2 + C 4 + B15 1 + B16 1 + B17 1 + B14 1 = 11. | 11 | 1 |
 
-Next: **B12** (the Map window's caption) -- compare `DrawMapWindow`'s `Title(content <= 8 ? content : MapView)` with the
-original's `mapnest.png` (blank caption bar) and trace `f_6efd6`'s title argument; it is the last known pixel difference
-inside a restored frame that is not the capture's own pointer, and **A5's similarity review** waits only on it. Then
-**B14** (the modals `--state=` cannot rebuild): start with 31 the about box and 4 the game-over rating, which look
-rebuildable from the State plus `Game.Rating` -- `about.state` 65706 px and `gameover.state` 65261 px against
-`tools/re/build/screens/*.png` on the original files, rendered as in B13's row. Neither needs the owner.
-Why it matters: `--state=` is the visual oracle every state-based screen comparison rests on; B13 gave it the Status
-window it was missing (`docs/screens/b13-status-window.png`), and what is left is one caption (B12) and five modals (B14).
+Next: **B15's second half** -- re-capture the reference set (`cd tools && python extract.py && python re/screens.py`
+into `tools/re/build/screens`, ~5 min; the fonts are already extracted here) and re-baseline the pixel numbers that
+cite the old 1158-px menu band (B11's 1629, B13's 1952 / 935, `docs/screens/*.png`). It is the prerequisite for
+everything visual: with the fonts in place eight captures are already 0 of 307200 px against the remake, so the
+remaining visual oracle work is honest only on a font-complete capture set. Then **A5's similarity review** (the clean
+pack against the original), now unblocked because B12 turned out to be the capture's fault, not the remake's -- and
+then **B16** (surface 256 px, x 476..567 y 94..237) and **B17** (yardfront 3424 px; re-render twice first, `yard` is
+not a stable oracle). **B14** (the modals `--state=` cannot rebuild) is still open and larger: 31 the about box and 4
+the game-over rating look rebuildable from the State plus `Game.Rating`. None of these needs the owner.
+Why it matters: `--state=` and `tools/re/screens.py` are the visual oracle every screen comparison rests on; B12 showed
+that oracle had been lying by 1530 px a frame, so nothing visual should be judged until the captures carry their text.
 
 ## Where things stand (2026-10-30)
 
@@ -301,13 +305,49 @@ the original files make the clean assets from those specs.
       a pixel of any available frame — a capture with 2-3 series on would settle it. Verified on the Hermes box:
       Release build 0 errors / 3 addon warnings, 164 tests pass, 26 traces ALL OK. The frame itself, on the clean pack
       (`--clean --state=mapnest.state`, so no original pixels): `docs/screens/b11-window-stack.png`.
-- [ ] **B12. With the Map window restored on top, its caption reads "Black Nest View" where the original's capture
+- [x] **B12. With the Map window restored on top, its caption reads "Black Nest View" where the original's capture
       is blank.** The original's `mapnest.png` (a capture whose Map window is in the Black Nest view, `T:07C8 = 2`) has
       a plain grey caption bar; the remake writes `STR# 1000[2]` into it — 372 px of the frame (x 260..400, y 60..90,
       cyan text on the grey bar, against the original's 2041 grey / 324 cyan there vs the remake's 1669 / 696).
       Found 2026-11-06 while comparing the B11 fix; not fixed because the original's rule for *when* the Map window's
       caption is filled (`f_6efd6` draws the title it is given; the capture's own click path may never set one) is not
       traced, and guessing would trade one fidelity difference for another. One job: trace `f_6efd6`'s title argument.
+      **Closed 2026-11-06 (nightly session 2): the remake was right, the capture was wrong.** The rule is traced —
+      `f_01058` (called from `f_01781`, the scent / view setter, and from `f_01823`, which `f_01aec` the toolbar view
+      buttons call at its end, and from the View menu via `f_6e26d`) sets item `0x101` to `STR#1000[T:07C8]` and
+      repaints it, so the Map window's caption *is* filled on a view or scent change. What the capture showed was the
+      fill without the glyphs: the caption is drawn in font 0, the PC BIOS font, which the driver fetches through
+      INT 10h AX=1130h, and on this box `tools/fonts.py` could not open `extracted/shared/font/` — so
+      `vga.rom_fonts()` wrote an all-zero glyph table and **every font-0 glyph in every capture was invisible**
+      (the opaque box it fills is what the 121-px plate, 15 chars x 8 px, actually is). Evidence: after
+      `python tools/extract.py` (1.6 s) and a fresh `python tools/re/screens.py tools/re/build/screens2`, the remake's
+      `--state` render on the original files matches the new capture in **0 of 307200 px** for `mapnest`, `mapfront`,
+      `scent1`, `scent3`, `rednest`, `history`, `panels` and `quick` (the old captures differed by exactly the missing
+      glyphs: 1530 px for `mapnest` = 1158 menu bar + 372 caption, 1158 for `quick`). The same cause is the
+      long-standing "pre-existing 1158 px menu-bar band" every earlier row calls accepted — it is now explained and
+      gone. See B15 for the capture side and B16 / B17 for the two diffs it was masking.
+- [ ] **B15. The original's captures silently lose every font-0 (BIOS PC font) glyph when `extracted/shared/font/`
+      is absent.** `tools/re/vga.py` `rom_fonts()` builds the video BIOS stand-in font from SHARED's PC fonts 0 and 1
+      via `tools/fonts.py`, which reads `extracted/shared/font/NNNNN.bin`; with the assets not extracted it raised
+      `FileNotFoundError`, the code swallowed it (`except OSError: continue`), and the table written into the emulated
+      ROM was all zeros. Effect: the menu bar and every window caption rendered blank in `tools/re/build/screens`,
+      which is where all the pixel comparisons in this file come from — 1158 px of every frame and 372 px of the Map
+      window's caption, blamed on the remake until B12. **Half done 2026-11-06 (session 2):** the failure is now loud
+      (`vga: no stand-in ROM font for [0, 1] ... run "python tools/extract.py" first`), checked both ways with a boot
+      capture in the emulator (warning with the directory moved aside, silent with it restored). **Left:** regenerate
+      the reference capture set (`python tools/extract.py && python tools/re/screens.py`, ~5 min) and re-baseline every
+      pixel number in this file that cites the 1158-px menu band: B11's 1629, B13's 1952 / 935 and the "pre-existing
+      menu-bar band" caveats are stale, and `docs/screens/*.png` were rendered with the same missing glyphs.
+- [ ] **B16. The `surface` capture differs from the remake by 256 px.** `--state=surface.state` (original files,
+      `--cursor=600,470`) against the new `tools/re/build/screens2/surface.png`: 256 of 307200 px, bounding box
+      (476, 94) .. (567, 237), the pairs a red / brown swap (222,8,4 vs 145,113,56) on 112 px each way plus 16 px of
+      (85,44,4). A strip at the Map window's right-hand edge, so probably one cell column of the surface map drawn
+      from the wrong table — untraced. Found 2026-11-06 while verifying B12; not fixed in this session's window.
+- [ ] **B17. `yardfront` differs from the remake by 3424 px.** Same comparison: 3424 of 307200 px, bounding box
+      (19, 41) .. (576, 128) — the Yard window's upper half, mostly (145,113,56) / (0,101,16) / (85,44,4) swaps with
+      592 px of (242,8,133) on the remake's side. `yard` is already known not to be a stable pixel oracle (the dog
+      sprite: 217 px between runs), so the first step is a second render to separate a genuine difference from the
+      same instability. Found 2026-11-06 while verifying B12.
 - [x] **B13. `--state=` does not draw a capture whose front window is a modal.** `StackWindow` admits only the windows
       the shell draws from `zOrder` (Edit, Map, History, Yard, SimAntipedia, Behavior, Caste); the original's modals
       are handled by the shell as `modal` (24 the Status window, 29 Ant Info, ...), so `status.state` — whose
