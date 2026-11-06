@@ -1,7 +1,8 @@
 # Roadmap to version 1
 
-What is left before the remake's first version, in one place. Keep this file current: tick items off here (and say
-how they were checked) as they land. `HANDOFF.md` has the session-by-session detail; this file is the list.
+What was left before the remake's first version, frozen at 2026-11-06. It is history, not the queue: open issues are
+the work (`gh issue list --state open`) and each session's PR body carries its order. `HANDOFF.md` has the
+session-by-session detail; this file is the dated snapshot.
 
 **Version 1 is:**
 - a faithful 1:1 remake of the 1991 DOS ant-colony game: the same rules, screens, sounds and timing;
