@@ -1,7 +1,8 @@
 # Roadmap to version 1
 
-What is left before the remake's first version, in one place. Keep this file current: tick items off here (and say
-how they were checked) as they land. `HANDOFF.md` has the session-by-session detail; this file is the list.
+What was left before the remake's first version, frozen at 2026-11-06. It is history, not the queue: open issues are
+the work (`gh issue list --state open`) and each session's PR body carries its order. `HANDOFF.md` has the
+session-by-session detail; this file is the dated snapshot.
 
 **Version 1 is:**
 - a faithful 1:1 remake of the 1991 DOS ant-colony game: the same rules, screens, sounds and timing;
@@ -11,11 +12,32 @@ how they were checked) as they land. `HANDOFF.md` has the session-by-session det
   like the original (the way it works today);
 - published on GitHub under its own name, with builds for Windows, macOS and Linux.
 
-## Burn-down (update every session)
+## The tracker is GitHub issues
 
-Counted in **jobs**: one spec, one maker run, one encoder, one fix or one check, each about a tenth of a 5-hour
-usage window when done by a subagent. At the start and end of each session: tick off what landed, add what was found,
-and add a row to the log. New work found on the way goes into the table as it shows up.
+Open work lives in **GitHub issues** on this repo, not in this file:
+
+```
+gh issue list -R Jrbesse/SimAnt-Evolved --state open --label "priority: P1"
+```
+
+Every issue carries a `priority: P0..P3` label (set by the reviewer, updated whenever the picture changes) and the
+markers that decide who may act on it:
+
+| Label | Meaning |
+|---|---|
+| `owner` | Needs Jonathan: his test builds, his ears, the name / licence / public decisions, any visual judgement. **No session schedules it.** |
+| `blocked` | Waiting on another issue or a decision, named in the body. |
+| `in-progress` | A branch or PR already exists. Not handed out again. |
+| `priority: P0..P3` | The queue order: P0 breaks the release, P3 is slack work. |
+
+A session takes the highest-priority unblocked, non-owner, non-in-progress issue **across every enabled repo** (the
+picker ranks them), works it on a `nightly/<date>` branch and closes it from the PR body (`Closes #N`). A finding
+becomes its own issue before the session ends — a finding with no issue is a finding lost.
+
+The table below is the **last snapshot from when the burn-down moved into issues** (2026-11-06). It is history: do
+not update it. The session log beneath it is history too.
+
+The 11 jobs in this table map onto the 9 issues as: area C's four jobs became #22 and #23.
 
 | Area | Done | Left (jobs) | What is left |
 |---|---|---|---|
@@ -37,8 +59,8 @@ and add a row to the log. New work found on the way goes into the table as it sh
 ### The order (checked at the start of every session, before any work)
 
 The table is a set of jobs, not a queue: the *order* is a prerequisite order, and a session that starts work
-without checking it is how a prerequisite gets left behind. At the start of every session, read the "What is
-left" cells and answer these in writing in the session's log row:
+without checking it is how a prerequisite gets left behind. At the start of every session, read the open issues
+(`gh issue list --state open`) and answer these in the pull request's body:
 
 1. **Is any job blocked by a job that is still open?** (Examples: the similarity review needs the *check* rows
    closed first, because it reads their evidence; the tagged release needs the licence and the name review; a
@@ -48,9 +70,10 @@ left" cells and answer these in writing in the session's log row:
 3. **Does any open job need the owner** (his test builds B1, his ears B7, his decisions on the name / licence /
    going public, any visual judgement the agent cannot make)? Mark it `(owner)` in the cell and never schedule
    it as agent work.
-4. **Is anything found but not written down?** Every issue a session spots becomes a row before the session
-   ends -- this is how the list stays honest. A finding with no row is a finding lost.
-5. **Do the counts still add up?** The Total row equals the sum of the Left cells.
+4. **Is anything found but not written down?** Every issue a session spots becomes a GitHub issue before the
+   session ends -- this is how the list stays honest. A finding with no issue is a finding lost.
+5. **Do the counts still add up?** The open issues match the last snapshot's jobs left, less the ones closed
+   since; if they do not, say why in the PR body.
 
 Pace so far: 9..15 jobs per 5-hour window with at most 3 agents at once (art makers and emulator work cost the most),
 so **about 1 to 2 sessions** to version 1, plus whatever the reviews find and the owner's listening / play-test.
