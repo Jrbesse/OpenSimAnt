@@ -18,6 +18,7 @@ Where it stands: the simulation is byte-identical with the original in the emula
 
 - **Never commit Maxis files, or anything extracted from them.** `SIMANT.EXE`, `*.NDX`, `*.DAT` and the other originals in the repo root are the owner's own copy and are git-ignored. The game reads them at runtime through the asset layer (`OriginalFiles`), it does not embed them.
   - **One exception, the owner's decision of 2026-10-30:** the ~1.2 KB of *gameplay number tables* the simulation reads out of SIMANT.EXE (direction vectors, caste odds, terrain / rock shapes, cheat codes, the save layout; ROADMAP A2) may be committed as named, documented tables in source so the game runs without the original. **Numbers only — never art, text, sound or fonts.** Flagged for legal review before going public (Track C).
+- **On the Hermes box** the originals are read-only, git-ignored links in the root of the working clones (sessions, reviewer, fixer), never in the release clone. Use them only when fidelity is the question, and an agent that can see them never makes or edits a clean-pack asset (§7).
 - **Commits use the owner's personal identity, configured repo-locally. Do not change it.**
 - **Never commit `remake/build/`** (traces, snapshots, smoke PNGs). They hold game memory.
 - The clean pack (`assets/clean/clean_pack.zip`) is built, not tracked: `python tools/clean_pack/build.py`. The release workflow builds it before exporting.
@@ -85,7 +86,7 @@ Since 2026-11-05 the editor runs **on the Hermes box** (the agent's Linux contai
 - **`screenshot-*` capture the editor viewport, not the running game.** `Main.tscn` is a bare `Node2D` with no children — the shell draws everything procedurally at runtime — so those frames are blank, and no fix to those three tools would change it. **To see the running game,** capture the virtual display while it plays: `godot-shot /tmp/<name>.png`, driven with `DISPLAY=:99 xdotool ...`, then give the PNG to `vision`. For the six named screens, `tools/shots.sh` renders the game's own capture (`--screenshot=<png>`, handled by `Main.cs` `ShotPoll`; xvfb + `--rendering-driver opengl3`, clean pack only). **Never `--headless` for a frame** — that is the dummy renderer, and it really does save a blank image.
 - **The endpoint is unauthenticated** and bound to loopback, so nothing off the box can reach it. Send no `Authorization` header.
 - `godot-cli install-plugin --path <project> --with-server` installs the addon and the matching server; `addons/godot_mcp/` and `.ai-game-dev/` are git-ignored, so a new clone needs it run once. The service sets `GODOT_MCP_START_SERVER=true` (undocumented upstream), without which an editor starts no server.
-- **Needs eagle1:** the owner's original files never leave that box, so anything that needs them (the original look, `tools/shots.ps1`, `--state=` + `pngdiff.py` against the original's memory, re-recording traces) is listed for the owner rather than attempted.
+- **The original files and the emulator are on the Hermes box too** (§2), so the original look (`--original`), `--state=` + `pngdiff.py` and `tools/re` / `tools/ref` run there. Re-recording the replay traces stays the owner's call; anything else that cannot run there is listed for the owner under **Needs eagle1**.
 
 ---
 

@@ -32,7 +32,7 @@ Hermes host, whose clock is UTC.
 - **Session 1 opens it**, after the branch is pushed and only if the branch has a commit of its own. Title
   `Nightly <date>`, base `master`, head `nightly/<date>`. A night that changed nothing gets no PR, and the session
   says so instead.
-- Anything only the owner's box can settle (it needs his original files) goes under **Needs eagle1** in the body.
+- Anything that cannot run on the Hermes box goes under **Needs eagle1** in the body, with the reason.
 - **Session 2 rewrites the body** so it describes the finished night: what changed (a bullet per job with the
   evidence and the command), the gate results, the base it stacked on, what is still open, and the line that says
   the merge is the owner's. Re-runs use `gh pr edit`, never a second PR.
@@ -98,8 +98,8 @@ dotnet run --project tests/OpenSimAnt.Replay -c Release --no-build -- --quiet   
 - The traces (`remake/build/traces`, git-ignored, game memory) are a read-only copy from eagle1, linked into every
   clone on the Hermes box. Re-recording them still happens on eagle1 (`tools/ref/record_all.sh` needs the emulator
   setup); after that they are copied over again.
-- A few unit tests need the owner's original files and pass as placeholders named `(no traces)` or
-  `(no game files)` when they are absent. Those are **Needs eagle1**, never a pass.
+- No test may pass as a placeholder named `(no traces)` or `(no game files)`: that means the traces or the
+  original files are missing, and it is a finding.
 - For shell / UI work there is no trace: name the comparison (`tools/shots.sh` + the question you asked `vision`,
   `--state=` + `tools/re/pngdiff.py`, a CI `clean-screens` artifact) and say what it showed. Never write
   "looks right".
@@ -122,9 +122,9 @@ A screen can be judged inside the session -- no owner, no eagle1, no pushed bran
 The Hermes box has what this needs: `/opt/godot` (4.6.2 mono), `/opt/dotnet` (SDK 8.0.427) and xvfb, with
 `$GODOT` and the `dotnet` path set by `/etc/profile.d/dotnet.sh`. These are the clean pack's screens, the
 same six and the same seeds `release.yml` renders, so a local frame and a `clean-screens` frame are the
-same frame. The original files never leave eagle1, so a comparison that needs them (`tools/shots.ps1`,
-`--state=` + `tools/re/pngdiff.py`, instrumenting the game on the original files) is listed under **Needs
-eagle1** in the PR: sessions cannot reach that box.
+same frame. The owner's original files are on the Hermes box too (see "Reading and writing"), so a
+comparison against the original look runs there: the same command with `--original` in place of `--clean`,
+`--state=` + `tools/re/pngdiff.py`, or the emulator. Use them only when fidelity is the question.
 
 **The live game.** For a screen that needs input to reach, use the editor on the Hermes box: `rql-mutate 'editor |
 call PlayScene("res://Main.tscn")'`, drive it with `DISPLAY=:99 xdotool mousemove X Y click 1` (or `xdotool key
@@ -141,6 +141,11 @@ empty scene, not the running game. Do not file it as broken.
   wrote. The fixer has its own clone (`~/work/SimAnt-Fix`) and the reviewer its own (`~/work/SimAnt-Review`).
 - **Code under `res://`** can also go through `script-create` / `script-update` + `script-build`, then an assertion.
 - Render output (`remake/build/shots/`) and the traces are git-ignored, so `git status` stays clean.
+- **The original files** are read-only, git-ignored links in the root of the sessions', reviewer's and fixer's
+  clones (never the release clone), so the game, the tests and the emulator find them. Python that imports
+  `unicorn` or `capstone` runs with `~/work/simant-venv/bin/python`; `tools/re/build_flat.py` runs from
+  `tools/re` (it writes `./build`). A session that can see the originals never makes or edits a clean-pack
+  asset (`AGENTS.md` §7, the clean-room rule).
 
 ## Committing
 
