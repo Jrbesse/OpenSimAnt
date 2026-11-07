@@ -7,6 +7,11 @@ For each capture <name>.png in build/screens that has a <name>.state, runs the r
 the same order, screenshots it and prints pngdiff's count. The remake's screenshots and the diff images (differing
 pixels in magenta) go to --out (default build/screens/remake). Godot: --godot, else the path in the handoff, else
 $GODOT. The game must be built first (dotnet build remake/game/OpenSimAnt.csproj).
+
+A capture can be one simulation step behind its own `.state`: the original repaints the Map window after the
+step (f_6efd6), so its ants can still be at the cells they had before that step's moves — that is the whole
+256-px `surface` diff of B16. Check the State before calling such a difference a render bug: the OCC grid and
+the ant arrays (SX / SY / STYPE) agree at the capture instant, so the render is drawing what memory holds.
 """
 import os
 import subprocess

@@ -1419,6 +1419,9 @@ public partial class Main : Node2D
                 for (int a = 0; a < mw; a++) trailImage[b * 128 + a] = session.Art.Palette[MapRenderer.MapColour(st, mv, a, b)];
         }
         if (!trails) trailView = -1;
+        // The original repaints this image from the OCC grid after each simulation step (f_6efd6), so its
+        // screen shows the ants as they were before that step's moves and a capture can catch the lag (B16:
+        // 8 of the surface's 9 red ants one cell behind = 256 px). A --state render draws memory as it is.
         for (int b = 0; b < MapRenderer.Height; b++)
             for (int a = 0; a < mw; a++)
             {
