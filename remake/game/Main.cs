@@ -267,6 +267,7 @@ public partial class Main : Node2D
             session.St.Set16(Seg.T, 0x7c8, heldContent);
             originA = heldA;
             originB = heldB;
+            SaveStateView();                                                           // the screenshot flags must not move it (B17)
         }
         if (screenshotSpider) { SetView(1); CenterOn(session.St.S16(Seg.G, 0xf12) >> 4, session.St.S16(Seg.G, 0xf34) >> 4); follow = false; }
         if (patchCentre is var (pca, pcb)) { SetView(1); CenterOn(pca, pcb); follow = false; }
@@ -281,6 +282,35 @@ public partial class Main : Node2D
                 foreach (var s in arg["--series=".Length..].Split(',')) ToggleSeries(int.Parse(s));
             else if (arg == "--history-values") historyHeld = true;         // the graph's labels as while the graph is pressed (f_795ec flag 1)
         Redraw();
+    }
+
+    // --state holds the original's memory still, but the screenshot flags then replay the window openings
+    // (--map-front, --yard): leaving the yard for the Map runs f_01aec(1), which moves the view and its centre.
+    // That is the harness moving the memory it is supposed to be showing, so the words are saved at load and put
+    // back once the flags have done their work (B17: the Edit window's view button and the origin drifted).
+    int stView = -1, stHeldView, stOldView, stContent, stCentreA, stCentreB;
+
+    void SaveStateView()
+    {
+        var st = session.St;
+        stView = view;
+        stHeldView = st.U16(Seg.G, 0x32e);
+        stOldView = st.U16(Seg.G, 0x332);
+        stContent = st.U16(Seg.T, 0x7c8);
+        stCentreA = originA;
+        stCentreB = originB;
+    }
+
+    void RestoreStateView()
+    {
+        if (!frozen || stView < 0) return;
+        var st = session.St;
+        view = stView;
+        st.Set16(Seg.G, 0x32e, stHeldView);
+        st.Set16(Seg.G, 0x332, stOldView);
+        st.Set16(Seg.T, 0x7c8, stContent);
+        originA = stCentreA;
+        originB = stCentreB;
     }
 
     const string SettingsPath = "user://settings.cfg";
@@ -551,6 +581,7 @@ public partial class Main : Node2D
                         else Front(w);
                 }
                 frontArgs.Clear();
+                RestoreStateView();                                                 // --state: the flags' replay moved the view (B17)
             }
             else if (e.Name == "scene") Present(AntLionScene);                    // f_76707
             else if (e.Name == "anim" && e.Args.Length > 0 && e.Args[0] is List<(State st, List<object[]> sounds)> frames && frames.Count > 0)
@@ -3749,7 +3780,10 @@ public partial class Main : Node2D
                 y += ui.Bitmap(rid).h;
             }
             YardRenderer.DrawColonies(area, st, session.Art.Palette, ox, oy, mode == 2);
-            // black lines down both sides of the picture, x = 63 and 576 (the original's screen; not traced to code)
+            // black lines down both sides of the picture, x = 63 and 576 (the original's screen; not traced to code).
+            // They begin at the picture's top row: `strat` / `graphic` / `card` all show black there, and only
+            // `yardfront`'s capture has the frame's yellow on that row, i.e. that frame redrew the window in another
+            // order (B17: 2 px, the capture's own artefact, not a remake difference)
             clip.Fill(pic.l - 1, pic.t, pic.l, pic.b, UiArt.Black);
             clip.Fill(pic.r - 1, pic.t, pic.r, pic.b, UiArt.Black);
         }
