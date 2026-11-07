@@ -290,6 +290,9 @@ public partial class Main : Node2D
     void SaveStateView()
     {
         var st = session.St;
+        // view and G:032E disagree here on purpose: --state leaves `view` at Yellow.view (2 in every yard capture) while
+        // G:032E is the state's 0, a pair the game never writes itself. Left as measured -- it is invisible, because the
+        // yard picture comes from G:035C / YardRenderer, and "fixing" it moves the Edit window's origin (PR #26 review).
         stView = view;
         stHeldView = st.U16(Seg.G, 0x32e);
         stOldView = st.U16(Seg.G, 0x332);
@@ -314,6 +317,8 @@ public partial class Main : Node2D
     // --map-content=n (the Map window's T:07C8). Run at load, and again after RestoreStateView(): the front replay
     // under --state moves the same words, so the restore above would otherwise cancel the moves the harness asked
     // for (B17: --spider-view and --map-content were byte-identical no-ops under --state without this).
+    // Note the load-time call sits after the --ant-info block, so with both flags on one command line --spider-view /
+    // --patch win where master let --ant-info win. No capture passes both; measured, not assumed (PR #26 review).
     void ApplyViewArgs()
     {
         if (screenshotSpider) { SetView(1); CenterOn(session.St.S16(Seg.G, 0xf12) >> 4, session.St.S16(Seg.G, 0xf34) >> 4); follow = false; }
