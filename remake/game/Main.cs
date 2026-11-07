@@ -269,16 +269,13 @@ public partial class Main : Node2D
             originB = heldB;
             SaveStateView();                                                           // the screenshot flags must not move it (B17)
         }
-        if (screenshotSpider) { SetView(1); CenterOn(session.St.S16(Seg.G, 0xf12) >> 4, session.St.S16(Seg.G, 0xf34) >> 4); follow = false; }
-        if (patchCentre is var (pca, pcb)) { SetView(1); CenterOn(pca, pcb); follow = false; }
         if (OS.GetCmdlineUserArgs().Contains("--ant-info")) { var (_, ya, yb) = session.Yellow; SetView(session.Yellow.view); CenterOnYellow(); OpenAntInfo(ya, yb); }
         foreach (var arg in OS.GetCmdlineUserArgs())                            // --ant-info=a,b (after the --state view and origin): held on the ant in cell (a, b)
             if (arg.StartsWith("--ant-info=") && arg["--ant-info=".Length..].Split(',') is { Length: 2 } ai)
                 OpenAntInfo(int.Parse(ai[0]), int.Parse(ai[1]));
+        ApplyViewArgs();                                                        // --spider-view, --patch's centre, --map-content
         foreach (var arg in OS.GetCmdlineUserArgs())
-            if (arg.StartsWith("--map-content="))                           // --map-content=n: the Map window shows T:07C8 = n
-                session.St.Set16(Seg.T, 0x7c8, int.Parse(arg["--map-content=".Length..]));
-            else if (arg.StartsWith("--series="))                           // --series=a,b,..: History buttons pressed in turn
+            if (arg.StartsWith("--series="))                                 // --series=a,b,..: History buttons pressed in turn
                 foreach (var s in arg["--series=".Length..].Split(',')) ToggleSeries(int.Parse(s));
             else if (arg == "--history-values") historyHeld = true;         // the graph's labels as while the graph is pressed (f_795ec flag 1)
         Redraw();
@@ -311,6 +308,19 @@ public partial class Main : Node2D
         st.Set16(Seg.T, 0x7c8, stContent);
         originA = stCentreA;
         originB = stCentreB;
+    }
+
+    // The flags that move the view on purpose: --spider-view (the surface around the spider), --patch's centre and
+    // --map-content=n (the Map window's T:07C8). Run at load, and again after RestoreStateView(): the front replay
+    // under --state moves the same words, so the restore above would otherwise cancel the moves the harness asked
+    // for (B17: --spider-view and --map-content were byte-identical no-ops under --state without this).
+    void ApplyViewArgs()
+    {
+        if (screenshotSpider) { SetView(1); CenterOn(session.St.S16(Seg.G, 0xf12) >> 4, session.St.S16(Seg.G, 0xf34) >> 4); follow = false; }
+        if (patchCentre is var (pca, pcb)) { SetView(1); CenterOn(pca, pcb); follow = false; }
+        foreach (var arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--map-content="))                           // --map-content=n: the Map window shows T:07C8 = n
+                session.St.Set16(Seg.T, 0x7c8, int.Parse(arg["--map-content=".Length..]));
     }
 
     const string SettingsPath = "user://settings.cfg";
@@ -582,6 +592,7 @@ public partial class Main : Node2D
                 }
                 frontArgs.Clear();
                 RestoreStateView();                                                 // --state: the flags' replay moved the view (B17)
+                ApplyViewArgs();                                                    // and the deliberate view flags are not the replay's to undo
             }
             else if (e.Name == "scene") Present(AntLionScene);                    // f_76707
             else if (e.Name == "anim" && e.Args.Length > 0 && e.Args[0] is List<(State st, List<object[]> sounds)> frames && frames.Count > 0)
