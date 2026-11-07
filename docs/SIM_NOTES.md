@@ -1413,6 +1413,18 @@ content is T:07C8:
 These are the 16-colour tables, used when the video mode DS:5A97 has bit 0 clear (8 in the
 snapshots). The other set (T:061E, T:04CE, T:054E, T:0656) holds 256-colour values.
 
+**The screen is one paint behind the step.** `f_6efd6` reads the OCC grid when it runs, and it runs again
+after each simulation step, so the window on screen shows ants where they were before that step's moves and
+an emulator capture can fall between the step and the repaint. Measured on the `surface` capture
+(2026-11-07, B16): the red-ant cells on the screen are exactly the OCC grid one step earlier — at the
+capture instant memory held (103,4) (104,37) (105,5) (106,27) (118,25) (121,31) (124,23) (125,21) (125,22)
+and the screen held the previous step's (104,3) (104,38) (105,26) (106,5) (117,26) (122,32) (125,20)
+(125,22) (125,23). Eight of the nine ants moved one cell, which is that capture's whole 256-px diff: a 4 x 4
+cell left behind plus the same cell at its new position, 32 px each. The State is self-consistent at that
+instant — the OCC grid and the ant arrays (SX / SY / STYPE) agree cell for cell and type byte for type byte
+for all 25 surface ants — so a `--state=` render cannot reproduce it: it draws memory as it is. This is the
+first thing to check before calling a small diff in a moving picture a render bug.
+
 With DS:2994 set, only the ants are redrawn over a cached background (G:10E2). After the image, when
 the window shows the surface and DS:2994 is 0:
 - the small spider (`f_6f505`): bitmap 1100 + G:1004 at (its cell × 4 - 3) + the window's corner

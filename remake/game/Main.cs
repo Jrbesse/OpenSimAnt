@@ -267,20 +267,65 @@ public partial class Main : Node2D
             session.St.Set16(Seg.T, 0x7c8, heldContent);
             originA = heldA;
             originB = heldB;
+            SaveStateView();                                                           // the screenshot flags must not move it (B17)
         }
-        if (screenshotSpider) { SetView(1); CenterOn(session.St.S16(Seg.G, 0xf12) >> 4, session.St.S16(Seg.G, 0xf34) >> 4); follow = false; }
-        if (patchCentre is var (pca, pcb)) { SetView(1); CenterOn(pca, pcb); follow = false; }
         if (OS.GetCmdlineUserArgs().Contains("--ant-info")) { var (_, ya, yb) = session.Yellow; SetView(session.Yellow.view); CenterOnYellow(); OpenAntInfo(ya, yb); }
         foreach (var arg in OS.GetCmdlineUserArgs())                            // --ant-info=a,b (after the --state view and origin): held on the ant in cell (a, b)
             if (arg.StartsWith("--ant-info=") && arg["--ant-info=".Length..].Split(',') is { Length: 2 } ai)
                 OpenAntInfo(int.Parse(ai[0]), int.Parse(ai[1]));
+        ApplyViewArgs();                                                        // --spider-view, --patch's centre, --map-content
         foreach (var arg in OS.GetCmdlineUserArgs())
-            if (arg.StartsWith("--map-content="))                           // --map-content=n: the Map window shows T:07C8 = n
-                session.St.Set16(Seg.T, 0x7c8, int.Parse(arg["--map-content=".Length..]));
-            else if (arg.StartsWith("--series="))                           // --series=a,b,..: History buttons pressed in turn
+            if (arg.StartsWith("--series="))                                 // --series=a,b,..: History buttons pressed in turn
                 foreach (var s in arg["--series=".Length..].Split(',')) ToggleSeries(int.Parse(s));
             else if (arg == "--history-values") historyHeld = true;         // the graph's labels as while the graph is pressed (f_795ec flag 1)
         Redraw();
+    }
+
+    // --state holds the original's memory still, but the screenshot flags then replay the window openings
+    // (--map-front, --yard): leaving the yard for the Map runs f_01aec(1), which moves the view and its centre.
+    // That is the harness moving the memory it is supposed to be showing, so the words are saved at load and put
+    // back once the flags have done their work (B17: the Edit window's view button and the origin drifted).
+    int stView = -1, stHeldView, stOldView, stContent, stCentreA, stCentreB;
+
+    void SaveStateView()
+    {
+        var st = session.St;
+        // view and G:032E disagree here on purpose: --state leaves `view` at Yellow.view (2 in every yard capture) while
+        // G:032E is the state's 0, a pair the game never writes itself. Left as measured -- it is invisible, because the
+        // yard picture comes from G:035C / YardRenderer, and "fixing" it moves the Edit window's origin (PR #26 review).
+        stView = view;
+        stHeldView = st.U16(Seg.G, 0x32e);
+        stOldView = st.U16(Seg.G, 0x332);
+        stContent = st.U16(Seg.T, 0x7c8);
+        stCentreA = originA;
+        stCentreB = originB;
+    }
+
+    void RestoreStateView()
+    {
+        if (!frozen || stView < 0) return;
+        var st = session.St;
+        view = stView;
+        st.Set16(Seg.G, 0x32e, stHeldView);
+        st.Set16(Seg.G, 0x332, stOldView);
+        st.Set16(Seg.T, 0x7c8, stContent);
+        originA = stCentreA;
+        originB = stCentreB;
+    }
+
+    // The flags that move the view on purpose: --spider-view (the surface around the spider), --patch's centre and
+    // --map-content=n (the Map window's T:07C8). Run at load, and again after RestoreStateView(): the front replay
+    // under --state moves the same words, so the restore above would otherwise cancel the moves the harness asked
+    // for (B17: --spider-view and --map-content were byte-identical no-ops under --state without this).
+    // Note the load-time call sits after the --ant-info block, so with both flags on one command line --spider-view /
+    // --patch win where master let --ant-info win. No capture passes both; measured, not assumed (PR #26 review).
+    void ApplyViewArgs()
+    {
+        if (screenshotSpider) { SetView(1); CenterOn(session.St.S16(Seg.G, 0xf12) >> 4, session.St.S16(Seg.G, 0xf34) >> 4); follow = false; }
+        if (patchCentre is var (pca, pcb)) { SetView(1); CenterOn(pca, pcb); follow = false; }
+        foreach (var arg in OS.GetCmdlineUserArgs())
+            if (arg.StartsWith("--map-content="))                           // --map-content=n: the Map window shows T:07C8 = n
+                session.St.Set16(Seg.T, 0x7c8, int.Parse(arg["--map-content=".Length..]));
     }
 
     const string SettingsPath = "user://settings.cfg";
@@ -551,6 +596,8 @@ public partial class Main : Node2D
                         else Front(w);
                 }
                 frontArgs.Clear();
+                RestoreStateView();                                                 // --state: the flags' replay moved the view (B17)
+                ApplyViewArgs();                                                    // and the deliberate view flags are not the replay's to undo
             }
             else if (e.Name == "scene") Present(AntLionScene);                    // f_76707
             else if (e.Name == "anim" && e.Args.Length > 0 && e.Args[0] is List<(State st, List<object[]> sounds)> frames && frames.Count > 0)
@@ -1372,6 +1419,9 @@ public partial class Main : Node2D
                 for (int a = 0; a < mw; a++) trailImage[b * 128 + a] = session.Art.Palette[MapRenderer.MapColour(st, mv, a, b)];
         }
         if (!trails) trailView = -1;
+        // The original repaints this image from the OCC grid after each simulation step (f_6efd6), so its
+        // screen shows the ants as they were before that step's moves and a capture can catch the lag (B16:
+        // 8 of the surface's 9 red ants one cell behind = 256 px). A --state render draws memory as it is.
         for (int b = 0; b < MapRenderer.Height; b++)
             for (int a = 0; a < mw; a++)
             {
@@ -3749,7 +3799,10 @@ public partial class Main : Node2D
                 y += ui.Bitmap(rid).h;
             }
             YardRenderer.DrawColonies(area, st, session.Art.Palette, ox, oy, mode == 2);
-            // black lines down both sides of the picture, x = 63 and 576 (the original's screen; not traced to code)
+            // black lines down both sides of the picture, x = 63 and 576 (the original's screen; not traced to code).
+            // They begin at the picture's top row: `strat` / `graphic` / `card` all show black there, and only
+            // `yardfront`'s capture has the frame's yellow on that row, i.e. that frame redrew the window in another
+            // order (B17: 2 px, the capture's own artefact, not a remake difference)
             clip.Fill(pic.l - 1, pic.t, pic.l, pic.b, UiArt.Black);
             clip.Fill(pic.r - 1, pic.t, pic.r, pic.b, UiArt.Black);
         }
