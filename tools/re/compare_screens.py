@@ -12,6 +12,18 @@ A capture can be one simulation step behind its own `.state`: the original repai
 step (f_6efd6), so its ants can still be at the cells they had before that step's moves — that is the whole
 256-px `surface` diff of B16. Check the State before calling such a difference a render bug: the OCC grid and
 the ant arrays (SX / SY / STYPE) agree at the capture instant, so the render is drawing what memory holds.
+
+Which window the capture held is the original's own z-order (DS:5702), and `--state=` puts it back by itself:
+the stack windows (Edit, Map, History, yard, SimAntipedia, Behavior, Caste) and the front modal. The front modal
+is restored from the State alone for the title (3), Select a Game (2), the Efficiency Score (24), game over (4),
+the About box (31) and the save prompt (33); the Ant Info window (29) also needs the cell it was held on, which
+screens.py writes to `<name>.cell` beside the state (the game reads it there). So the flags for those five
+captures are redundant, and are kept only as a re-statement of how each window was opened.
+
+The one modal `--state=` cannot restore is the file dialog (22): its list is the filesystem (the folders, then
+`*.ant`), and neither the directory nor the selection is in the original's memory. `--load-dialog --file-dir=…`
+is the capture-time workaround and stays in FLAGS below; a bare `--state=` render of `filedlg.state` leaves the
+dialog out and says so on stderr (that is 63902 px, not a render bug).
 """
 import os
 import subprocess

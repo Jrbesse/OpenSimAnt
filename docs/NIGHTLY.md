@@ -120,6 +120,11 @@ A screen can be judged inside the session -- no owner, no pushed branch. Two ste
    tutorial`; no argument renders all six). PNGs and logs land in `remake/build/shots/`, git-ignored, a
    few seconds a screen. A non-zero exit is a failure to report, not a frame to judge: a screen made no
    PNG, or its log held an exception or a missing resource.
+   The **reference** captures (`tools/re/build/screens`, what `compare_screens.py` reads) are per clone and go
+   stale silently: a set recorded before `tools/extract.py` ran in that clone has no font-0 glyphs, so every diff
+   against it carries the 1158-px menu band. After `tools/extract.py`, re-record it
+   (`cd tools && ~/work/simant-venv/bin/python re/screens.py`, ~6 min); `screens.py` now refuses to record at all
+   when `extracted/shared/font/` is missing instead of writing a fontless set.
 2. **Ask.** Give the `vision` tool the PNG's **local path** (a tailnet URL is refused by its SSRF guard)
    and one falsifiable question -- "is the interior of the right-hand window solid black, or does it show
    map art?", never "does this look right". Put the question *and* the answer in the PR body; that is the
