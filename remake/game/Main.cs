@@ -239,7 +239,7 @@ public partial class Main : Node2D
                 if (arg.Contains('=') && arg[(arg.IndexOf('=') + 1)..].Split(',').Select(int.Parse).ToArray() is { Length: 2 } ab)
                 {
                     (aboutLine, aboutPixel, aboutRolling) = (ab[0], ab[1], true);
-                    aboutNext = double.MaxValue;
+                    aboutNext = double.MaxValue;                          // frozen at line,pixel: no deadline, AboutStep never runs (a capture only)
                 }
             }
         foreach (var arg in OS.GetCmdlineUserArgs())
@@ -4132,7 +4132,14 @@ public partial class Main : Node2D
                             var (goScore, _) = OpenSimAnt.Sim.Game.Rating(st);
                             OpenGameOver(OpenSimAnt.Sim.Game.Rank(st, goScore), goScore);
                             break;
-                        case AboutWin:                                      // the roll at its first pixel (a code counter, not memory)
+                        case AboutWin:
+                            // The roll at its first pixel (the roll's position is a code counter, f_72931, not memory).
+                            // FROZEN, and that is the only reason this is safe: aboutNext = double.MaxValue means
+                            // DrawAbout's `while (UiTicks >= aboutNext) AboutStep()` never fires, so the box stays on the
+                            // first pixel the capture shows. The side effect is that aboutRolling stays true forever —
+                            // a frozen frame is never stepped, so nothing reads it. Anything that unfreezes the About box
+                            // later (a key, AboutEvent, a live About open) must reset aboutNext to a real deadline, or it
+                            // inherits a dead roll pinned at pixel 0.
                             aboutRolling = true; aboutLine = aboutPixel = 0; aboutNext = double.MaxValue; aboutWaits = 0;
                             break;
                         case SavePrompt: pendingGame = 4; break;             // "before loading a new SimAnt game"
