@@ -4136,7 +4136,18 @@ public partial class Main : Node2D
                             aboutRolling = true; aboutLine = aboutPixel = 0; aboutNext = double.MaxValue; aboutWaits = 0;
                             break;
                         case SavePrompt: pendingGame = 4; break;             // "before loading a new SimAnt game"
-                        case AntInfoWin: if (stateAntInfo is var (aiA, aiB)) OpenAntInfo(aiA, aiB); break;
+                        case AntInfoWin:                                    // OpenAntInfo sets modal itself, and only if the cell holds an ant
+                            if (stateAntInfo is var (aiA, aiB))
+                            {
+                                OpenAntInfo(aiA, aiB);
+                                if (antInfoLines == null)                   // a stale .cell: no modal, or DrawAntInfo dereferences null
+                                {
+                                    modal = -1;
+                                    Console.Error.WriteLine($"--state: window 29 (DS:5702) was held on cell {aiA},{aiB}, which holds no ant " +
+                                        $"in this State; left out of the stack (or pass --ant-info=a,b)");
+                                }
+                            }
+                            break;
                     }
                 }
                 if (stateStack.Contains(TextWin) && card == null)              // the SimAntipedia's card (DS:2E26)
