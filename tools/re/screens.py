@@ -23,6 +23,23 @@ SIM = 0x3e1d
 LO, HI = 0x3d570, 0x62000                         # simant_ref.state: the State's memory
 
 
+def require_pc_fonts():
+    """Refuse to record without SHARED's PC fonts 0 and 1.
+
+    The BIOS PC font (font 0) is what the menu bar and every window caption are drawn in, and `vga.rom_fonts()`
+    builds its stand-in from `extracted/shared/font/00000.bin` and `00001.bin`. When that directory is absent the
+    emulator still boots and still writes captures -- every font-0 glyph just comes out blank (B12/B15, the
+    "1158 px menu-bar band"): the whole set is silently useless as an oracle, and the frames look plausible.
+    A warning on stderr is not enough for that, so the capture tool exits instead of writing a fontless set.
+    """
+    import fonts  # tools/fonts.py: reads extracted/shared/font/
+    missing = [f'{f:05d}.bin' for f in (0, 1) if not os.path.isfile(os.path.join(fonts.FONTS, f'{f:05d}.bin'))]
+    if missing:
+        sys.exit(f'screens.py: no SHARED PC font {", ".join(missing)} in {os.path.normpath(fonts.FONTS)} -- '
+                 f'every font-0 glyph (the menu bar, window captions) would be blank in the captures, so this '
+                 f'record is refused; run "python tools/extract.py" first (B15).')
+
+
 def shot(e, v, path):
     """The screen as a PNG and the State bytes beside it (path with .state for .png)."""
     v.png(path)
@@ -52,6 +69,7 @@ def click(e, x, y, polls=60):
 
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, 'build', 'screens')
+    require_pc_fonts()
     os.makedirs(out, exist_ok=True)
     e = SimEmu(base=0x100)
     v = VGA(e)
