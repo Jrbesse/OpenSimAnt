@@ -50,6 +50,8 @@ public partial class Main : Node2D
     readonly List<string> frontArgs = new(OS.GetCmdlineUserArgs());        // --history, --panels, --map-front, --antipedia, --yard
     bool frozen, stateStackDone, stateHistoryDone;
     List<int> stateStack;                                                  // --state: the original's z-order (DS:5702)
+    (int a, int b)? stateAntInfo;                                          // --state: the ant the Ant Info window was held on (<state>.cell)
+    string stateFile;                                                      // --state: the file, named in the notes
     string stateMessage;                                                   // --state: the timed message to show                                                            // --state: the game does not run
     int frames;
 
@@ -141,11 +143,20 @@ public partial class Main : Node2D
             else if (arg.StartsWith("--state="))                            // the original's memory (tools/re/screens.py), held still
             {
                 var statePath = arg["--state=".Length..];
+                stateFile = statePath;
                 session.LoadState(System.IO.File.ReadAllBytes(statePath));
                 frozen = true;
                 var msgPath = System.IO.Path.ChangeExtension(statePath, ".msg");          // the timed message shown (screens.py)
                 if (System.IO.File.Exists(msgPath) && System.IO.File.ReadAllBytes(msgPath) is { Length: > 0 } msg)
                     stateMessage = OriginalFiles.MacText(msg);
+                // the cell the Ant Info window was held on (screens.py writes it beside the state): the window's own
+                // content is the occupant of SIM:8180 at that cell, which the State does hold, so this is the only
+                // thing missing from a bare --state render of window 29 (B14)
+                var cellPath = System.IO.Path.ChangeExtension(statePath, ".cell");
+                if (System.IO.File.Exists(cellPath)
+                    && System.IO.File.ReadAllText(cellPath).Trim().Split(',') is { Length: 2 } cellParts
+                    && int.TryParse(cellParts[0], out int cellA) && int.TryParse(cellParts[1], out int cellB))
+                    stateAntInfo = (cellA, cellB);
             }
         ui = new UiArt(session.Files, session.Art);
         foreach (var arg in OS.GetCmdlineUserArgs().Where(x => x.StartsWith("--patch=")))
@@ -4041,11 +4052,27 @@ public partial class Main : Node2D
     static bool StackWindow(int w) => w is EditWin or MapWin or HistoryWin or YardWin or TextWin or BehaviorWin or CasteWin;
 
     /// <summary>
-    /// A modal the shell can put back from the capture's State alone (ROADMAP B13): the same window id the shell's
-    /// `modal` uses, drawn over the stack. The ones left out need something the State does not hold -- the Ant Info
-    /// window's cell, the file dialog's listing, the game-over window's rating -- and stay a stderr note.
+    /// A modal the shell can put back from the capture's State alone (ROADMAP B13 / B14): the same window id the
+    /// shell's `modal` uses, drawn over the stack. Everything these five need is either in the State or fixed:
+    /// <list type="bullet">
+    /// <item>3 / 2 (title, Select a Game) and 24 (Efficiency) as before; 24's rating is `Game.Rating` of the State.</item>
+    /// <item>4 (game over): the score is DS:2B50 in the State and the rating `Game.Rank` of it, so `OpenGameOver` is a
+    /// pure function of the State.</item>
+    /// <item>31 (About): a fixed layout and the credits text (STR# 1700); no State data. The roll's position is a
+    /// counter in the original's code (`f_72931`), not memory, so a State render holds it at its first pixel -- the
+    /// same frame `--about=0,0` gives; `--about=line,pixel` picks another.</item>
+    /// <item>33 (the save prompt): a fixed layout and one SHARED text. Which of the two texts (before a load / new
+    /// game, 130, or before quitting, 128) is a caller's argument to `f_2f974` in the original, not a State word, so
+    /// a State render shows the load one; `--save-prompt=5` shows the quit one.</item>
+    /// <item>29 (Ant Info): needs the cell it was held on, which the earlier captures did not save -- read from
+    /// `&lt;state&gt;.cell` (written by `tools/re/screens.py`) when it is there, else it stays a stderr note.</item>
+    /// </list>
+    /// Left out on purpose: 22 (the file dialog). Its list is the filesystem (folders then `*.ant`), and neither the
+    /// directory nor the selection is in the State; a bare State render would show the real disk where the capture
+    /// showed the original's. Capture it with `--load-dialog --file-dir=&lt;dir&gt;` (see `tools/re/compare_screens.py`
+    /// FLAGS), which is the documented workaround.
     /// </summary>
-    static bool StateModal(int w) => w is EfficiencyWin or SelectWin or TitleWin;
+    static bool StateModal(int w) => w is EfficiencyWin or SelectWin or TitleWin or AboutWin or SavePrompt or GameOverWin;
 
     /// <summary>The capture's stack, enforced every frame: a game-start or view event must not reorder it.</summary>
     void ApplyStateStack()
@@ -4086,13 +4113,31 @@ public partial class Main : Node2D
                         continue;
                     }
                     // a modal sits above the stack: the frontmost one in the list is the one the capture shows (B13)
-                    if (StateModal(stack[i])) { frontModal = stack[i]; continue; }
-                    Console.Error.WriteLine($"--state: window {stack[i]} (DS:5702) is not drawn by the shell; left out of the stack");
+                    if (StateModal(stack[i]) || (stack[i] == AntInfoWin && stateAntInfo != null)) { frontModal = stack[i]; continue; }
+                    Console.Error.WriteLine(stack[i] == FileWin
+                        ? "--state: window 22 (DS:5702) is the file dialog: its listing is the filesystem, not the State; " +
+                          "left out of the stack (pass --load-dialog --file-dir=<dir> for that capture)"
+                        : stack[i] == AntInfoWin
+                        ? $"--state: window 29 (DS:5702) is the Ant Info window with no {System.IO.Path.GetFileNameWithoutExtension(stateFile)}.cell " +
+                          "beside the state, so the cell it was held on is unknown; left out of the stack (or pass --ant-info=a,b)"
+                        : $"--state: window {stack[i]} (DS:5702) is not drawn by the shell; left out of the stack");
                 }
                 if (frontModal >= 0)
                 {
                     modal = frontModal;
-                    if (modal == EfficiencyWin) efficiency = OpenSimAnt.Sim.Game.Rating(st);
+                    switch (modal)
+                    {
+                        case EfficiencyWin: efficiency = OpenSimAnt.Sim.Game.Rating(st); break;
+                        case GameOverWin:                                    // the score and the rating are both in the State
+                            var (goScore, _) = OpenSimAnt.Sim.Game.Rating(st);
+                            OpenGameOver(OpenSimAnt.Sim.Game.Rank(st, goScore), goScore);
+                            break;
+                        case AboutWin:                                      // the roll at its first pixel (a code counter, not memory)
+                            aboutRolling = true; aboutLine = aboutPixel = 0; aboutNext = double.MaxValue; aboutWaits = 0;
+                            break;
+                        case SavePrompt: pendingGame = 4; break;             // "before loading a new SimAnt game"
+                        case AntInfoWin: if (stateAntInfo is var (aiA, aiB)) OpenAntInfo(aiA, aiB); break;
+                    }
                 }
                 if (stateStack.Contains(TextWin) && card == null)              // the SimAntipedia's card (DS:2E26)
                 {
