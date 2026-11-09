@@ -17,7 +17,12 @@ has to be exported. To use one that already exists, set it -- the editor's virtu
     # off the box, or with xvfb not installed, wrap it yourself:
     xvfb-run -a -s "-screen 0 1280x1024x24" python compare_screens.py about load filedlg
 
-Exit status is 1 if any render saved no frame, so a gate cannot read a missing PNG as a pass.
+Exit status is 1 when a comparison that was asked for did not happen: a render that saved no frame, or a capture with
+no `.png` to compare against. A name absent from the default sweep is tolerated -- `savedlg` / `overwrite` / `saved` /
+`savecancel` have no capture, because screens.py writes the save prompt only when the game has unsaved changes -- but
+naming a capture by hand is a request, so `compare_screens.py yard` with no `yard.state` exits 1 too: on a clone whose
+reference set was never recorded (docs/NIGHTLY.md: it is per clone and goes stale silently) an empty run must not read
+as a pass.
 
 A capture can be one simulation step behind its own `.state`: the original repaints the Map window after the
 step (f_6efd6), so its ants can still be at the cells they had before that step's moves — that is the whole
@@ -130,6 +135,8 @@ def main():
         state = os.path.join(SCREENS, name + '.state')
         if not os.path.exists(state):
             print(f'{name:10s} no capture (run screens.py)')
+            if args:                              # named by hand: a request, so the run must not pass silently
+                missing.append(name)
             continue
         ref = os.path.join(SCREENS, name + '.png')
         if not os.path.exists(ref):
