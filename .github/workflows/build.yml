@@ -60,8 +60,8 @@ jobs:
       # files are the pack's input and plain text, so the diff is stable across numpy / Pillow versions.
       # The glob stops at the four .pix files on purpose: preview.png comes from the same run but its bytes are
       # Pillow's PNG encoder's, so gating it would redden this on a Pillow release with no art change.
-      # numpy and Pillow are also unpinned on purpose — the drawing's only randomness is np.random.RandomState
-      # (the legacy stream, stable across numpy versions), never Generator, so the pixels do not follow the pin.
+      # numpy and Pillow are also unpinned on purpose — the drawing's randomness is np.random.RandomState
+      # (the legacy stream) and stdlib random.Random (MT19937), both stable across versions, never Generator.
       - name: The ant sheets are make_sprites.py's output
         run: |
           python -m pip install --quiet numpy pillow
