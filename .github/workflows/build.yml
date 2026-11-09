@@ -1,6 +1,7 @@
 # Builds the remake on every push and pull request. The original SimAnt files are never in the repository,
-# so CI can only compile and check the generated art: the trace replay tests pass vacuously without
-# remake/build/traces (made locally from the user's own copy, docs/HANDOFF.md), and nothing here runs the game.
+# so CI can only compile and check the generated art: remake/build/traces (made locally from the user's own
+# copy, docs/HANDOFF.md) is absent here, and since #37 the replay fails and names the directory it looked in
+# rather than reporting the traces as matched; nothing here runs the game.
 name: Build
 
 on:
