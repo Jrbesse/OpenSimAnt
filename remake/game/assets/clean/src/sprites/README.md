@@ -37,7 +37,9 @@ asserts in the script (`--dev` only reports a failed check and carries on, for d
 - **Fight cloud**: 8 variants of one scuffle: the cloud and five limbs stay, two limbs, the sparks and the flying specks change.
 - A few things the script asserts beyond the spec: no pixel of index 1 outside the mask, mask only on 1 / 2, no isolated
   mask pixel, at most 4 shade pixels (queen rear 8), the 8 headings of a caste within 20 % of each other in size, body at
-  least 38 % of an ant's pixels (28 % for the winged males and young queens, whose wings are not body).
+  least 38 % of an ant's pixels (28 % for the winged males and young queens, whose wings are not body), and **no
+  detached limb**: every black pixel of an ant or brood sprite joins its body (the queen's front / rear halves and the
+  fight cloud are the only sprites allowed to stand apart, by design).
 
 ## Rebuild
 
