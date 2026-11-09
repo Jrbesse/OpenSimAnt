@@ -1,6 +1,6 @@
 # Builds the remake on every push and pull request. The original SimAnt files are never in the repository,
-# so CI can only compile: the trace replay tests pass vacuously without remake/build/traces (made locally
-# from the user's own copy, docs/HANDOFF.md), and nothing here runs the game.
+# so CI can only compile and check the generated art: the trace replay tests pass vacuously without
+# remake/build/traces (made locally from the user's own copy, docs/HANDOFF.md), and nothing here runs the game.
 name: Build
 
 on:
@@ -52,3 +52,18 @@ jobs:
 
       - name: Python tools compile
         run: python -m compileall -q tools
+
+      # The ant sheets are generated: make_sprites.py holds the art as text templates and writes surface.pix,
+      # nest.pix and their recolour masks (preview.png too, same run). A sheet edited by hand, or regenerated
+      # by a script that has drifted from its template, passes every other check here while the pack ships art
+      # the template no longer draws — 16 worker ids carried a stale feeler pixel that way (#19). The .pix
+      # files are the pack's input and plain text, so the diff is stable across numpy / Pillow versions.
+      # The glob stops at the four .pix files on purpose: preview.png comes from the same run but its bytes are
+      # Pillow's PNG encoder's, so gating it would redden this on a Pillow release with no art change.
+      # numpy and Pillow are also unpinned on purpose — the drawing's randomness is np.random.RandomState
+      # (the legacy stream) and stdlib random.Random (MT19937), both stable across versions, never Generator.
+      - name: The ant sheets are make_sprites.py's output
+        run: |
+          python -m pip install --quiet numpy pillow
+          python remake/game/assets/clean/src/sprites/make_sprites.py
+          git diff --exit-code -- remake/game/assets/clean/src/sprites/*.pix

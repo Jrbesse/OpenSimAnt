@@ -82,17 +82,17 @@ SURFACE_ANTS = {
         ".........F......",
         "....K...K.......",
         "....K..KEK......",
-        "..K.K.KYYYK.....",
-        "...KKKKYYYEK.FF.",
+        "....K.KYYYK.....",
+        "...KKKKYYYEKFF..",
         "KKKKKYYYYYYK....",
         "..KKKYYYKYK.....",
         ".KAAAYYYYK......",
         "KAAAAYYYKKKKK...",
         "KAAAAAKKK.......",
         ".KAAAAAKKK......",
-        "..KAAAK.K.K.....",
-        "...KKK..K.......",
-        "........K.......",
+        "..KAAAK.KK......",
+        "..........K.....",
+        "................",
     ],
   ),
   'soldier': dict(
@@ -156,7 +156,7 @@ SURFACE_ANTS = {
         "...........F....",
         "......K....F....",
         "......K..KKK....",
-        "......K.KEYYK.FF",
+        "......K.KEYYKFFF",
         "..VKKVKKKYYYK...",
         "VKKKKKKYYYYEK...",
         "VWWWWKYYYYYYK...",
@@ -175,7 +175,7 @@ SURFACE_ANTS = {
     N=[
         "....F......F....",
         ".....F....F.....",
-        ".......KK.......",
+        "......KKKK......",
         "......KYYK......",
         ".....KEYYEK.....",
         ".....KYYYYK.....",
@@ -193,10 +193,10 @@ SURFACE_ANTS = {
     NE=[
         "...........F....",
         "...........F....",
-        "................",
+        "...........F....",
         ".........KKK....",
         ".VVVVV..KEYYK...",
-        "VWWWWWKKYYYYK.FF",
+        "VWWWWWKKYYYYKFFF",
         "VWWWWKYYYYYEK...",
         "VWWWVKYYYYYYK...",
         "VVVKKKYYYYYK....",
@@ -1070,7 +1070,12 @@ def check_sheet(name, pic, msk, grids):
                 letters = {(x, y) for y in range(SP) for x in range(SP) if grids[n][y][x] != '.'}
             comps = components(letters)
             main = max(len(c) for c in comps)
-            assert len(letters) - main <= 4, (name, hex(n), 'floating pixels', sorted(len(c) for c in comps))
+            # Nothing floats: every limb of an ant must join its body. The old art needed a 4-pixel allowance,
+            # which let a detached 2-pixel feeler or leg tip through in every diagonal heading (#19). The queen
+            # front / rear parts are two halves of one body cut across the cell join, so they may stand apart;
+            # clouds are skipped above (their sparks and specks fly apart by design).
+            allowance = 4 if 0x60 <= n < 0x70 else 0
+            assert len(letters) - main <= allowance, (name, hex(n), 'floating pixels', sorted(len(c) for c in comps))
     for n in UNUSED:
         p, m = tile(pic, n), tile(msk, n)
         assert (p >= 0).all() and (m == 0).all(), (name, hex(n), 'placeholder')
