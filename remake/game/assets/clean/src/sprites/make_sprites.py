@@ -1071,8 +1071,9 @@ def check_sheet(name, pic, msk, grids):
             comps = components(letters)
             main = max(len(c) for c in comps)
             # Nothing floats: every limb of an ant must join its body. The old art needed a 4-pixel allowance,
-            # which let a detached 2-pixel feeler or leg tip through in every diagonal heading (#19). Queen
-            # front / rear parts are two halves of one body cut across the cell join, so they may stand apart.
+            # which let a detached 2-pixel feeler or leg tip through in every diagonal heading (#19). The queen
+            # front / rear parts are two halves of one body cut across the cell join, so they may stand apart;
+            # clouds are skipped above (their sparks and specks fly apart by design).
             allowance = 4 if 0x60 <= n < 0x70 else 0
             assert len(letters) - main <= allowance, (name, hex(n), 'floating pixels', sorted(len(c) for c in comps))
     for n in UNUSED:
