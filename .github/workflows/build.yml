@@ -19,7 +19,9 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # The CI_RUNNER repo variable picks the runner: "newmox" is the self-hosted box (Proxmox CT 240).
+    # Delete the variable to fall back to GitHub-hosted. Release workflows stay on GitHub-hosted on purpose.
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     env:
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: true
