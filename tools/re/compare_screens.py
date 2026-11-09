@@ -10,19 +10,22 @@ $GODOT. The game must be built first (dotnet build remake/game/OpenSimAnt.csproj
 
 A display is required: `--headless` renders nothing (dummy renderer, blank frame). On a machine with no X session
 (the Hermes box) the script runs Godot under `xvfb-run` itself, the same recipe tools/shots.sh uses, so no display
-has to be exported. To use one that already exists, set it -- the editor's virtual display works:
+has to be exported. Windows and macOS need no display server and never set `DISPLAY`; Godot opens its own window
+there, so neither `DISPLAY` nor `xvfb-run` is looked for on those hosts. To use an X display that already exists,
+set it -- the editor's virtual display works:
 
     DISPLAY=:99 GODOT=/opt/godot/Godot_v4.6.2-stable_mono_linux_x86_64/Godot_v4.6.2-stable_mono_linux.x86_64 \
         ~/work/simant-venv/bin/python compare_screens.py            # every capture
     # off the box, or with xvfb not installed, wrap it yourself:
     xvfb-run -a -s "-screen 0 1280x1024x24" python compare_screens.py about load filedlg
 
-Exit status is 1 when a comparison that was asked for did not happen: a render that saved no frame, or a capture with
-no `.png` to compare against. A name absent from the default sweep is tolerated -- `savedlg` / `overwrite` / `saved` /
-`savecancel` have no capture, because screens.py writes the save prompt only when the game has unsaved changes -- but
-naming a capture by hand is a request, so `compare_screens.py yard` with no `yard.state` exits 1 too: on a clone whose
-reference set was never recorded (docs/NIGHTLY.md: it is per clone and goes stale silently) an empty run must not read
-as a pass.
+Exit status is 1 when a comparison that was asked for did not happen: a render that saved no frame, a capture with no
+`.png` to compare against, or a capture with no `.state`. An absent capture fails in the default sweep as well as when
+named by hand -- on a clone whose reference set was never recorded (docs/NIGHTLY.md: it is per clone and goes stale
+silently) an empty run must not read as a pass -- with one exception, OPTIONAL below: `savedlg` / `overwrite` / `saved`
+/ `savecancel` have no capture, because screens.py writes the save prompt only when the game has unsaved changes, and
+naming one of those by hand is a request, so it exits 1 like any other absent name. A run that compares nothing at all
+exits 1 whatever the names.
 
 A capture can be one simulation step behind its own `.state`: the original repaints the Map window after the
 step (f_6efd6), so its ants can still be at the cells they had before that step's moves — that is the whole
@@ -100,15 +103,21 @@ FLAGS = {
 }
 CURSOR = '--cursor=600,470'                       # screens.py parks the mouse there
 XVFB = ['xvfb-run', '-a', '-s', '-screen 0 1280x1024x24']   # tools/shots.sh's recipe
+OPTIONAL = {'savedlg', 'overwrite', 'saved', 'savecancel'}  # screens.py writes these only with unsaved changes
 
 
 def display_wrapper():
-    """The prefix that gives Godot a display, or [] when DISPLAY already names one.
+    """The prefix that gives Godot a display, or [] when it needs none or DISPLAY already names one.
 
     Godot without a display renders nothing, and `--headless` is worse: it is a dummy renderer that saves a blank
     frame without complaining. So on a host with no X session (the Hermes box) run it under xvfb; when there is
     neither a DISPLAY nor xvfb-run, stop with one line instead of a traceback on the missing PNG.
+
+    Windows and macOS need no display server and never set DISPLAY -- and Windows is the host this file defaults to
+    (GODOT above) -- so they answer before the X11 test, which is only true there.
     """
+    if os.name == 'nt' or sys.platform == 'darwin':
+        return []
     if os.environ.get('DISPLAY'):
         return []
     if shutil.which(XVFB[0]):
@@ -131,11 +140,12 @@ def main():
     sys.path.insert(0, HERE)
     import pngdiff  # noqa: E402
     missing = []
+    compared = 0
     for name in args or FLAGS:
         state = os.path.join(SCREENS, name + '.state')
         if not os.path.exists(state):
             print(f'{name:10s} no capture (run screens.py)')
-            if args:                              # named by hand: a request, so the run must not pass silently
+            if args or name not in OPTIONAL:      # an absent capture fails unless it is a tolerated save prompt
                 missing.append(name)
             continue
         ref = os.path.join(SCREENS, name + '.png')
@@ -179,8 +189,11 @@ def main():
             subprocess.run([sys.executable, os.path.join(HERE, 'pngdiff.py'), ref, shot,
                             '--out', os.path.join(out, name + '_diff.png')], stdout=subprocess.DEVNULL)
         print(f'{name:10s} {len(diff):6d} pixels differ{box}')
+        compared += 1
     if missing:
         sys.exit(f'{len(missing)} capture(s) produced no comparison: {" ".join(missing)}')
+    if not compared:                              # zero comparisons is the empty set, not a pass
+        sys.exit(f'compare_screens.py: nothing compared -- no capture in {SCREENS} (run screens.py)')
 
 
 if __name__ == '__main__':
