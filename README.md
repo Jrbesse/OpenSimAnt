@@ -81,14 +81,14 @@ the top of this README says.
 The remake is compared screen by screen against the original. Two differences are accepted, and they
 are listed here rather than left silent: each is recorded, not scheduled for a fix.
 
-- `yard`: **9 px**, all in two columns at x=264 and x=288, y=195–199, on one object in the yard view
-  beside the house door. At x=264 the original draws sprite colours (violet `(242,8,133)` at y=195,
-  then `(68,0,165)`) where the remake draws background `(64,64,64)`; at x=288 the original draws
-  background green `(28,182,20)` where the remake draws a brown sprite pixel `(85,44,4)`. The object
-  is therefore one pixel narrower on its left edge and one pixel longer on its right. Neither image
-  has a transparent pixel anywhere (0 of 307200 in each), so this is an outline difference, not a
-  fill. Which sprite the cell holds is not established
-  ([#25](https://github.com/Jrbesse/SimAnt-Evolved/issues/25)).
+- `yard`: **9 px**, all in two columns at x=264 and x=288, y=195–199, on one object in the yard
+  view beside the house door. At x=264 the original draws sprite colours (violet `(242,8,133)` at
+  y=195, then `(68,0,165)`) where the remake draws background `(64,64,64)`; at x=288 the original
+  draws background green `(28,182,20)` at y=195–197 and `(0,101,16)` at y=198, where the remake
+  draws a brown sprite pixel `(85,44,4)`. The object is therefore one pixel narrower on its left
+  edge and one pixel longer on its right. Neither image has a transparent pixel anywhere (0 of
+  307200 in each), so this is an outline difference, not a fill. Which sprite the cell holds is not
+  established ([#25](https://github.com/Jrbesse/SimAnt-Evolved/issues/25)).
 - `yardfront`: **2 px** at y=83, at x=63 and x=576 — the two ends of the top border, yellow
   `(255,242,4)` in the original and black in the remake.
   [#29](https://github.com/Jrbesse/SimAnt-Evolved/issues/29) reads that shape as the border's end caps,
