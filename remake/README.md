@@ -36,6 +36,10 @@ python tools/re/opl_capture.py record           # (from the repo root) the origi
 
 At this commit all 25 trace files (about 225,000 calls, including 67,200 SimStep ticks) match.
 
+An empty trace set -- a fresh clone, a cleaned `build/`, an explicit path that matches nothing -- **fails** the run
+and names the directory it looked in, unless `--allow-empty` is passed: "the traces all matched" and "there were no
+traces" must not share exit code 0 (issue #37).
+
 ## Running the game
 
 Open `remake/game` in Godot 4.6 (.NET), or build with `dotnet build remake/game/OpenSimAnt.csproj` and run
