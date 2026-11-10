@@ -22,3 +22,19 @@ ul li a {
   text-overflow: ellipsis;  /* Adds the '...' */
   box-sizing: border-box;   /* Includes padding in the width calculation */
 }
+
+/* The theme pins <footer> to the bottom-left of the wrapper, which lands on top of the article.
+   This footer is part of the page, not a fixed badge. */
+footer.site-note {
+  position: static;
+  width: auto;
+  margin-top: 3em;
+  padding-top: 1em;
+  border-top: 1px solid #e8e8e8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+footer.site-note p { margin: 0; }
+
+/* Long source lines scroll inside their block instead of being clipped at the column edge. */
+.highlight pre { overflow-x: auto; }
