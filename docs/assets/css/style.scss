@@ -41,3 +41,6 @@ footer.site-note p { margin: 0; }
 
 /* Source listings wrap rather than run under the column edge: nothing to discover by scrolling. */
 .highlight pre { white-space: pre-wrap; word-break: break-word; }
+
+/* The header is 270px wide; OpenSimAnt at the theme's default size clips at the edge. */
+.wrapper > header h1 { font-size: 26px; }
