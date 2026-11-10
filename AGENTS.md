@@ -69,6 +69,21 @@ The reference suite (`cd tools/ref && python test_terrain.py`, `test_sim.py 3000
 
 Byte-exactness has sharp edges worth knowing before you "fix" something: 16-bit wraparound, C truncating division (`_cdiv`, `_cmod`) and short-circuit order all matter. Two random generators run in parallel (the game's LFSR, and MSC `rand()` in a few places); the LFSR is also drawn from by the spider composite, speech balloons and the yard's rain, so tick-for-tick fidelity means making those draws at the same moments.
 
+### Screenshots in a pull request
+
+A PR that changes anything a player can see ships **one picture of it, captured from a real run of the built code** — not the editor, not a mock, and not the launcher unless the launcher is what changed:
+
+```bash
+shot --project remake/game --self-flag '--screenshot={out} --frames=240' --label <what-it-shows>
+```
+
+`shot` always exits 0, is hard-timeout bounded, and falls back from the desktop VM to this container's Xvfb on its own, so a capture can never fail a session. The order that keeps a night safe: verify → commit and push the branch → capture → commit the image → open the PR. Never put a capture between "the work is done" and "the work is pushed".
+
+- Commit the `-1360x768.jpg` under `docs/assets/images/pr-<issue>/` in a small docs-only commit, after the branch is already pushed.
+- Embed it in the PR body under a `## Screenshot` heading with one line saying what to look at, using the blob URL at the head SHA: `https://github.com/Jrbesse/SimAnt-Evolved/blob/<head-sha>/docs/assets/images/pr-<issue>/<name>-1360x768.jpg?raw=true`
+- If it prints `SHOT SKIP`, write that in the PR body in one line and carry on. Do not retry it in a loop and do not substitute a staged or editor frame.
+- Look at the file before committing it. A capture of the wrong window or a black frame has happened before; a mislabelled image is worse than none.
+
 ---
 
 ## 5. The Godot editor bridge
