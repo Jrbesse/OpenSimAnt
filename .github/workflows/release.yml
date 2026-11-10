@@ -123,7 +123,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          docs="remake/dist/HOW_TO_PLAY.txt remake/dist/THIRD_PARTY_NOTICES.txt"
+          docs="remake/dist/HOW_TO_PLAY.txt remake/dist/THIRD_PARTY_NOTICES.txt LICENSE LICENSE-ASSETS"
           mkdir -p dist
           # Windows: a zip of the OpenSimAnt folder
           mkdir -p stage/windows/OpenSimAnt
@@ -166,26 +166,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cat > notes.md <<'EOF'
-          A test build of the remake for Windows, macOS and Linux. Download the one for your system:
-
-          - **Windows 10 / 11 (64-bit)**: OpenSimAnt-...-windows.zip. Right-click it, choose **Extract All...**, then
-            double-click **OpenSimAnt.exe** in the extracted folder. If Windows says "Windows protected your PC",
-            click **More info**, then **Run anyway** (the build isn't signed).
-          - **macOS 12 or newer (Apple Silicon or Intel)**: OpenSimAnt-...-macos.zip. Double-click it, then right-click
-            **OpenSimAnt.app** and choose **Open** (on macOS 15 and newer: try to open it once, then System Settings >
-            Privacy & Security > **Open Anyway**). The app is signed ad hoc, not by an Apple developer.
-          - **Linux (x86_64)**: OpenSimAnt-...-linux.tar.gz. `tar xzf` it and run `OpenSimAnt/OpenSimAnt.x86_64`.
-
-          On the first screen, choose **Open assets** to play with the remake's own art, text, sound and music: it
-          needs nothing else. If you own the original DOS game, **Original look** plays with your copy instead (pick
-          the folder with SIMANT.EXE in it). HOW_TO_PLAY.txt in each package has the details. No original game data
-          is included.
-          EOF
+          # The notes are the repository's template, not text typed here, so the licence split and the
+          # disclaimer cannot be dropped from a release by accident: docs/RELEASE_NOTES_TEMPLATE.md.
+          cp docs/RELEASE_NOTES_TEMPLATE.md notes.md
           files="dist/OpenSimAnt-${GITHUB_REF_NAME}-windows.zip dist/OpenSimAnt-${GITHUB_REF_NAME}-macos.zip dist/OpenSimAnt-${GITHUB_REF_NAME}-linux.tar.gz"
-          # A release made on GitHub's web page creates the tag (and so starts this run) itself: add the files to it.
+          # A release made on GitHub's web page creates the tag (and so starts this run) itself: add the files to it,
+          # and set the notes too, or that release keeps whatever the web page gave it.
           if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" $files --clobber
+            gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
           else
             gh release create "$GITHUB_REF_NAME" $files \
               --title "OpenSimAnt $GITHUB_REF_NAME (test build)" --notes-file notes.md --prerelease

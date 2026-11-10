@@ -9,14 +9,18 @@ around the same core, **Formica**, comes after OpenSimAnt is finished.
 
 This repository contains **no original game data**. Every tool and the remake read the player's own copy
 of the game (SIMANT.EXE and its .DAT / .NDX archives) at runtime. Nothing extracted from those files is
-committed. This is an unofficial fan project; it is not affiliated with or endorsed by the original
-publisher.
+committed. OpenSimAnt is an unofficial reimplementation of SimAnt (Maxis, 1991). It is not affiliated
+with, endorsed by, or sponsored by Electronic Arts. It ships no original Maxis assets.
+
+The **code** is MIT ([`LICENSE`](LICENSE)); the **clean asset pack** — art, layouts, fonts, text, sound and
+music — is CC BY 4.0 ([`LICENSE-ASSETS`](LICENSE-ASSETS), which states the attribution line a reuser has to
+ship). The two licences do not overlap; see [Licence](#licence) below.
 
 ## What is here
 
 | Path | What |
 |---|---|
-| `docs/` | `ROADMAP.md` (what is left before version 1), `SIM_NOTES.md` (the decoded rules, memory layout and addresses), `FILE_FORMATS.md` (archives, bitmaps, fonts, layouts, saves), `RECREATION_PLAN.md`, `ART_PLAN.md` (how to make a clean-room art pack), `NIGHTLY.md` (how the automated nightly sessions and the PR loop work), `PLAYTEST.md`, `HANDOFF.md` (status and next steps). |
+| `docs/` | `ROADMAP.md` (what is left before version 1), `SIM_NOTES.md` (the decoded rules, memory layout and addresses), `FILE_FORMATS.md` (archives, bitmaps, fonts, layouts, saves), `RECREATION_PLAN.md`, `ART_PLAN.md` (how to make a clean-room art pack), `NIGHTLY.md` (how the automated nightly sessions and the PR loop work), `PLAYTEST.md`, `RELEASE_NOTES_TEMPLATE.md` (the notes every release is published with), `HANDOFF.md` (status and next steps). |
 | `tools/` | Python tools that read the original files: archive extraction, bitmaps, tiles, fonts, window layouts. |
 | `tools/re/` | Reverse-engineering tooling: a flat memory image of the executable, an annotated disassembler, a Ghidra wrapper, and a Unicorn-based emulator of the game. |
 | `tools/ref/` | `simant_ref`, the Python reference port of the whole simulation, and its differential tests against the emulator. |
@@ -58,3 +62,35 @@ first screen offers the open assets or, if you have them, your own copy of the o
 
 The verification setup (emulator snapshots, traces) is described in `docs/HANDOFF.md` and
 `remake/README.md`.
+
+## Licence
+
+The **code** — `remake/` except `remake/game/assets/clean/` (that is the pack, below), `tools/`, the
+workflows and these docs — is MIT: see [`LICENSE`](LICENSE).
+
+The **clean asset pack** — the art, window layouts, fonts, text, sound effects and music built from
+`remake/game/assets/clean/src` by `tools/clean_pack/build.py`, and the same pack inside every released
+package — is licensed **CC BY 4.0**: see [`LICENSE-ASSETS`](LICENSE-ASSETS). That file states the
+attribution line a reuser has to ship; the code carries no such condition.
+
+Nothing here grants rights to SimAnt itself or to any Maxis or Electronic Arts material. The remake
+reads the player's own copy of the original game at runtime and ships none of it, as the disclaimer at
+the top of this README says.
+
+## Known differences from the original
+
+The remake is compared screen by screen against the original. Two differences are accepted, and they
+are listed here rather than left silent: each is recorded, not scheduled for a fix.
+
+- `yard`: **9 px**, all in two columns at x=264 and x=288, y=195–199, on one object in the yard
+  view beside the house door. At x=264 the original draws sprite colours (violet `(242,8,133)` at
+  y=195, then `(68,0,165)`) where the remake draws background `(64,64,64)`; at x=288 the original
+  draws background green `(28,182,20)` at y=195–197 and `(0,101,16)` at y=198, where the remake
+  draws a brown sprite pixel `(85,44,4)`. The object is therefore one pixel narrower on its left
+  edge and one pixel longer on its right. Neither image has a transparent pixel anywhere (0 of
+  307200 in each), so this is an outline difference, not a fill. Which sprite the cell holds is not
+  established ([#25](https://github.com/Jrbesse/SimAnt-Evolved/issues/25)).
+- `yardfront`: **2 px** at y=83, at x=63 and x=576 — the two ends of the top border, yellow
+  `(255,242,4)` in the original and black in the remake.
+  [#29](https://github.com/Jrbesse/SimAnt-Evolved/issues/29) reads that shape as the border's end caps,
+  which is a hypothesis rather than a measurement.
