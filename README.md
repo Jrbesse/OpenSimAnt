@@ -16,7 +16,7 @@ publisher.
 
 | Path | What |
 |---|---|
-| `docs/` | `ROADMAP.md` (what is left before version 1), `SIM_NOTES.md` (the decoded rules, memory layout and addresses), `FILE_FORMATS.md` (archives, bitmaps, fonts, layouts, saves), `RECREATION_PLAN.md`, `ART_PLAN.md` (how to make a clean-room art pack), `HANDOFF.md` (status and next steps). |
+| `docs/` | `ROADMAP.md` (what is left before version 1), `SIM_NOTES.md` (the decoded rules, memory layout and addresses), `FILE_FORMATS.md` (archives, bitmaps, fonts, layouts, saves), `RECREATION_PLAN.md`, `ART_PLAN.md` (how to make a clean-room art pack), `NIGHTLY.md` (how the automated nightly sessions and the PR loop work), `PLAYTEST.md`, `HANDOFF.md` (status and next steps). |
 | `tools/` | Python tools that read the original files: archive extraction, bitmaps, tiles, fonts, window layouts. |
 | `tools/re/` | Reverse-engineering tooling: a flat memory image of the executable, an annotated disassembler, a Ghidra wrapper, and a Unicorn-based emulator of the game. |
 | `tools/ref/` | `simant_ref`, the Python reference port of the whole simulation, and its differential tests against the emulator. |
