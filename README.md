@@ -9,7 +9,8 @@ around the same core, **Formica**, comes after OpenSimAnt is finished.
 
 This repository contains **no original game data**. Every tool and the remake read the player's own copy
 of the game (SIMANT.EXE and its .DAT / .NDX archives) at runtime. Nothing extracted from those files is
-committed. OpenSimAnt is an unofficial reimplementation of SimAnt (Maxis, 1991). It is not affiliated with, endorsed by, or sponsored by Electronic Arts. It ships no original Maxis assets.
+committed. OpenSimAnt is an unofficial reimplementation of SimAnt (Maxis, 1991). It is not affiliated
+with, endorsed by, or sponsored by Electronic Arts. It ships no original Maxis assets.
 
 The **code** is MIT ([`LICENSE`](LICENSE)); the **clean asset pack** — art, layouts, fonts, text, sound and
 music — is CC BY 4.0 ([`LICENSE-ASSETS`](LICENSE-ASSETS), which states the attribution line a reuser has to
