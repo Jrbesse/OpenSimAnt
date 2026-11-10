@@ -1,0 +1,45 @@
+title: OpenSimAnt
+description: A byte-exact remake of SimAnt (1991), reverse engineered from the DOS executable.
+remote_theme: pages-themes/dinky@v0.2.0
+plugins:
+  - jekyll-remote-theme
+
+url: "https://jbesse.me"
+baseurl: "/SimAnt-Evolved"
+
+markdown: kramdown
+highlighter: rouge
+
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+nav_pages:
+  - title: Home
+    url: /
+  - title: Dev log
+    url: /devlog/
+  - title: Reference
+    url: /reference/
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+
+# This is a dev log, not a mirror of the repository's working documents.
+# Everything below stays in the repo and off the public site.
+exclude:
+  - ART_PLAN.md
+  - FILE_FORMATS.md
+  - HANDOFF.md
+  - NIGHTLY.md
+  - PLAYTEST.md
+  - RECREATION_PLAN.md
+  - RELEASE_NOTES_TEMPLATE.md
+  - ROADMAP.md
+  - SIM_NOTES.md
+  - README.md
+  - clean_pack
+  - screens
