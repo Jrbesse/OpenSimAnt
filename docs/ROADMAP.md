@@ -409,7 +409,8 @@ the original files make the clean assets from those specs.
 
 - [ ] The repository made public (the GitHub repository is still named SimAnt-Evolved: rename it to match, if
       wanted).
-- [ ] A licence for the code (none chosen yet) and the clean pack's licence and credits.
+- [x] A licence for the code (`LICENSE`, MIT) and the clean pack's licence and credits (`LICENSE-ASSETS`, CC BY 4.0), both
+      shipped inside every release package (#34).
 - [ ] A review of the name ("OpenSimAnt" contains the trademark "SimAnt", ART_PLAN section 2; projects like
       OpenRCT2 / OpenTTD are the precedent), the clean pack, the game tables in source (A2) and the docs by someone qualified
       (`ART_PLAN.md` note).

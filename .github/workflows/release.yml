@@ -123,7 +123,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          docs="remake/dist/HOW_TO_PLAY.txt remake/dist/THIRD_PARTY_NOTICES.txt"
+          docs="remake/dist/HOW_TO_PLAY.txt remake/dist/THIRD_PARTY_NOTICES.txt LICENSE LICENSE-ASSETS"
           mkdir -p dist
           # Windows: a zip of the OpenSimAnt folder
           mkdir -p stage/windows/OpenSimAnt
@@ -170,9 +170,11 @@ jobs:
           # disclaimer cannot be dropped from a release by accident: docs/RELEASE_NOTES_TEMPLATE.md.
           cp docs/RELEASE_NOTES_TEMPLATE.md notes.md
           files="dist/OpenSimAnt-${GITHUB_REF_NAME}-windows.zip dist/OpenSimAnt-${GITHUB_REF_NAME}-macos.zip dist/OpenSimAnt-${GITHUB_REF_NAME}-linux.tar.gz"
-          # A release made on GitHub's web page creates the tag (and so starts this run) itself: add the files to it.
+          # A release made on GitHub's web page creates the tag (and so starts this run) itself: add the files to it,
+          # and set the notes too, or that release keeps whatever the web page gave it.
           if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" $files --clobber
+            gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
           else
             gh release create "$GITHUB_REF_NAME" $files \
               --title "OpenSimAnt $GITHUB_REF_NAME (test build)" --notes-file notes.md --prerelease

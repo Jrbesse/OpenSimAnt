@@ -81,6 +81,14 @@ the top of this README says.
 The remake is compared screen by screen against the original. Two differences are accepted, and they
 are listed here rather than left silent: each is recorded, not scheduled for a fix.
 
-- `yard`: **9 px** at (264,195)–(288,199) — the dog sprite beside the house door. The remake paints
-  its two outer 1-px columns opaque where the original leaves them transparent (#25).
-- `yardfront`: **2 px** at y=83 — the top border's end caps (#29).
+- `yard`: **9 px** at (264,195)–(288,199), on one object in the yard view beside the house door. The
+  remake draws that object one pixel narrower on its left edge and one pixel longer on its right: at
+  x=264 the original has a violet sprite column `(242,8,133)` where the remake has background
+  `(64,64,64)`, and at x=288 the original has background green `(28,182,20)` where the remake has a
+  brown sprite pixel `(85,44,4)`. Neither capture has a transparent pixel there — it is an outline
+  difference, not a fill. Which sprite the cell holds is not established
+  ([#25](https://github.com/Jrbesse/SimAnt-Evolved/issues/25)).
+- `yardfront`: **2 px** at y=83, at x=63 and x=576 — the two ends of the top border, yellow
+  `(255,242,4)` in the original and black in the remake.
+  [#29](https://github.com/Jrbesse/SimAnt-Evolved/issues/29) reads that shape as the border's end caps,
+  which is a hypothesis rather than a measurement.

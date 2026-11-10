@@ -13,6 +13,8 @@ needs nothing else. If you own the original DOS game, **Original look** plays wi
 the folder with SIMANT.EXE in it). HOW_TO_PLAY.txt in each package has the details. No original game data
 is included.
 
-Code is MIT, the clean asset pack is CC BY 4.0; see LICENSE and LICENSE-ASSETS in the repository.
+Code is MIT, the clean asset pack is CC BY 4.0; see LICENSE and LICENSE-ASSETS, which are both in this
+package and in the repository.
 
-OpenSimAnt is an unofficial reimplementation of SimAnt (Maxis, 1991). It is not affiliated with, endorsed by, or sponsored by Electronic Arts. It ships no original Maxis assets.
+OpenSimAnt is an unofficial reimplementation of SimAnt (Maxis, 1991). It is not affiliated with,
+endorsed by, or sponsored by Electronic Arts. It ships no original Maxis assets.
