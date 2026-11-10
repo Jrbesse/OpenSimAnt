@@ -9,14 +9,17 @@ around the same core, **Formica**, comes after OpenSimAnt is finished.
 
 This repository contains **no original game data**. Every tool and the remake read the player's own copy
 of the game (SIMANT.EXE and its .DAT / .NDX archives) at runtime. Nothing extracted from those files is
-committed. This is an unofficial fan project; it is not affiliated with or endorsed by the original
-publisher.
+committed. OpenSimAnt is an unofficial reimplementation of SimAnt (Maxis, 1991). It is not affiliated with, endorsed by, or sponsored by Electronic Arts. It ships no original Maxis assets.
+
+The **code** is MIT ([`LICENSE`](LICENSE)); the **clean asset pack** — art, layouts, fonts, text, sound and
+music — is CC BY 4.0 ([`LICENSE-ASSETS`](LICENSE-ASSETS), which states the attribution line a reuser has to
+ship). The two licences do not overlap; see [Licence](#licence) below.
 
 ## What is here
 
 | Path | What |
 |---|---|
-| `docs/` | `ROADMAP.md` (what is left before version 1), `SIM_NOTES.md` (the decoded rules, memory layout and addresses), `FILE_FORMATS.md` (archives, bitmaps, fonts, layouts, saves), `RECREATION_PLAN.md`, `ART_PLAN.md` (how to make a clean-room art pack), `NIGHTLY.md` (how the automated nightly sessions and the PR loop work), `PLAYTEST.md`, `HANDOFF.md` (status and next steps). |
+| `docs/` | `ROADMAP.md` (what is left before version 1), `SIM_NOTES.md` (the decoded rules, memory layout and addresses), `FILE_FORMATS.md` (archives, bitmaps, fonts, layouts, saves), `RECREATION_PLAN.md`, `ART_PLAN.md` (how to make a clean-room art pack), `NIGHTLY.md` (how the automated nightly sessions and the PR loop work), `PLAYTEST.md`, `RELEASE_NOTES_TEMPLATE.md` (the notes every release is published with), `HANDOFF.md` (status and next steps). |
 | `tools/` | Python tools that read the original files: archive extraction, bitmaps, tiles, fonts, window layouts. |
 | `tools/re/` | Reverse-engineering tooling: a flat memory image of the executable, an annotated disassembler, a Ghidra wrapper, and a Unicorn-based emulator of the game. |
 | `tools/ref/` | `simant_ref`, the Python reference port of the whole simulation, and its differential tests against the emulator. |
@@ -58,3 +61,25 @@ first screen offers the open assets or, if you have them, your own copy of the o
 
 The verification setup (emulator snapshots, traces) is described in `docs/HANDOFF.md` and
 `remake/README.md`.
+
+## Licence
+
+The **code** — `remake/`, `tools/`, the workflows and these docs — is MIT: see [`LICENSE`](LICENSE).
+
+The **clean asset pack** — the art, window layouts, fonts, text, sound effects and music built from
+`remake/game/assets/clean/src` by `tools/clean_pack/build.py`, and the same pack inside every released
+package — is licensed **CC BY 4.0**: see [`LICENSE-ASSETS`](LICENSE-ASSETS). That file states the
+attribution line a reuser has to ship; the code carries no such condition.
+
+Nothing here grants rights to SimAnt itself or to any Maxis or Electronic Arts material. The remake
+reads the player's own copy of the original game at runtime and ships none of it, as the disclaimer at
+the top of this README says.
+
+## Known differences from the original
+
+The remake is compared screen by screen against the original. Two differences are accepted, and they
+are listed here rather than left silent: each is recorded, not scheduled for a fix.
+
+- `yard`: **9 px** at (264,195)–(288,199) — the dog sprite beside the house door. The remake paints
+  its two outer 1-px columns opaque where the original leaves them transparent (#25).
+- `yardfront`: **2 px** at y=83 — the top border's end caps (#29).
