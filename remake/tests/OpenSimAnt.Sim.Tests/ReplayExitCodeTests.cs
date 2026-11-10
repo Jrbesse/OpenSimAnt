@@ -8,7 +8,8 @@ namespace OpenSimAnt.Sim.Tests;
 
 /// <summary>The replay's exit code is the pipeline's oracle (issue #37), so these assert the int Program.cs hands to
 /// the OS -- an empty trace set must not exit 0 and print "ALL OK", or a fresh clone is a green gate over nothing.
-/// The traces directory exists in the sessions' clone and not on CI; the non-empty direction skips when it is absent.</summary>
+/// The non-empty direction is covered by a trace this file writes itself, so it asserts on CI too -- no early
+/// return when the sessions' recorded set (remake/build/traces) is absent.</summary>
 public class ReplayExitCodeTests
 {
     static string NewTempDir()
@@ -117,7 +118,7 @@ public class ReplayExitCodeTests
     }
 
     [Fact]
-    public void ARealTraceStillExitsZero()
+    public void ASyntheticTraceStillExitsZero()
     {
         var dir = NewTempDir();
         try
