@@ -622,7 +622,7 @@ The reference reads the original's constant tables and starting state out of the
 extracted from `SIMANT.EXE` is in this repository or on this site. To run any of it:
 
 ```bash
-python tools/re/build_flat.py          # from tools/re; writes build/flat.bin from YOUR SIMANT.EXE
+python tools/re/build_flat.py   # from tools/re; builds flat.bin from your SIMANT.EXE
 cd tools/ref && python test_sim.py 3000
 ```
 
