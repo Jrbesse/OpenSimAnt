@@ -74,15 +74,18 @@ Byte-exactness has sharp edges worth knowing before you "fix" something: 16-bit 
 A PR that changes anything a player can see ships **one picture of it, captured from a real run of the built code** — not the editor, not a mock, and not the launcher unless the launcher is what changed:
 
 ```bash
-shot --project remake/game --self-flag '--screenshot={out} --frames=240' --label <what-it-shows>
+shot --project remake/game --self-flag '--screenshot={out} --frames=240 --clean' --label "pr-<issue>-<what-it-shows>"
 ```
 
-`shot` always exits 0, is hard-timeout bounded, and falls back from the desktop VM to this container's Xvfb on its own, so a capture can never fail a session. The order that keeps a night safe: verify → commit and push the branch → capture → commit the image → open the PR. Never put a capture between "the work is done" and "the work is pushed".
+**`--clean` is not optional.** `remake/game/Main.cs:90-91` picks the asset source, and a `--screenshot=` run with no asset flag takes **`original`** whenever the originals are found — and they are linked into the session, reviewer and fixer clones as read-only symlinks (`docs/NIGHTLY.md`). The command without it renders `SIMANT.EXE` art and the next bullet tells you to commit it, which breaks §2 above. **Committed frames are clean-pack only**; an `--original` frame is for a local A/B against the original on your own machine, never for a commit or a PR body (`tools/shots.sh:5`, `docs/ROADMAP.md` B11).
 
-- Commit the `-1360x768.jpg` under `docs/assets/images/pr-<issue>/` in a small docs-only commit, after the branch is already pushed.
-- Embed it in the PR body under a `## Screenshot` heading with one line saying what to look at, using the blob URL at the head SHA: `https://github.com/Jrbesse/SimAnt-Evolved/blob/<head-sha>/docs/assets/images/pr-<issue>/<name>-1360x768.jpg?raw=true`
-- If it prints `SHOT SKIP`, write that in the PR body in one line and carry on. Do not retry it in a loop and do not substitute a staged or editor frame.
-- Look at the file before committing it. A capture of the wrong window or a black frame has happened before; a mislabelled image is worse than none.
+`shot` always exits 0, is hard-timeout bounded, and falls back from the desktop VM to this container's Xvfb on its own, so a capture can never fail a session. Two things still cost time: `remake` is C#, so a freshly pushed copy has no assemblies and the auto tier burns a failed VM attempt before landing on Xvfb — point `--remote` at the synced mirror, or run `gdesk sync` first. The order that keeps a night safe: verify → commit and push the branch → capture → commit the image → open the PR. Never put a capture between "the work is done" and "the work is pushed".
+
+- Commit the PNG as **`docs/screens/pr-<issue>-<what-it-shows>.png`** — the same directory and the same 640x480 size as the feature screens cited from `docs/ROADMAP.md` (`b11-window-stack.png`, `b13-status-window.png`, `b19-ant-legs.png`), in a small docs-only commit after the branch is already pushed. Do not start a second image tree.
+- `shot` also writes `<label>-1360x768.jpg` beside it. That is a 1360-wide upscale (the game renders 640x480, so it comes out 1360x1020) for pasting somewhere outside the repo: **do not commit it**. One frame per PR — git keeps every blob forever and Pages serves the whole directory.
+- Embed it in the PR body under a `## Screenshot` heading with one line saying what to look at, using the raw URL at the head SHA: `https://raw.githubusercontent.com/Jrbesse/SimAnt-Evolved/<head-sha>/docs/screens/pr-<issue>-<what-it-shows>.png`. The `blob/…?raw=true` form needs a browser session and answers 404 to a token-authenticated fetch; the raw host serves the bytes.
+- **Look at the file before committing it — this is a gate, not a footnote.** `SHOT OK` only means "a window was captured". A black frame, a blank or mostly one-colour frame, the wrong window, or a launcher frame where the game is what changed fails the gate.
+- If it prints `SHOT SKIP`, or the gate above fails, write one line in the PR body saying so and carry on. Do not retry in a loop and do not substitute a staged or editor frame. A mislabelled image is worse than none.
 
 ---
 
