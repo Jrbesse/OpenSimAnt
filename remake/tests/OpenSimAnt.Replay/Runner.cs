@@ -55,8 +55,15 @@ public static class ReplayRunner
         }
         if (nothingReplayed)
         {
-            if (allowEmpty) output.WriteLine("WARNING: --allow-empty: the run above replayed nothing, it proves nothing");
-            else output.WriteLine("the trace set is empty -- the replay would pass vacuously (pass --allow-empty if that is deliberate)");
+            // Only claim the whole run proved nothing when nothing loaded at all; with other traces on the
+            // command line that sentence sends a reader chasing a cause that is not there (review 5834608253).
+            if (files.Count == 0)
+            {
+                if (allowEmpty) output.WriteLine("WARNING: --allow-empty: the run above replayed nothing, it proves nothing");
+                else output.WriteLine("the trace set is empty -- the replay would pass vacuously (pass --allow-empty if that is deliberate)");
+            }
+            else if (allowEmpty) output.WriteLine("WARNING: --allow-empty: one or more paths yielded no traces and did not count as a failure");
+            else output.WriteLine($"one or more paths yielded no traces -- a path that matches nothing is a mistake, not a pass (the {files.Count} trace file(s) below did load)");
             if (!allowEmpty) allOk = false;                                 // --allow-empty is the deliberate exception, as for B8
         }
 
