@@ -5,9 +5,11 @@ This file covers the **clean asset pack** in this repository: the art, window la
 sound effects and music built from `remake/game/assets/clean/src` by `tools/clean_pack/build.py`,
 plus the same pack shipped inside released packages. Those assets are licensed under CC BY 4.0.
 
-The **code** (everything else in this repository — `remake/`, `tools/`, the workflows and the docs)
-is licensed separately under the MIT licence in [`LICENSE`](LICENSE). The two licences do not
-overlap: MIT governs the software, CC BY 4.0 governs the pack.
+The **code** (everything else in this repository — `remake/` except `remake/game/assets/clean/`,
+`tools/`, the workflows and the docs) is licensed separately under the MIT licence in
+[`LICENSE`](LICENSE). The two licences do not overlap: MIT governs the software, CC BY 4.0 governs
+the pack. The pack's specifications under `docs/clean_pack/` are documentation of how it is built,
+not pack content, so they stay MIT.
 
 **Attribution line to ship when you reuse the pack.** CC BY 4.0 requires attribution, a licence
 notice and a link to the licence. Copy this line into your credits, README or "about" screen, and

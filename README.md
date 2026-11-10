@@ -65,7 +65,8 @@ The verification setup (emulator snapshots, traces) is described in `docs/HANDOF
 
 ## Licence
 
-The **code** — `remake/`, `tools/`, the workflows and these docs — is MIT: see [`LICENSE`](LICENSE).
+The **code** — `remake/` except `remake/game/assets/clean/` (that is the pack, below), `tools/`, the
+workflows and these docs — is MIT: see [`LICENSE`](LICENSE).
 
 The **clean asset pack** — the art, window layouts, fonts, text, sound effects and music built from
 `remake/game/assets/clean/src` by `tools/clean_pack/build.py`, and the same pack inside every released
