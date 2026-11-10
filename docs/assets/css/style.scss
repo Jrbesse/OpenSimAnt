@@ -38,3 +38,6 @@ footer.site-note p { margin: 0; }
 
 /* Long source lines scroll inside their block instead of being clipped at the column edge. */
 .highlight pre { overflow-x: auto; }
+
+/* Source listings wrap rather than run under the column edge: nothing to discover by scrolling. */
+.highlight pre { white-space: pre-wrap; word-break: break-word; }
