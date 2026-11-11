@@ -69,28 +69,38 @@ on the Hermes host, whose clock is UTC.
 ## Who merges
 
 `auto_merge.py` (dev profile, script-only, no agent) merges on its own evidence, so the nightly path does not need
-the owner to press merge. All five have to hold:
+the owner to press merge. All six have to hold:
 
 1. open, not a draft, not from a fork, and based on `master` — a stacked PR is never auto-merged;
-2. no hold label: `do-not-merge`, `hold` or `wip`;
-3. `Jrbesse-Reviewer` has an **APPROVED** review at the **current head SHA**, and nothing has requested changes at
+2. the author is in `OWNERS` (`{"Jrbesse"}`) — a bot or anyone else is skipped as "author not one of ours";
+3. no hold label: `do-not-merge`, `hold` or `wip`;
+4. `Jrbesse-Reviewer` has an **APPROVED** review at the **current head SHA**, and nothing has requested changes at
    that SHA (an approval on an older commit is a review of code that no longer exists);
-4. every CI check on that SHA is green — at least one completed check, nothing pending;
-5. the repo's gate is **re-run by the job** on that SHA, in the fixer clone: the trace-count floor
+5. every CI check on that SHA is green — at least one completed check, nothing pending, and each conclusion green,
+   neutral or skipped (those three count as passing). A re-run leaves two entries of one check name in the rollup,
+   often with the superseded one `CANCELLED`; the newest run of each name is the one that counts;
+6. the repo's gate is **re-run by the job** on that SHA, in the fixer clone: the trace-count floor
    (`build/traces/*.trace` ≥ 20, so an empty set cannot pass vacuously), `dotnet build`, the unit tests, and the
    26-trace replay. This is the load-bearing step — CI here only compiles, so GitHub's green tick is not evidence
    that the simulation still matches.
 
-It then merges with a merge commit, posts the gate output it saw as a PR comment, and clears the `in-progress`
-label the session left on its issue.
+It then merges with a merge commit, deletes the head branch (`--delete-branch`), posts the gate output it saw as a
+PR comment, and clears the `in-progress` label the session left on its issue.
 
 **The owner's veto is a label, before the fact.** `do-not-merge` (or `hold`, or `wip`) means the job never merges
 that PR, whatever the review says, and the veto survives further pushes. After a merge the remedy is a revert PR:
 a night lands as one merge commit, and the next session cuts from `master`.
 
 **When it runs:** every 20 minutes (`:08`, `:28`, `:48`) and immediately on an approving review through the
-`gh-auto-merge` webhook route. An approval that arrives before CI finishes is skipped as "still settling" (a
-10-minute floor) and picked up by the next tick.
+`gh-auto-merge` webhook route. Two things can hold it back, and neither is a window after the approval:
+
+- a PR under 10 minutes old is skipped as "still settling" — `MIN_AGE_SECONDS`, measured from the PR's `createdAt`,
+  checked before the review verdict is even read;
+- a PR whose checks are still running is skipped as "checks still running", and merges on the first tick that finds
+  them finished.
+
+So there is no grace period between approval and merge: once CI is green and the gate passes, the next tick merges.
+`do-not-merge` has to be on the PR before that, not after.
 
 ## Opening (10 minutes, in this order)
 
