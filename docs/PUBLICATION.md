@@ -22,11 +22,15 @@ The conditions that carry the risk, all of them verifiable:
 - **No original assets, ever.** The clean pack is built from its own sources by
   `tools/clean_pack/build.py` and the release workflow plays the game on it under `xvfb` before packaging, on a
   runner that has never seen `SIMANT.EXE`. That is the evidence, not the promise.
-- **No original text.** The A5 review measured every string: 70 of 518 entries identical, all functional labels
-  (castes, view names, "Nothing") except one advisor line, which is #51.
+- **No original text.** The A5 review measured every string: 70 of 518 entries identical, and all but two are
+  functional labels (castes, view names, "Nothing"). Both exceptions are on the record in
+  `docs/A5_SIMILARITY_REVIEW.md`: list `1020` entry 5 ("The red ants are attacking!") is verbatim prose and is the
+  one open item — **#51**, still open, and the number drops to 69 when it lands; list `1240` entry 0
+  ("Where am I?") is kept, on that review's judgement that a three-word question copies no expression — a
+  judgement, not a measurement, so it is put to the owner in #51's thread rather than settled here.
 - **The disclaimer ships everywhere** — README, and `docs/RELEASE_NOTES_TEMPLATE.md`, which is the body of every
-  release: "OpenSimAnt is an unofficial reimplementation of SimAnt (Maxis, 1991). It is not affiliated with,
-  endorsed by, or sponsored by EA. It ships no original Maxis assets."
+  release, quoted verbatim: "OpenSimAnt is an unofficial reimplementation of SimAnt (Maxis, 1991). It is not
+  affiliated with, endorsed by, or sponsored by Electronic Arts. It ships no original Maxis assets."
 - **A distinct name.** The project is OpenSimAnt; the repo is SimAnt-Evolved. The rename/text pass is #36.
 - **No money changes hands.** Nothing is sold, no donations, no ads.
 
@@ -52,9 +56,19 @@ than a copy, and doing it first costs one night.
 
 ## Checking the mitigations still hold
 
+Each command prints a number to compare against the one in the comment. A run that prints **zero** has measured
+nothing and is a failure, not a pass — so read the output, not the exit code.
+
 ```bash
-python3 tools/clean_pack/build.py                     # 810 clean files, 0 missing
+python3 tools/clean_pack/build.py                          # 810 clean files, 0 still missing
 grep -c "unofficial reimplementation" README.md docs/RELEASE_NOTES_TEMPLATE.md   # 1 and 1
-gh release view <tag> --json assets                   # packages carry LICENSE + LICENSE-ASSETS
-python tools/review/similarity.py strings             # 69 identical after #51 lands
+
+# The similarity numbers need the player's own copy extracted into `extracted/` first
+# (tools/extract.py reads SIMANT.EXE and its archives, so it cannot run on a fresh clone).
+# Without that directory this prints "## strings: 0 lists measured" and exits 0.
+python3 tools/review/similarity.py strings                 # 107 lists measured, 70 of 518 identical (69 after #51)
+
+# `gh release view --json assets` reports only name and size, so open a package instead.
+gh release download v1.0.0 --pattern '*linux*.tar.gz' --dir /tmp/osapkg --clobber
+tar -tzf /tmp/osapkg/*.tar.gz | grep -E 'LICENSE(-ASSETS)?$'   # OpenSimAnt/LICENSE, OpenSimAnt/LICENSE-ASSETS
 ```

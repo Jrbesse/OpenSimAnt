@@ -427,7 +427,8 @@ public; the repository goes public after #36; releases follow the repository.
       release notes' first-run paragraph was stale the same way. Checked against `Main.cs` (the launcher's
       `packOk` gate at `_Ready`, `ShowLauncher`) and the replay of the clean pack in CI (run 41920221727).
 - [x] A tagged release (`v1.0.0`) with the three builds. **Done 2026-11-11** — normal release, three packages
-      (windows 73 MB, macos 132 MB, linux 63 MB), `release.yml` green on `1c72c7e`.
+      (windows 73.1 MB, macos 131.8 MB, linux 63.1 MB — decimal MB, as the bytes report them; 69.7 / 125.7 / 60.2 MiB
+      on GitHub's own display), `release.yml` green on `1c72c7e`.
 
 ## After version 1
 
