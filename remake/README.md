@@ -162,9 +162,9 @@ Godot_v4.6.2-stable_mono_win64_console.exe --headless --path remake/game --expor
 ```
 
 `.github/workflows/release.yml` does the same on GitHub: pushing a tag `v*` exports, zips the build with
-`dist/HOW_TO_PLAY.txt` (the player's instructions) and attaches the zip to a pre-release; running it by hand
-keeps the zip as a workflow artifact only. No original data goes in the zip: on first run the game asks for
-the player's own copy (the setup screen above).
+`dist/HOW_TO_PLAY.txt` (the player's instructions) and attaches the zip to that tag's Release (a normal
+release, never a pre-release); running it by hand keeps the zip as a workflow artifact only. No original
+data goes in the zip: on first run the game asks for the player's own copy (the setup screen above).
 
 ## Porting notes
 
