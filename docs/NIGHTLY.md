@@ -6,7 +6,8 @@ session picks up.
 
 Each night ends as a **pull request** against `master`. The PR is where review happens: an automated reviewer posts
 a review with inline comments, and a fixer acts on those comments and on the owner's. **The merge is the machine's**,
-on the evidence listed in "Who merges" below — the owner's lever is the `do-not-merge` label, not a click.
+on the evidence listed in "Who merges" below. The owner's veto is the `do-not-merge` label; he can still merge by
+hand with comments open, but nothing waits for him to press anything.
 
 | When (Central) | What | Where it lands |
 |---|---|---|
@@ -81,7 +82,8 @@ the owner to press merge. All six have to hold:
    often with the superseded one `CANCELLED`; the newest run of each name is the one that counts;
 6. the repo's gate is **re-run by the job** on that SHA, in the fixer clone: the trace-count floor
    (`build/traces/*.trace` ≥ 20, so an empty set cannot pass vacuously), `dotnet build`, the unit tests, and the
-   26-trace replay. This is the load-bearing step — CI here only compiles, so GitHub's green tick is not evidence
+   26-trace replay. This is the load-bearing step: CI compiles, runs the unit tests and diffs the generated sprite
+   sheets, but it cannot run the replay (the traces are not in the repo), so GitHub's green tick is not evidence
    that the simulation still matches.
 
 It then merges with a merge commit, deletes the head branch (`--delete-branch`), posts the gate output it saw as a
