@@ -5,7 +5,8 @@ moving and to hand the next session a clean start: build, fix, test, review, com
 session picks up.
 
 Each night ends as a **pull request** against `master`. The PR is where review happens: an automated reviewer posts
-a review with inline comments, and a fixer acts on those comments and on the owner's. The owner merges.
+a review with inline comments, and a fixer acts on those comments and on the owner's. **The merge is the machine's**,
+on the evidence listed in "Who merges" below — the owner's lever is the `do-not-merge` label, not a click.
 
 | When (Central) | What | Where it lands |
 |---|---|---|
@@ -37,7 +38,7 @@ on the Hermes host, whose clock is UTC.
   the Hermes box (see "Reading and writing"), so those checks run in the session and their numbers go in the body.
 - **Session 2 rewrites the body** so it describes the finished night: what changed (a bullet per job with the
   evidence and the command), the gate results, the base it stacked on, what is still open, and the line that says
-  the merge is the owner's. Re-runs use `gh pr edit`, never a second PR.
+  who merges (the merge job, unless the PR carries `do-not-merge`). Re-runs use `gh pr edit`, never a second PR.
 - Nobody pastes review comments into chat. The PR thread is the record.
 
 ## Review and fixes
@@ -61,8 +62,35 @@ on the Hermes host, whose clock is UTC.
   use. There it edits, runs build and the unit tests (and the replay when simulation behaviour moved), pushes to the
   PR branch, replies per comment, and acks the ids. Caps: 4 wakes per PR per day, and it never force-pushes, rebases
   shared history, merges, or approves.
-- Review never blocks the owner: he can merge a PR with open comments, and the next night stacks on whatever state
-  `master` is in.
+- Review blocks the **merge job**, not the owner. The job wants an APPROVED review at the current head SHA, so a
+  PR with changes requested waits until the fixer lands the fixes and the reviewer approves at the new head. The
+  owner can still merge by hand with comments open, and the next night stacks on whatever state `master` is in.
+
+## Who merges
+
+`auto_merge.py` (dev profile, script-only, no agent) merges on its own evidence, so the nightly path does not need
+the owner to press merge. All five have to hold:
+
+1. open, not a draft, not from a fork, and based on `master` — a stacked PR is never auto-merged;
+2. no hold label: `do-not-merge`, `hold` or `wip`;
+3. `Jrbesse-Reviewer` has an **APPROVED** review at the **current head SHA**, and nothing has requested changes at
+   that SHA (an approval on an older commit is a review of code that no longer exists);
+4. every CI check on that SHA is green — at least one completed check, nothing pending;
+5. the repo's gate is **re-run by the job** on that SHA, in the fixer clone: the trace-count floor
+   (`build/traces/*.trace` ≥ 20, so an empty set cannot pass vacuously), `dotnet build`, the unit tests, and the
+   26-trace replay. This is the load-bearing step — CI here only compiles, so GitHub's green tick is not evidence
+   that the simulation still matches.
+
+It then merges with a merge commit, posts the gate output it saw as a PR comment, and clears the `in-progress`
+label the session left on its issue.
+
+**The owner's veto is a label, before the fact.** `do-not-merge` (or `hold`, or `wip`) means the job never merges
+that PR, whatever the review says, and the veto survives further pushes. After a merge the remedy is a revert PR:
+a night lands as one merge commit, and the next session cuts from `master`.
+
+**When it runs:** every 20 minutes (`:08`, `:28`, `:48`) and immediately on an approving review through the
+`gh-auto-merge` webhook route. An approval that arrives before CI finishes is skipped as "still settling" (a
+10-minute floor) and picked up by the next tick.
 
 ## Opening (10 minutes, in this order)
 
