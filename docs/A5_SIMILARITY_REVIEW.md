@@ -48,6 +48,10 @@ and the original's are EGA — equal colours across the two are coincidences, no
 - **252 / 252** type-2 bitmaps measured: sizes match the measurements exactly (`build.py` refuses anything else).
 - Identical pixels: **median 0.360**, mean 0.400. Silhouette IoU: **median 1.000** — the pack draws the same
   shapes in the same places, with its own colours.
+- `identical` counts both-transparent pixels as a match, which inflates it for mask-heavy sprites; the tool also
+  prints **`drawn`**, the same agreement over the drawn union only, and that is the column to rank copies by.
+  It changes nothing in the six findings below (all six are opaque), but e.g. `HCEGANT/1050` reads 0.762
+  identical against 0.061 drawn — background, not art.
 - **6 assets are pixel-identical**, and every one is geometry the spec states outright rather than art:
   `7021`, `7022` (512x55 lattice strips, drawn from the spec's line spacing), `7020` (0.975, the same), `8905`
   (a solid colour-15 rectangle), `7006`, `7007` (one opaque pixel each), `7005` (a 1-pixel raindrop line, 4 px of
@@ -75,15 +79,22 @@ and the original's are EGA — equal colours across the two are coincidences, no
 - Menu bars, captions and borders are part of those 0-px screens, so the layout work is verified by rendering,
   not only by the encoder.
 
-## Text — PASS with one copy to fix
+## Text — PASS with one line to rewrite
 
 - **107 lists compared** with the original's own lists; entry counts match in 106. The exception is list `1700`
   (the credits), which `docs/clean_pack/strings.md` defines as variable-length by design.
-- **70 of 518 entries are identical to the original's.** 69 of those are in lists `1000` / `1001` — the view names
-  and game modes ("Surface View", "Quick Game", …), functional labels the 1:1 rule requires to read the same —
-  plus one 11-character balloon line.
+- **70 of 518 entries are identical to the original's**, and they are all labels or UI fragments, not prose:
+  list `1102` (18 — activity labels: "Foraging", "Hatching", "Fighting"), `1103` (16 — carried items and
+  "Nothing"), `1101` (13 — castes: "Worker", "Soldier", "Male"), `1000` (7 — the view names), `1800` (6 —
+  score-screen fragments, three of them empty strings and the rest separators), `1001` (3 — the game modes),
+  `1050` (2 — "Eaten", "Killed"), `1100` (2 — "New Egg", "Egg"), `1010` (1 — "Pause"), `1240` (1 — see below)
+  and `1020` (1 — the copy under #51). The 1:1 rule requires these to read the same, so they are expected.
 - **One prose line is verbatim the original's**: list `1020`, entry 5 (27 characters, "the red ants are attacking").
   That is a clean-room breach by the pack's own rule → **#51**.
+- **One 11-character balloon line is also verbatim**: list `1240`, entry 0 ("Where am I?"). It is recorded here
+  rather than rewritten: a three-word question with no distinctive wording is the ordinary way to ask it, and this
+  review's judgement is that it copies no expression — but that is a clean-room judgement, not a measurement, so
+  it is put to the owner in #51's thread instead of being silently kept or silently changed.
 - Length fit: **52.5 %** of entries are within 0.80–1.25x the original entry's length. The rest are longer or
   shorter new writing; the ones that must fit a fixed cell are checked by the pack's own layout validator
   (`build.py`'s `layout_text_problems`), and the 0-px menu screens show the menu labels land where they should.
@@ -125,8 +136,9 @@ is what keeps the text in the original's cells.
 - Note counts run 0.905x..1.893x the original's, inside the spec's 50–200 % band; tempo is deliberately the
   composer's choice (`music.md` calls the pace column "a guide, not a rule"), so the differs-per-song BPM is
   expected and not a finding.
-- Octave-histogram cosine 0.45..0.99 — the pack uses the same registers and the same channel roles; the low
-  outliers (`11006` 0.49, `11007` 0.45, `10010` 0.45) are the short stingers, not the themes.
+- Octave-histogram cosine **0.277..0.984** — the pack uses the same registers and the same channel roles; the low
+  outliers (`20011` **0.277**, `11007` 0.447, `10010` 0.451, `20010` 0.474, `20001` 0.480) are the short
+  stingers, not the themes. (`20009` has no pitch content on one side, so it has no cosine and is excluded.)
 - The sequencer port, cue table and lengths are checked by `build.py --roundtrip` against the original's songs.
   Audibility is again **#21**; a mixed-down comparison is **#35**.
 
@@ -148,8 +160,11 @@ In `remake/`, before its commits:
 ```
 dotnet build OpenSimAnt.sln -c Release                0 errors / 3 addon warnings
 dotnet test tests/OpenSimAnt.Sim.Tests -c Release --no-build   169 passed, 0 failed
-dotnet run --project tests/OpenSimAnt.Replay -c Release --no-build -- --quiet   27 files / 229778 calls, ALL OK
+dotnet run --project tests/OpenSimAnt.Replay -c Release --no-build -- --quiet   26 files / 229778 calls, ALL OK
 ```
+
+Traces are gitignored and machine-local, so the file count is whatever the box has recorded; the call total is
+the stable figure. On the reviewer's box the same sweep ran 26 files to the same 229,778 calls.
 
 ## What the review does not claim
 

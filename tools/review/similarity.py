@@ -2,15 +2,18 @@
 
     python tools/review/similarity.py [--json=out.json] [categories...]
 
-Categories: bitmaps fonts sounds music. Each is measured against the player's own files in `extracted/`
+Categories: bitmaps fonts sounds music strings. Each is measured against the player's own files in `extracted/`
 (run `python tools/extract.py` first) and the clean sources in `remake/game/assets/clean/src/`.
 
 What each number means, and why it is the one that matters:
 
-- **identical** -- the share of pixels whose *palette index* is the same. The pack must be similar in shape and
+- **identical** -- the share of pixels whose *palette index* is the same, with both-transparent pixels counted
+  as a match. The pack must be similar in shape and
   colour role, but a high identical share is a copying signal (the clean-room rule: assets that are too close
   are remade). Index comparison, not RGB: the pack's palette is the Mac 16 and the original's is EGA, so equal
-  colours across the two palettes are coincidences, not evidence.
+  colours across the two palettes are coincidences, not evidence. Because background agreement inflates this
+  number for mask-heavy sprites, `drawn` reports the same agreement over the drawn union only -- use it, not
+  `identical`, to rank possible copies.
 - **iou** -- intersection over union of the drawn (non-transparent) pixels: silhouette agreement.
 - **colours** -- Jaccard overlap of the palette indices each asset uses: the same colour *roles*, stated
   independently of shape.
@@ -21,6 +24,7 @@ sides through one mixer is issue #35 and is not done here.
 """
 import json
 import os
+import statistics
 import struct
 import sys
 import wave
@@ -92,7 +96,7 @@ def measure_bitmaps():
         if (w, h) != (m['width'], m['height']):
             out.append(dict(id=m['id'], archive=m['archive'], shape_mismatch=[w, h]))
             continue
-        same = drawn = inter = union = 0
+        same = drawn = inter = union = same_drawn = 0
         cset, oset = set(), set()
         for y in range(h):
             for x in range(w):
@@ -106,6 +110,8 @@ def measure_bitmaps():
                     same += 1
                 if a is not None or b is not None:
                     drawn += 1
+                    if a == b:
+                        same_drawn += 1
                 if a is not None and b is not None:
                     inter += 1
                     union += 1
@@ -113,6 +119,8 @@ def measure_bitmaps():
                     union += 1
         out.append(dict(id=m['id'], archive=m['archive'], w=w, h=h, planes=m['planes'],
                         identical=round(same / (w * h), 4),
+                        drawn_agreement=round(same_drawn / drawn, 4) if drawn else 1.0,
+                        transparent_share=round(1 - drawn / (w * h), 4),
                         iou=round(inter / union, 4) if union else 1.0,
                         colour_jaccard=round(len(cset & oset) / len(cset | oset), 3) if cset | oset else 1.0,
                         clean_colours=sorted(cset), orig_colours=sorted(oset)))
@@ -322,18 +330,28 @@ def measure_music():
 
 
 def summarise(name, rows):
-    rows = [r for r in rows if not r.get('missing') and not r.get('original')]
+    def skip(r):
+        return r.get('missing') or r.get('original') or r.get('shape_mismatch')
+    skipped = [r for r in rows if skip(r)]
+    rows = [r for r in rows if not skip(r)]
     print(f'\n## {name}: {len(rows)} measured')
+    if skipped:
+        print(f'  skipped (no clean source / no original / shape mismatch): {len(skipped)}')
+        for r in skipped[:5]:
+            print(f'    {r.get("archive", "")}/{r.get("id", r.get("font", ""))}: '
+                  f'{r.get("shape_mismatch") or r.get("original") or "missing"}')
     if name == 'bitmaps':
         rows.sort(key=lambda r: -r['identical'])
         ident = [r['identical'] for r in rows]
-        print(f'  identical pixels: median {sorted(ident)[len(ident) // 2]:.3f}, '
+        print(f'  identical pixels: median {statistics.median(ident):.3f}, '
               f'max {max(ident):.3f} ({rows[0]["archive"]}/{rows[0]["id"]})')
-        print(f'  silhouette IoU:   median {sorted(r["iou"] for r in rows)[len(rows) // 2]:.3f}')
-        print(f'  colour Jaccard:   median {sorted(r["colour_jaccard"] for r in rows)[len(rows) // 2]:.3f}')
-        print('  most identical:')
+        print(f'  silhouette IoU:   median {statistics.median(r["iou"] for r in rows):.3f}')
+        print(f'  colour Jaccard:   median {statistics.median(r["colour_jaccard"] for r in rows):.3f}')
+        print('  most identical (agreement is also given over drawn pixels only: `identical` counts'
+              ' both-transparent as a match):')
         for r in rows[:10]:
-            print(f'    {r["archive"]}/{r["id"]:<6} identical {r["identical"]:.3f}  iou {r["iou"]:.3f}  '
+            print(f'    {r["archive"]}/{r["id"]:<6} identical {r["identical"]:.3f}  '
+                  f'drawn {r["drawn_agreement"]:.3f}  iou {r["iou"]:.3f}  '
                   f'colours {r["colour_jaccard"]:.2f}  {r["w"]}x{r["h"]}')
     elif name == 'fonts':
         for r in rows:
