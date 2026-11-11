@@ -20,5 +20,4 @@ OpenSimAnt is an unofficial reimplementation of SimAnt (Maxis, 1991). It is not 
 endorsed by, or sponsored by Electronic Arts. It ships no original Maxis assets.
 
 The technical write-up for this release — what changed since the previous one, how it was verified, and
-what is still open — is in the dev log: **https://jbesse.me/SimAnt-Evolved/devlog/** (the newest entry
-is this release's).
+what is still open — is in the dev log: **https://jbesse.me/SimAnt-Evolved/devlog/** (newest first).
