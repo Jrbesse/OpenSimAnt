@@ -1,7 +1,8 @@
 # Exports the Godot remake for Windows, macOS and Linux (all from one Linux runner: Godot cross-exports C#, and
 # signs the macOS app ad hoc with its built-in signer) and packs each with HOW_TO_PLAY.txt (remake/dist).
 # A new tag (v0.1, ...), pushed or made with a release on GitHub's web page, attaches the three packages to that
-# tag's Release (creating it as a pre-release if there is none: these are test builds); "Run workflow" by hand only
+# tag's Release (creating a normal release if there is none -- never a pre-release: every tag cut here is a
+# release); "Run workflow" by hand only
 # keeps them as workflow artifacts (they need a GitHub login to download). No package has original game data: the
 # game asks the player for their own copy on first run.
 name: Release
@@ -177,5 +178,5 @@ jobs:
             gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
           else
             gh release create "$GITHUB_REF_NAME" $files \
-              --title "OpenSimAnt $GITHUB_REF_NAME (test build)" --notes-file notes.md --prerelease
+              --title "OpenSimAnt $GITHUB_REF_NAME" --notes-file notes.md
           fi
