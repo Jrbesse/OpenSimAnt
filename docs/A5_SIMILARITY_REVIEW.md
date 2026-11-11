@@ -83,13 +83,26 @@ and the original's are EGA — equal colours across the two are coincidences, no
 
 - **107 lists compared** with the original's own lists; entry counts match in 106. The exception is list `1700`
   (the credits), which `docs/clean_pack/strings.md` defines as variable-length by design.
-- **70 of 518 entries are identical to the original's**, and they are all labels or UI fragments, not prose:
-  list `1102` (18 — activity labels: "Foraging", "Hatching", "Fighting"), `1103` (16 — carried items and
-  "Nothing"), `1101` (13 — castes: "Worker", "Soldier", "Male"), `1000` (7 — the view names), `1800` (6 —
-  score-screen fragments, three of them empty strings and the rest separators), `1001` (3 — the game modes),
-  `1050` (2 — "Eaten", "Killed"), `1100` (2 — "New Egg", "Egg"), `1010` (1 — "Pause"), `1240` (1 — see below)
-  and `1020` (1 — the copy under #51). The 1:1 rule requires these to read the same, so they are expected.
-- **One prose line is verbatim the original's**: list `1020`, entry 5 (27 characters, "the red ants are attacking").
+- **70 of 518 entries are identical to the original's**, and they are all labels, placeholders or UI fragments,
+  never prose. The distribution, by list (counts from `similarity.py strings --json=/tmp/s.json`):
+
+  | list | identical | what they are |
+  |---|---|---|
+  | `1102` | 18 | 6 activity labels — "Foraging", "Hatching", "Fighting", "Alarmed", "Resting", "Flying" — and 12 `???` |
+  | `1103` | 16 | the `Nothing` / `Food` / `Dirt` carry cycle |
+  | `1101` | 13 | castes — "Worker" x3, "Soldier" x3, "Male", "Replete", "Queen" x2 — and 3 `?` |
+  | `1000` | 7 | view names, "Surface View" through "Graphic View" |
+  | `1800` | 6 | 3 empty strings, "Overall ", " Score" and " - " on the score screen |
+  | `1001` | 3 | "Quick Game", "Full Game", "Experimental" |
+  | `1050` | 2 | "Eaten", "Killed" |
+  | `1100` | 2 | "New Egg", "Egg" |
+  | `1010` | 1 | "Pause" |
+  | `1240` | 1 | "Where am I?" — see below |
+  | `1020` | 1 | the verbatim prose line under #51 |
+
+  Every one is a fixed slot in the original's own screen — a label, a placeholder or a separator — so the 1:1
+  rule's expected outcome is for it to read the same.
+- **One prose line is verbatim the original's**: list `1020`, entry 5 (27 characters, "The red ants are attacking!").
   That is a clean-room breach by the pack's own rule → **#51**.
 - **One 11-character balloon line is also verbatim**: list `1240`, entry 0 ("Where am I?"). It is recorded here
   rather than rewritten: a three-word question with no distinctive wording is the ordinary way to ask it, and this
