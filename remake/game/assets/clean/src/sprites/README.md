@@ -1,13 +1,29 @@
 # Ant sprites
 
 Made from the spec `docs/clean_pack/ant_sprites.md` only. Regenerate everything (both sheets, both recolour masks and
-`preview.png`, which needs Pillow) with `~/work/simant-venv/bin/python make_sprites.py`. The checks of the spec's
-"The script's checks" are asserts in the script (`--dev` only reports a failed check and carries on, for drawing).
+`preview.png`, which needs Pillow) with `make_sprites.py`, in a venv that has numpy and Pillow. From the repo root:
 
-The script needs numpy and Pillow, so plain `python3 make_sprites.py` fails at `import numpy` on a box without them;
-the interpreter above is the venv `remake/game/assets/clean/src/requirements.txt` describes. Not every maker needs
-both — cursors and music import neither, `make_fonts.py` needs Pillow only for its preview, and
-`tools/clean_pack/build.py` needs neither. CI installs them and re-runs the script on every push.
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r remake/game/assets/clean/src/requirements.txt
+.venv/bin/python remake/game/assets/clean/src/sprites/make_sprites.py
+```
+
+On the Hermes box that venv already exists as `~/work/simant-venv`, so the run there is
+`~/work/simant-venv/bin/python remake/game/assets/clean/src/sprites/make_sprites.py` (or
+`~/work/simant-venv/bin/python make_sprites.py` from this directory).
+
+The checks of the spec's "The script's checks" are asserts in the script (`--dev` only reports a failed check and
+carries on, for drawing).
+
+The script needs numpy and Pillow, so plain `python3 make_sprites.py` fails at `import numpy` on a box without them.
+The makers are not all the same, though: `make_music.py` and `make_fm_patches.py` need neither package,
+`make_cursors.py` (behind `--preview`) and `make_fonts.py` (which catches the ImportError and still writes its twelve
+fonts) import Pillow only to draw their preview sheet, `make_balloon.py` and `make_legs.py` always write `preview.png`
+at the end of `main()` with no fallback so they stop without Pillow, and `make_sounds.py` needs numpy only.
+Installing the pair covers all of them, and `tools/clean_pack/build.py` needs neither. CI installs the pair from
+`requirements.txt` and re-runs this script on every push to `master` and on every pull request; a push to a
+`nightly/*` branch only reaches it through the PR's `pull_request` event.
 
 ## Files
 
@@ -52,8 +68,8 @@ both — cursors and music import neither, `make_fonts.py` needs Pillow only for
 From the repo root:
 
 ```bash
-~/work/simant-venv/bin/python remake/game/assets/clean/src/sprites/make_sprites.py   # needs numpy + Pillow
-python3 tools/clean_pack/build.py                                                    # stdlib only
+.venv/bin/python remake/game/assets/clean/src/sprites/make_sprites.py   # needs numpy + Pillow
+python3 tools/clean_pack/build.py                                       # stdlib only
 ```
 
 `build.py` needs no third-party package, so any `python3` packs the result; only the makers (this script among them)

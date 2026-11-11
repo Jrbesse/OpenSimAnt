@@ -65,8 +65,10 @@ jobs:
       # Pillow's PNG encoder's, so gating it would redden this on a Pillow release with no art change.
       # numpy and Pillow are also unpinned on purpose — the drawing's randomness is np.random.RandomState
       # (the legacy stream) and stdlib random.Random (MT19937), both stable across versions, never Generator.
+      # They are installed from the makers' requirements.txt rather than named here, so that file, which the
+      # makers' READMEs point people at, cannot drift from what actually runs them.
       - name: The ant sheets are make_sprites.py's output
         run: |
-          python -m pip install --quiet numpy pillow
+          python -m pip install --quiet -r remake/game/assets/clean/src/requirements.txt
           python remake/game/assets/clean/src/sprites/make_sprites.py
           git diff --exit-code -- remake/game/assets/clean/src/sprites/*.pix

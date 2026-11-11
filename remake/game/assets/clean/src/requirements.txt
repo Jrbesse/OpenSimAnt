@@ -1,20 +1,28 @@
 # Third-party packages the clean-pack maker scripts import:
 #   numpy  - the pixel work (sheets, masks, rotations, the checks); imported at the top of 28 of
 #            the scripts here (the bitmaps makers and their libs, sounds, sprites, tiles);
-#   pillow - the preview.png contact sheets; imported in 15 files, where a preview is drawn.
+#   pillow - the preview.png contact sheets, and the polygon / canvas rasteriser that three makers
+#            draw shipped art with: bitmaps/screens_lib.py (its screen canvas), bitmaps/ency_lib.py
+#            (the encyclopedia polygons) and tiles/make_house.py (the star and the paper scrap) take
+#            it at the top of the file, so there it is a hard requirement, not a preview extra.
+#            15 files in all import it.
 # `tools/clean_pack/build.py` itself is stdlib-only; only the makers need these.
 #
-# Not every maker needs both, and not every import is unconditional: cursors and music need neither,
-# and make_fonts.py needs pillow only for its preview (it prints "Pillow not available: preview.png
-# not written" and still rewrites the twelve fonts).
+# Not every maker needs both, and not every import is unconditional: make_music.py and
+# make_fm_patches.py need neither, make_cursors.py (behind --preview) and make_fonts.py (which
+# catches the ImportError and still writes its twelve fonts) import Pillow only to draw their
+# preview sheet, make_balloon.py and make_legs.py always write preview.png at the end of main()
+# with no fallback so they stop without Pillow, and make_sounds.py needs numpy only. Installed as
+# the pair, they cover every maker.
 #
-# On the Hermes box the venv that already holds them is ~/work/simant-venv:
-#   ~/work/simant-venv/bin/python make_sprites.py
-# Recreate it anywhere with:
-#   python3 -m venv ~/work/simant-venv
-#   ~/work/simant-venv/bin/python -m pip install -r remake/game/assets/clean/src/requirements.txt
+# In a fresh checkout, from the repo root:
+#   python3 -m venv .venv
+#   .venv/bin/python -m pip install -r remake/game/assets/clean/src/requirements.txt
+# On the Hermes box the venv that already holds them is ~/work/simant-venv, so the run there is:
+#   ~/work/simant-venv/bin/python remake/game/assets/clean/src/sprites/make_sprites.py
 #
-# Unpinned on purpose, matching .github/workflows/build.yml: the .pix files are plain text and the
-# regeneration diff is stable across numpy / Pillow versions (the workflow asserts exactly that).
+# Unpinned on purpose, as in .github/workflows/build.yml, which installs this file: the .pix files
+# are plain text and the regeneration diff is stable across numpy / Pillow versions (the workflow
+# asserts exactly that).
 numpy
 pillow
