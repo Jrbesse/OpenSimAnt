@@ -47,7 +47,7 @@ attention, or contributor PRs that want to ship original data. Say so here befor
 | Artifact | State now | When it changes |
 |---|---|---|
 | The dev log site (`jbesse.me/SimAnt-Evolved`) **and the published Python reference port** | **public** | stays public |
-| The repository | private | public **after #36** (text/identity pass) |
+| The repository | private | public **after #36** (text/identity pass) and **#51** (the one verbatim original line — whichever lands later) |
 | Release downloads | private (needs a GitHub account) | after the repository is public |
 
 **The site is deliberately public**, and it already was before this decision: GitHub Pages publishes `/docs` from a
@@ -58,6 +58,10 @@ and it is the project's only public-facing channel.
 **The repository waits for #36** because the repo is what carries the trace fixtures, the extracted tables' shape
 and the working documents; the text/identity pass is the thing that makes it read as a reimplementation rather
 than a copy, and doing it first costs one night.
+
+**It also waits for #51.** One advisor line in list `1020` is still the original's wording, and §2 names it as the
+one open exception to "no original text". `#36` is a text pass and would catch it, but the order should not depend
+on that: a public repository is not the place to find out.
 
 ## Checking the mitigations still hold
 
