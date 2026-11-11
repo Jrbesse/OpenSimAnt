@@ -407,13 +407,18 @@ the original files make the clean assets from those specs.
 
 ## Track C: release
 
-- [ ] The repository made public (the GitHub repository is still named SimAnt-Evolved: rename it to match, if
-      wanted).
+**Decided 2026-11-11 (`docs/PUBLICATION.md`, #22):** licence settled as shipped; the legal position accepted as a
+documented risk with named conditions rather than an external review; the dev log site and reference port stay
+public; the repository goes public after #36; releases follow the repository.
+
+- [ ] The repository made public — **after #36** (the rename/text pass), and the GitHub repository is still named
+  SimAnt-Evolved: rename it to match, if wanted.
 - [x] A licence for the code (`LICENSE`, MIT) and the clean pack's licence and credits (`LICENSE-ASSETS`, CC BY 4.0), both
       shipped inside every release package (#34).
-- [ ] A review of the name ("OpenSimAnt" contains the trademark "SimAnt", ART_PLAN section 2; projects like
-      OpenRCT2 / OpenTTD are the precedent), the clean pack, the game tables in source (A2) and the docs by someone qualified
-      (`ART_PLAN.md` note).
+- [x] The name, the clean pack, the tables in source (A2) and the docs **reviewed in-house and accepted as a
+      documented risk** (2026-11-11): OpenRCT2 / OpenTTD are the precedent, no original assets or text ship, the
+      disclaimer is in the README and in every release body, and no money changes hands. The conditions and the
+      triggers that would reopen it are in `docs/PUBLICATION.md`.
 - [x] README and `remake/dist/HOW_TO_PLAY.txt` rewritten for players: no original files needed; how to use your
       own copy for the original look. **Done 2026-11-04.** Both said the original game was required and that the
       open-assets button was still grey; `HOW_TO_PLAY.txt` also listed controls the shell does not have (`+` / `-`
@@ -421,7 +426,8 @@ the original files make the clean assets from those specs.
       for scrolling and Home to follow — `Main.cs` `_UnhandledInput`, and the owner's no-extra-controls rule). The
       release notes' first-run paragraph was stale the same way. Checked against `Main.cs` (the launcher's
       `packOk` gate at `_Ready`, `ShowLauncher`) and the replay of the clean pack in CI (run 41920221727).
-- [ ] A tagged release (`v1.0.0`) with the three builds.
+- [x] A tagged release (`v1.0.0`) with the three builds. **Done 2026-11-11** — normal release, three packages
+      (windows 73 MB, macos 132 MB, linux 63 MB), `release.yml` green on `1c72c7e`.
 
 ## After version 1
 

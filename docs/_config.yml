@@ -37,6 +37,7 @@ exclude:
   - HANDOFF.md
   - NIGHTLY.md
   - PLAYTEST.md
+  - PUBLICATION.md               # decision record, not a page: the site is the dev log
   - RECREATION_PLAN.md
   - RELEASE_NOTES_TEMPLATE.md
   - ROADMAP.md
