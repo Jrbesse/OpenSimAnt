@@ -77,7 +77,8 @@ the owner to press merge. All six have to hold:
 4. `Jrbesse-Reviewer` has an **APPROVED** review at the **current head SHA**, and nothing has requested changes at
    that SHA (an approval on an older commit is a review of code that no longer exists);
 5. every CI check on that SHA is green — at least one completed check, nothing pending, and each conclusion green,
-   neutral or skipped (those three count as passing);
+   neutral or skipped (those three count as passing). A re-run leaves two entries of one check name in the rollup,
+   often with the superseded one `CANCELLED`; the newest run of each name is the one that counts;
 6. the repo's gate is **re-run by the job** on that SHA, in the fixer clone: the trace-count floor
    (`build/traces/*.trace` ≥ 20, so an empty set cannot pass vacuously), `dotnet build`, the unit tests, and the
    26-trace replay. This is the load-bearing step — CI here only compiles, so GitHub's green tick is not evidence
