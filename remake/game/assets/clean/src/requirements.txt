@@ -1,0 +1,15 @@
+# Third-party packages the clean-pack maker scripts import:
+#   numpy  - the pixel work (sheets, masks, rotations, the checks), used by 28 of the makers;
+#   pillow - the preview.png images some makers write.
+# `tools/clean_pack/build.py` itself is stdlib-only; only the makers need these.
+#
+# On the Hermes box the venv that already holds them is ~/work/simant-venv:
+#   ~/work/simant-venv/bin/python make_sprites.py
+# Recreate it anywhere with:
+#   python3 -m venv ~/work/simant-venv
+#   ~/work/simant-venv/bin/python -m pip install -r remake/game/assets/clean/src/requirements.txt
+#
+# Unpinned on purpose, matching .github/workflows/build.yml: the .pix files are plain text and the
+# regeneration diff is stable across numpy / Pillow versions (the workflow asserts exactly that).
+numpy
+pillow

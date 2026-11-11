@@ -1,8 +1,12 @@
 # Ant sprites
 
 Made from the spec `docs/clean_pack/ant_sprites.md` only. Regenerate everything (both sheets, both recolour masks and
-`preview.png`, which needs Pillow) with `python make_sprites.py`. The checks of the spec's "The script's checks" are
-asserts in the script (`--dev` only reports a failed check and carries on, for drawing).
+`preview.png`, which needs Pillow) with `~/work/simant-venv/bin/python make_sprites.py`. The checks of the spec's
+"The script's checks" are asserts in the script (`--dev` only reports a failed check and carries on, for drawing).
+
+The script needs numpy and Pillow, so plain `python3 make_sprites.py` fails at `import numpy` on a box without them;
+the interpreter above is the venv `remake/game/assets/clean/src/requirements.txt` describes (every maker needs the
+same two, `tools/clean_pack/build.py` needs neither). CI installs them and re-runs the script on every push.
 
 ## Files
 
@@ -44,4 +48,12 @@ asserts in the script (`--dev` only reports a failed check and carries on, for d
 
 ## Rebuild
 
-`python make_sprites.py`, then `python tools/clean_pack/build.py` (spec side).
+From the repo root:
+
+```bash
+~/work/simant-venv/bin/python remake/game/assets/clean/src/sprites/make_sprites.py   # needs numpy + Pillow
+python3 tools/clean_pack/build.py                                                    # stdlib only
+```
+
+`build.py` needs no third-party package, so any `python3` packs the result; only the makers (this script among them)
+need `remake/game/assets/clean/src/requirements.txt`.
