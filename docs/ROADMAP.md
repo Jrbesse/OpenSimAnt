@@ -407,17 +407,19 @@ the original files make the clean assets from those specs.
 
 ## Track C: release
 
-**Decided 2026-11-11 (`docs/PUBLICATION.md`, #22):** licence settled as shipped; the legal position accepted as a
-documented risk with named conditions rather than an external review; the dev log site and reference port stay
-public; the repository goes public after #36; releases follow the repository.
+**Decided 2026-11-09 by the owner (#22), recorded 2026-11-11 in `docs/PUBLICATION.md`:** licence settled as
+shipped; the legal position accepted as a documented risk with named conditions rather than an external review;
+the dev log site and reference port stay public; the repository goes public after #36; releases follow the
+repository.
 
-- [ ] The repository made public — **after #36** (the rename/text pass), and the GitHub repository is still named
+- [ ] The repository made public — **after #36** (the text/identity pass), and the GitHub repository is still named
   SimAnt-Evolved: rename it to match, if wanted.
 - [x] A licence for the code (`LICENSE`, MIT) and the clean pack's licence and credits (`LICENSE-ASSETS`, CC BY 4.0), both
       shipped inside every release package (#34).
 - [x] The name, the clean pack, the tables in source (A2) and the docs **reviewed in-house and accepted as a
-      documented risk** (2026-11-11): OpenRCT2 / OpenTTD are the precedent, no original assets or text ship, the
-      disclaimer is in the README and in every release body, and no money changes hands. The conditions and the
+      documented risk** (owner, 2026-11-09): OpenRCT2 / OpenTTD are the precedent, no original assets or text ship, the
+      disclaimer is in the README and in every release body, and no money changes hands. The name keeps the original
+      mark, accepted with a plain-text wordmark and the disclaimer as the mitigations. The conditions and the
       triggers that would reopen it are in `docs/PUBLICATION.md`.
 - [x] README and `remake/dist/HOW_TO_PLAY.txt` rewritten for players: no original files needed; how to use your
       own copy for the original look. **Done 2026-11-04.** Both said the original game was required and that the

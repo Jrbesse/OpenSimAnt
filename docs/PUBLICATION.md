@@ -1,7 +1,7 @@
 # Publication: licence, legal position, and what goes public
 
-**Decided 2026-11-11 by the owner** (issue #22). Three decisions, and the conditions that keep them true.
-This file is the answer to "can this be published?"; the roadmap's Track C points here.
+**Decided 2026-11-09 by the owner** (issue #22), recorded here on 2026-11-11. Three decisions, and the conditions
+that keep them true. This file is the answer to "can this be published?"; the roadmap's Track C points here.
 
 ## 1. Licence — settled
 
@@ -31,7 +31,12 @@ The conditions that carry the risk, all of them verifiable:
 - **The disclaimer ships everywhere** — README, and `docs/RELEASE_NOTES_TEMPLATE.md`, which is the body of every
   release, quoted verbatim: "OpenSimAnt is an unofficial reimplementation of SimAnt (Maxis, 1991). It is not
   affiliated with, endorsed by, or sponsored by Electronic Arts. It ships no original Maxis assets."
-- **A distinct name.** The project is OpenSimAnt; the repo is SimAnt-Evolved. The rename/text pass is #36.
+- **The name keeps the mark, and that is accepted.** The project is OpenSimAnt — the OpenRA/OpenXcom rung, not
+  OpenTTD's: the original mark stays inside the name, and the owner recorded and accepted that on 2026-11-09 (#22).
+  What carries it is mitigation rather than a rename of the name: a **plain-text wordmark**, never typeset, kerned
+  or otherwise styled like the SimAnt logo, and the disclaimer above in the README and every release note. **#36**
+  is the text/identity pass — in-game strings, window title, asset names that still carry the original archive's
+  naming — not a rename of the name.
 - **No money changes hands.** Nothing is sold, no donations, no ads.
 
 **What reopens this decision:** monetisation of any kind, a takedown or a letter, download volume that attracts
@@ -42,7 +47,7 @@ attention, or contributor PRs that want to ship original data. Say so here befor
 | Artifact | State now | When it changes |
 |---|---|---|
 | The dev log site (`jbesse.me/SimAnt-Evolved`) **and the published Python reference port** | **public** | stays public |
-| The repository | private | public **after #36** (rename/text pass) |
+| The repository | private | public **after #36** (text/identity pass) |
 | Release downloads | private (needs a GitHub account) | after the repository is public |
 
 **The site is deliberately public**, and it already was before this decision: GitHub Pages publishes `/docs` from a
@@ -51,7 +56,7 @@ carries the dev log and the 89 generated reference pages — the port's own sour
 and it is the project's only public-facing channel.
 
 **The repository waits for #36** because the repo is what carries the trace fixtures, the extracted tables' shape
-and the working documents; the rename and text pass is the thing that makes it read as a reimplementation rather
+and the working documents; the text/identity pass is the thing that makes it read as a reimplementation rather
 than a copy, and doing it first costs one night.
 
 ## Checking the mitigations still hold
