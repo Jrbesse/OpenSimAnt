@@ -1,4 +1,4 @@
-A test build of the remake for Windows, macOS and Linux. Download the one for your system:
+The remake for Windows, macOS and Linux. Download the one for your system:
 
 - **Windows 10 / 11 (64-bit)**: OpenSimAnt-...-windows.zip. Right-click it, choose **Extract All...**, then
   double-click **OpenSimAnt.exe** in the extracted folder. If Windows says "Windows protected your PC",
