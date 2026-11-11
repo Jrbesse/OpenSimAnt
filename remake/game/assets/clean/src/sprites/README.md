@@ -5,8 +5,9 @@ Made from the spec `docs/clean_pack/ant_sprites.md` only. Regenerate everything 
 "The script's checks" are asserts in the script (`--dev` only reports a failed check and carries on, for drawing).
 
 The script needs numpy and Pillow, so plain `python3 make_sprites.py` fails at `import numpy` on a box without them;
-the interpreter above is the venv `remake/game/assets/clean/src/requirements.txt` describes (every maker needs the
-same two, `tools/clean_pack/build.py` needs neither). CI installs them and re-runs the script on every push.
+the interpreter above is the venv `remake/game/assets/clean/src/requirements.txt` describes. Not every maker needs
+both — cursors and music import neither, `make_fonts.py` needs Pillow only for its preview, and
+`tools/clean_pack/build.py` needs neither. CI installs them and re-runs the script on every push.
 
 ## Files
 

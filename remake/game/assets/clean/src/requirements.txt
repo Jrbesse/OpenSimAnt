@@ -1,7 +1,12 @@
 # Third-party packages the clean-pack maker scripts import:
-#   numpy  - the pixel work (sheets, masks, rotations, the checks), used by 28 of the makers;
-#   pillow - the preview.png images some makers write.
+#   numpy  - the pixel work (sheets, masks, rotations, the checks); imported at the top of 28 of
+#            the scripts here (the bitmaps makers and their libs, sounds, sprites, tiles);
+#   pillow - the preview.png contact sheets; imported in 15 files, where a preview is drawn.
 # `tools/clean_pack/build.py` itself is stdlib-only; only the makers need these.
+#
+# Not every maker needs both, and not every import is unconditional: cursors and music need neither,
+# and make_fonts.py needs pillow only for its preview (it prints "Pillow not available: preview.png
+# not written" and still rewrites the twelve fonts).
 #
 # On the Hermes box the venv that already holds them is ~/work/simant-venv:
 #   ~/work/simant-venv/bin/python make_sprites.py
