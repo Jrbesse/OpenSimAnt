@@ -31,6 +31,7 @@ defaults:
 # This is a dev log, not a mirror of the repository's working documents.
 # Everything below stays in the repo and off the public site.
 exclude:
+  - A5_SIMILARITY_REVIEW.md      # working review: quotes the original's text and plans, off the public site
   - ART_PLAN.md
   - FILE_FORMATS.md
   - HANDOFF.md
