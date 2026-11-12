@@ -16,11 +16,11 @@ Usage, from the repo root, after a Release build (no other setup, no DAW step):
     python tools/audio_render.py                     # render both sides, stitch, write docs/LISTENING.md
     python tools/audio_render.py --reuse             # reuse the WAVs of a previous run (seconds, not a rebuild)
 
-A run without --reuse OWNS its output directory: it deletes the previous render's WAVs before it starts, so a
-cue the pack no longer has cannot be listed as this render's output. The cost is that a failed render (say
---no-build with no Release build) leaves the directory cleared and those WAVs must be made again -- --reuse
-cannot rescue that attempt, only a finished render. That is still the right way round: a stale file that
-survived would be stamped as this run's work.
+A run without --reuse OWNS its output directory: as each side starts, it deletes the WAVs of that side's
+previous render, so a cue the pack no longer has cannot be listed as this render's output. The cost is that a
+failed render (say --no-build with no Release build) leaves that side's directory cleared and those WAVs must
+be made again -- --reuse cannot rescue that attempt, only a finished render. That is still the right way
+round: a stale file that survived would be stamped as this run's work.
 
 Writes, into remake/build/listening/ (git-ignored):
   songs_pack.mp3 / .ogg        every cue of the clean pack, in id order, 2 s between tracks
