@@ -33,6 +33,12 @@ changed since (`wav/pack/render.json` and `wav/original/render.json` record whic
 rendered -- the pack zip, or the original's `SOUND.DAT`, `SOUND.NDX`, `SIMANT.EXE` and friends,
 file by file -- and what came out).
 
+A run without `--reuse` deletes that side's WAVs before it renders them, so a render that fails
+leaves nothing of that side to reuse: those WAVs must be made again. A side whose render finished
+keeps its WAVs and its `render.json`, and `--reuse` does reuse them -- once the failing side
+renders. That is the right way round: a stale WAV that survived would be stamped as this run's
+work.
+
 ## The songs
 
 Track order is cue order on both files, so track *n* in one is the same cue as track *n* in the
