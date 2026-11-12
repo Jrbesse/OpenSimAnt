@@ -30,6 +30,8 @@ dotnet run --project tests/OpenSimAnt.Replay -c Release -- --quiet
 dotnet test tests/OpenSimAnt.Sim.Tests -c Release
 dotnet run --project tests/OpenSimAnt.Replay -c Release -- --smoke
 dotnet run --project tests/OpenSimAnt.Replay -c Release -- --songs   # every song and effect as WAV in build/songs (to listen)
+python tools/audio_render.py                    # (from the repo root) the pack's and the original's audio through one
+                                                # mixer, stitched into mp3/ogg with chapters + docs/LISTENING.md (issue #35)
 dotnet run --project tests/OpenSimAnt.Replay -c Release -- --longrun # replays tools/ref/longrun.py's recording (long games)
 python tools/re/opl_capture.py record           # (from the repo root) the original driver's OPL2 streams → build/traces/opl
 ```
