@@ -11,9 +11,9 @@ hear differs by notes, instruments and levels, never by renderer.
 
 | File | Contents | Listening time |
 |---|---|---|
-| `songs_pack.mp3` / `.ogg` | the 33 cues of the clean pack, in cue order | **10:12** |
-| `songs_original.mp3` / `.ogg` | the same 33 cues from the original files, same order | **10:10** |
-| `effects_ab.mp3` / `.ogg` | effect 0..55, the original then the pack, back to back | **5:55** |
+| `songs_pack.mp3` / `.ogg` | the 33 cues of the clean pack, in cue order | **10:14** |
+| `songs_original.mp3` / `.ogg` | the same 33 cues from the original files, same order | **10:12** |
+| `effects_ab.mp3` / `.ogg` | the 56 effects, the original then the pack, back to back | **5:57** |
 
 The mp3s carry a chapter at every track start (2 s of silence between songs, 0.35 s inside an
 effect pair, 1.2 s between pairs); Ogg has no chapter standard, so open the mp3 where chapters

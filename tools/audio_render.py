@@ -19,7 +19,7 @@ Usage, from the repo root, after a Release build (no other setup, no DAW step):
 Writes, into remake/build/listening/ (git-ignored):
   songs_pack.mp3 / .ogg        every cue of the clean pack, in id order, 2 s between tracks
   songs_original.mp3 / .ogg    the same cue list from the player's files, same order, same gaps
-  effects_ab.mp3 / .ogg        effect 0..55: the original then the pack, back to back, for A/B
+  effects_ab.mp3 / .ogg        every effect: the original then the pack, back to back, for A/B
   cue_sheet.md                 track index, start, song id, duration and what to listen for
 The mp3s carry a chapter at every track start; Ogg has no chapter standard, so the mp3 is the one to open
 in a player that shows chapters (the sheet has the same times).
@@ -116,15 +116,30 @@ def render_songs(source: str, outdir: str, reuse: bool) -> list[int]:
                   if (m := re.fullmatch(r"song_(\d+)\.wav", f)))
 
 
+def rendered_wavs(outdir: str, prefix: str) -> dict[int, str]:
+    """id -> path for the `<prefix>_NN.wav` files a render left in `outdir`.
+
+    The effect count is the number of files the renderer actually wrote, not a constant here: the count
+    lives in `SoundBank.EffectCount` on the C# side, and a hardcoded range would turn a changed count into a
+    FileNotFoundError on a missing fx_NN.wav instead of a message saying the two sides disagree."""
+    try:
+        names = os.listdir(outdir)
+    except OSError:
+        return {}
+    return {int(m.group(1)): os.path.join(outdir, f) for f in names
+            if (m := re.fullmatch(prefix + r"_(\d+)\.wav", f))}
+
+
 def wav_info(path: str) -> tuple[float, int, int, int]:
     with wave.open(path) as w:
         return (w.getnframes() / w.getframerate(), w.getframerate(), w.getnchannels(), w.getsampwidth())
 
 
-def stitch(parts: list[tuple[str, float, str]], out_wav: str) -> list[tuple[float, float, str]]:
+def stitch(parts: list[tuple[str, float, str]], out_wav: str) -> tuple[list[tuple[float, float, str]], float]:
     """Concatenate `parts` (wav path, silence after it, chapter title) into one wav.
 
-    Returns (start, duration, title) per part."""
+    Returns (chapters, total): (start, duration, title) per part, and the length of the whole file --
+    the total includes the gap written after the last part, the last chapter does not."""
     chapters, at = [], 0.0
     with wave.open(out_wav, "wb") as out:
         first = True
@@ -151,7 +166,7 @@ def stitch(parts: list[tuple[str, float, str]], out_wav: str) -> list[tuple[floa
                 if silence:
                     out.writeframes(b"\0" * silence * out.getsampwidth() * out.getnchannels())
                     at += silence / out.getframerate()
-    return chapters
+    return chapters, at
 
 
 def write_ffmetadata(path: str, title: str, chapters: list[tuple[float, float, str]]) -> None:
@@ -223,23 +238,28 @@ def main() -> int:
                      "SIMANT.EXE and SOUND.DAT are)")
     ap.add_argument("--pack", default=os.path.join("game", "assets", "clean", "clean_pack.zip"),
                     help="the clean pack's zip, relative to remake/ (default: %(default)s)")
-    ap.add_argument("--out", default=os.path.join(REPO, "remake", "build", "listening"),
-                    help="where the rendered WAVs and the listening files go (default: remake/build/listening, "
-                         "git-ignored)")
-    ap.add_argument("--cue", default=os.path.join(REPO, "docs", "LISTENING.md"),
-                    help="the cue sheet to write (default: docs/LISTENING.md); '' for none")
+    # --out and --cue are resolved after --repo is known (below): a default bound here would point at the
+    # clone this script was started from, not at the one --repo names.
+    ap.add_argument("--out", default=None,
+                    help="where the rendered WAVs and the listening files go (default: remake/build/listening "
+                         "under --repo, git-ignored)")
+    ap.add_argument("--cue", default=None,
+                    help="the cue sheet to write (default: docs/LISTENING.md under --repo); '' for none")
     ap.add_argument("--reuse", action="store_true", help="reuse the WAVs of a previous run instead of re-rendering")
     ap.add_argument("--no-ogg", action="store_true", help="mp3 only (skip the Ogg Vorbis copies)")
     a = ap.parse_args()
 
     REPO = os.path.abspath(a.repo)
     original = os.path.abspath(a.original or REPO)
-    wavs = os.path.join(a.out, "wav")
+    # Defaults that follow --repo, so pointing --repo at another clone moves the outputs with the inputs.
+    out = os.path.abspath(a.out) if a.out else os.path.join(REPO, "remake", "build", "listening")
+    cue = os.path.join(REPO, "docs", "LISTENING.md") if a.cue is None else str(a.cue)
+    wavs = os.path.join(out, "wav")
     pack_zip = os.path.join(REPO, "remake", a.pack)
     for p in (pack_zip, os.path.join(original, "SIMANT.EXE")):
         if not os.path.exists(p):
             sys.exit(f"missing {p}")
-    os.makedirs(a.out, exist_ok=True)
+    os.makedirs(out, exist_ok=True)
 
     ids_pack = render_songs(pack_zip, os.path.join(wavs, "pack"), a.reuse)
     ids_orig = render_songs(original, os.path.join(wavs, "original"), a.reuse)
@@ -250,7 +270,7 @@ def main() -> int:
     table = songs_table()
 
     # ---- songs, one stitched file per side, the same order on both
-    chapters = {}
+    chapters, totals = {}, {}
     for side, wavdir in (("pack", "pack"), ("original", "original")):
         parts = []
         for i, n in enumerate(ids_pack):
@@ -258,35 +278,46 @@ def main() -> int:
             part = os.path.join(wavs, wavdir, f"song_{n}.wav")
             title = f"song {n}" + (f" ({info['tier']})" if info.get("tier") else "")
             parts.append((part, SONG_GAP, title))
-        stitched = os.path.join(a.out, f"songs_{side}.wav")
-        chapters[side] = stitch(parts, stitched)
-        encode(stitched, os.path.join(a.out, f"songs_{side}"),
+        stitched = os.path.join(out, f"songs_{side}.wav")
+        chapters[side], totals[side] = stitch(parts, stitched)
+        encode(stitched, os.path.join(out, f"songs_{side}"),
                f"OpenSimAnt listening pass -- clean pack songs" if side == "pack"
                else "OpenSimAnt listening pass -- original songs", chapters[side], not a.no_ogg)
         os.remove(stitched)
-        print(f"wrote songs_{side}.mp3  ({len(ids_pack)} cues, {listening_time(chapters[side][-1][0] + chapters[side][-1][1])})")
+        print(f"wrote songs_{side}.mp3  ({len(ids_pack)} cues, {listening_time(totals[side])})")
 
     # ---- effects, A/B: the original then the pack, per effect number
+    orig_fx = rendered_wavs(os.path.join(wavs, "original"), "fx")
+    pack_fx = rendered_wavs(os.path.join(wavs, "pack"), "fx")
+    fx_ids = sorted(orig_fx)
+    if not fx_ids:
+        sys.exit(f"no fx_NN.wav under {os.path.join(wavs, 'original')}: did the render write anything?")
+    pack_ids = sorted(pack_fx)
+    if fx_ids != pack_ids:
+        only_orig = [n for n in fx_ids if n not in pack_fx]
+        only_pack = [n for n in pack_ids if n not in orig_fx]
+        sys.exit(f"the two sides do not carry the same effect list: original has {len(fx_ids)}, "
+                 f"pack has {len(pack_ids)}; missing from the pack: {only_orig}, missing from the original: "
+                 f"{only_pack}")
+    print(f"{len(fx_ids)} effects on both sides")
     parts, fx_rows = [], []
-    for n in range(56):
-        o = os.path.join(wavs, "original", f"fx_{n:02d}.wav")
-        p = os.path.join(wavs, "pack", f"fx_{n:02d}.wav")
+    for n in fx_ids:
+        o, p = orig_fx[n], pack_fx[n]
         od, pd = wav_info(o)[0], wav_info(p)[0]
         fx_rows.append((n, od, pd))
         parts.append((o, PAIR_GAP, f"fx {n:02d} -- the original"))
         parts.append((p, EFFECT_GAP, f"fx {n:02d} -- the pack"))
-    stitched = os.path.join(a.out, "effects_ab.wav")
-    fx_chapters = stitch(parts, stitched)
-    encode(stitched, os.path.join(a.out, "effects_ab"), "OpenSimAnt listening pass -- effects A/B", fx_chapters,
+    stitched = os.path.join(out, "effects_ab.wav")
+    fx_chapters, fx_total = stitch(parts, stitched)
+    encode(stitched, os.path.join(out, "effects_ab"), "OpenSimAnt listening pass -- effects A/B", fx_chapters,
            not a.no_ogg)
     os.remove(stitched)
-    fx_total = fx_chapters[-1][0] + fx_chapters[-1][1]
-    print(f"wrote effects_ab.mp3  (56 effects, original then pack, {listening_time(fx_total)})")
+    print(f"wrote effects_ab.mp3  ({len(fx_ids)} effects, original then pack, {listening_time(fx_total)})")
 
     # ---- the cue sheet
-    total_pack = chapters["pack"][-1][0] + chapters["pack"][-1][1]
-    total_orig = chapters["original"][-1][0] + chapters["original"][-1][1]
-    if a.cue:
+    total_pack = totals["pack"]
+    total_orig = totals["original"]
+    if cue:
         lines = [
             "# Listening pass: the clean pack's songs and effects, beside the original's",
             "",
@@ -305,7 +336,7 @@ def main() -> int:
             f"**{listening_time(total_pack)}** |",
             f"| `songs_original.mp3` / `.ogg` | the same {len(ids_orig)} cues from the original files, same order | "
             f"**{listening_time(total_orig)}** |",
-            f"| `effects_ab.mp3` / `.ogg` | effect 0..55, the original then the pack, back to back | "
+            f"| `effects_ab.mp3` / `.ogg` | the {len(fx_ids)} effects, the original then the pack, back to back | "
             f"**{listening_time(fx_total)}** |",
             "",
             "The mp3s carry a chapter at every track start (2 s of silence between songs, 0.35 s inside an",
@@ -379,9 +410,9 @@ def main() -> int:
             "  only shows up in play (an effect under a song, a cue cut off by the next one) needs a play-test.",
             "",
         ]
-        with open(a.cue, "w", encoding="utf-8") as f:
+        with open(cue, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
-        print(f"wrote {a.cue}")
+        print(f"wrote {cue}")
 
     print(f"total listening time: songs pack {listening_time(total_pack)}, original {listening_time(total_orig)}, "
           f"effects A/B {listening_time(fx_total)}")
