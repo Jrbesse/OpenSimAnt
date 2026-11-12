@@ -19,8 +19,10 @@ Usage, from the repo root, after a Release build (no other setup, no DAW step):
 A run without --reuse OWNS its output directory: as each side starts, it deletes the WAVs of that side's
 previous render, so a cue the pack no longer has cannot be listed as this render's output. The cost is that a
 failed render (say, nothing built in Release yet -- the render runs `dotnet run --no-build`) leaves that side's
-directory cleared and those WAVs must be made again -- --reuse cannot rescue that attempt, only a finished
-render. That is still the right way round: a stale file that survived would be stamped as this run's work.
+WAVs deleted and they must be made again; its stale render.json stays, but a `--reuse` run neither refuses nor
+rescues that side -- with no WAVs there the guard that would reuse them is false, so it renders that side again.
+`--reuse` only ever saves work on a side whose finished render is still on disk. That is still the right way
+round: a stale file that survived would be stamped as this run's work.
 
 Writes, into remake/build/listening/ (git-ignored):
   songs_pack.mp3 / .ogg        every cue of the clean pack, in id order, 2 s between tracks
@@ -500,6 +502,12 @@ def main() -> int:
             "changed since (`wav/pack/render.json` and `wav/original/render.json` record which files were",
             "rendered -- the pack zip, or the original's `SOUND.DAT`, `SOUND.NDX`, `SIMANT.EXE` and friends,",
             "file by file -- and what came out).",
+            "",
+            "A run without `--reuse` deletes that side's WAVs before it renders them, so a render that fails",
+            "leaves nothing of that side to reuse: those WAVs must be made again. A side whose render finished",
+            "keeps its WAVs and its `render.json`, and `--reuse` does reuse them -- once the failing side",
+            "renders. That is the right way round: a stale WAV that survived would be stamped as this run's",
+            "work.",
             "",
             "## The songs",
             "",
