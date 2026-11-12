@@ -24,11 +24,12 @@ Reproduce (from the clone root, no DAW step):
 
 ```
 dotnet build remake/OpenSimAnt.sln -c Release
-python3 tools/audio_render.py
+python tools/audio_render.py
 ```
 
 The audio lands in `remake/build/listening/` (git-ignored: it is made from the player's own copy
-of the game). `--reuse` re-stitches a previous render in seconds.
+of the game). `--reuse` re-stitches a previous render in seconds, and refuses it if the input has
+changed since (`wav/render.json` records which file was rendered and what came out).
 
 ## The songs
 
