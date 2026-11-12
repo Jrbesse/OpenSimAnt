@@ -18,9 +18,11 @@ Usage, from the repo root, after a Release build (no other setup, no DAW step):
 
 A run without --reuse OWNS its output directory: as each side starts, it deletes the WAVs of that side's
 previous render, so a cue the pack no longer has cannot be listed as this render's output. The cost is that a
-failed render (say, nothing built in Release yet -- the render runs `dotnet run --no-build`) leaves that side's
-WAVs deleted and they must be made again; its stale render.json stays, but a `--reuse` run neither refuses nor
-rescues that side -- with no WAVs there the guard that would reuse them is false, so it renders that side again.
+failed render that wrote nothing -- say, nothing built in Release yet, since the render runs `dotnet run
+--no-build` -- leaves that side's WAVs deleted, and they must be made again; its stale render.json stays, but a
+`--reuse` run neither refuses nor rescues that side: with no WAVs there the guard that would reuse them is
+false, so it renders that side again. A render that dies after writing some WAVs is the other way round -- the
+WAVs are there and the marker is not, so `--reuse` refuses and tells you to re-run without it. Either way
 `--reuse` only ever saves work on a side whose finished render is still on disk. That is still the right way
 round: a stale file that survived would be stamped as this run's work.
 
