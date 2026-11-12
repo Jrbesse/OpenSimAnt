@@ -56,7 +56,7 @@ on the Hermes host, whose clock is UTC.
   profile directory, read at post time so no gateway restart is needed). So a CHANGES verdict is a real
   `REQUEST_CHANGES` and the PR's review decision reads `CHANGES_REQUESTED` -- GitHub refuses that from the PR's own
   author, which is why one account cannot do this alone. The verdict is repeated in the review's first line for the
-  report's benefit. The owner can still merge with changes requested: the approval is his.
+  report's benefit.
 - The fixer (`nightly_fix_gate.py`, same 20-minute cadence) acts on anything unprocessed: reviewer findings, and
   every owner comment unless it reads as a question or a scope decision. It has its **own clone** at
   `~/work/SimAnt-Fix` -- never the sessions' `~/work/SimAnt-Evolved`, whose working tree other jobs and the operator
@@ -72,7 +72,11 @@ on the Hermes host, whose clock is UTC.
 `auto_merge.py` (dev profile, script-only, no agent) merges on its own evidence, so the nightly path does not need
 the owner to press merge. All six have to hold:
 
-1. open, not a draft, not from a fork, and based on `master` — a stacked PR is never auto-merged;
+1. open, not a draft, not from a fork, and its **base is `master`** — that is the job's whole stack test
+   (`auto_merge.py:213-214`), and it never looks at ancestry. So a PR based on another branch is skipped as "base is
+   X, not `master`" (a stacked PR in the branch sense), while a nightly branch *cut from* an earlier PR's head is
+   still based on `master` and is eligible on its own evidence. A content stack is not held for its base PR; if it
+   should be, that is a change to the job, not a guarantee it already gives;
 2. the author is in `OWNERS` (`{"Jrbesse"}`) — a bot or anyone else is skipped as "author not one of ours";
 3. no hold label: `do-not-merge`, `hold` or `wip`;
 4. `Jrbesse-Reviewer` has an **APPROVED** review at the **current head SHA**, and nothing has requested changes at
@@ -91,7 +95,8 @@ PR comment, and clears the `in-progress` label the session left on its issue.
 
 **The owner's veto is a label, before the fact.** `do-not-merge` (or `hold`, or `wip`) means the job never merges
 that PR, whatever the review says, and the veto survives further pushes. After a merge the remedy is a revert PR:
-a night lands as one merge commit, and the next session cuts from `master`.
+a night lands as one merge commit, and the next session cuts from the newest open `nightly/*` head, or from
+`master` if nothing is open (see "Branch discipline").
 
 **When it runs:** every 20 minutes (`:08`, `:28`, `:48`) and immediately on an approving review through the
 `gh-auto-merge` webhook route. Two things can hold it back, and neither is a window after the approval:
