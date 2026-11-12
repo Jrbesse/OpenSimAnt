@@ -22,7 +22,7 @@ Writes, into remake/build/listening/ (git-ignored):
   effects_ab.mp3 / .ogg        every effect: the original then the pack, back to back, for A/B
   wav/pack/render.json        what --reuse trusts, one per side: the input's path and the size/mtime of
   wav/original/render.json    every file the render read (the .zip, or the game's files in the folder),
-                              beside the list of WAVs that render wrote
+                              beside the name and size of every WAV that render wrote
 
 and the cue sheet -- track index, start, song id, duration and what to listen for -- to docs/LISTENING.md
 under --repo (or whatever --cue names; --cue '' writes no sheet).
@@ -175,6 +175,14 @@ def wav_names(outdir: str) -> list[str]:
     return sorted(f for f in os.listdir(outdir) if re.fullmatch(r"(song|fx)_\d+\.wav", f))
 
 
+def wav_sizes(outdir: str) -> dict[str, int]:
+    """name -> byte size for the WAVs of a render, so `--reuse` can tell a finished file from a truncated one.
+
+    The name list alone cannot: a render killed mid-file leaves the name in place with a header that claims
+    frames the file does not hold, and `wave` reads that header happily."""
+    return {n: os.path.getsize(os.path.join(outdir, n)) for n in wav_names(outdir)}
+
+
 def check_reusable(source: str, outdir: str) -> None:
     """Refuse --reuse unless the WAVs in `outdir` are the complete output of THIS input.
 
@@ -183,7 +191,9 @@ def check_reusable(source: str, outdir: str) -> None:
     older render, and a rewritten SOUND.DAT or SIMANT.EXE reused against one -- the sheet then names audio
     the file does not contain. The input is compared file by file for a folder source (source_stamp), and
     the marker is written only after the renderer exits 0, so its file list is the proof that a render
-    finished.
+    finished. The list alone proves a name was written, not that the file is whole, so the marker also
+    carries each WAV's size and both are compared: a render killed mid-file, or a file replaced by a
+    shorter one, fails here instead of on the stitching loop downstream.
     """
     marker = os.path.join(outdir, MARKER)
     try:
@@ -203,6 +213,14 @@ def check_reusable(source: str, outdir: str) -> None:
         missing = sorted(set(done.get("files") or []) - set(wav_names(outdir)))
         sys.exit(f"{outdir} does not match its {MARKER} (extra {extra}, missing {missing}): the render did "
                  f"not finish, or files were added by hand. Re-run without --reuse.")
+    sizes = done.get("sizes")
+    if not isinstance(sizes, dict):
+        sys.exit(f"{marker} records no per-file sizes, so it cannot tell a whole WAV from a truncated one "
+                 f"(it was written by an older version of this tool). Re-run without --reuse.")
+    short = [n for n in wav_names(outdir) if sizes.get(n) != os.path.getsize(os.path.join(outdir, n))]
+    if short:
+        sys.exit(f"{outdir}: {', '.join(short)} does not match the size {MARKER} recorded for it: the "
+                 f"render did not finish, or the file was replaced by a shorter one. Re-run without --reuse.")
 
 
 def render_songs(source: str, outdir: str, reuse: bool) -> list[int]:
@@ -212,11 +230,15 @@ def render_songs(source: str, outdir: str, reuse: bool) -> list[int]:
         check_reusable(source, outdir)
     else:
         os.makedirs(outdir, exist_ok=True)
+        # A non-reuse render owns the directory: a WAV left by an earlier, larger render (or a cue the pack
+        # no longer has) would otherwise be listed as this render's output and let a later --reuse trust it.
+        for name in wav_names(outdir):
+            os.remove(os.path.join(outdir, name))
         run(["dotnet", "run", "--project", "tests/OpenSimAnt.Replay", "-c", "Release", "--no-build",
              "--", "--songs", source, outdir], cwd=os.path.join(REPO, "remake"))
         with open(os.path.join(outdir, MARKER), "w", encoding="utf-8") as f:
-            json.dump({"input": source_stamp(source), "files": wav_names(outdir)}, f, indent=1,
-                      sort_keys=True)
+            json.dump({"input": source_stamp(source), "files": wav_names(outdir),
+                       "sizes": wav_sizes(outdir)}, f, indent=1, sort_keys=True)
             f.write("\n")
     return sorted(int(m.group(1)) for f in os.listdir(outdir)
                   if (m := re.fullmatch(r"song_(\d+)\.wav", f)))
@@ -262,10 +284,18 @@ def stitch(parts: list[tuple[str, float, str]], out_wav: str) -> tuple[list[tupl
                              f"does not match the first file")
                 dur = w.getnframes() / w.getframerate()
                 remaining = w.getnframes()
+                read = 0
                 while remaining > 0:
                     chunk = w.readframes(min(remaining, 1 << 16))
+                    if not chunk:
+                        # A header can claim frames the file does not hold (a render killed mid-file). Without
+                        # this the loop subtracts 0 forever and the tool hangs instead of naming the file.
+                        sys.exit(f"{path}: header claims {w.getnframes()} frames but only {read} are in the "
+                                 f"file: it is truncated. Re-render it.")
                     out.writeframes(chunk)
-                    remaining -= len(chunk) // (w.getsampwidth() * w.getnchannels())
+                    got = len(chunk) // (w.getsampwidth() * w.getnchannels())
+                    read += got
+                    remaining -= got
                 chapters.append((at, dur, title))
                 at += dur
                 silence = int(round(gap * out.getframerate()))
