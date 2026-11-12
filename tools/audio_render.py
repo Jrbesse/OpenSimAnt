@@ -245,6 +245,13 @@ def render_songs(source: str, outdir: str, reuse: bool) -> list[int]:
         # no longer has) would otherwise be listed as this render's output and let a later --reuse trust it.
         for name in wav_names(outdir):
             os.remove(os.path.join(outdir, name))
+        # The marker goes with them. A render that dies after this leaves neither WAVs nor a marker, so the
+        # directory says what it holds; a stale marker would still claim a finished render, and while
+        # `--reuse` refuses it (missing files), the claim itself should not be left behind.
+        try:
+            os.remove(os.path.join(outdir, MARKER))
+        except FileNotFoundError:
+            pass
         run(["dotnet", "run", "--project", "tests/OpenSimAnt.Replay", "-c", "Release", "--no-build",
              "--", "--songs", source, outdir], cwd=os.path.join(REPO, "remake"))
         with open(os.path.join(outdir, MARKER), "w", encoding="utf-8") as f:
@@ -298,13 +305,15 @@ def stitch(parts: list[tuple[str, float, str]], out_wav: str) -> tuple[list[tupl
                 read = 0
                 while remaining > 0:
                     chunk = w.readframes(min(remaining, 1 << 16))
-                    if not chunk:
+                    got = len(chunk) // (w.getsampwidth() * w.getnchannels())
+                    if not got:
                         # A header can claim frames the file does not hold (a render killed mid-file). Without
-                        # this the loop subtracts 0 forever and the tool hangs instead of naming the file.
+                        # this the loop subtracts 0 forever and the tool hangs instead of naming the file. A
+                        # non-empty chunk smaller than one frame also yields no frames, and would be written
+                        # out before it could be noticed -- so test `got`, not `chunk`.
                         sys.exit(f"{path}: header claims {w.getnframes()} frames but only {read} are in the "
                                  f"file: it is truncated. Re-render it.")
                     out.writeframes(chunk)
-                    got = len(chunk) // (w.getsampwidth() * w.getnchannels())
                     read += got
                     remaining -= got
                 chapters.append((at, dur, title))
