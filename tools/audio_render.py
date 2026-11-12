@@ -13,14 +13,19 @@ wrong instrument, which is the point of doing it this way.)
 Usage, from the repo root, after a Release build (no other setup, no DAW step):
 
     dotnet build remake/OpenSimAnt.sln -c Release
-    python3 tools/audio_render.py                    # render both sides, stitch, write docs/LISTENING.md
-    python3 tools/audio_render.py --reuse            # reuse the WAVs of a previous run (seconds, not a rebuild)
+    python tools/audio_render.py                     # render both sides, stitch, write docs/LISTENING.md
+    python tools/audio_render.py --reuse             # reuse the WAVs of a previous run (seconds, not a rebuild)
 
 Writes, into remake/build/listening/ (git-ignored):
   songs_pack.mp3 / .ogg        every cue of the clean pack, in id order, 2 s between tracks
   songs_original.mp3 / .ogg    the same cue list from the player's files, same order, same gaps
   effects_ab.mp3 / .ogg        every effect: the original then the pack, back to back, for A/B
-  cue_sheet.md                 track index, start, song id, duration and what to listen for
+  wav/pack/render.json        what --reuse trusts, one per side: the input's path and the size/mtime of
+  wav/original/render.json    every file the render read (the .zip, or the game's files in the folder),
+                              beside the list of WAVs that render wrote
+
+and the cue sheet -- track index, start, song id, duration and what to listen for -- to docs/LISTENING.md
+under --repo (or whatever --cue names; --cue '' writes no sheet).
 The mp3s carry a chapter at every track start; Ogg has no chapter standard, so the mp3 is the one to open
 in a player that shows chapters (the sheet has the same times).
 
@@ -31,6 +36,7 @@ git-ignored). The cue sheet is the one text file that is meant to be committed (
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import shutil
@@ -42,7 +48,9 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SONG_GAP = 2.0          # seconds of silence between two songs
 PAIR_GAP = 0.35         # inside an effect A/B pair: the original, then the pack
 EFFECT_GAP = 1.2        # between two pairs
-SAMPLE_RATE = 44100
+# No sample rate here on purpose: OpenSimAnt.Replay --songs fixes it on the C# side (Songs.cs: Rate = 44100),
+# so a constant in this file would be decoration that invites someone to change it and see nothing happen.
+MARKER = "render.json"  # written beside the WAVs: what --reuse checks before it trusts them
 
 # --- what to listen for, per song (docs/clean_pack/music.md sections 4 and 6) -----------------
 LISTEN = {
@@ -104,14 +112,112 @@ def run(cmd: list[str], cwd: str) -> None:
     subprocess.run(cmd, cwd=cwd, check=True)
 
 
+# What a folder source is rendered from: the files OriginalFiles reads (remake/src/OpenSimAnt.Data/
+# OriginalFiles.cs), not the folder. The executable carries the driver's instruments and effect table
+# (SoundBank(Flat)), so a swapped SIMANT.EXE changes what you hear as much as a swapped SOUND.DAT does.
+# A folder's own size/mtime_ns say nothing about the files inside it, and they do change when an unrelated
+# file is added beside them -- hence a per-file stamp rather than os.stat(dir).
+FOLDER_INPUTS = ("SIMANT.EXE", "SOUND.DAT", "SOUND.NDX", "SHARED.DAT", "SHARED.NDX",
+                 "HCEGANT.DAT", "HCEGANT.NDX", "FONT1", "FONT2", "FONT3", "FONT4")
+
+
+def file_stamp(path: str) -> dict[str, int]:
+    st = os.stat(path)
+    return {"size": st.st_size, "mtime_ns": st.st_mtime_ns}
+
+
+def find_input(folder: str, name: str) -> str | None:
+    """`name` in `folder`, either case on disk -- the same lookup OriginalFiles.FilePath does."""
+    exact = os.path.join(folder, name)
+    if os.path.exists(exact):
+        return exact
+    try:
+        for f in os.listdir(folder):
+            if f.lower() == name.lower():
+                return os.path.join(folder, f)
+    except OSError:
+        pass
+    return None
+
+
+def source_stamp(source: str) -> dict[str, object]:
+    """What a render depends on: the input's path and the size/mtime of what the renderer actually reads.
+
+    The pack .zip is one file; a folder source is stamped file by file (FOLDER_INPUTS), because a
+    directory's own stat does not move when a file inside it is rewritten -- the failure --reuse exists
+    to catch -- and does move when something unrelated is dropped beside it, which would refuse a good
+    render.
+    """
+    if not os.path.isdir(source):
+        return {"source": os.path.abspath(source), **file_stamp(source)}
+    files = {}
+    for name in FOLDER_INPUTS:
+        found = find_input(source, name)
+        if found:
+            files[name] = file_stamp(found)
+    return {"source": os.path.abspath(source), "files": files}
+
+
+def changed_input(was: dict, now: dict) -> str:
+    """The differences between two stamps, named as the thing that changed (for the refusal message)."""
+    if "files" in was or "files" in now:
+        a, b = was.get("files") or {}, now.get("files") or {}
+        moved = [n for n in sorted(set(a) | set(b)) if a.get(n) != b.get(n)]
+        if moved:
+            return ", ".join(moved)
+    changed = [k for k in ("source", "size", "mtime_ns") if was.get(k) != now.get(k)]
+    if changed:
+        return ", ".join(changed)
+    return "input"
+
+
+def wav_names(outdir: str) -> list[str]:
+    return sorted(f for f in os.listdir(outdir) if re.fullmatch(r"(song|fx)_\d+\.wav", f))
+
+
+def check_reusable(source: str, outdir: str) -> None:
+    """Refuse --reuse unless the WAVs in `outdir` are the complete output of THIS input.
+
+    Three failures this closes, all silent before: a render interrupted at the same cue on both sides (the
+    two lists still agree, so the sheet is short but self-consistent), a swapped pack zip reused against an
+    older render, and a rewritten SOUND.DAT or SIMANT.EXE reused against one -- the sheet then names audio
+    the file does not contain. The input is compared file by file for a folder source (source_stamp), and
+    the marker is written only after the renderer exits 0, so its file list is the proof that a render
+    finished.
+    """
+    marker = os.path.join(outdir, MARKER)
+    try:
+        with open(marker, encoding="utf-8") as f:
+            done = json.load(f)
+    except OSError:
+        sys.exit(f"{outdir} holds WAVs but no {MARKER}: rendered before that check existed, or the render "
+                 f"did not finish. Re-run without --reuse to render it again.")
+    except ValueError:
+        sys.exit(f"{marker} is not readable JSON: delete it and re-run without --reuse.")
+    was, now = done.get("input") or {}, source_stamp(source)
+    if was != now:
+        sys.exit(f"{outdir} was rendered from {was.get('source', 'an older input')}, whose "
+                 f"{changed_input(was, now)} changed since. Re-run without --reuse.")
+    if wav_names(outdir) != done.get("files"):
+        extra = sorted(set(wav_names(outdir)) - set(done.get("files") or []))
+        missing = sorted(set(done.get("files") or []) - set(wav_names(outdir)))
+        sys.exit(f"{outdir} does not match its {MARKER} (extra {extra}, missing {missing}): the render did "
+                 f"not finish, or files were added by hand. Re-run without --reuse.")
+
+
 def render_songs(source: str, outdir: str, reuse: bool) -> list[int]:
     """Render every cue and effect of `source` (a pack .zip or the original's folder) with --songs."""
     if reuse and os.path.isdir(outdir) and any(f.startswith("song_") for f in os.listdir(outdir)):
         print(f"reusing {outdir}")
+        check_reusable(source, outdir)
     else:
         os.makedirs(outdir, exist_ok=True)
         run(["dotnet", "run", "--project", "tests/OpenSimAnt.Replay", "-c", "Release", "--no-build",
              "--", "--songs", source, outdir], cwd=os.path.join(REPO, "remake"))
+        with open(os.path.join(outdir, MARKER), "w", encoding="utf-8") as f:
+            json.dump({"input": source_stamp(source), "files": wav_names(outdir)}, f, indent=1,
+                      sort_keys=True)
+            f.write("\n")
     return sorted(int(m.group(1)) for f in os.listdir(outdir)
                   if (m := re.fullmatch(r"song_(\d+)\.wav", f)))
 
@@ -245,7 +351,9 @@ def main() -> int:
                          "under --repo, git-ignored)")
     ap.add_argument("--cue", default=None,
                     help="the cue sheet to write (default: docs/LISTENING.md under --repo); '' for none")
-    ap.add_argument("--reuse", action="store_true", help="reuse the WAVs of a previous run instead of re-rendering")
+    ap.add_argument("--reuse", action="store_true",
+                    help="reuse the WAVs of a previous run instead of re-rendering (refused if that render "
+                         "was made from another input or did not finish)")
     ap.add_argument("--no-ogg", action="store_true", help="mp3 only (skip the Ogg Vorbis copies)")
     a = ap.parse_args()
 
@@ -348,11 +456,14 @@ def main() -> int:
             "",
             "```",
             "dotnet build remake/OpenSimAnt.sln -c Release",
-            "python3 tools/audio_render.py",
+            "python tools/audio_render.py",
             "```",
             "",
             "The audio lands in `remake/build/listening/` (git-ignored: it is made from the player's own copy",
-            "of the game). `--reuse` re-stitches a previous render in seconds.",
+            "of the game). `--reuse` re-stitches a previous render in seconds, and refuses it if the input has",
+            "changed since (`wav/pack/render.json` and `wav/original/render.json` record which files were",
+            "rendered -- the pack zip, or the original's `SOUND.DAT`, `SOUND.NDX`, `SIMANT.EXE` and friends,",
+            "file by file -- and what came out).",
             "",
             "## The songs",
             "",
