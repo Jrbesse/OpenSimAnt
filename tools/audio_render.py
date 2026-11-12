@@ -20,7 +20,9 @@ Writes, into remake/build/listening/ (git-ignored):
   songs_pack.mp3 / .ogg        every cue of the clean pack, in id order, 2 s between tracks
   songs_original.mp3 / .ogg    the same cue list from the player's files, same order, same gaps
   effects_ab.mp3 / .ogg        every effect: the original then the pack, back to back, for A/B
-  wav/render.json              what --reuse trusts: the input's path/size/mtime and the files it wrote
+  wav/pack/render.json        what --reuse trusts, one per side: the input's path and the size/mtime of
+  wav/original/render.json    every file the render read (the .zip, or the game's files in the folder),
+                              beside the list of WAVs that render wrote
 
 and the cue sheet -- track index, start, song id, duration and what to listen for -- to docs/LISTENING.md
 under --repo (or whatever --cue names; --cue '' writes no sheet).
@@ -110,10 +112,63 @@ def run(cmd: list[str], cwd: str) -> None:
     subprocess.run(cmd, cwd=cwd, check=True)
 
 
+# What a folder source is rendered from: the files OriginalFiles reads (remake/src/OpenSimAnt.Data/
+# OriginalFiles.cs), not the folder. The executable carries the driver's instruments and effect table
+# (SoundBank(Flat)), so a swapped SIMANT.EXE changes what you hear as much as a swapped SOUND.DAT does.
+# A folder's own size/mtime_ns say nothing about the files inside it, and they do change when an unrelated
+# file is added beside them -- hence a per-file stamp rather than os.stat(dir).
+FOLDER_INPUTS = ("SIMANT.EXE", "SOUND.DAT", "SOUND.NDX", "SHARED.DAT", "SHARED.NDX",
+                 "HCEGANT.DAT", "HCEGANT.NDX", "FONT1", "FONT2", "FONT3", "FONT4")
+
+
+def file_stamp(path: str) -> dict[str, int]:
+    st = os.stat(path)
+    return {"size": st.st_size, "mtime_ns": st.st_mtime_ns}
+
+
+def find_input(folder: str, name: str) -> str | None:
+    """`name` in `folder`, either case on disk -- the same lookup OriginalFiles.FilePath does."""
+    exact = os.path.join(folder, name)
+    if os.path.exists(exact):
+        return exact
+    try:
+        for f in os.listdir(folder):
+            if f.lower() == name.lower():
+                return os.path.join(folder, f)
+    except OSError:
+        pass
+    return None
+
+
 def source_stamp(source: str) -> dict[str, object]:
-    """What a render depends on: the input's path, size and mtime -- a file (the pack .zip) or a folder."""
-    st = os.stat(source)
-    return {"source": os.path.abspath(source), "size": st.st_size, "mtime_ns": st.st_mtime_ns}
+    """What a render depends on: the input's path and the size/mtime of what the renderer actually reads.
+
+    The pack .zip is one file; a folder source is stamped file by file (FOLDER_INPUTS), because a
+    directory's own stat does not move when a file inside it is rewritten -- the failure --reuse exists
+    to catch -- and does move when something unrelated is dropped beside it, which would refuse a good
+    render.
+    """
+    if not os.path.isdir(source):
+        return {"source": os.path.abspath(source), **file_stamp(source)}
+    files = {}
+    for name in FOLDER_INPUTS:
+        found = find_input(source, name)
+        if found:
+            files[name] = file_stamp(found)
+    return {"source": os.path.abspath(source), "files": files}
+
+
+def changed_input(was: dict, now: dict) -> str:
+    """The differences between two stamps, named as the thing that changed (for the refusal message)."""
+    if "files" in was or "files" in now:
+        a, b = was.get("files") or {}, now.get("files") or {}
+        moved = [n for n in sorted(set(a) | set(b)) if a.get(n) != b.get(n)]
+        if moved:
+            return ", ".join(moved)
+    changed = [k for k in ("source", "size", "mtime_ns") if was.get(k) != now.get(k)]
+    if changed:
+        return ", ".join(changed)
+    return "input"
 
 
 def wav_names(outdir: str) -> list[str]:
@@ -123,10 +178,12 @@ def wav_names(outdir: str) -> list[str]:
 def check_reusable(source: str, outdir: str) -> None:
     """Refuse --reuse unless the WAVs in `outdir` are the complete output of THIS input.
 
-    Two failures this closes, both silent before: a render interrupted at the same cue on both sides (the
-    two lists still agree, so the sheet is short but self-consistent), and a swapped pack zip reused
-    against an older render (the sheet then names audio the file does not contain). The marker is written
-    only after the renderer exits 0, so its file list is the proof that a render finished.
+    Three failures this closes, all silent before: a render interrupted at the same cue on both sides (the
+    two lists still agree, so the sheet is short but self-consistent), a swapped pack zip reused against an
+    older render, and a rewritten SOUND.DAT or SIMANT.EXE reused against one -- the sheet then names audio
+    the file does not contain. The input is compared file by file for a folder source (source_stamp), and
+    the marker is written only after the renderer exits 0, so its file list is the proof that a render
+    finished.
     """
     marker = os.path.join(outdir, MARKER)
     try:
@@ -139,9 +196,8 @@ def check_reusable(source: str, outdir: str) -> None:
         sys.exit(f"{marker} is not readable JSON: delete it and re-run without --reuse.")
     was, now = done.get("input") or {}, source_stamp(source)
     if was != now:
-        changed = [k for k in ("source", "size", "mtime_ns") if was.get(k) != now.get(k)]
         sys.exit(f"{outdir} was rendered from {was.get('source', 'an older input')}, whose "
-                 f"{', '.join(changed) or 'input'} changed since. Re-run without --reuse.")
+                 f"{changed_input(was, now)} changed since. Re-run without --reuse.")
     if wav_names(outdir) != done.get("files"):
         extra = sorted(set(wav_names(outdir)) - set(done.get("files") or []))
         missing = sorted(set(done.get("files") or []) - set(wav_names(outdir)))
@@ -405,7 +461,9 @@ def main() -> int:
             "",
             "The audio lands in `remake/build/listening/` (git-ignored: it is made from the player's own copy",
             "of the game). `--reuse` re-stitches a previous render in seconds, and refuses it if the input has",
-            "changed since (`wav/render.json` records which file was rendered and what came out).",
+            "changed since (`wav/pack/render.json` and `wav/original/render.json` record which files were",
+            "rendered -- the pack zip, or the original's `SOUND.DAT`, `SOUND.NDX`, `SIMANT.EXE` and friends,",
+            "file by file -- and what came out).",
             "",
             "## The songs",
             "",

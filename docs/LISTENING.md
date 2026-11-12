@@ -29,7 +29,9 @@ python tools/audio_render.py
 
 The audio lands in `remake/build/listening/` (git-ignored: it is made from the player's own copy
 of the game). `--reuse` re-stitches a previous render in seconds, and refuses it if the input has
-changed since (`wav/render.json` records which file was rendered and what came out).
+changed since (`wav/pack/render.json` and `wav/original/render.json` record which files were
+rendered -- the pack zip, or the original's `SOUND.DAT`, `SOUND.NDX`, `SIMANT.EXE` and friends,
+file by file -- and what came out).
 
 ## The songs
 
