@@ -22,9 +22,10 @@ failed render that wrote nothing -- say, nothing built in Release yet, since the
 --no-build` -- leaves that side's WAVs deleted, and they must be made again; its stale render.json stays, but a
 `--reuse` run neither refuses nor rescues that side: with no WAVs there the guard that would reuse them is
 false, so it renders that side again. A render that dies after writing some WAVs is the other way round -- the
-WAVs are there and the marker is not, so `--reuse` refuses and tells you to re-run without it. Either way
-`--reuse` only ever saves work on a side whose finished render is still on disk. That is still the right way
-round: a stale file that survived would be stamped as this run's work.
+WAVs are there and the marker is missing or stale, so `--reuse` refuses and tells you to re-run
+without it. Either way `--reuse` only ever saves work on a side whose finished render is still on
+disk. That is still the right way round: a stale file that survived would be stamped as this run's
+work.
 
 Writes, into remake/build/listening/ (git-ignored):
   songs_pack.mp3 / .ogg        every cue of the clean pack, in id order, 2 s between tracks
@@ -506,10 +507,12 @@ def main() -> int:
             "file by file -- and what came out).",
             "",
             "A run without `--reuse` deletes that side's WAVs before it renders them, so a render that fails",
-            "leaves nothing of that side to reuse: those WAVs must be made again. A side whose render finished",
-            "keeps its WAVs and its `render.json`, and `--reuse` does reuse them -- once the failing side",
-            "renders. That is the right way round: a stale WAV that survived would be stamped as this run's",
-            "work.",
+            "after that clear leaves nothing of that side to reuse: those WAVs must be made again. `--reuse`",
+            "reuses a side only when its WAVs are all there and its `render.json` still matches them, so a side",
+            "that failed to render is never reusable: with no WAVs it is rendered again, and with WAVs but no",
+            "marker (or one that no longer matches), `--reuse` refuses and tells you to re-run without it. A",
+            "side whose render finished keeps its WAVs and its `render.json`, and `--reuse` does reuse them.",
+            "That is the right way round: a stale WAV that survived would be stamped as this run's work.",
             "",
             "## The songs",
             "",
