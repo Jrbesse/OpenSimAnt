@@ -34,10 +34,12 @@ rendered -- the pack zip, or the original's `SOUND.DAT`, `SOUND.NDX`, `SIMANT.EX
 file by file -- and what came out).
 
 A run without `--reuse` deletes that side's WAVs before it renders them, so a render that fails
-leaves nothing of that side to reuse: those WAVs must be made again. A side whose render finished
-keeps its WAVs and its `render.json`, and `--reuse` does reuse them -- once the failing side
-renders. That is the right way round: a stale WAV that survived would be stamped as this run's
-work.
+after that clear leaves nothing of that side to reuse: those WAVs must be made again. `--reuse`
+reuses a side only when its WAVs are all there and its `render.json` still matches them, so a side
+that failed to render is never reusable: with no WAVs it is rendered again, and with WAVs but no
+marker (or one that no longer matches), `--reuse` refuses and tells you to re-run without it. A
+side whose render finished keeps its WAVs and its `render.json`, and `--reuse` does reuse them.
+That is the right way round: a stale WAV that survived would be stamped as this run's work.
 
 ## The songs
 
