@@ -36,7 +36,7 @@ dotnet run --project tests/OpenSimAnt.Replay -c Release -- --longrun # replays t
 python tools/re/opl_capture.py record           # (from the repo root) the original driver's OPL2 streams → build/traces/opl
 ```
 
-At this commit all 25 trace files (about 225,000 calls, including 67,200 SimStep ticks) match.
+At this commit all 26 trace files (229,778 calls, including 74,500 SimStep ticks) match.
 
 An empty trace set -- a fresh clone, a cleaned `build/`, an explicit path that matches nothing -- **fails** the run
 and names the directory it looked in, unless `--allow-empty` is passed: "the traces all matched" and "there were no
