@@ -1,0 +1,18 @@
+# 5101: Barriers
+# 16 x 16
+cccccccccccccccc
+cccccccccccccccc
+ccccccdfffcccccc
+cccccff00dfffccc
+ccccfd0dd00ddfcc
+cccfd0dddddddfcc
+ccdfd0ddfdddddfc
+ccfd0dddfdddddfc
+cdfddddfddddddfc
+cfd0dddfddddddfc
+cfddddddfdddedfc
+ccfddddddfdeecfc
+ccfddddddeeecfcc
+cccfffffdddcfccc
+ccccccccffffcccc
+cccccccccccccccc

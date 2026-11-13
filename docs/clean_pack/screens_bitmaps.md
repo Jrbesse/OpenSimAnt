@@ -10,7 +10,7 @@
 
 Output folder: `remake/game/assets/clean/src/bitmaps/` (shared with `ui_bitmaps.md` and `yard_bitmaps.md`; **only create
 files for the 24 ids of this spec**, see "Files and other batches"). Provenance: `remake/game/assets/clean/PROVENANCE.md`
-(add an entry). **One file per bitmap, named `HCEGANT_<id>.pix`** (for example `HCEGANT_2500.pix`), plus
+(add an entry). **One file per bitmap, named `<id>.pix`** (for example `2500.pix`), plus
 `make_screens_bitmaps.py` (the script that writes every `.pix`, so they can be regenerated; split it into modules if you
 like), `README.md` (the design: the colour roles, the scenes' construction, how to rebuild) and, recommended, `preview.png`
 (see "Previews").
@@ -60,7 +60,7 @@ of the three above; a rebuilt preview counts again).
 
 - **Do not open any other file of the repository**, with these exceptions (clean-pack sources made by other makers, never the
   original's data): if they exist when you start, `make_ui_bitmaps.py` and `uilib.py` in your output folder (the interface batch:
-  its pixel lettering and bevel helpers, which you may import or copy) and `HCEGANT_17000.pix` (the yellow ant on tan ground) so that the scenes' ant
+  its pixel lettering and bevel helpers, which you may import or copy) and `17000.pix` (the yellow ant on tan ground) so that the scenes' ant
   matches it; and `remake/game/assets/clean/src/sprites/` (the ant sprite sheets: the look of the yellow, black and red ants), and
   `remake/game/assets/clean/src/fonts/` (the faces) if you want to draw lettering from the game's own new fonts.
 - **Never overwrite or delete a file that is not in your 24.**
@@ -158,8 +158,8 @@ player's ant in the scenes D, F and G (so he is always recognised) and, in the i
 
 | File | Size | Where (screen) | What |
 |---|---|---|---|
-| `HCEGANT_2000.pix` | 512 x 172 | (64,63) | the **top part** of the title |
-| `HCEGANT_2001.pix` | 512 x 200 | (64,235) | the **bottom part**: the two halves are cut from one 512 x 372 picture, so **row 171 of 2000 and row 0 of 2001 are neighbours** |
+| `2000.pix` | 512 x 172 | (64,63) | the **top part** of the title |
+| `2001.pix` | 512 x 200 | (64,235) | the **bottom part**: the two halves are cut from one 512 x 372 picture, so **row 171 of 2000 and row 0 of 2001 are neighbours** |
 
 Both opaque. **The role:** the first thing a player sees: a poster. It carries the name **`OpenSimAnt`** (large, the main element; exactly one occurrence, see "Identity and wording") and,
 smaller, `an open-source remake`. Everything else is picture: ants, a colony, a lawn, the sky, as you choose, but the picture must say "ants" and "a colony game" within a second.
@@ -180,7 +180,7 @@ smaller, `an open-source remake`. Everything else is picture: ants, a colony, a 
 
 | File | Size | Where (screen) | What |
 |---|---|---|---|
-| `HCEGANT_2500.pix` | 320 x 256 | (164,108) | the dialog: a heading, five picture buttons with captions, a Cancel button |
+| `2500.pix` | 320 x 256 | (164,108) | the dialog: a heading, five picture buttons with captions, a Cancel button |
 
 Opaque. **The role:** the dialog from which the player picks how to start. The six hit rectangles of "How the game shows these pictures" 3 are fixed (they are measured from the layout;
 the game tests clicks against exactly them): **the picture must draw a button in each**, and the captions beside them. **Outside the buttons, captions and heading the picture is flat light grey 12**; its **outermost ring is
@@ -215,8 +215,8 @@ also 12** (the game draws the 3-D frame outside it).
 
 | File | Size | Where (screen) | What |
 |---|---|---|---|
-| `HCEGANT_3000.pix` | 320 x 200 | (177,118) | the **background**: heading, a recessed well, a footer line |
-| `HCEGANT_3001.pix` | 254 x 109 | (210,179) = R's top-left | the **name card** shown inside the well for the first 5 seconds |
+| `3000.pix` | 320 x 200 | (177,118) | the **background**: heading, a recessed well, a footer line |
+| `3001.pix` | 254 x 109 | (210,179) = R's top-left | the **name card** shown inside the well for the first 5 seconds |
 
 Both opaque. **The role:** the About box shows who made the game. The credits themselves (a list of lines, black 15 on light grey 12) are written by the game over R (text category, not here); this batch makes the frame around them and the card before them.
 
@@ -243,10 +243,10 @@ All opaque. The four stills of the player's own ant, shown in the scene window (
 
 | File | Size | When it is shown | What it shows |
 |---|---|---|---|
-| `HCEGANT_9100.pix` | 200 x 161 | after the player's ant is killed by the spider or the ant lion (shown for about 16 s, or until a key / click); the game writes a caption over its top rows | **the player's yellow ant after the attack, lying still** on the ground (on its back or its side, legs curled in, one antenna bent): it is hurt, not gory. Ground: soil, a few pebbles. **Rows 0..14 are covered by the caption strip: plain ground there.** |
-| `HCEGANT_9101.pix` | 200 x 161 | when the player takes over another ant: as a newly **hatched queen / reborn ant**, or as **a worker** (same picture for both, about 16 s; caption over its top rows) | **a new ant just out of its cocoon**: a pale, freshly hatched ant standing next to its torn cocoon on the ground, looking up. Pale colours (0 white, 12, 11 tan) for the cocoon, the ant yellow-pale. **Rows 0..14 plain ground.** |
-| `HCEGANT_9110.pix` | 200 x 161 | when a nestmate **feeds** the player's ant (the first of two frames; about 2.5 s, then 9111 is laid over it for another 2.5 s) | **two ants head to head**: the big **black nestmate** (dark grey 14, 15 outline) above, the **small yellow player's ant** below, the nestmate **offering a drop of food** (a **green 8 / 9 drop** with a white 0 highlight) at the tip of its mouth, between the two heads |
-| `HCEGANT_9111.pix` | 80 x 89 | the **patch** laid over 9110 at (72,62) (so covering 9110's rectangle (72,62)-(152,151)) | **the same moment a beat later**: the drop has passed to the yellow ant (the drop now at the yellow ant's mouth, partly in it, the nestmate's mouth empty and open a little). **The patch covers the two heads' mouths and the drop**; the rest of 9110 shows unchanged around it |
+| `9100.pix` | 200 x 161 | after the player's ant is killed by the spider or the ant lion (shown for about 16 s, or until a key / click); the game writes a caption over its top rows | **the player's yellow ant after the attack, lying still** on the ground (on its back or its side, legs curled in, one antenna bent): it is hurt, not gory. Ground: soil, a few pebbles. **Rows 0..14 are covered by the caption strip: plain ground there.** |
+| `9101.pix` | 200 x 161 | when the player takes over another ant: as a newly **hatched queen / reborn ant**, or as **a worker** (same picture for both, about 16 s; caption over its top rows) | **a new ant just out of its cocoon**: a pale, freshly hatched ant standing next to its torn cocoon on the ground, looking up. Pale colours (0 white, 12, 11 tan) for the cocoon, the ant yellow-pale. **Rows 0..14 plain ground.** |
+| `9110.pix` | 200 x 161 | when a nestmate **feeds** the player's ant (the first of two frames; about 2.5 s, then 9111 is laid over it for another 2.5 s) | **two ants head to head**: the big **black nestmate** (dark grey 14, 15 outline) above, the **small yellow player's ant** below, the nestmate **offering a drop of food** (a **green 8 / 9 drop** with a white 0 highlight) at the tip of its mouth, between the two heads |
+| `9111.pix` | 80 x 89 | the **patch** laid over 9110 at (72,62) (so covering 9110's rectangle (72,62)-(152,151)) | **the same moment a beat later**: the drop has passed to the yellow ant (the drop now at the yellow ant's mouth, partly in it, the nestmate's mouth empty and open a little). **The patch covers the two heads' mouths and the drop**; the rest of 9110 shows unchanged around it |
 
 **Alignment of the patch 9111 with 9110**: the patch's outermost ring (all four sides) **equals the 9110 pixels at its own place** (so the patch is invisible at its edge): make both from one program, render the "before" and the "after" states of the two-ant scene, set `9110` = the "before" render and `9111` = the crop
 (72,62)-(152,151) of the "after" render. The script asserts the ring equality, and that **at least 10 % of the patch's pixels differ from the same crop of 9110** (it animates). The green drop (colours 8 / 9) is present in both.
@@ -261,13 +261,13 @@ no two icons with the same ground), and a bold symbol, **at least 4 colours**, n
 
 | File | Cause (when shown) | Symbol |
 |---|---|---|
-| `HCEGANT_9155.pix` | **stepped on by the human** | a big shoe sole coming down on a small ant (sole seen from below, tread marks, the ant's legs sticking out); ground: grass (8) |
-| `HCEGANT_9152.pix` | **run over by the lawn mower** | a lawn mower seen from above (deck, wheels, handle) over grass; ground: grass (8 / 9) |
-| `HCEGANT_9153.pix` | not found in use (a variant of the mower) | the same mower as 9152 with a **few grass clippings and small flecks flying** from it; **the same drawing as 9152 outside the flecks** (script: at least 60 % of the pixels equal) |
-| `HCEGANT_9150.pix` | **drowned** | an ant on its back in **water**: concentric ripples round it (ground: blues 6 / 7 with white 0 ripple lines) |
-| `HCEGANT_9154.pix` | **starved** | an **empty fuel-gauge or an empty bowl**: a round gauge whose needle is at the empty end (a red 3 mark), a small empty plate with a fork, or an hourglass; your choice, readable as "ran out". Ground: a light colour |
-| `HCEGANT_9151.pix` | **poisoned by insecticide** | a **skull and crossed bones** or a **spray can with a toxic cloud** (a cloud and a small ant on its back); ground: red 3 or magenta 4 |
-| `HCEGANT_9156.pix` | **electrocuted** | a **lightning bolt** (yellow 1 / orange 2) striking a small ant, on a dark ground (5 purple, 14 dark grey) |
+| `9155.pix` | **stepped on by the human** | a big shoe sole coming down on a small ant (sole seen from below, tread marks, the ant's legs sticking out); ground: grass (8) |
+| `9152.pix` | **run over by the lawn mower** | a lawn mower seen from above (deck, wheels, handle) over grass; ground: grass (8 / 9) |
+| `9153.pix` | not found in use (a variant of the mower) | the same mower as 9152 with a **few grass clippings and small flecks flying** from it; **the same drawing as 9152 outside the flecks** (script: at least 60 % of the pixels equal) |
+| `9150.pix` | **drowned** | an ant on its back in **water**: concentric ripples round it (ground: blues 6 / 7 with white 0 ripple lines) |
+| `9154.pix` | **starved** | an **empty fuel-gauge or an empty bowl**: a round gauge whose needle is at the empty end (a red 3 mark), a small empty plate with a fork, or an hourglass; your choice, readable as "ran out". Ground: a light colour |
+| `9151.pix` | **poisoned by insecticide** | a **skull and crossed bones** or a **spray can with a toxic cloud** (a cloud and a small ant on its back); ground: red 3 or magenta 4 |
+| `9156.pix` | **electrocuted** | a **lightning bolt** (yellow 1 / orange 2) striking a small ant, on a dark ground (5 purple, 14 dark grey) |
 
 **Steer away**: do **not** reproduce a mower seen from above with a cross-shaped blade, a skull with long crossed bones on red, or a red X over an ant; draw **your own**, with the mower's wheels seen at the sides and a round shield,
 the skull small and cartoon-like **or** a spray can instead, and a bolt instead of a cross.
@@ -279,10 +279,10 @@ The scene is a cross-section view: **dry ground above, the pit below**.
 
 | File | Size | Drawn | What |
 |---|---|---|---|
-| `HCEGANT_9200.pix` | 200 x 160 | the base picture (scene window, screen (153,85)) | the **pit**: a funnel of sand seen from the side at the bottom of the frame (darker sand layers 10 / 11 / 13 / 14, grains and pebbles), the **ant lion at rest** at its bottom (a big round head with two long curved jaws, eyes, a ridged body, **colour 3 red for the eyes**), and the **player's yellow ant** walking on the edge above it. Ground above in tan / brown; a few pebbles. Sky is not shown. |
-| `HCEGANT_9201.pix` | 136 x 121 | the **patch** at (38,39), after 0.5 s (laid over 9200) | the ant lion **rears up**, jaws spread wide, at the pit's mouth; the yellow ant at the edge about to be grabbed. The patch runs from y = 39 to the picture's bottom edge (y = 160). |
-| `HCEGANT_9202.pix` | 136 x 108 | the **patch** at (38,52) | the jaws **clamped** on the ant, the head tilted **left**, the ant mostly hidden (a leg or antenna sticks out). The patch runs from y = 52 to y = 160. |
-| `HCEGANT_9203.pix` | 136 x 108 | the **patch** at (38,52) | the same, the head tilted **right** (a different position of the head and jaws) |
+| `9200.pix` | 200 x 160 | the base picture (scene window, screen (153,85)) | the **pit**: a funnel of sand seen from the side at the bottom of the frame (darker sand layers 10 / 11 / 13 / 14, grains and pebbles), the **ant lion at rest** at its bottom (a big round head with two long curved jaws, eyes, a ridged body, **colour 3 red for the eyes**), and the **player's yellow ant** walking on the edge above it. Ground above in tan / brown; a few pebbles. Sky is not shown. |
+| `9201.pix` | 136 x 121 | the **patch** at (38,39), after 0.5 s (laid over 9200) | the ant lion **rears up**, jaws spread wide, at the pit's mouth; the yellow ant at the edge about to be grabbed. The patch runs from y = 39 to the picture's bottom edge (y = 160). |
+| `9202.pix` | 136 x 108 | the **patch** at (38,52) | the jaws **clamped** on the ant, the head tilted **left**, the ant mostly hidden (a leg or antenna sticks out). The patch runs from y = 52 to y = 160. |
+| `9203.pix` | 136 x 108 | the **patch** at (38,52) | the same, the head tilted **right** (a different position of the head and jaws) |
 
 **Timing** (so the pictures flow): at 0 s the base 9200 only; every **0.55 s** the overlay changes: **9201, then 9202, 9203, 9202, 9203, 9202 ...** (9201 once, then the two alternate) until the scene ends.
 The ant lion's roar plays on every other change.
@@ -299,10 +299,10 @@ All opaque. Shown when the player's ant is taken by the **spider** (its own soun
 
 | File | Size | Drawn | What |
 |---|---|---|---|
-| `HCEGANT_12000.pix` | 189 x 171 | the base picture (screen (153,85)) | the **spider's face and front legs, centred**, on a sky background: head with **eyes**, the first legs raised at both sides, **jaws (fangs) open in the lower middle**; the pose = the "jaws open" state |
-| `HCEGANT_12001.pix` | 98 x 80 | the **patch** at (46,77): the jaws **fully open** | the lower face and the two fangs, wide apart, over the sky |
-| `HCEGANT_12002.pix` | 98 x 80 | the patch | the fangs **half closed**, bent in |
-| `HCEGANT_12003.pix` | 98 x 80 | the patch | the fangs **closed together** (touching or crossing at the tips) |
+| `12000.pix` | 189 x 171 | the base picture (screen (153,85)) | the **spider's face and front legs, centred**, on a sky background: head with **eyes**, the first legs raised at both sides, **jaws (fangs) open in the lower middle**; the pose = the "jaws open" state |
+| `12001.pix` | 98 x 80 | the **patch** at (46,77): the jaws **fully open** | the lower face and the two fangs, wide apart, over the sky |
+| `12002.pix` | 98 x 80 | the patch | the fangs **half closed**, bent in |
+| `12003.pix` | 98 x 80 | the patch | the fangs **closed together** (touching or crossing at the tips) |
 
 **Timing**: at 0 s the base 12000; every **0.15 s** the next patch of the cycle **12002, 12003, 12002, 12001, 12002, 12003 ...** (the jaws close, open, close ...); the scene's sound repeats
 each cycle. After the scene the game draws the death message box over it.
@@ -347,7 +347,7 @@ the well filled with grey 12 and three lines of sample credit text (black, 14-px
 - **`ui_bitmaps.md`**: the message box face (grey 12, black text) and the 3-D frame are the game's; the **yellow player's ant** of these scenes is the same ant as 17000 (the tutorial's "you are the yellow ant"); the Select card's **Quick Game**
   black and red ants and the scenes' dark nestmate use the **colony colours** of `ant_sprites.md` (black colony: dark grey 14 / shade 13; red colony: red 3 / shade 2).
 - **`yard_bitmaps.md`**: the **spider of group G is the yard's spider** (browns / greys 10..15, eight legs, curved fangs); the **sneaker** of 9155 is a shoe like the person's and the **mower** of 9152 / 9153 is the same
-  kind of machine as the yard's mower (a deck and wheels): use the **same colour scheme** (a red or orange deck, dark engine) if the yard batch is done (its `HCEGANT_8800.pix`, if it exists when you start, shows the mower's colours; you may look at it for colours only).
+  kind of machine as the yard's mower (a deck and wheels): use the **same colour scheme** (a red or orange deck, dark engine) if the yard batch is done (its `8800.pix`, if it exists when you start, shows the mower's colours; you may look at it for colours only).
 - **The ant lion's pit**: the pit tiles of the map (`map_tiles.md`) are a sandy funnel in tan / brown; keep the scene's sand in the same colours (11 tan, 10 brown, shading 13 / 14).
 - **The title and the About name card** share the **wordmark's style** (the same lettering, colours and emblem if you give it one).
 

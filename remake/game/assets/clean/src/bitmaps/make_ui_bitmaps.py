@@ -1,4 +1,4 @@
-"""make_ui_bitmaps.py: writes every HCEGANT_<id>.pix of the UI bitmaps (all 74: groups A to L),
+"""make_ui_bitmaps.py: writes every <id>.pix of the UI bitmaps (all 74: groups A to L),
 runs the spec's checks as assertions, and writes preview.png.  Run from anywhere:  python make_ui_bitmaps.py
 Groups are functions group_x(reg) in grp_*.py; add a group by writing one and listing it in GROUPS (order matters:
 a group may use pictures made by an earlier one, e.g. 5000 uses the icons 5100..5106)."""
@@ -41,8 +41,8 @@ def main():
     reg = build()
     n = run_generic_checks(reg)
     for bid in sorted(reg.img):
-        write_pix(os.path.join(HERE, 'HCEGANT_%d.pix' % bid), reg.img[bid],
-                  'HCEGANT_%d: %s' % (bid, reg.meta[bid]['what']))
+        write_pix(os.path.join(HERE, '%d.pix' % bid), reg.img[bid],
+                  '%d: %s' % (bid, reg.meta[bid]['what']))
     print('wrote %d bitmaps; checks passed: sizes/masks/colours %d, flat rects %d, icon spots %d, leader tips %d, '
           'inverted rects %d, group checks %d' % (n, n, len(reg.flat), len(reg.spots), len(reg.tips), len(reg.inv),
                                                   len(reg.checks)))

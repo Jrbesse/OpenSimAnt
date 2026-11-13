@@ -1,4 +1,4 @@
-"""make_yard_bitmaps.py: writes the yard bitmaps HCEGANT_<id>.pix of docs/clean_pack/yard_bitmaps.md that exist so far
+"""make_yard_bitmaps.py: writes the yard bitmaps <id>.pix of docs/clean_pack/yard_bitmaps.md that exist so far
 (passes 1 and 2: 7000, 7001, 7003, 7020, 7021, 7022, 7005, 7006, 7007, 1260, 7010, 7011), runs the spec's checks as
 assertions and writes preview_yard.png.  Run from anywhere:
 
@@ -42,13 +42,13 @@ def write_crops(t7010):
     """17006 / 17007 (the tutorial's House / Patch button pictures) = crops of 7010; only replaced when they already exist."""
     out = []
     for bid in sorted(yard_pass2.CROPS):
-        path = os.path.join(HERE, 'HCEGANT_%d.pix' % bid)
+        path = os.path.join(HERE, '%d.pix' % bid)
         if not os.path.exists(path):
             print('crop %d: %s does not exist (interface batch not run yet): left alone; run  python make_yard_bitmaps.py --crops  later' % (bid, os.path.basename(path)))
             continue
         c = yard_pass2.crop_of(t7010, bid)
         what = 'tutorial: yard window %s button (a crop of 7010, pixels %s)' % ('House' if bid == 17006 else 'Patch', yard_pass2.CROPS[bid])
-        write_pix(path, c, 'HCEGANT_%d: %s' % (bid, what))
+        write_pix(path, c, '%d: %s' % (bid, what))
         print('crop %d: REPLACED %s by the crop of 7010 %s (%d x %d)' % (bid, os.path.basename(path), yard_pass2.CROPS[bid], c.w, c.h))
         out.append(bid)
     return out
@@ -64,7 +64,7 @@ def main(argv):
     reg = build()
     n = run_generic_checks(reg)
     for bid in sorted(reg.img):
-        write_pix(os.path.join(HERE, 'HCEGANT_%d.pix' % bid), reg.img[bid], 'HCEGANT_%d: %s' % (bid, reg.meta[bid]['what']))
+        write_pix(os.path.join(HERE, '%d.pix' % bid), reg.img[bid], '%d: %s' % (bid, reg.meta[bid]['what']))
     print('wrote %d yard bitmaps; checks passed: sizes / masks / colours %d, flat rects %d, pass checks %d' % (n, n, len(reg.flat), len(reg.checks)))
     st = getattr(reg, 'stats', {})
     print('  7000 / 7001 identical pixels: %.1f %%; furniture clear of the person\'s route by >= %.1f px' % (100 * st.get('equal_7000_7001', 0), st.get('route_clear_px', 0)))

@@ -1,0 +1,15 @@
+# 1304: cat walking left (the mirror image of 1301)
+# 16 x 13
+.............f..
+...f........faf.
+..f2f.......fa2f
+..f2fffffff.f3af
+.f2227222a2ffaaf
+f3f222222a22aa2f
+fc3222a22a22aff.
+.ff337a22a22af..
+...f33a22a22af..
+...ffff333ffff..
+..f023fffff322f.
+..f0ff.....f0f..
+...f........f...

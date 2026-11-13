@@ -1,4 +1,4 @@
-"""make_screens_bitmaps.py: writes the 24 HCEGANT_<id>.pix of docs/clean_pack/screens_bitmaps.md (the title 2000 / 2001,
+"""make_screens_bitmaps.py: writes the 24 <id>.pix of docs/clean_pack/screens_bitmaps.md (the title 2000 / 2001,
 Select a Game 2500, the About box 3000 / 3001, the player's-ant pictures 9100 / 9101 / 9110 / 9111, the death icons
 9150..9156, the ant lion scene 9200..9203, the spider scene 12000..12003), runs the spec's checks as assertions and
 writes preview_screens.png.   Run from anywhere:   python make_screens_bitmaps.py
@@ -314,17 +314,17 @@ def run_checks(pics, canvas, info):
 def write_all(pics):
     for pid, cv in sorted(pics.items()):
         a = cv.arr()
-        lines = ['# HCEGANT_%d: %s' % (pid, WHAT[pid]), '# %d x %d' % (a.shape[1], a.shape[0])]
+        lines = ['# %d: %s' % (pid, WHAT[pid]), '# %d x %d' % (a.shape[1], a.shape[0])]
         for y in range(a.shape[0]):
             lines.append(''.join(HEX[v] for v in a[y]))
-        with open(os.path.join(HERE, 'HCEGANT_%d.pix' % pid), 'w', newline='\n') as f:
+        with open(os.path.join(HERE, '%d.pix' % pid), 'w', newline='\n') as f:
             f.write('\n'.join(lines) + '\n')
 
 
 def reread(pics):
     """The written files parse back to the same pictures (exact size, no '.', equal rows)."""
     for pid, cv in pics.items():
-        rows = [ln for ln in open(os.path.join(HERE, 'HCEGANT_%d.pix' % pid)).read().split('\n') if ln and not ln.startswith('#')]
+        rows = [ln for ln in open(os.path.join(HERE, '%d.pix' % pid)).read().split('\n') if ln and not ln.startswith('#')]
         w, h = SIZES[pid]
         assert len(rows) == h and all(len(r) == w for r in rows), pid
         assert not any('.' in r for r in rows), pid

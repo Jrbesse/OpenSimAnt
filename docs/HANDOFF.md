@@ -155,7 +155,7 @@ the encyclopedia pictures' label words match), layouts, sound, music.
   inversion contrast rule (3:1 drawn and XOR 15) beats any lettering colour named in the tables, so menu and button
   lettering is black.
 - **UI bitmaps made**, two isolated makers (passes 1-2: 46 files, ~250k; passes 3-4: 28 files, ~230k; the second
-  reused the first's `uilib.py` / `pics.py` and kept its files byte-identical): `src/bitmaps/HCEGANT_<id>.pix`, made by
+  reused the first's `uilib.py` / `pics.py` and kept its files byte-identical): `src/bitmaps/<id>.pix`, made by
   `make_ui_bitmaps.py` + `grp_*.py`. Checked in the game: Edit strip, help overlays, scent menu, Game Over, Behavior /
   Caste panels, History, win screen. Notes: the History caption "Starved" reads "Hunger" (width); the start-up cards
   say "AN OPEN FAN PROJECT" (the owner may want other wording; the remake never draws them); tutorial step 11 asks for
