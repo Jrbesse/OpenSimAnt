@@ -7,6 +7,7 @@ import numpy as np
 from screens_lib import (WM, Cv, ant, bayer, dither_rect, speckle, pebble, LETTERED, LABEL, LABEL_TALL, SMALL,
                          bezier, lp, ell_pts, tapered)
 import uilib
+import screens_wordmark as SW
 from uilib import Face
 
 W_T, H_T = 512, 372
@@ -215,8 +216,8 @@ def title_canvas():
         cv.px(x, y, 1)
         dither_rect(cv, x - 2, y - 2, x + 3, y + 3, 5, 2, 0.15)
         cv.px(x, y, 1)
-    # the wordmark (upper left) and the small line
-    info = wordmark(cv, 2000, 28, 46, 'OpenSimAnt', 4, 1, 2, 0, 15, thick=1, drop=(5, 5, 14))
+    # the wordmark (upper left) and the small line — plain flat text, one colour (#36)
+    info = SW.plain_wordmark(cv, 2000, 28, 46, 'OpenSimAnt', 4, 1, lettered=LETTERED)
     tag = cv.text(2000, 31, 106, 'an open-source remake', SMALL, 0, scale=2, outline=15)
     # fade to black at the edges
     a = cv.arr()

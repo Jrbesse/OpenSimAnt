@@ -168,7 +168,7 @@ smaller, `an open-source remake`. Everything else is picture: ants, a colony, a 
   (no hard-edged rectangle against the screen). The game draws nothing else, so the composition is free inside 512 x 372.
 - **Cut the picture in two with one script function**: draw the 512 x 372 canvas, then `2000 = rows 0..171`, `2001 = rows 172..371`. **The seam (between row 171 and 172) must be invisible**:
   do **not** put the wordmark, an outline or a thin line exactly on the seam; a large shape may cross it.
-- **Wordmark:** your own lettering, **at least 22 px tall**, at least 3 colours (a main colour, a darker shade or outline, a highlight), reading well on black (contrast >= 3 : 1 against what is behind it).
+- **Wordmark:** your own lettering, **at least 22 px tall**, set as **plain flat text — one solid colour, no outline, no shade, no highlight, no shadow, no gradient** (the name is never typeset, kerned or otherwise styled like a logo — the public-release gate's hard requirement), reading well against what is behind it (contrast >= 3 : 1).
   `OpenSimAnt` must appear as one word with the capitals as written (the three capitals O, S, A make it legible: lettering them in your own style is fine).
 - **Steer away from** the original's composition: **do not** make a front-on giant ant head filling the lower half, a V-shaped blue frame or blue lines, a word arched over the top in an
   orange-yellow gradient, or red / black framing lines. **Do** pick one of these (or your own, as long as it is a different layout): (a) a **cut-away "ant farm" strip**: a thin sky and lawn band
