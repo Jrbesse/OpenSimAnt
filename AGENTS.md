@@ -53,7 +53,7 @@ Three oracles, cheapest last:
 
 1. **The emulator is ground truth.** `verify.Verifier` boots SIMANT.EXE in Unicorn, plays a Quick Game (seed `0x1234`) and caches six snapshots (ticks 0, 300, 900, 1500, 2200, 3000) in `tools/re/build/snapshots/`. `v.check(lin, port_fn, ...)` restores each, runs the original routine at flat address `lin` and the port on a `State` built from the same memory, and compares `0x3d570..0x62000` byte for byte. Useful options: `args_fn`, `repeat`, `pre` / `pre_once` (plant rare states, force rare branches), `post_args`, `ignore`.
 2. **The Python reference is the cheap oracle.** Already verified against the emulator; port new behaviour there first when the rule is unclear.
-3. **The C# port is checked by replaying recorded traces.** `record_traces.py` records every outermost reference call (arguments, player-hook class, clock, State before/after); the C# side finds the port by reflection (`surface.s_bored` → `Surface.SBored`) and compares the return value plus all 150,160 bytes of `State`. At the documented commit 25 trace files (~225,000 calls, 67,200 SimStep ticks) match.
+3. **The C# port is checked by replaying recorded traces.** `record_traces.py` records every outermost reference call (arguments, player-hook class, clock, State before/after); the C# side finds the port by reflection (`surface.s_bored` → `Surface.SBored`) and compares the return value plus all 150,160 bytes of `State`. At the documented commit 26 trace files (229,778 calls, 74,500 SimStep ticks) match.
 
 ```bash
 sh tools/ref/record_all.sh          # re-record traces (minutes; needs the emulator setup)
