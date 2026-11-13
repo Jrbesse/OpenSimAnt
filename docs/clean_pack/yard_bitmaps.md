@@ -8,7 +8,7 @@
 
 Output folder: `remake/game/assets/clean/src/bitmaps/` (shared with `ui_bitmaps.md`; **only create files for the 114 ids of
 this spec**, see "Files and other batches"). Provenance: `remake/game/assets/clean/PROVENANCE.md` (add an entry). **One
-file per bitmap, named `HCEGANT_<id>.pix`** (for example `HCEGANT_8000.pix`), plus `make_yard_bitmaps.py` (the script that
+file per bitmap, named `<id>.pix`** (for example `8000.pix`), plus `make_yard_bitmaps.py` (the script that
 writes every `.pix`, so they can be regenerated; split it into modules if you like), `README.md` (the design: the scale,
 the light, the colour roles, how to rebuild) and, recommended, `preview.png` (see "Previews").
 
@@ -66,11 +66,11 @@ Rely on the script's assertions rather than on looking at pictures: **look at `p
 
 - **Do not open any other file of the repository**, with these exceptions (all are clean-pack sources made by other makers,
   never the original's data): `remake/game/assets/clean/src/spider/legs.json` (the spider's leg geometry; group H),
-  and, if they exist when you start, the files `HCEGANT_14000.pix`, `HCEGANT_17006.pix`, `HCEGANT_17007.pix` and
+  and, if they exist when you start, the files `14000.pix`, `17006.pix`, `17007.pix` and
   `make_ui_bitmaps.py` in your output folder (the interface batch, which runs in the same folder; you may copy its pixel
   lettering and match the buttons' subjects, see D and "Consistency").
-- **Never overwrite or delete a file that is not in your 114.** The one exception: `HCEGANT_17006.pix` and
-  `HCEGANT_17007.pix` (the tutorial's "House" and "Patch" button pictures, made as plain buttons by the interface batch) are
+- **Never overwrite or delete a file that is not in your 114.** The one exception: `17006.pix` and
+  `17007.pix` (the tutorial's "House" and "Patch" button pictures, made as plain buttons by the interface batch) are
   to be **crops of your own 7010** (D says which windows). Your script writes them **only if they already exist**
   (replacing them) and says so in its output; if they do not exist yet, it leaves them alone, and your `README.md`
   says "run `python make_yard_bitmaps.py --crops` after the interface batch" (a flag your script must provide). This keeps the two
@@ -151,12 +151,12 @@ All **opaque**, 4 planes.
 
 | File | Size | Where (screen / yard) | What |
 |---|---|---|---|
-| `HCEGANT_7000.pix` | 281 x 226 | (63,83); yard x -2..278 | **The Yard view's left part**: the house seen from outside, with the lawn in front of it and the garden behind it. |
-| `HCEGANT_7001.pix` | 281 x 226 | same place, drawn **instead of 7000** in the **House view** | The **same house with its roof and front wall cut away so the inside shows** (rooms, furniture), everything outside the house identical to 7000. |
-| `HCEGANT_7003.pix` | 233 x 226 | (344,83); yard x 279..511 | **The Yard view's right part** (drawn in both views): the lawn and its back fence. |
-| `HCEGANT_7020.pix` | 513 x 51 | (64,148); strip rows are yard y 65..115 | the **top third of the colony views' grid**: the lattice only |
-| `HCEGANT_7021.pix` | 512 x 55 | (64,199); yard y 116..170 | the middle third |
-| `HCEGANT_7022.pix` | 512 x 55 | (64,254); yard y 171..225 | the bottom third |
+| `7000.pix` | 281 x 226 | (63,83); yard x -2..278 | **The Yard view's left part**: the house seen from outside, with the lawn in front of it and the garden behind it. |
+| `7001.pix` | 281 x 226 | same place, drawn **instead of 7000** in the **House view** | The **same house with its roof and front wall cut away so the inside shows** (rooms, furniture), everything outside the house identical to 7000. |
+| `7003.pix` | 233 x 226 | (344,83); yard x 279..511 | **The Yard view's right part** (drawn in both views): the lawn and its back fence. |
+| `7020.pix` | 513 x 51 | (64,148); strip rows are yard y 65..115 | the **top third of the colony views' grid**: the lattice only |
+| `7021.pix` | 512 x 55 | (64,199); yard y 116..170 | the middle third |
+| `7022.pix` | 512 x 55 | (64,254); yard y 171..225 | the bottom third |
 
 ### The lawn, the lattice and the seam (7000, 7001, 7003, strips)
 
@@ -224,13 +224,13 @@ the right state and cropping the rectangle**, never by painting a separate pictu
 
 | File | Size | Drawn at (yard) over | What it must show |
 |---|---|---|---|
-| `HCEGANT_8900.pix` | 26 x 42 | (172,73) over **7000** (picture px (174,73)) | the porch door **just opening** (or just closing): the person is mostly hidden behind the door |
-| `HCEGANT_8901.pix` | 26 x 42 | same | the door **wide open**, the person **starting to step out** (leaning forward) |
-| `HCEGANT_8902.pix` | 26 x 42 | same | the door open, the person **in the doorway, almost out** |
-| `HCEGANT_8903.pix` | 26 x 42 | same | the door open, the person **standing on the threshold**, about to go in or out |
-| `HCEGANT_8905.pix` | 19 x 35 | not found in use | **spare**: a solid colour-15 rectangle (every pixel `f`) |
-| `HCEGANT_8200.pix` | 17 x 30 | (45,166) over **7001** | the **person sitting in the armchair** (watching the television), the chair and the floor as in 7001 |
-| `HCEGANT_8201.pix` | 19 x 30 | (207,47) over **7001** | the **person standing at the refrigerator with its door open**, taking something out |
+| `8900.pix` | 26 x 42 | (172,73) over **7000** (picture px (174,73)) | the porch door **just opening** (or just closing): the person is mostly hidden behind the door |
+| `8901.pix` | 26 x 42 | same | the door **wide open**, the person **starting to step out** (leaning forward) |
+| `8902.pix` | 26 x 42 | same | the door open, the person **in the doorway, almost out** |
+| `8903.pix` | 26 x 42 | same | the door open, the person **standing on the threshold**, about to go in or out |
+| `8905.pix` | 19 x 35 | not found in use | **spare**: a solid colour-15 rectangle (every pixel `f`) |
+| `8200.pix` | 17 x 30 | (45,166) over **7001** | the **person sitting in the armchair** (watching the television), the chair and the floor as in 7001 |
+| `8201.pix` | 19 x 30 | (207,47) over **7001** | the **person standing at the refrigerator with its door open**, taking something out |
 
 How they play (so the sequence reads): **leaving**: 8900, 8901, 8902, then the walking figure (8006, 8007 in group E) at (174,93), (175,99); **entering**: the walking figure at (172,93) (8000), 8903, 8900 (the
 door closing), then nothing. So **8900 must look right both as the door starting to open and as the door closing**. A frame lasts one tick (a few frames a second).
@@ -246,14 +246,14 @@ at the stated rectangles (this holds by construction if you crop renders).
 
 | File | Size | Masked | What |
 |---|---|---|---|
-| `HCEGANT_7005.pix` | 7 x 37 | yes | **a raindrop streak**: a **1-pixel-wide slanted line** of colour **7** (cyan) from near the top right to the bottom left, falling to the lower left: it runs from column 5 at the top to column 1 at the bottom (a slope of 4 px over 35 rows). **Not tight**: the first and the last row are transparent. Exactly one opaque pixel per row from row 1 to row 35. 15 streaks are drawn at random places at once (x 50..449, y 0..149 yard) every frame while it rains, over everything. |
-| `HCEGANT_7006.pix` | 8 x 1 | yes | **a black colony's winged queen on her mating flight**: only **one opaque pixel, at column 1**, colour **15**; the other 7 pixels transparent. Up to 16 are drawn on the player's patch corner while it rains, jittering by a pixel a tick. |
-| `HCEGANT_7007.pix` | 8 x 1 | yes | the same for **a red colony's queen**: one pixel at column 1, colour **3**. |
-| `HCEGANT_1260.pix` | 54 x 37 | yes | **a "for sale" sign**: a board on a post, planted in the lawn, drawn at **yard (170,186)** (picture px (172,186) of 7000) when the people put the house up for sale (the ants have won). The board fills the **top two thirds** (about 54 x 26, with a 1-px black outline) and the post runs down from it (about 4 px wide) to the bottom row; **both sides of the post below the board are transparent** (about 48 % of the picture). Two lines on the board in your lettering: **`FOR SALE`** (large, black) and under it a **short second line of your own** (3 to 12 characters, for example `CHEAP`, small). Board colours: pale (light grey 12 or white 0), post brown or grey. It stands on the lawn, so give its foot a 1-px dark outline and no shadow. **Tight**: the opaque pixels touch all four edges. |
+| `7005.pix` | 7 x 37 | yes | **a raindrop streak**: a **1-pixel-wide slanted line** of colour **7** (cyan) from near the top right to the bottom left, falling to the lower left: it runs from column 5 at the top to column 1 at the bottom (a slope of 4 px over 35 rows). **Not tight**: the first and the last row are transparent. Exactly one opaque pixel per row from row 1 to row 35. 15 streaks are drawn at random places at once (x 50..449, y 0..149 yard) every frame while it rains, over everything. |
+| `7006.pix` | 8 x 1 | yes | **a black colony's winged queen on her mating flight**: only **one opaque pixel, at column 1**, colour **15**; the other 7 pixels transparent. Up to 16 are drawn on the player's patch corner while it rains, jittering by a pixel a tick. |
+| `7007.pix` | 8 x 1 | yes | the same for **a red colony's queen**: one pixel at column 1, colour **3**. |
+| `1260.pix` | 54 x 37 | yes | **a "for sale" sign**: a board on a post, planted in the lawn, drawn at **yard (170,186)** (picture px (172,186) of 7000) when the people put the house up for sale (the ants have won). The board fills the **top two thirds** (about 54 x 26, with a 1-px black outline) and the post runs down from it (about 4 px wide) to the bottom row; **both sides of the post below the board are transparent** (about 48 % of the picture). Two lines on the board in your lettering: **`FOR SALE`** (large, black) and under it a **short second line of your own** (3 to 12 characters, for example `CHEAP`, small). Board colours: pale (light grey 12 or white 0), post brown or grey. It stands on the lawn, so give its foot a 1-px dark outline and no shadow. **Tight**: the opaque pixels touch all four edges. |
 
 ## D. The yard toolbar (7010) and its help (7011)
 
-### 7010: `HCEGANT_7010.pix`, 512 x 46, opaque
+### 7010: `7010.pix`, 512 x 46, opaque
 
 Drawn at screen (64,339), at the bottom of the yard window. A **bevelled panel on light grey 12** (top row white 0, bottom row black 15,
 buttons raised) with **four view buttons, the mating-flight controls, a "help" button and two colony counters**. Every control below is a **hit rectangle** in the picture's
@@ -285,15 +285,15 @@ computed with the colour values above; do not put mid-tones on mid-tones).
   `AUTOMATIC` may be written `AUTO` if the word does not fit 56 px.
 - Colours: light grey 12 face; the picture buttons may use the full palette inside their boxes. The five pictures (Patch, House, Strat, Graphic) should be
   **drawn once each and reused**: the House picture and the Patch picture are the same subjects as the Map window's `Yard` and `Surface` buttons (`ui_bitmaps.md`, E); if
-  `HCEGANT_14000.pix` exists you may crop its pictures and enlarge or redraw them, otherwise draw your own (you do not have to match them pixel for pixel,
+  `14000.pix` exists you may crop its pictures and enlarge or redraw them, otherwise draw your own (you do not have to match them pixel for pixel,
   but a player must recognise the same subject).
 - The area outside the controls is flat light grey 12 with thin dividers between the groups (views, mating, the colony counters).
 
 **The tutorial's crops (17006, 17007).** The tutorial shows two of these buttons as pictures. They are **crops of your 7010**, exactly:
-`HCEGANT_17006.pix` (37 x 29) = 7010 pixels **(45,4)-(82,33)** (the House button's box (46,4)-(82,33) and one column of the panel at its left, no label), and
-`HCEGANT_17007.pix` (41 x 30) = 7010 pixels **(4,3)-(45,33)** (the Patch button's box (6,4)-(42,33) with 2 to 3 columns and one row of the panel round it, no label). Your script asserts that each button's box lies inside its window and that the windows end above the label (label ink starts at row 35). See "Files and other batches" for when to write them.
+`17006.pix` (37 x 29) = 7010 pixels **(45,4)-(82,33)** (the House button's box (46,4)-(82,33) and one column of the panel at its left, no label), and
+`17007.pix` (41 x 30) = 7010 pixels **(4,3)-(45,33)** (the Patch button's box (6,4)-(42,33) with 2 to 3 columns and one row of the panel round it, no label). Your script asserts that each button's box lies inside its window and that the windows end above the label (label ink starts at row 35). See "Files and other batches" for when to write them.
 
-### 7011: `HCEGANT_7011.pix`, 512 x 47, **masked**, 4 planes
+### 7011: `7011.pix`, 512 x 47, **masked**, 4 planes
 
 The **help overlay** of the yard window, drawn at **screen (62,296)** (that is **(-2, -43) relative to the toolbar's top-left**) while the `?` button is held.
 Its **rows 0..46 cover the yard picture's bottom edge (screen y 296..338) and rows 43..46 the toolbar's top 4 rows**, so the callouts sit **just above their buttons**, and
@@ -450,10 +450,10 @@ then it vanishes and drops food. **The legs are part of these pictures** (no lin
 
 | File | Size | Thorax centre in the picture | Pose |
 |---|---|---|---|
-| `HCEGANT_1050.pix` | 67 x 67 | (27, 25) | **just beaten**: the legs still **sprawled wide** (reach to the frame's edges, 8 legs in an even star) |
-| `HCEGANT_1051.pix` | 62 x 53 | (21, 15) | legs **bent and twitching, still wide** |
-| `HCEGANT_1052.pix` | 41 x 37 | (14, 10) | legs **curled up over and under the body** (a tangle) |
-| `HCEGANT_1053.pix` | 41 x 36 | (14, 10) | a **different curl** of the same, as 1052 (the two alternate at the end) |
+| `1050.pix` | 67 x 67 | (27, 25) | **just beaten**: the legs still **sprawled wide** (reach to the frame's edges, 8 legs in an even star) |
+| `1051.pix` | 62 x 53 | (21, 15) | legs **bent and twitching, still wide** |
+| `1052.pix` | 41 x 37 | (14, 10) | legs **curled up over and under the body** (a tangle) |
+| `1053.pix` | 41 x 36 | (14, 10) | a **different curl** of the same, as 1052 (the two alternate at the end) |
 
 The four frames may follow each other **in any order** (random), so **no frame may assume a neighbour**; they all show the **same body at the same place and size** (the body of 1007 or yours in one fixed pose, tilted towards the upper left by up to 30 degrees), so the swap reads as the legs moving.
 **Check**: the thorax centre pixel of each frame is opaque, and the body (opaque pixels of colours 11..14) is **identical in the four frames up to the legs** (script: draw the body once and the legs per frame).

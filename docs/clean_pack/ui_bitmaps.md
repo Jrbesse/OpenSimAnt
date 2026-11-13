@@ -6,7 +6,7 @@
 > What could not be traced is said where it comes up ("not found").
 
 Output folder: `remake/game/assets/clean/src/bitmaps/`. Provenance: `remake/game/assets/clean/PROVENANCE.md` (add an
-entry). **One file per bitmap, named `HCEGANT_<id>.pix`** (for example `HCEGANT_4600.pix`), plus `make_ui_bitmaps.py` (the
+entry). **One file per bitmap, named `<id>.pix`** (for example `4600.pix`), plus `make_ui_bitmaps.py` (the
 script that writes every `.pix`, so they can be regenerated; split it into modules if you like), `README.md` (the design:
 the faces, the bevel, the colour roles, how to rebuild) and, recommended, `preview.png` (a contact sheet of everything,
 and each window assembled as the game shows it: see "Previews").
@@ -135,17 +135,17 @@ right) and a symbol in the middle. They must read at 15 x 15.
 
 | File | Size | What it is / where | Constraints |
 |---|---|---|---|
-| `HCEGANT_100.pix` | 15 x 15 | **The close box**, at the left end of every window's title bar (drawn for the Edit, Map, Behavior, Caste, History, Yard, Encyclopedia and Debug windows). | A "close / dismiss" symbol of your design. (Its click behaviour is not implemented in the remake yet.) |
-| `HCEGANT_103.pix` | 15 x 15 | **The zoom box**, at the right end of the Edit window's title bar. | A "make larger / open the big map" symbol. |
-| `HCEGANT_105.pix` | 15 x 15 | **A document icon**, at the right end of the title bar of every window that has one, left of the zoom box in the Edit window (Edit, Map, Behavior, Caste, History, Yard, Encyclopedia, Debug). | A "page / window list" symbol (a sheet of paper). |
-| `HCEGANT_112.pix` | 16 x 16 | **The grow box**, drawn over the bottom-right corner of the Edit window's map area (inside the window's frame). | A resize symbol (two nested corners); it lies over the map, so give it a clear outline on all sides. |
-| `HCEGANT_109.pix` | 15 x 13 | **Scroll bar: up arrow**, at the top of the file dialog's scroll bar. | Exactly 15 wide (the bar's width) and **13 high: the same height as 111** (the game takes 109's height as the arrow height and places 111 that high at the bottom). An up-pointing arrow on a button face. |
-| `HCEGANT_111.pix` | 15 x 13 | **Scroll bar: down arrow**, at the bottom of the same bar. | 15 x 13, the mirror partner of 109. |
-| `HCEGANT_110.pix` | 15 x 13 | A third scroll-bar glyph of the same family (probably the thumb or a page marker); **not drawn by the remake** (the thumb is a plain filled rectangle; not found where the original uses it). | Same style and size as 109 / 111, a different symbol (for example a plain box). |
-| `HCEGANT_101.pix` | 15 x 15 | Alternative window-corner icon, drawn by the engine only for a window-flag no layout sets (not found in use). | A "move / re-order window" style symbol. |
-| `HCEGANT_102.pix` | 15 x 15 | Alternative zoom box (the engine draws it instead of 103 for a flag no layout sets; not found in use). | A pair of 103: same family, "zoom in" if 103 is "zoom out". |
-| `HCEGANT_104.pix`, `HCEGANT_106.pix`, `HCEGANT_107.pix`, `HCEGANT_108.pix` | 15 x 15 each | **Not drawn by the remake; not found in use.** Four more control glyphs of the same family (the originals look like a corner arrow, a down-left arrow, a ruler and a double vertical arrow). | Make four distinct, plain symbols in the same style: a corner / diagonal arrow, the opposite diagonal arrow, a ruler (measure) and a two-headed vertical arrow (resize height). They are spares: do not make them elaborate. |
-| `HCEGANT_113.pix` | 15 x 15 | **Not drawn by the remake; not found in use.** The same kind of symbol as 100 in a different state. | The close symbol as an "inactive / warning" variant (another colour of the same symbol). |
+| `100.pix` | 15 x 15 | **The close box**, at the left end of every window's title bar (drawn for the Edit, Map, Behavior, Caste, History, Yard, Encyclopedia and Debug windows). | A "close / dismiss" symbol of your design. (Its click behaviour is not implemented in the remake yet.) |
+| `103.pix` | 15 x 15 | **The zoom box**, at the right end of the Edit window's title bar. | A "make larger / open the big map" symbol. |
+| `105.pix` | 15 x 15 | **A document icon**, at the right end of the title bar of every window that has one, left of the zoom box in the Edit window (Edit, Map, Behavior, Caste, History, Yard, Encyclopedia, Debug). | A "page / window list" symbol (a sheet of paper). |
+| `112.pix` | 16 x 16 | **The grow box**, drawn over the bottom-right corner of the Edit window's map area (inside the window's frame). | A resize symbol (two nested corners); it lies over the map, so give it a clear outline on all sides. |
+| `109.pix` | 15 x 13 | **Scroll bar: up arrow**, at the top of the file dialog's scroll bar. | Exactly 15 wide (the bar's width) and **13 high: the same height as 111** (the game takes 109's height as the arrow height and places 111 that high at the bottom). An up-pointing arrow on a button face. |
+| `111.pix` | 15 x 13 | **Scroll bar: down arrow**, at the bottom of the same bar. | 15 x 13, the mirror partner of 109. |
+| `110.pix` | 15 x 13 | A third scroll-bar glyph of the same family (probably the thumb or a page marker); **not drawn by the remake** (the thumb is a plain filled rectangle; not found where the original uses it). | Same style and size as 109 / 111, a different symbol (for example a plain box). |
+| `101.pix` | 15 x 15 | Alternative window-corner icon, drawn by the engine only for a window-flag no layout sets (not found in use). | A "move / re-order window" style symbol. |
+| `102.pix` | 15 x 15 | Alternative zoom box (the engine draws it instead of 103 for a flag no layout sets; not found in use). | A pair of 103: same family, "zoom in" if 103 is "zoom out". |
+| `104.pix`, `106.pix`, `107.pix`, `108.pix` | 15 x 15 each | **Not drawn by the remake; not found in use.** Four more control glyphs of the same family (the originals look like a corner arrow, a down-left arrow, a ruler and a double vertical arrow). | Make four distinct, plain symbols in the same style: a corner / diagonal arrow, the opposite diagonal arrow, a ruler (measure) and a two-headed vertical arrow (resize height). They are spares: do not make them elaborate. |
+| `113.pix` | 15 x 15 | **Not drawn by the remake; not found in use.** The same kind of symbol as 100 in a different state. | The close symbol as an "inactive / warning" variant (another colour of the same symbol). |
 
 Palette: faces light grey 12; symbols may use blue 6, orange 2 / red 3 and white; keep black or dark grey for outlines.
 The 109 / 111 arrows are drawn on the scroll bar's light-grey track (so a face and edge that fit light grey).
@@ -158,20 +158,20 @@ opaque, 4 planes. **Every menu entry's rectangle below is "inverted"** (read bot
 
 | File | Size (window) | Entries (top to bottom) and rectangles | Constraints |
 |---|---|---|---|
-| `HCEGANT_4500.pix` | 82 x 102 (window 81 x 102: the **last column is cut off**) | **The yellow ant's menu** (any ant but the spider or a queen): six rows: `Recruit 5`, `Recruit 10`, `Release 1/2`, `Release All`, `Exchange`, `Help`. Rects: (3,3)-(78,19), (3,19)-(78,35), (3,35)-(78,51), (3,51)-(78,67), (3,67)-(78,83), (3,83)-(78,98). | Rows 16 px high. A key badge at the left of the first five entries (1, 2, 3, 4, and X for Exchange, in a small square each, each badge in its own colour: decoration, the entry's number) and a green "?" glyph with the label for `Help`. The lettering in blue 6 on light grey. |
-| `HCEGANT_4502.pix` | 82 x 54 (window 82 x 53) | **The queen's menu**: `Dig Hole`, `Start Brood`, `Help`. Rects: (3,3)-(78,18), (3,19)-(78,35), (3,35)-(78,50). | Same style as 4500; badges 1 and 2. |
-| `HCEGANT_4504.pix` | 82 x 70 | **The spider's menu**: `Chase`, `Hunt`, `Exchange`, `Help`. Rects: (3,3)-(79,19), (3,19)-(79,35), (3,35)-(79,51), (3,51)-(79,67). | Same style; badges 1, 2 and X. |
-| `HCEGANT_4510.pix` | 81 x 85 (window 83 x 87, picture at +1,+1) | **The "Ant Info" card**, shown when the information tool is clicked on an ant. It is not a menu: nothing is inverted. Three lines of text are written by the game into **text rectangles**: (3,3)-(78,15) black (the ant's kind), (3,28)-(78,50) blue 6 (what it is doing), (3,64)-(78,81) blue 6 (what it carries); all on **flat light grey 12**, text centred in font 2. | Two heading labels baked in, in blue 6, small face: **`Behavior`** centred in y 16..27 (above the second rectangle) and **`Carrying`** centred in y 52..63 (above the third); a thin separator line at y 15..16 and y 50..51 is fine. A frame round the card. |
-| `HCEGANT_6000.pix` | 85 x 109 (window 86 x 108: the **last row is cut off**) | **The scent-layer menu** (opens from the SCENT button): six rows `Off`, `Alarm`, `B-Nest`, `B-Trail`, `R-Nest`, `R-Trail` (black colony's nest scent and trail, red colony's). Rects: (3,3)-(81,20), (3,20)-(81,37), (3,37)-(81,54), (3,54)-(81,71), (3,71)-(81,88), (3,88)-(81,105). | 17-px rows. Rows 2..6 carry a **swatch** at the left, about 32 x 15 at x 4..35: the same picture as that scent's button on the Map window's toolbar (14000: alarm; black nest scent; black trail; red nest scent; red trail), drawn smaller; `Off` has no swatch. The word labels: `Off` brown 10, `Alarm` blue 6, the two `B-` rows black 15, the two `R-` rows red 3 (the game's colour code for the colonies); you may write "Black nest" etc. if it fits 40 px. |
-| `HCEGANT_5000.pix` | 97 x 143 (as its window) | **The tool palette** of the Experimental game: eight rows of 17 px, label right of a 16 x 16 icon at **x 4, y 4 + 17 k** (k = 0..7): `Ant Info`, `Barriers`, `Dig/Fill`, `Add Ants`, `Add Food`, `Drop Trails`, `Insecticide`, `Start Game`. Rects: (3, 3 + 17 k)-(93, 20 + 17 k). | **The seven icons at (4, 4 + 17 k), k = 0..6, must be pixel-identical to files 5100..5106** (group C; copy them in by script); the eighth row has no icon (centre `Start Game`). Labels in blue 6, capitals, 8 to 9 px high. |
-| `HCEGANT_5010.pix` | 129 x 24 | **"Experimental mode" switch** (shown above the Map window's Experimental button in a Quick game): one entry (3,3)-(125,20) saying `EXPERIMENTAL MODE` (a mode name in capitals). | One flat button; blue 6 lettering. |
-| `HCEGANT_5011.pix` | 110 x 53 | **A notice**: the same button in a Full game: not an entry (nothing happens when clicked). Three lines: *Experimental mode is not available in the full game.* (write your own wording, three lines, small blue face). | No hit areas; the whole picture is the card. |
-| `HCEGANT_5001.pix` | 49 x 29 (window 49 x 29) | **Option palette of Barriers**: `Walls` (0,0)-(48,14), `Rocks` (0,14)-(48,28). | The two options fill the whole picture edge to edge, 14 px each, 1-px dividers inside the rects. Black 15 lettering on light grey 12. |
-| `HCEGANT_5002.pix` | 49 x 29 (window 50 x 30) | **Dig / Fill**: `Dig` (0,0)-(48,14), `Fill` (0,14)-(48,28). | As 5001; the window's extra right / bottom pixel is flat light grey. |
-| `HCEGANT_5003.pix` | 49 x 29 (window 50 x 30) | **Add Ants**: `Black` (0,0)-(48,14), `Red` (0,14)-(48,28) (which colony's ants). | As 5001. Both words in black 15 (a red word on the inverted red / grey would be too weak). |
-| `HCEGANT_5004.pix` | 49 x 29 (window 49 x 29) | **Add Food**: `1 piece` (0,0)-(48,14), `20 pieces` (0,14)-(48,28). | As 5001; the longest word must fit 44 px. |
-| `HCEGANT_5005.pix` | 64 x 71 | **Drop Trails**: five options 14 px each: `Black nest`, `Black trail`, `Red nest`, `Red trail`, `Alarm`: (0,0)-(63,14), (0,14)-(63,28), (0,28)-(63,42), (0,42)-(63,56), (0,56)-(63,70). | As 5001; widest label 59 px. |
-| `HCEGANT_5006.pix` | 43 x 29 (window 44 x 30) | **Insecticide**: `Spray` (0,0)-(42,14), `Stream` (0,14)-(42,28). | As 5002. |
+| `4500.pix` | 82 x 102 (window 81 x 102: the **last column is cut off**) | **The yellow ant's menu** (any ant but the spider or a queen): six rows: `Recruit 5`, `Recruit 10`, `Release 1/2`, `Release All`, `Exchange`, `Help`. Rects: (3,3)-(78,19), (3,19)-(78,35), (3,35)-(78,51), (3,51)-(78,67), (3,67)-(78,83), (3,83)-(78,98). | Rows 16 px high. A key badge at the left of the first five entries (1, 2, 3, 4, and X for Exchange, in a small square each, each badge in its own colour: decoration, the entry's number) and a green "?" glyph with the label for `Help`. The lettering in blue 6 on light grey. |
+| `4502.pix` | 82 x 54 (window 82 x 53) | **The queen's menu**: `Dig Hole`, `Start Brood`, `Help`. Rects: (3,3)-(78,18), (3,19)-(78,35), (3,35)-(78,50). | Same style as 4500; badges 1 and 2. |
+| `4504.pix` | 82 x 70 | **The spider's menu**: `Chase`, `Hunt`, `Exchange`, `Help`. Rects: (3,3)-(79,19), (3,19)-(79,35), (3,35)-(79,51), (3,51)-(79,67). | Same style; badges 1, 2 and X. |
+| `4510.pix` | 81 x 85 (window 83 x 87, picture at +1,+1) | **The "Ant Info" card**, shown when the information tool is clicked on an ant. It is not a menu: nothing is inverted. Three lines of text are written by the game into **text rectangles**: (3,3)-(78,15) black (the ant's kind), (3,28)-(78,50) blue 6 (what it is doing), (3,64)-(78,81) blue 6 (what it carries); all on **flat light grey 12**, text centred in font 2. | Two heading labels baked in, in blue 6, small face: **`Behavior`** centred in y 16..27 (above the second rectangle) and **`Carrying`** centred in y 52..63 (above the third); a thin separator line at y 15..16 and y 50..51 is fine. A frame round the card. |
+| `6000.pix` | 85 x 109 (window 86 x 108: the **last row is cut off**) | **The scent-layer menu** (opens from the SCENT button): six rows `Off`, `Alarm`, `B-Nest`, `B-Trail`, `R-Nest`, `R-Trail` (black colony's nest scent and trail, red colony's). Rects: (3,3)-(81,20), (3,20)-(81,37), (3,37)-(81,54), (3,54)-(81,71), (3,71)-(81,88), (3,88)-(81,105). | 17-px rows. Rows 2..6 carry a **swatch** at the left, about 32 x 15 at x 4..35: the same picture as that scent's button on the Map window's toolbar (14000: alarm; black nest scent; black trail; red nest scent; red trail), drawn smaller; `Off` has no swatch. The word labels: `Off` brown 10, `Alarm` blue 6, the two `B-` rows black 15, the two `R-` rows red 3 (the game's colour code for the colonies); you may write "Black nest" etc. if it fits 40 px. |
+| `5000.pix` | 97 x 143 (as its window) | **The tool palette** of the Experimental game: eight rows of 17 px, label right of a 16 x 16 icon at **x 4, y 4 + 17 k** (k = 0..7): `Ant Info`, `Barriers`, `Dig/Fill`, `Add Ants`, `Add Food`, `Drop Trails`, `Insecticide`, `Start Game`. Rects: (3, 3 + 17 k)-(93, 20 + 17 k). | **The seven icons at (4, 4 + 17 k), k = 0..6, must be pixel-identical to files 5100..5106** (group C; copy them in by script); the eighth row has no icon (centre `Start Game`). Labels in blue 6, capitals, 8 to 9 px high. |
+| `5010.pix` | 129 x 24 | **"Experimental mode" switch** (shown above the Map window's Experimental button in a Quick game): one entry (3,3)-(125,20) saying `EXPERIMENTAL MODE` (a mode name in capitals). | One flat button; blue 6 lettering. |
+| `5011.pix` | 110 x 53 | **A notice**: the same button in a Full game: not an entry (nothing happens when clicked). Three lines: *Experimental mode is not available in the full game.* (write your own wording, three lines, small blue face). | No hit areas; the whole picture is the card. |
+| `5001.pix` | 49 x 29 (window 49 x 29) | **Option palette of Barriers**: `Walls` (0,0)-(48,14), `Rocks` (0,14)-(48,28). | The two options fill the whole picture edge to edge, 14 px each, 1-px dividers inside the rects. Black 15 lettering on light grey 12. |
+| `5002.pix` | 49 x 29 (window 50 x 30) | **Dig / Fill**: `Dig` (0,0)-(48,14), `Fill` (0,14)-(48,28). | As 5001; the window's extra right / bottom pixel is flat light grey. |
+| `5003.pix` | 49 x 29 (window 50 x 30) | **Add Ants**: `Black` (0,0)-(48,14), `Red` (0,14)-(48,28) (which colony's ants). | As 5001. Both words in black 15 (a red word on the inverted red / grey would be too weak). |
+| `5004.pix` | 49 x 29 (window 49 x 29) | **Add Food**: `1 piece` (0,0)-(48,14), `20 pieces` (0,14)-(48,28). | As 5001; the longest word must fit 44 px. |
+| `5005.pix` | 64 x 71 | **Drop Trails**: five options 14 px each: `Black nest`, `Black trail`, `Red nest`, `Red trail`, `Alarm`: (0,0)-(63,14), (0,14)-(63,28), (0,28)-(63,42), (0,42)-(63,56), (0,56)-(63,70). | As 5001; widest label 59 px. |
+| `5006.pix` | 43 x 29 (window 44 x 30) | **Insecticide**: `Spray` (0,0)-(42,14), `Stream` (0,14)-(42,28). | As 5002. |
 
 Whenever the same option appears in two places they are the same word: the five trail options (5005) and the scent menu's
 (6000) name the same five maps in the same order of colours.
@@ -186,9 +186,9 @@ wired up later: they must be correct for this game's controls. All opaque, **4 p
 
 | File | Size | Page title and content |
 |---|---|---|
-| `HCEGANT_4501.pix` | 185 x 235 | **yellow ant help**: *Movement* (click the ground to walk there; click the yellow ant to re-centre the view on it; double-click inside a nest to dig), *Moving things* (double-click a pebble or a piece of food to pick it up, double-click again to drop it), then one short sentence each for the menu's commands *Recruit* (calls ants to follow you), *Release* (lets them go) and *Exchange* (swap bodies with another ant) |
-| `HCEGANT_4503.pix` | 185 x 235 | **new queen help**: *Movement* (as above), *Dig Hole* (first walk to a clear area; try other places until the hole works), *Start Brood* (starts egg laying; you become the first ant to hatch) |
-| `HCEGANT_4505.pix` | 184 x 235 | **spider help**: *Movement* (click to walk, double-click to run, click the spider to re-centre), *Chase* (pick it, then click an ant to eat it), *Hunt* (the spider looks for ants and attacks them on its own), *Exchange* (switch back to an ant) |
+| `4501.pix` | 185 x 235 | **yellow ant help**: *Movement* (click the ground to walk there; click the yellow ant to re-centre the view on it; double-click inside a nest to dig), *Moving things* (double-click a pebble or a piece of food to pick it up, double-click again to drop it), then one short sentence each for the menu's commands *Recruit* (calls ants to follow you), *Release* (lets them go) and *Exchange* (swap bodies with another ant) |
+| `4503.pix` | 185 x 235 | **new queen help**: *Movement* (as above), *Dig Hole* (first walk to a clear area; try other places until the hole works), *Start Brood* (starts egg laying; you become the first ant to hatch) |
+| `4505.pix` | 184 x 235 | **spider help**: *Movement* (click to walk, double-click to run, click the spider to re-centre), *Chase* (pick it, then click an ant to eat it), *Hunt* (the spider looks for ants and attacks them on its own), *Exchange* (switch back to an ant) |
 
 Layout and style (all three the same): a **medium grey 13 1-px outline** round the whole picture, then 1 px of white, then a
 **black 15 1-px frame** (so the frame's top-left corner is at (2,2)); inside, white 0 paper with black 15 text in the
@@ -209,20 +209,20 @@ edge must not need a bevel).
 
 | File | Tool | Picture (your plain version of it) |
 |---|---|---|
-| `HCEGANT_5100.pix` | Ant Info: click an ant to read about it | a magnifying glass |
-| `HCEGANT_5101.pix` | Barriers: lay walls or rocks | a rock or a stone block |
-| `HCEGANT_5102.pix` | Dig / Fill: dig or fill soil | a spade |
-| `HCEGANT_5103.pix` | Add Ants | a single ant seen from above (black body, legs) |
-| `HCEGANT_5104.pix` | Add Food | a green food morsel or two (green 8 / dark green 9) |
-| `HCEGANT_5105.pix` | Drop Trails: lay a pheromone trail | a dropper or pipette over a short trail line (red or pink drops) |
-| `HCEGANT_5106.pix` | Insecticide: spray the pest | a spray can with a warning mark (a skull or a cross) |
-| `HCEGANT_5107.pix` | the "tools" icon shown when no tool is active (not the Experimental game) | two tools crossed (the spade and the dropper), so it reads as "the toolbox" |
+| `5100.pix` | Ant Info: click an ant to read about it | a magnifying glass |
+| `5101.pix` | Barriers: lay walls or rocks | a rock or a stone block |
+| `5102.pix` | Dig / Fill: dig or fill soil | a spade |
+| `5103.pix` | Add Ants | a single ant seen from above (black body, legs) |
+| `5104.pix` | Add Food | a green food morsel or two (green 8 / dark green 9) |
+| `5105.pix` | Drop Trails: lay a pheromone trail | a dropper or pipette over a short trail line (red or pink drops) |
+| `5106.pix` | Insecticide: spray the pest | a spray can with a warning mark (a skull or a cross) |
+| `5107.pix` | the "tools" icon shown when no tool is active (not the Experimental game) | two tools crossed (the spade and the dropper), so it reads as "the toolbox" |
 
 Light from the top-left; black or dark grey outlines; at most 8 colours each.
 
 ## D. The Edit window's tool strip (15000) and its help (15001)
 
-### 15000: `HCEGANT_15000.pix`, 48 x 252, opaque, 4 planes
+### 15000: `15000.pix`, 48 x 252, opaque, 4 planes
 
 The vertical strip of buttons at the left of the Edit window (the close-up map is on its right). It is a column of
 pictorial buttons, a menu title, a pause button, and three health bars with their labels. **Rectangles (the game's hit
@@ -261,7 +261,7 @@ light grey with no frame (the window's own light grey continues below).
 **Pictures on the buttons** (views, go-to, queens): 19 x 14 to 41 x 19 px, light from the top-left, a bevel round each (1-px
 highlight and shadow inside the rect); they must still read when inverted.
 
-### 15001: `HCEGANT_15001.pix`, 174 x 238, **masked**, 4 planes
+### 15001: `15001.pix`, 174 x 238, **masked**, 4 planes
 
 The **help overlay** of the Edit window, drawn at **(+10, -1) relative to 15000's top-left** while "?" is held. Colours
 only **0, 6, 14**; everything else transparent. It is a column of **callouts** (a white panel 0 with 1-px dark-grey 14 frame
@@ -295,7 +295,7 @@ about 135 px of width.
 
 ## E. The Map window's toolbar (14000), its help (14001) and the population popup (14002)
 
-### 14000: `HCEGANT_14000.pix`, 512 x 46, opaque, 4 planes
+### 14000: `14000.pix`, 512 x 46, opaque, 4 planes
 
 The strip of buttons under the Map window's overview map. **Rectangles** (hit areas / draw areas), picture coordinates:
 
@@ -344,7 +344,7 @@ or two of the panel's grey around the button): Yard (2,3)-(43,33); Behavior Cont
 (288,24)-(313,44); `?` (366,24)-(391,44); Center on Yellow face (291,5)-(312,21). Leave at least one pixel of grey between
 neighbouring buttons' crop windows.
 
-### 14001: `HCEGANT_14001.pix`, 512 x 133, **masked**, 4 planes
+### 14001: `14001.pix`, 512 x 133, **masked**, 4 planes
 
 The **help overlay** of the Map window, drawn at **(0, -89) relative to 14000's top-left** (so its rows 89..132 lie on the
 toolbar and rows 0..88 on the map above it). Colours only **0, 6, 14**. Callouts (white panel, 14 frame and lettering,
@@ -382,7 +382,7 @@ the same):
 
 No panel may cover a button in rows 89..132 (the gauge labels excepted); panels do not overlap each other.
 
-### 14002: `HCEGANT_14002.pix`, 181 x 142, opaque, 4 planes
+### 14002: `14002.pix`, 181 x 142, opaque, 4 planes
 
 The **population popup** (opens while the report area is held): a list of the six castes with the
 numbers and bars **drawn by the game** on the right, in the **text / gauge area (88,4)-(177,139)** (flat light grey 12:
@@ -414,10 +414,10 @@ number; **bars** at the right show the three weights.
 
 | File | Size | What |
 |---|---|---|
-| `HCEGANT_4600.pix` | 210 x 170, opaque | Behavior Control's panel. Corners: apex `Forage`, bottom-left `Dig`, bottom-right `Nurse`. |
-| `HCEGANT_4620.pix` | 210 x 170, opaque | Caste Control's panel. Corners: apex `Breeders`, bottom-left `Workers`, bottom-right `Soldiers`. |
-| `HCEGANT_4601.pix` | 168 x 168, **masked** | Behavior Control's help overlay, drawn at **(+40, +2) relative to 4600's top-left**. |
-| `HCEGANT_4621.pix` | 175 x 175, **masked** | Caste Control's help overlay, drawn at **(+35, -1) relative to 4620's top-left**. |
+| `4600.pix` | 210 x 170, opaque | Behavior Control's panel. Corners: apex `Forage`, bottom-left `Dig`, bottom-right `Nurse`. |
+| `4620.pix` | 210 x 170, opaque | Caste Control's panel. Corners: apex `Breeders`, bottom-left `Workers`, bottom-right `Soldiers`. |
+| `4601.pix` | 168 x 168, **masked** | Behavior Control's help overlay, drawn at **(+40, +2) relative to 4600's top-left**. |
+| `4621.pix` | 175 x 175, **masked** | Caste Control's help overlay, drawn at **(+35, -1) relative to 4620's top-left**. |
 
 ### The panels 4600 and 4620
 
@@ -485,7 +485,7 @@ nor the bar well beyond what is said. A panel needs at most about 130 px of widt
 
 ## G. The History window (16000, 16001)
 
-### 16000: `HCEGANT_16000.pix`, 320 x 179, opaque, 4 planes
+### 16000: `16000.pix`, 320 x 179, opaque, 4 planes
 
 The **History** window: a line **graph** of up to four series (colony populations, food, health, deaths over the
 last 64 samples), and under it a grid of ten **toggle buttons**. The game draws the graph lines and number labels
@@ -512,7 +512,7 @@ on the right may be coloured green 9, brown 10 etc., any dark colour; they must 
 (`Pop`, `Food`, `Health` and four short words of your own, e.g. `S.Food`, `Starved`, `Eaten`, `Killed`). A thin divider
 at x about 281 between the six colony buttons and the four others is fine. Flat light grey 12 elsewhere.
 
-### 16001: `HCEGANT_16001.pix`, 247 x 144, **masked**, 4 planes
+### 16001: `16001.pix`, 247 x 144, **masked**, 4 planes
 
 The help overlay, drawn at **(+45, +20) relative to 16000's top-left**, colours **0, 6, 14** only, callout style of group D.
 Callouts:
@@ -541,7 +541,7 @@ reach the button rows (y >= 118) and every leader tip must obey the rule. The le
 
 ## H. The Status window (13000) and the Game Over window (16100)
 
-### 13000: `HCEGANT_13000.pix`, 312 x 180, opaque, 4 planes
+### 13000: `13000.pix`, 312 x 180, opaque, 4 planes
 
 The **Efficiency Score / Status** window: how well the colony is doing. A title, two columns of four figures, and a panel
 at the bottom with two lines of text. The game writes the numbers and lines itself.
@@ -565,7 +565,7 @@ containing the two message lines.
 The rows of labels sit level with the rows of value rectangles (a label's lettering centred on its row). Everything else
 flat light grey 12; the panel frame and the title must be drawn **outside** the text rectangles. Not inverted anywhere.
 
-### 16100: `HCEGANT_16100.pix`, 321 x 201, opaque, 4 planes
+### 16100: `16100.pix`, 321 x 201, opaque, 4 planes
 
 The **Game Over** window shown when the game ends: a big title, a framed panel with two captions: the final score and the
 player's rating, and three lines the game writes. (Only 320 x 200 is shown: the last column and row are cut off.)
@@ -587,7 +587,7 @@ lie above y = 90 and above y = 152 so they do not touch the text rectangles.
 
 ## I. The win screen (16200) and its eyes (16210..16212)
 
-### 16200: `HCEGANT_16200.pix`, 254 x 199, opaque, 4 planes
+### 16200: `16200.pix`, 254 x 199, opaque, 4 planes
 
 The picture of the **ending of the Full Game** (shown in a bevelled frame for about 10 s while the victory tunes play):
 the yard's three pests, **a person, a cat and a dog**, startled and fleeing from the ants. It is a comic illustration
@@ -605,7 +605,7 @@ outline and cover them). The positions put the person on the left of the picture
 dog at the lower right; compose the rest (bodies, limbs, the ground) yourself so the picture reads as three pests in
 panic. Do not copy a known cartoon, comic or game; the creatures are yours.
 
-### 16210, 16211, 16212: `HCEGANT_16210.pix`, `HCEGANT_16211.pix`, `HCEGANT_16212.pix`, 13 x 13 each, **masked**, 4 planes
+### 16210, 16211, 16212: `16210.pix`, `16211.pix`, `16212.pix`, 13 x 13 each, **masked**, 4 planes
 
 **One eye, three frames.** The game shows frame 0, 1, 2, 0, 1, 2 ... (one change every 8/3 of a game tick, about 7 a
 second) on all six eyes at once while the win screen runs (about 10 s), so the eyes "come alive". Each frame is a round
@@ -624,20 +624,20 @@ unless it is already a framed button. Sizes are exact.
 
 | File | Size | Shows | Used in step about |
 |---|---|---|---|
-| `HCEGANT_17000.pix` | 22 x 16 | the **player's ant**: a yellow ant seen from above on tan ground (a sandy tile) | "you are the yellow ant" |
-| `HCEGANT_17001.pix` | 53 x 16 | the **surface strip at the top of the nest**: sky (cyan 7) over a grass band, a thin brown 10 soil line at the bottom: the place to dig to reach the surface | "dig a tunnel up through the blue" |
-| `HCEGANT_17002.pix` | 19 x 18 | **food**: two green morsels (8 / 9) on tan ground | "get to the food" |
-| `HCEGANT_17003.pix` | 53 x 48 | **the nest entrance**: a round dark hole in soil with a mound or ring around it, on ground | "get back into your nest" |
-| `HCEGANT_17004.pix` | 20 x 18 | **a small rock**: a grey stone (13 with 12 highlight top-left and 14 shadow) on tan ground | "pick up the rock" |
-| `HCEGANT_17005.pix` | 41 x 30 | **the Map window's `Yard` button** (view picture and bevel, no label): **a crop of your 14000, (2,3)-(43,33)** (the button's rect (5,5)-(42,31) plus its bevel) | "click the YARD icon" |
-| `HCEGANT_17006.pix` | 37 x 29 | the yard window's **`House`** toolbar button: a picture of the house from the front, its lawn, in a bevelled button (labels are not part of it) | "click HOUSE" |
-| `HCEGANT_17007.pix` | 41 x 30 | the yard window's **`Patch`** toolbar button: the ground view with food and ants as dots, in a bevelled button | "click PATCH" |
-| `HCEGANT_17008.pix` | 25 x 20 | the **Behavior Control button** (the `B` triangle) of the Map toolbar: **a crop of your 14000, (262,24)-(287,44)** (its rect (264,25)-(287,43) plus bevel) | "click the B triangle" |
-| `HCEGANT_17009.pix` | 25 x 20 | the **`?` help button** of the Map toolbar: **a crop of 14000, (366,24)-(391,44)** | "hold the ? button" |
-| `HCEGANT_17010.pix` | 75 x 21 | **the population gauges**: a pair of bars, `P` above `H`, black 15 on white 0 (a long white bar, a short black fill), as the report panel's gauges in 14000 (see E); 75 x 21 | "look at the bars at the lower right" |
-| `HCEGANT_17011.pix` | 25 x 20 | the **Caste Control button** (the `C` triangle): **a crop of 14000, (288,24)-(313,44)** | "click the C triangle" |
-| `HCEGANT_17012.pix` | 21 x 16 | the **Center-on-Yellow button's face** (a yellow ant with a marker): **a crop of 14000, (291,5)-(312,21)**, no bevel | "click the yellow ant icon" |
-| `HCEGANT_17013.pix` | 84 x 65 | a **vertical health gauge** (the same idea as the Edit window's yellow bar, bigger): a framed tall bar about 18 px wide filled yellow 1 about 60 % from the bottom, a **horizontal threshold line** across it a little lower (black or brown 10), a small tab with a yellow **`Y`** under the bar, and at the right **two short labels of your own wording** (label face, black, each with a leader line): one naming the ant's health (it points at the top of the fill), one naming the level below which it eats (it points at the threshold line) | "it eats only when health is below the line" |
+| `17000.pix` | 22 x 16 | the **player's ant**: a yellow ant seen from above on tan ground (a sandy tile) | "you are the yellow ant" |
+| `17001.pix` | 53 x 16 | the **surface strip at the top of the nest**: sky (cyan 7) over a grass band, a thin brown 10 soil line at the bottom: the place to dig to reach the surface | "dig a tunnel up through the blue" |
+| `17002.pix` | 19 x 18 | **food**: two green morsels (8 / 9) on tan ground | "get to the food" |
+| `17003.pix` | 53 x 48 | **the nest entrance**: a round dark hole in soil with a mound or ring around it, on ground | "get back into your nest" |
+| `17004.pix` | 20 x 18 | **a small rock**: a grey stone (13 with 12 highlight top-left and 14 shadow) on tan ground | "pick up the rock" |
+| `17005.pix` | 41 x 30 | **the Map window's `Yard` button** (view picture and bevel, no label): **a crop of your 14000, (2,3)-(43,33)** (the button's rect (5,5)-(42,31) plus its bevel) | "click the YARD icon" |
+| `17006.pix` | 37 x 29 | the yard window's **`House`** toolbar button: a picture of the house from the front, its lawn, in a bevelled button (labels are not part of it) | "click HOUSE" |
+| `17007.pix` | 41 x 30 | the yard window's **`Patch`** toolbar button: the ground view with food and ants as dots, in a bevelled button | "click PATCH" |
+| `17008.pix` | 25 x 20 | the **Behavior Control button** (the `B` triangle) of the Map toolbar: **a crop of your 14000, (262,24)-(287,44)** (its rect (264,25)-(287,43) plus bevel) | "click the B triangle" |
+| `17009.pix` | 25 x 20 | the **`?` help button** of the Map toolbar: **a crop of 14000, (366,24)-(391,44)** | "hold the ? button" |
+| `17010.pix` | 75 x 21 | **the population gauges**: a pair of bars, `P` above `H`, black 15 on white 0 (a long white bar, a short black fill), as the report panel's gauges in 14000 (see E); 75 x 21 | "look at the bars at the lower right" |
+| `17011.pix` | 25 x 20 | the **Caste Control button** (the `C` triangle): **a crop of 14000, (288,24)-(313,44)** | "click the C triangle" |
+| `17012.pix` | 21 x 16 | the **Center-on-Yellow button's face** (a yellow ant with a marker): **a crop of 14000, (291,5)-(312,21)**, no bevel | "click the yellow ant icon" |
+| `17013.pix` | 84 x 65 | a **vertical health gauge** (the same idea as the Edit window's yellow bar, bigger): a framed tall bar about 18 px wide filled yellow 1 about 60 % from the bottom, a **horizontal threshold line** across it a little lower (black or brown 10), a small tab with a yellow **`Y`** under the bar, and at the right **two short labels of your own wording** (label face, black, each with a leader line): one naming the ant's health (it points at the top of the fill), one naming the level below which it eats (it points at the threshold line) | "it eats only when health is below the line" |
 
 Constraints:
 
@@ -657,10 +657,10 @@ Constraints:
 window**'s card (drawn over the card's last 20 rows). They are **pictures of buttons** (the click areas are in the card
 data; the remake draws the picture as it is):
 
-- `HCEGANT_21004.pix`: three buttons `BACK` (go to the parent card), `PREVIOUS` (the card seen before), `TOP` (the first
+- `21004.pix`: three buttons `BACK` (go to the parent card), `PREVIOUS` (the card seen before), `TOP` (the first
   card). Hit rectangles (the visible boxes must cover them): **BACK (17,4)-(81,17)**, **PREVIOUS (128,4)-(192,17)**,
   **TOP (239,4)-(303,17)**.
-- `HCEGANT_21005.pix`: only `PREVIOUS`, at **(128,4)-(192,17)**; nothing else drawn (the strip's background only).
+- `21005.pix`: only `PREVIOUS`, at **(128,4)-(192,17)**; nothing else drawn (the strip's background only).
 
 Both: the background of the strip is a **50 % checkerboard** of black and white (`f` and `0` alternating by (x + y)
 parity), which reads as mid grey; each button is a **white box with a 1-px black outline and a 1-px black shadow at
@@ -679,8 +679,8 @@ PROJECT`), in your display lettering, 3 to 5 colours in it. Both are **opaque, 4
 
 | File | Size |
 |---|---|
-| `HCEGANT_28000.pix` | 263 x 204 |
-| `HCEGANT_28003.pix` | 257 x 195 |
+| `28000.pix` | 263 x 204 |
+| `28003.pix` | 257 x 195 |
 
 The two are the same card redrawn at its own size (not scaled from each other: the pixels are drawn for each size).
 
