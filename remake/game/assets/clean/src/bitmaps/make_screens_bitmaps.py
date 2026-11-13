@@ -135,9 +135,11 @@ def run_checks(pics, canvas, info):
     assert wh >= 22, wh
     assert not (wy <= 172 <= wy + wh), 'the wordmark touches the seam'
     reg = ca[max(0, wy - 8):wy + wh + 8, max(0, wx - 8):wx + ww + 8]
-    assert len(colours(reg) & {0, 1, 2, 15}) >= 3
-    others = colours(reg) - {0, 1, 2}
-    assert all(contrast(1, c) >= 3.0 for c in others), [(c, contrast(1, c)) for c in others]
+    c = colours(reg)
+    assert 1 in c, 'the name is missing'
+    # plain-text wordmark: one flat colour, no outline / shade / highlight (the #36 mitigation)
+    assert not (c & {0, 2, 14, 15}), c
+    assert all(contrast(1, k) >= 3.0 for k in c - {1}), [(k, contrast(1, k)) for k in c - {1}]
     # the small line: white on dark
     tag = ca[104:124, 28:300]
     assert all(contrast(0, c) >= 3.0 for c in colours(tag) - {0}), colours(tag)
