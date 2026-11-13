@@ -474,9 +474,9 @@ class Cv:
 
 # ----------------------------------------------------------------------------------------------------------- io
 def write_pix(ident, cv, desc):
-    path = os.path.join(HERE, 'SHARED_%d.pix' % ident)
+    path = os.path.join(HERE, '%d.pix' % ident)
     with open(path, 'w', newline='\n') as f:
-        f.write('# SHARED_%d: %s\n# %d x %d\n' % (ident, desc, cv.w, cv.h))
+        f.write('# %d: %s\n# %d x %d\n' % (ident, desc, cv.w, cv.h))
         for row in cv.a:
             f.write(''.join('f' if v else '0' for v in row) + '\n')
     return path
@@ -484,7 +484,7 @@ def write_pix(ident, cv, desc):
 
 def read_pix(ident):
     rows = []
-    with open(os.path.join(HERE, 'SHARED_%d.pix' % ident)) as f:
+    with open(os.path.join(HERE, '%d.pix' % ident)) as f:
         for ln in f:
             ln = ln.rstrip('\n')
             if ln.startswith('#') or not ln:

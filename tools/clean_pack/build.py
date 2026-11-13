@@ -21,11 +21,12 @@ Source formats so far:
   follows the colours; MapArt reads it).
 - .pix: pixel art as text. One row per line, one character per pixel: 0-9 a-f = palette index (the Mac 16-colour
   palette, 0 white .. 15 black), '.' = transparent. Lines starting with '#' are comments.
-- bitmaps/<ARCHIVE>_<id>.pix (docs/clean_pack/ui_bitmaps.md and later bitmap specs): one .pix per HCEGANT / SHARED type-2
-  bitmap, e.g. HCEGANT_4600.pix, exactly the measured size (bitmaps.json). A bitmap measured "masked" must contain '.'
-  pixels (they become the mask plane: the game draws mode-3 bitmaps through it), any other must contain none; a 1-plane
-  bitmap (21004, 21005) allows only 0 and f. -> ARCHIVE/2/<id>.bin. --roundtrip=<zip> checks the encoder against the
-  originals of a pack.
+- bitmaps/<id>.pix (docs/clean_pack/ui_bitmaps.md and later bitmap specs): one .pix per HCEGANT / SHARED type-2
+  bitmap, named by the bitmap's id alone (the ids are unique across the two archives; each id's archive is the
+  measurements' archive, bitmaps.json), e.g. 4600.pix, exactly the measured size. A bitmap measured "masked" must
+  contain '.' pixels (they become the mask plane: the game draws mode-3 bitmaps through it), any other must contain
+  none; a 1-plane bitmap (21004, 21005) allows only 0 and f. -> ARCHIVE/2/<id>.bin. --roundtrip=<zip> checks the
+  encoder against the originals of a pack.
 - sprites/surface.pix, nest.pix (256 x 128: sprite n at column n % 16, row n // 16, 16 x 16 each; 0-9 a-f = the
   yellow ant's colour, '.' = transparent) with surface_recolour.pix, nest_recolour.pix (same size: 1 = recoloured for
   the black and red ants, 0 or '.' = not).
@@ -240,17 +241,19 @@ def check_bitmap_roundtrip(zip_path):
 
 
 def cat_bitmaps(errors):
-    """src/bitmaps/<ARCHIVE>_<id>.pix -> ARCHIVE/2/<id>.bin, sized as measured. A bitmap the game draws masked (the
-    measurements' "masked") must have at least one '.' (transparent) pixel and any other must have none; a 1-plane
-    bitmap is black ink on white paper, so only 0 (white) and f (black) are allowed in it."""
+    """src/bitmaps/<id>.pix -> ARCHIVE/2/<id>.bin (ARCHIVE the measurements' archive for the id), sized as measured.
+    A bitmap the game draws masked (the measurements' "masked") must have at least one '.' (transparent) pixel and any
+    other must have none; a 1-plane bitmap is black ink on white paper, so only 0 (white) and f (black) are allowed in
+    it."""
     want = {(b['archive'], b['id']): b for b in data('bitmaps')}
+    arch_by_id = {b['id']: b['archive'] for b in data('bitmaps')}
     d = os.path.join(SRC, 'bitmaps')
     for name in sorted(os.listdir(d)) if os.path.isdir(d) else []:
-        if not name.endswith('.pix'):
+        if not name.endswith('.pix') or not name[:-4].isdigit():
             continue
-        arch, ident = name[:-4].split('_')
-        key = (arch, int(ident))
-        if key not in want:
+        ident = int(name[:-4])
+        key = (arch_by_id.get(ident), ident)
+        if key[0] is None or key not in want:
             errors.append('bitmaps/%s: no such bitmap in the game' % name)
             continue
         w, h, rows = read_pix(os.path.join(d, name))

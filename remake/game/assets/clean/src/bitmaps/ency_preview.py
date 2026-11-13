@@ -115,7 +115,7 @@ if __name__ == '__main__':
     elif cmd == 'cards':
         cards_sheet(sys.argv[2], 1)
     elif cmd == 'all':
-        ids = [i for i in all_ids() if os.path.exists(os.path.join(HERE, 'SHARED_%d.pix' % i))]
+        ids = [i for i in all_ids() if os.path.exists(os.path.join(HERE, '%d.pix' % i))]
         import make_ency_bitmaps as M
         built, _ = M.build_all()
         boxes = {i: [b['rect'] for b in cv.boxes.values()] + ([cv.extra['button']['rect']] if 'button' in cv.extra else [])
