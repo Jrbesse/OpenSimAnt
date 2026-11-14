@@ -1,45 +1,82 @@
 # Nightly sessions
 
-Two automated sessions run every night and one report goes out in the morning. They exist to keep the tracker
-moving and to hand the next session a clean start: build, fix, test, review, commit, and write down what the next
-session picks up.
+Four automated sessions run every night and one report goes out in the morning. They exist to keep the
+trackers moving and to hand the next session a clean start: pick, build, fix, test, review, open the
+pull request, and leave nothing that cannot be seen on GitHub.
 
-Each night ends as a **pull request** against `master`. The PR is where review happens: an automated reviewer posts
+The sessions are the pipeline's hands, not its brain: the **picker** chooses the work, the **reviewer**
+judges it, the **fixer** answers findings, and the **merge job** decides when a PR lands. The pipeline
+runs across every repo enabled in its registry on the Hermes box, one pick at a time; this file is the
+protocol for this repo's share of it.
+
+Every pick ends as a **pull request** against `master`. The PR is where review happens: an automated reviewer posts
 a review with inline comments, and a fixer acts on those comments and on the owner's. **The merge is the machine's**,
 on the evidence listed in "Who merges" below. The owner's veto is the `do-not-merge` label; he can still merge by
 hand with comments open, but nothing waits for him to press anything.
 
 | When (Central) | What | Where it lands |
 |---|---|---|
-| 01:00 | Nightly session 1 | commits on `nightly/<date>`, then the PR is opened |
-| 04:00 | Nightly session 2 | commits on the same branch, PR body rewritten |
-| every 20 min, 05:00-22:00 | Review + fixer | a review posted on the PR; fixes pushed to its branch |
-| 07:00 | Morning report | the owner's Discord channel: open PRs, CI, verdicts |
+| 01:00 | Nightly session 1 | its pick's branch and PR |
+| 02:00 | Nightly session 2 | its pick's branch and PR |
+| 03:00 | Nightly session 3 | its pick's branch and PR |
+| 04:00 | Nightly session 4 | its pick's branch and PR |
+| every 20 min, 05:00-22:00 | Reviewer | a review posted on the PR |
+| every 2 hours | Reviewer triage (all repos) + PR fixer | priority labels on issues; fixes pushed to the PR branch |
+| every 20 min (`:08`/`:28`/`:48`) | Auto-merge job | the merge, when all its conditions hold |
+| 07:00 | Morning report | the owner's Discord channel: PRs, CI, queue |
 
-Central time is the owner's clock (`America/Chicago`, UTC-6 in winter). The jobs are Hermes cron jobs; the Cron runs
+Central time is the owner's clock (`America/Chicago`, UTC-6 in winter). The jobs are Hermes cron jobs; the cron runs
 on the Hermes host, whose clock is UTC.
+
+## The pick
+
+The sessions do not choose; the picker does. Before each session, `nightly_pick.py` reads the registry of
+enabled repos, lists every open issue in them, and ranks:
+
+- **priority label first**: `priority: P0` > `P1` > `P2` > `P3` > none. The labels are set by the
+  reviewer's triage job, which walks the trackers on a clock.
+- within a level, **oldest issue first** (so nothing starves), then lowest number.
+- issues labelled `owner` (the owner's judgement), `blocked` (waiting on something else), `in-progress`
+  (a session already has a branch open) or `question` are never picked.
+
+**One in-flight item per repo.** A repo that has an `in-progress` issue or an open `nightly/*` PR
+contributes nothing until that work merges: two sessions in one repo share a working tree, and the second
+would build on an unmerged foundation. The session that takes a pick labels the issue `in-progress`
+before writing code, so the next session's picker skips it; the merge job clears the label when the PR
+closes its issue.
+
+The picker hands the session its pick -- workdir, repo, issue number and body, that repo's gate commands,
+the docs to read first -- plus a short list of what it is *not* doing tonight. If every enabled repo is
+mid-flight, or every tracker is empty, the session says so in one line and stops instead of inventing
+work.
 
 ## Branch discipline
 
-- Work goes on **`nightly/YYYY-MM-DD`** (the Central date at the session's start). **Never push `master`**.
-- **Stack, do not wait.** If an open PR already has a `nightly/*` head, tonight's branch is cut from the newest
-  such PR's head commit, not from `master`. Unmerged nights therefore stay continuous, and once the older PR merges,
-  GitHub reduces the newer PR's diff to its own work. If nothing is open, cut from `origin/master`.
-- Session 2 reuses the same branch as session 1 (a night is one reviewable diff). If `origin/master` moved during
-  the day, rebase at the start of the session and say so in the PR body.
-- A day with no nightly branch means no session ran. Say that in the report; do not invent progress.
+- Work goes on **`nightly/YYYY-MM-DD-<issue>`** (the Central date at the session's start, the issue's
+  number). **Never push `master`.**
+- The branch is cut from the repo's **default branch** (read it with `git symbolic-ref
+  refs/remotes/origin/HEAD` after a fetch) -- never from another session's branch. Sessions work
+  different picks, usually in different repos, so there is nothing to stack on: one pick, one branch,
+  one PR.
+- A fix that the reviewer or the owner asks for on an open PR goes on that PR's existing branch (the
+  fixer pushes there), not on a new one.
+- A night with no new branch in this repo means no session picked it. Say that in the report; do not
+  invent progress.
 
 ## The pull request
 
-- **Session 1 opens it**, after the branch is pushed and only if the branch has a commit of its own. Title
-  `Nightly <date>`, base `master`, head `nightly/<date>`. A night that changed nothing gets no PR, and the session
-  says so instead.
+- One PR **per pick**, opened by the session that did the work, after the branch is pushed and only if
+  the branch has a commit of its own. Base `master`, head `nightly/<date>-<issue>`. A pick that changed
+  nothing gets no PR, and the session says so instead.
+- The title says what the work is, and the body carries what changed and why, the line that closes the
+  issue (`Closes #N`), and the gate evidence with the real command output.
 - Anything only the **owner** can settle goes under **Needs the owner** in the body: playing the game, his ears on
   the audio, the name / licence / legal decisions. Nothing that needs the original files belongs there -- they are on
   the Hermes box (see "Reading and writing"), so those checks run in the session and their numbers go in the body.
-- **Session 2 rewrites the body** so it describes the finished night: what changed (a bullet per job with the
-  evidence and the command), the gate results, the base it stacked on, what is still open, and the line that says
-  who merges (the merge job, unless the PR carries `do-not-merge`). Re-runs use `gh pr edit`, never a second PR.
+- **A later session does not rewrite the body.** If the PR has unanswered reviewer comments or a failing
+  check, the next session addresses them on the PR's own branch before taking a new pick; a red gate the
+  auto-merge job reported is the highest priority of all. Re-runs use `gh pr edit` on the PR that owns
+  them, never a second PR for the same issue.
 - Nobody pastes review comments into chat. The PR thread is the record.
 
 ## Review and fixes
@@ -51,13 +88,16 @@ on the Hermes host, whose clock is UTC.
   labels each session claim VERIFIED / CLAIMED / UNSUPPORTED, and posts one review with up to a dozen inline
   comments. `post_pr_review.py` posts it and records the reviewed SHA; a comment that cannot be anchored is moved
   into the summary rather than dropped.
+- The reviewer profile also runs a **triage job on a clock** (every 2 hours, across every repo in the
+  registry): it reviews PRs whose head moved or that gained comments, and it sets the `priority: P0..P3`
+  labels the picker ranks by. Everything it says goes on GitHub as the reviewer account, never in chat.
 - The review is posted by **`Jrbesse-Reviewer`**, a separate account with write access to the repo, using the token in
   `GH_REVIEWER_TOKEN` (`~/.hermes/profiles/reviewer/.env`; the poster also accepts `gh_reviewer_token` in the
   profile directory, read at post time so no gateway restart is needed). So a CHANGES verdict is a real
   `REQUEST_CHANGES` and the PR's review decision reads `CHANGES_REQUESTED` -- GitHub refuses that from the PR's own
   author, which is why one account cannot do this alone. The verdict is repeated in the review's first line for the
   report's benefit.
-- The fixer (`nightly_fix_gate.py`, same 20-minute cadence) acts on anything unprocessed: reviewer findings, and
+- The fixer (`nightly_fix_gate.py`, every 2 hours) acts on anything unprocessed: reviewer findings, and
   every owner comment unless it reads as a question or a scope decision. It has its **own clone** at
   `~/work/SimAnt-Fix` -- never the sessions' `~/work/SimAnt-Evolved`, whose working tree other jobs and the operator
   use. There it edits, runs build and the unit tests (and the replay when simulation behaviour moved), pushes to the
@@ -65,7 +105,7 @@ on the Hermes host, whose clock is UTC.
   shared history, merges, or approves.
 - Review blocks the **merge job**, not the owner. The job wants an APPROVED review at the current head SHA, so a
   PR with changes requested waits until the fixer lands the fixes and the reviewer approves at the new head. The
-  owner can still merge by hand with comments open, and the next night stacks on whatever state `master` is in.
+  owner can still merge by hand with comments open, and the next night picks from whatever state `master` is in.
 
 ## Who merges
 
@@ -95,8 +135,7 @@ PR comment, and clears the `in-progress` label the session left on its issue.
 
 **The owner's veto is a label, before the fact.** `do-not-merge` (or `hold`, or `wip`) means the job never merges
 that PR, whatever the review says, and the veto survives further pushes. After a merge the remedy is a revert PR:
-a night lands as one merge commit, and the next session cuts from the newest open `nightly/*` head, or from
-`master` if nothing is open (see "Branch discipline").
+a pick lands as one merge commit, and the next session cuts from the default branch (see "Branch discipline").
 
 **When it runs:** every 20 minutes (`:08`, `:28`, `:48`) and immediately on an approving review through the
 `gh-auto-merge` webhook route. Two things can hold it back, and neither is a window after the approval:
@@ -111,27 +150,30 @@ So there is no grace period between approval and merge: once CI is green and the
 
 ## Opening (10 minutes, in this order)
 
-1. **Lock.** Session 1 writes `nightly.lock` (with its start time) into `remake/build/` in the sessions' clone and
-   removes it at the end. Session 2 refuses to start if the lock is under 4 hours old (session 1 has overrun) and
-   says so in the PR body instead of racing it.
+1. **The pick and its guard.** The picker refused any repo with an `in-progress` issue or an open `nightly/*` PR,
+   and the session labels its pick `in-progress` before writing code -- that label and the open branch are the
+   guard between sessions. No lock file is written; the old `nightly.lock` belonged to the two-session schedule.
 2. **Bridge.** `rql-query 'editor'` on the Godot-MCP endpoint must answer (`godot-mcp-bridge` skill, `AGENTS.md`
    §5). The editor runs on the Hermes box as a service and restarts itself; if the check fails, wait 2 minutes and
    retry once. Still failing is the night's finding -- file an issue before ending.
-3. **`AGENTS.md` §9** then **`docs/ROADMAP.md`**: the open issues and the PR body's **"The order"** section. Answer its five questions in the PR body *before* choosing work.
+3. **`AGENTS.md` §9** then **`docs/ROADMAP.md`**: the open issues and the PR body's **"The order"** section. Answer
+   its five questions in the PR body before the work starts.
 4. **`git status`** in the clone must be clean. If something is modified, say what and do not build on it.
 
 ## Choosing work
 
-- Take work from the **top of the prerequisite order**, not the smallest job. A job whose prerequisite is open
-  waits; an agent-doable prerequisite jumps the queue.
+- Work **the pick the script named**, not a different issue, and satisfy its acceptance criteria, not your idea of
+  a bigger fix.
 - **Agent-doable only.** Anything carrying the `owner` label in the issue tracker -- his test builds, his ears on the audio, and
   the name / licence / going-public decisions -- is reported, never attempted. **Screen work is no longer in that
   set:** the game renders its own frames (`tools/shots.sh`, or the live editor) and the `vision` tool reads them -- see "Visual
   checks" below. An `owner` issue for a screen now needs a reason beyond "an agent cannot see it".
-- **Timebox ~90 minutes of work.** One job done and verified beats three half-done. Stop with the tree
-  consistent, commit what is verified, and leave the rest as an issue.
+- **If the pick turns out to be wrong, needs the owner, or is blocked by another issue**, label it
+  (`owner` or `blocked`), say why in a comment on the issue, and stop -- do not substitute a different
+  task.
 - **Every finding gets a GitHub issue before the session ends**, with the evidence that found it. This includes
-  vacuous tests, stale docs, and anything the session chose not to fix.
+  vacuous tests, stale docs, and anything the session chose not to fix. An out-of-scope finding is filed on the
+  same repo, with its own acceptance criteria.
 
 ## The verification gate (on the Hermes box, in `remake/`)
 
@@ -205,34 +247,33 @@ empty scene, not the running game. Do not file it as broken.
 In the sessions' clone, with the owner's identity (never override it):
 
 ```
-git checkout -B nightly/YYYY-MM-DD <base>          # session 1: <base> = newest open nightly PR's head, else origin/master
+git fetch origin
+git checkout -B nightly/YYYY-MM-DD-<issue> <base>   # <base> = the repo's default branch (origin/HEAD), never another session's branch
 git add <files> && git commit -F <msgfile>
-GIT_TERMINAL_PROMPT=0 git push -u origin nightly/YYYY-MM-DD
-git ls-remote origin refs/heads/nightly/YYYY-MM-DD  # confirm, do not trust the exit code alone
+GIT_TERMINAL_PROMPT=0 git push -u origin nightly/YYYY-MM-DD-<issue>
+git ls-remote origin refs/heads/nightly/YYYY-MM-DD-<issue>  # confirm, do not trust the exit code alone
 ```
 
 - Small, reviewable commits, each stating **what was verified and with which command**.
 - Never commit `remake/build/` (traces, snapshots: they hold game memory), any Maxis file, or the built
   `clean_pack.zip`.
 
-## The handoff the next session needs
+## What the next session starts from
 
-Before ending, add to the PR body: this session's summary (jobs done, jobs left, the five order answers) and
-one line the next session starts from:
-
-```
-Next: <the job> -- start at <file / command / screenshot>, it needs <the thing>.
-```
-
-Session 2 also leaves the morning report's raw material in place: the branch name, the commit list, and the gate
-output. The report reads those; it does not re-derive them.
+There is no handoff note: the next session starts from what is visible on GitHub. It lists this repo's open
+`nightly/*` PRs first, and anything with unanswered reviewer comments or a failing check comes before its own
+pick (a red gate the auto-merge job reported is the highest priority of all). The PR body is the record of the
+finished work -- what changed and why, the gate evidence, what is still open -- and what is still open should
+already be issues, not promises in the body.
 
 ## What the morning report says
 
-One block per open PR: CI state, the review verdict, how many inline comments are open and how many are already
-fixed, what landed (per job, with the evidence), and what needs the owner's decision. Then the pipeline state
-(session 1, session 2, review, fixer) and what the next night starts from. It points at the PRs and does not restate
-the review: the code discussion lives on GitHub. Issued at 07:00 Central to the owner's Discord channel.
+One line per repo that had a night: the PR link(s) with check state, and the issue(s) closed. Then what is at the
+top of the queue now -- the highest-priority open issue per repo, one line each. Then anything that needs the
+owner specifically: `owner` issues, blocked work waiting on a decision, a red check nobody has explained, a PR
+that is ready to merge. If a scheduled session did not run or produced nothing, it says so plainly instead of
+describing an empty night as quiet progress. It points at the PRs and does not restate the review: the code
+discussion lives on GitHub. Issued at 07:00 Central to the owner's Discord channel.
 
 ## Discord's job, and GitHub's
 
