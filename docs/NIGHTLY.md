@@ -20,7 +20,7 @@ hand with comments open, but nothing waits for him to press anything.
 | 02:00 | Nightly session 2 | its pick's branch and PR |
 | 03:00 | Nightly session 3 | its pick's branch and PR |
 | 04:00 | Nightly session 4 | its pick's branch and PR |
-| every 20 min, 05:00-22:00 | Reviewer | a review posted on the PR |
+| on a PR event (head settled 10 min) | Reviewer | a review posted on the PR |
 | every 2 hours | Reviewer triage (all repos) + PR fixer | priority labels on issues; fixes pushed to the PR branch |
 | every 20 min (`:08`/`:28`/`:48`) | Auto-merge job | the merge, when all its conditions hold |
 | 07:00 | Morning report | the owner's Discord channel: PRs, CI, queue |
@@ -37,7 +37,7 @@ enabled repos, lists every open issue in them, and ranks:
   reviewer's triage job, which walks the trackers on a clock.
 - within a level, **oldest issue first** (so nothing starves), then lowest number.
 - issues labelled `owner` (the owner's judgement), `blocked` (waiting on something else), `in-progress`
-  (a session already has a branch open) or `question` are never picked.
+  (a session already has a branch open), `question`, `wontfix` or `duplicate` are never picked.
 
 **One in-flight item per repo.** A repo that has an `in-progress` issue or an open `nightly/*` PR
 contributes nothing until that work merges: two sessions in one repo share a working tree, and the second
@@ -113,10 +113,10 @@ work.
 the owner to press merge. All six have to hold:
 
 1. open, not a draft, not from a fork, and its **base is `master`** — that is the job's whole stack test
-   (`auto_merge.py:213-214`), and it never looks at ancestry. So a PR based on another branch is skipped as "base is
-   X, not `master`" (a stacked PR in the branch sense), while a nightly branch *cut from* an earlier PR's head is
-   still based on `master` and is eligible on its own evidence. A content stack is not held for its base PR; if it
-   should be, that is a change to the job, not a guarantee it already gives;
+   (`auto_merge.py:213-214`), and it never looks at ancestry, only the base field. So a PR based on another
+   branch is skipped as "base is X, not `master`". Branch discipline cuts every nightly branch from the
+   default branch, so this test now mostly guards against hand-cut PRs; a content stack is not held for its
+   base PR, and if it should be, that is a change to the job, not a guarantee it already gives;
 2. the author is in `OWNERS` (`{"Jrbesse"}`) — a bot or anyone else is skipped as "author not one of ours";
 3. no hold label: `do-not-merge`, `hold` or `wip`;
 4. `Jrbesse-Reviewer` has an **APPROVED** review at the **current head SHA**, and nothing has requested changes at
