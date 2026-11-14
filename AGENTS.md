@@ -16,7 +16,7 @@ Where it stands: the simulation is byte-identical with the original in the emula
 
 ## 2. Hard constraints
 
-- **Never commit Maxis files, or anything extracted from them.** `SIMANT.EXE`, `*.NDX`, `*.DAT` and the other originals in the repo root are the owner's own copy and are git-ignored. The game reads them at runtime through the asset layer (`OriginalFiles`), it does not embed them.
+- **Never commit Maxis files, or anything extracted from them.** `SIMANT.EXE`, `*.NDX`, `*.DAT` and the other originals in the repo root are the owner's own copy and are git-ignored. The game reads them at runtime through the asset layer (`OriginalFiles`), it does not embed them. The no-originals check, anchored to the originals' names only so it never matches the clean pack's own font sources (`font0.json` … `font5.pix`; the unanchored form over-matched them, #47): `git ls-files | grep -inE '(^|/)(SIMANT\.(EXE|CFG)|FONT[1-4]|[A-Z]+\.(DAT|NDX))$'` — empty output, exit 1, is "no original is tracked"; a planted root-level `FONT2` copy prints its path.
   - **One exception, the owner's decision of 2026-10-30:** the ~1.2 KB of *gameplay number tables* the simulation reads out of SIMANT.EXE (direction vectors, caste odds, terrain / rock shapes, cheat codes, the save layout; ROADMAP A2) may be committed as named, documented tables in source so the game runs without the original. **Numbers only — never art, text, sound or fonts.** Flagged for legal review before going public (Track C).
 - **Commits use the owner's personal identity, configured repo-locally. Do not change it.**
 - **Never commit `remake/build/`** (traces, snapshots, smoke PNGs). They hold game memory.
