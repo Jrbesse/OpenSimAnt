@@ -1,4 +1,4 @@
-"""make_ency_bitmaps.py - writes the encyclopedia's SHARED_<id>.pix files and runs every check.
+"""make_ency_bitmaps.py - writes the encyclopedia's <id>.pix files and runs every check.
 Run:  python make_ency_bitmaps.py          (from any folder; no arguments)
 """
 import importlib

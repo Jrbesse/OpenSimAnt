@@ -1,7 +1,7 @@
 # UI bitmaps (clean pack): all four passes (74 pictures)
 
 Made from `docs/clean_pack/ui_bitmaps.md` (groups A to L: all 74 pictures; passes 1-2 = A, B, C, D, E, H; passes 3-4 = F, G, I, J, K, L). One file per
-bitmap, `HCEGANT_<id>.pix`, written by `make_ui_bitmaps.py`:
+bitmap, `<id>.pix`, written by `make_ui_bitmaps.py`:
 
 ```
 ~/work/simant-venv/bin/python make_ui_bitmaps.py   # writes the .pix files, runs every check as an assertion, writes preview.png
@@ -132,11 +132,11 @@ Callouts: `callout(img, x, y, lines)` (13 px high for one line, +10 per extra li
 # Yard bitmaps (clean pack): passes 1-2 (12 pictures so far)
 
 Made from `docs/clean_pack/yard_bitmaps.md` (114 pictures in 5 passes; this is **pass 1: the scenery, groups A and C** and
-**pass 2: the toolbar, group D**). One file per bitmap, `HCEGANT_<id>.pix`, written by `make_yard_bitmaps.py`:
+**pass 2: the toolbar, group D**). One file per bitmap, `<id>.pix`, written by `make_yard_bitmaps.py`:
 
 ```
 ~/work/simant-venv/bin/python make_yard_bitmaps.py            # writes the .pix files, runs every check as an assertion, writes preview_yard.png
-~/work/simant-venv/bin/python make_yard_bitmaps.py --crops    # only: replace HCEGANT_17006 / 17007 (if they exist) by crops of 7010
+~/work/simant-venv/bin/python make_yard_bitmaps.py --crops    # only: replace 17006 / 17007 (if they exist) by crops of 7010
 ~/work/simant-venv/bin/python make_yard_bitmaps.py --no-preview
 ```
 
@@ -228,7 +228,7 @@ middle 60 % of their buttons, no gaps in the left group, the text fits) and tabs
 
 # Screens and scenes (clean pack, `screens_bitmaps.md`: 24 pictures)
 
-Made from `docs/clean_pack/screens_bitmaps.md` (all three passes). One file per bitmap, `HCEGANT_<id>.pix`, written by `make_screens_bitmaps.py`:
+Made from `docs/clean_pack/screens_bitmaps.md` (all three passes). One file per bitmap, `<id>.pix`, written by `make_screens_bitmaps.py`:
 
 ```
 ~/work/simant-venv/bin/python make_screens_bitmaps.py   # writes the 24 .pix files, runs the spec's checks as assertions, writes preview_screens.png
@@ -304,7 +304,7 @@ attach points and fang bases, mirror symmetry (at least 85 %), the beaten frames
 rotation; the marker.
 
 
-# The encyclopedia's pictures (`SHARED_<id>.pix`, 40 one-bit bitmaps; spec `docs/clean_pack/encyclopedia_bitmaps.md`)
+# The encyclopedia's pictures (`<id>.pix`, 40 one-bit bitmaps; spec `docs/clean_pack/encyclopedia_bitmaps.md`)
 
 Made 2026-11-01 by an isolated agent from the spec only. Rebuild everything with `~/work/simant-venv/bin/python make_ency_bitmaps.py` (from any folder, no
 arguments): it draws the 40 pictures, runs every assertion of the spec's "The script's checks" (sizes, only `0` / `f`, boxed labels on
@@ -322,7 +322,7 @@ text rectangles hatched grey, the navigation strip darker, the link rectangles r
 | `ency_p1.py` .. `ency_p5.py` | the five passes (p1 menus and small items, p2 ant bodies and 200, p3 head / antennae / thorax / inside, p4 insects and species, p5 behaviour, life cycles, flowchart) |
 | `ency_check.py` | the assertions; `make_ency_bitmaps.py` the driver; `ency_preview.py` the preview |
 
-`SHARED_630` was redrawn on 2026-11-01 (the first version, three tiny ants over a noisy strip, was too small to read; a second one with overlapping ants
+`630` was redrawn on 2026-11-01 (the first version, three tiny ants over a noisy strip, was too small to read; a second one with overlapping ants
 read as a caterpillar): `ency_p4.py` `army630()` now draws a double file of five army ants marching left (two on a dotted back ground line at scale 0.6, three on a
 solid 2 px ground line at 0.62, each about 30 px from head to gaster, every ant a separate silhouette with a 2..4 px gap to the next) with a dedicated pixel-space ant,
 `_army_ant()`, because the shared ant model is too thin at this size: the biggest part is a white head with no eye, two long black hooked mandibles reach well past it, then a
