@@ -1,8 +1,10 @@
 # Nightly sessions
 
-Four automated sessions run every night and one report goes out in the morning. They exist to keep the
-trackers moving and to hand the next session a clean start: pick, build, fix, test, review, open the
-pull request, and leave nothing that cannot be seen on GitHub.
+One continuous session runs around the clock and one report goes out in the morning. It exists to keep
+the trackers moving and to hand the next session a clean start: pick, build, fix, test, review, open the
+pull request, and leave nothing that cannot be seen on GitHub. Work starts the moment a PR merges instead
+of at a fixed slot: the four fixed sessions (01:00 / 02:00 / 03:00 / 04:00 Central, the "Nightly session
+1-4" jobs) are paused and superseded as of 2026-11-15, kept for a rollback.
 
 The sessions are the pipeline's hands, not its brain: the **picker** chooses the work, the **reviewer**
 judges it, the **fixer** answers findings, and the **merge job** decides when a PR lands. The pipeline
@@ -14,12 +16,9 @@ a review with inline comments, and a fixer acts on those comments and on the own
 on the evidence listed in "Who merges" below. The owner's veto is the `do-not-merge` label; he can still merge by
 hand with comments open, but nothing waits for him to press anything.
 
-| When (Central) | What | Where it lands |
+| When | What | Where it lands |
 |---|---|---|
-| 01:00 | Nightly session 1 | its pick's branch and PR |
-| 02:00 | Nightly session 2 | its pick's branch and PR |
-| 03:00 | Nightly session 3 | its pick's branch and PR |
-| 04:00 | Nightly session 4 | its pick's branch and PR |
+| every 20 min, and immediately on a PR merge | Continuous 24/7 session | its pick's branch and PR |
 | on a PR event (head settled 10 min) | Reviewer | a review posted on the PR |
 | every 2 hours | Reviewer triage (all repos) + PR fixer | priority labels on issues; fixes pushed to the PR branch |
 | every 20 min (`:08`/`:28`/`:48`) | Auto-merge job | the merge, when all its conditions hold |
@@ -30,8 +29,9 @@ on the Hermes host, whose clock is UTC.
 
 ## The pick
 
-The sessions do not choose; the picker does. Before each session, `nightly_pick.py` reads the registry of
-enabled repos, lists every open issue in them, and ranks:
+The session does not choose; the picker does. Before waking the session, the wake gate
+(`continuous_pick_gate.py`) runs `nightly_pick.py` over the registry of enabled repos, lists every open
+issue in them, and ranks:
 
 - **priority label first**: `priority: P0` > `P1` > `P2` > `P3` > none. The labels are set by the
   reviewer's triage job, which walks the trackers on a clock.
@@ -41,12 +41,14 @@ enabled repos, lists every open issue in them, and ranks:
 
 **One in-flight item per repo.** A repo that has an `in-progress` issue or an open `nightly/*` PR
 contributes nothing until that work merges: two sessions in one repo share a working tree, and the second
-would build on an unmerged foundation. The session that takes a pick labels the issue `in-progress`
-before writing code, so the next session's picker skips it; the merge job clears the label when the PR
-closes its issue.
+would build on an unmerged foundation. The wake gate claims the pick before the session wakes -- an
+exclusive claim file plus the `in-progress` label on the issue -- so a second wake in the same window sees
+the label and skips; the merge job clears the label when the PR closes its issue. A claim older than six
+hours with no open `nightly/*` PR is a dead session: the sweep clears the label and drops the claim, and
+the issue re-enters the queue.
 
 The picker hands the session its pick -- workdir, repo, issue number and body, that repo's gate commands,
-the docs to read first -- plus a short list of what it is *not* doing tonight. If every enabled repo is
+the docs to read first -- plus a short list of what it is *not* doing this run. If every enabled repo is
 mid-flight, or every tracker is empty, the session says so in one line and stops instead of inventing
 work.
 
@@ -60,7 +62,7 @@ work.
   one PR.
 - A fix that the reviewer or the owner asks for on an open PR goes on that PR's existing branch (the
   fixer pushes there), not on a new one.
-- A night with no new branch in this repo means no session picked it. Say that in the report; do not
+- A day with no new branch in this repo means no session picked it. Say that in the report; do not
   invent progress.
 
 ## The pull request
@@ -105,7 +107,7 @@ work.
   shared history, merges, or approves.
 - Review blocks the **merge job**, not the owner. The job wants an APPROVED review at the current head SHA, so a
   PR with changes requested waits until the fixer lands the fixes and the reviewer approves at the new head. The
-  owner can still merge by hand with comments open, and the next night picks from whatever state `master` is in.
+  owner can still merge by hand with comments open, and the next session picks from whatever state `master` is in.
 
 ## Who merges
 
@@ -150,12 +152,13 @@ So there is no grace period between approval and merge: once CI is green and the
 
 ## Opening (10 minutes, in this order)
 
-1. **The pick and its guard.** The picker refused any repo with an `in-progress` issue or an open `nightly/*` PR,
-   and the session labels its pick `in-progress` before writing code -- that label and the open branch are the
-   guard between sessions. No lock file is written; the old `nightly.lock` belonged to the two-session schedule.
+1. **The pick and its guard.** The wake gate refused any repo with an `in-progress` issue or an open `nightly/*` PR,
+   and it claimed the pick (claim file + `in-progress` label) before waking the session -- that label and the open
+   branch are the guard between sessions. No lock file is written; the old `nightly.lock` belonged to the
+   two-session schedule.
 2. **Bridge.** `rql-query 'editor'` on the Godot-MCP endpoint must answer (`godot-mcp-bridge` skill, `AGENTS.md`
    §5). The editor runs on the Hermes box as a service and restarts itself; if the check fails, wait 2 minutes and
-   retry once. Still failing is the night's finding -- file an issue before ending.
+   retry once. Still failing is the run's finding -- file an issue before ending.
 3. **`AGENTS.md` §9** then **`docs/ROADMAP.md`**: the open issues and the PR body's **"The order"** section. Answer
    its five questions in the PR body before the work starts.
 4. **`git status`** in the clone must be clean. If something is modified, say what and do not build on it.
@@ -268,11 +271,11 @@ already be issues, not promises in the body.
 
 ## What the morning report says
 
-One line per repo that had a night: the PR link(s) with check state, and the issue(s) closed. Then what is at the
+One line per repo that had activity: the PR link(s) with check state, and the issue(s) closed. Then what is at the
 top of the queue now -- the highest-priority open issue per repo, one line each. Then anything that needs the
 owner specifically: `owner` issues, blocked work waiting on a decision, a red check nobody has explained, a PR
 that is ready to merge. If a scheduled session did not run or produced nothing, it says so plainly instead of
-describing an empty night as quiet progress. It points at the PRs and does not restate the review: the code
+describing an empty day as quiet progress. It points at the PRs and does not restate the review: the code
 discussion lives on GitHub. Issued at 07:00 Central to the owner's Discord channel.
 
 ## Discord's job, and GitHub's
