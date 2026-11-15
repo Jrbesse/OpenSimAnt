@@ -43,6 +43,14 @@ monospaced faces. The four proportional faces therefore look like one family; on
   `font3_sample_4x.png`. The advances, ascent and missing advance are unchanged (fixed by the game); fonts 0, 1, 2, 4,
   5 are byte-identical to before. The bullet, copyright, trademark and quote marks (codes 165..213 except 201, 208,
   209) still come from the skeleton pass.
+  - **The 2026-11-15 re-drawing (issue #52):** the similarity review measured 30 of the 221 inked glyphs as
+    pixel-identical to the original's face. Nineteen of them are re-drawn here — the digits `0 2 5 6 8 9`, the capitals
+    `B H O`, the lowercase `o p u` and the symbols `/ < = > ? \ ~` — as the cells in `font3_redraw.py`: the isolated
+    clean-room maker's transcription of the spec's printed cells, verified pixel-exact against the spec (the module's
+    self-test: `python font3_redraw.py`). The old hand-drawn art for those codes is retired from this file; the
+    remaining 11 identical glyphs are the geometrically-forced marks (the dot, the ticks, the caret, the underscore and
+    the rare Mac-roman symbols) that the other fonts' residual matches are made of. `font3_sample_4x.png` is
+    re-drawn from the current cells by `sample4x()` on every run.
 - **font4** (16 x 15, large semi-bold sans): 2-pixel stems, 1-pixel horizontals, 2-pixel corner cuts; capitals rows
   3..11, x-height rows 5..11, descenders rows 12..14, digits 7 pixels of ink in the advance 8. The 217-character
   picture leaves 217..223 empty; codes 17..20 are empty as the spec permits.

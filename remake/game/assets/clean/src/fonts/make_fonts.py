@@ -536,13 +536,6 @@ h3("A", 2, """
 #####
 #...#
 ##.##""")
-h3("B", 2, """
-####.
-.#..#
-.###.
-.#..#
-.#..#
-####.""")
 h3("C", 2, """
 .###.
 #...#
@@ -578,13 +571,6 @@ h3("G", 2, """
 #.###
 #...#
 .###.""")
-h3("H", 2, """
-##.##
-.#.#.
-.###.
-.#.#.
-.#.#.
-##.##""")
 h3("I", 2, """
 ##
 .#
@@ -627,13 +613,6 @@ h3("N", 2, """
 .#..#
 .#..#
 ##..#""")
-h3("O", 2, """
-.###.
-#...#
-#...#
-#...#
-#...#
-.###.""")
 h3("P", 2, """
 ###.
 .#.#
@@ -712,13 +691,6 @@ h3("Z", 2, """
 #...
 ####""")
 # digits (rows 2..7, 4 wide in the 5 advance)
-h3("0", 2, """
-.##.
-#..#
-#..#
-#..#
-#..#
-.##.""")
 h3("1", 2, """
 .#..
 ##..
@@ -726,13 +698,6 @@ h3("1", 2, """
 .#..
 .#..
 ###.""")
-h3("2", 2, """
-.##.
-#..#
-...#
-..#.
-.#..
-####""")
 h3("3", 2, """
 ###.
 ...#
@@ -747,20 +712,6 @@ h3("4", 2, """
 #..#
 ####
 ...#""")
-h3("5", 2, """
-####
-#...
-###.
-...#
-#..#
-.##.""")
-h3("6", 2, """
-.##.
-#...
-###.
-#..#
-#..#
-.##.""")
 h3("7", 2, """
 ####
 ...#
@@ -768,20 +719,6 @@ h3("7", 2, """
 ..#.
 .#..
 .#..""")
-h3("8", 2, """
-.##.
-#..#
-.##.
-#..#
-#..#
-.##.""")
-h3("9", 2, """
-.##.
-#..#
-#..#
-.###
-...#
-.##.""")
 # lowercase (x-height rows 4..7, ascenders from row 1, descenders to row 9)
 h3("a", 4, """
 .##
@@ -879,18 +816,6 @@ h3("n", 4, """
 .#.#
 .#.#
 .#.#""")
-h3("o", 4, """
-.##.
-#..#
-#..#
-.##.""")
-h3("p", 4, """
-###.
-.#.#
-.#.#
-.##.
-.#..
-###.""")
 h3("q", 4, """
 .##
 #.#
@@ -915,11 +840,6 @@ h3("t", 2, """
 #.
 #.
 .#""")
-h3("u", 4, """
-#.#
-#.#
-#.#
-.##""")
 h3("v", 4, """
 #..#
 #..#
@@ -1028,13 +948,6 @@ h3("-", 5, """
 ##""")
 h3(".", 7, """
 #""", 1)
-h3("/", 2, """
-.#
-.#
-.#
-#.
-#.
-#.""")
 h3(":", 4, """
 #
 .
@@ -1046,29 +959,6 @@ h3(";", 4, """
 ..
 .#
 #.""")
-h3("<", 3, """
-..#
-.#.
-#..
-.#.
-..#""", 1)
-h3("=", 4, """
-####
-....
-####""")
-h3(">", 3, """
-#..
-.#.
-..#
-.#.
-#..""", 1)
-h3("?", 2, """
-.#.
-#.#
-..#
-.#.
-...
-.#.""")
 h3("@", 2, """
 .#####.
 #.....#
@@ -1086,13 +976,6 @@ h3("[", 1, """
 #.
 #.
 ##""")
-h3("\\", 2, """
-#.
-#.
-#.
-.#
-.#
-.#""")
 h3("]", 1, """
 ##
 .#
@@ -1141,9 +1024,6 @@ h3("}", 1, """
 .#.
 .#.
 ##.""")
-h3("~", 4, """
-.#.#
-#.#.""")
 # Mac Roman symbols that were irregular
 h3(201, 7, """
 #..#..#""", 1)
@@ -1151,6 +1031,18 @@ h3(208, 5, """
 ####""")
 h3(209, 5, """
 ########""")
+
+# 2026-11-15 (issue #52): the nineteen glyphs the A5 similarity review found pixel-identical to
+# the original's face (digits 0 2 5 6 8 9, the capitals B H O, the lowercase o p u and the
+# symbols / < = > ? \ ~) are re-drawn so none of font 3's shapes is a pixel copy. The cells are
+# the isolated clean-room maker's transcription of the spec's printed cells (words plus cells
+# only; the maker never sees the originals), verified pixel-exact against the spec -- see
+# font3_redraw.py, its self-test and the font3_redraw_preview.png beside it, and the row in
+# assets/clean/PROVENANCE.md. The old h3() art for these codes is retired.
+from font3_redraw import FONT3_REDRAW
+
+for _code, (_top, _rows, _left) in FONT3_REDRAW.items():
+    HAND3[_code] = (_top, _rows, _left)
 
 
 def render(F, code):
@@ -1429,6 +1321,38 @@ def dump(fid, first=33, last=126, per_line=14):
         print()
 
 
+# the 4x sample lines of font 3 (font3_sample_4x.png): the same four lines the 2026-11-01 sample
+# showed, re-drawn whenever font 3 changes. Canvas 273 x 58 at 1x, text origin (2, 1), line pitch
+# 14; the 4x PNG keeps the sample's 2-px side and 1-px top/bottom margins (1096 x 234).
+SAMPLE_LINES = [
+    "The queen lays eggs; workers dig & forage (50% ~ {ok}) #1 @home $3",
+    "The quick brown fox jumps over the lazy dog. 0123456789",
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz",
+    'Population: 1,248 ants  Food 37.5%  [A/B] <x> =+* "q" \'a\' _ ` ^ | \\ ? ! :',
+]
+
+
+def sample4x(all_glyphs):
+    from PIL import Image
+    canvas = [[255] * 273 for _ in range(58)]
+    for i, text in enumerate(SAMPLE_LINES):
+        pen, y = 2, 1 + 14 * i
+        for c in text:
+            for (gx, gy) in all_glyphs[3].get(ord(c), ()):
+                canvas[y + gy][pen + gx] = 0
+            pen += ADV[3][ord(c)]
+    img = Image.new("RGB", (1096, 234), (255, 255, 255))
+    px = img.load()
+    for y in range(58):
+        for x in range(273):
+            v = canvas[y][x]
+            for sy in range(4):
+                for sx in range(4):
+                    px[2 + 4 * x + sx, 1 + 4 * y + sy] = (v, v, v)
+    img.save(os.path.join(HERE, "font3_sample_4x.png"))
+
+
+
 def main():
     if len(sys.argv) > 2 and sys.argv[1] == "--dump":
         a = [int(v) for v in sys.argv[2:]]
@@ -1451,8 +1375,10 @@ def main():
     try:
         preview(all_glyphs)
         print("wrote preview.png")
+        sample4x(all_glyphs)
+        print("wrote font3_sample_4x.png")
     except ImportError:
-        print("Pillow not available: preview.png not written")
+        print("Pillow not available: preview.png and font3_sample_4x.png not written")
 
 
 if __name__ == "__main__":
