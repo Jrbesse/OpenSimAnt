@@ -3,8 +3,10 @@
 `yard.pix` is the outdoor patches and the two nest cross-sections: 256 x 256 px, 16 x 16 tiles of
 16 x 16 px. `make_yard.py` draws every tile procedurally from seeded random numbers and writes `yard.pix`,
 `preview.png` (the sheet at 3x with a grid and row / column numbers) and `mockup.png` (a yard scene and a nest
-cross-section put together from the tiles, at 2x). Run `python make_yard.py` to rebuild all three. The output
-is the same on every run.
+cross-section put together from the tiles, at 2x). Run `~/work/simant-venv/bin/python make_yard.py` to rebuild all
+three. The output is the same on every run. Both scripts in this folder need numpy and Pillow (from
+`../requirements.txt`), which the system `python3` on the Hermes box does not have; the venv that has the pair is
+`~/work/simant-venv`, so the runs there use its interpreter.
 
 Made from the written spec `docs/clean_pack/map_tiles.md` (yard sheet) alone. See `../../PROVENANCE.md`.
 
@@ -80,8 +82,8 @@ tiles of 16 x 16 px. `make_house.py` draws every tile procedurally (seeded, the 
 (every multi-tile assembly of the spec built from the slot grids, enlarged: grout checks with openings, the
 counter, raised / sunken frames, tap buttons, the sink unit, both socket plates, rooms with a left / right wall
 and skirting, a rug with coin, paper clip and litter, a table-top with its legs, the dead ants and food piles,
-the openings beside their base tiles, the shock frames). Run `python make_house.py` to rebuild all three; it
-asserts the checks below as it goes. The scent ramp 0xF1..0xFF is the yard sheet's, unchanged.
+the openings beside their base tiles, the shock frames). Run `~/work/simant-venv/bin/python make_house.py` to
+rebuild all three; it asserts the checks below as it goes. The scent ramp 0xF1..0xFF is the yard sheet's, unchanged.
 
 Made from the written spec `docs/clean_pack/map_tiles.md` (house sheet) alone. See `../../PROVENANCE.md`.
 

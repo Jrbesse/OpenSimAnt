@@ -1,8 +1,10 @@
 # Speech balloon
 
-Made from the spec `docs/clean_pack/balloon.md` only. `python make_balloon.py` writes `balloon.pix` (88 x 8: the 11
+Made from the spec `docs/clean_pack/balloon.md` only. `make_balloon.py` writes `balloon.pix` (88 x 8: the 11
 pieces of 8 x 8 side by side, in the spec's order) and `preview.png` (two sample balloons, 6 x 3 and 10 x 4 cells, the
-tail on each, enlarged 6x over mid green).
+tail on each, enlarged 6x over mid green). It needs Pillow (it always writes `preview.png` at the end of `main()`,
+with no fallback), so run it with an interpreter that has the pair from `../requirements.txt`; on the Hermes box
+that venv is `~/work/simant-venv`, so the run there is `~/work/simant-venv/bin/python make_balloon.py`.
 
 - Only `0` (white inside), `f` (black outline) and `.` (transparent). A 1-pixel black outline, white fill, no shading.
 - Corners: the top-left corner is drawn by hand (the outline runs along row 4 to the right and along column 1 down,

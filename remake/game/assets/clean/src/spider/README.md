@@ -1,9 +1,11 @@
 # Spider legs and fangs
 
-Made from the spec `docs/clean_pack/spider_legs.md` only. `python make_legs.py` writes `legs.json` (the points of
+Made from the spec `docs/clean_pack/spider_legs.md` only. `make_legs.py` writes `legs.json` (the points of
 the legs and fangs, in the spec's format) and `preview.png` (the 8 frames of both views drawn as 1-pixel black
 lines on a light background, enlarged 4x, with a grey ellipse where the body goes: 14 x 36, centred on the
-thorax).
+thorax). It needs Pillow (it always writes `preview.png` at the end of `main()`, with no fallback), so run it with
+an interpreter that has the pair from `../requirements.txt`; on the Hermes box that venv is `~/work/simant-venv`,
+so the run there is `~/work/simant-venv/bin/python make_legs.py`.
 
 - The file holds the right-hand side only; the game mirrors the left, half a cycle on.
 - Each right-hand leg is two segments, attach -> joint -> tip. The attach points are on the thorax's side edge

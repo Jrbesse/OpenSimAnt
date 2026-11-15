@@ -6,7 +6,9 @@ Made by `make_sounds.py` (Python 3 + numpy; deterministic, one seeded `RandomSta
 synthesised from scratch at 44,608 Hz (8 x 5,576) with sine oscillators, formant-shaped harmonic "voices", filtered
 noise, damped resonances and small drop/knock models; then low-passed (windowed-sinc FIR, -6 dB at 2.45 kHz), decimated
 by 8, given soft zero edges, and scaled to the spec's peak. Frame counts equal the table's. `preview.wav` plays all 35 in
-id order with 0.25 s of silence between. Run `python make_sounds.py` to regenerate everything.
+id order with 0.25 s of silence between. Run `~/work/simant-venv/bin/python make_sounds.py` to regenerate
+everything — the script needs numpy, which the system `python3` on the Hermes box does not have; the pair is in
+`../requirements.txt` (a fresh checkout installs it into a venv, as that file describes).
 
 | Id | Sounds like | How it is made |
 |---|---|---|
