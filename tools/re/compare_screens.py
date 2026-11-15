@@ -43,9 +43,10 @@ The one modal `--state=` cannot restore is the file dialog (22): its list is the
 `*.ant`), and neither the directory nor the selection is in the original's memory. `--load-dialog --file-dir=…`
 is the capture-time workaround and stays in FLAGS below; a bare `--state=` render of `filedlg.state` leaves the
 dialog out and says so on stderr (that is 63902 px, not a render bug). The `…` is not this machine's directory:
-the render gets a fresh fixture directory (file_fixture.py) rebuilt from the capture's <name>.files sidecar —
-the names screens.py recorded when it recorded the capture — or from the fixture's canonical names for a
-capture set recorded before the sidecar existed, so the pair is comparable on any machine (#54).
+each capture whose flags carry `--file-dir=` gets its own fresh fixture directory (file_fixture.py) rebuilt from
+that capture's <name>.files sidecar — the names screens.py recorded when it recorded the capture — or from the
+fixture's canonical names for a capture set recorded before the sidecar existed, so the pair is comparable on any
+machine (#54). `filedlg` and `savedlg` record their own sidecars and render against their own lists.
 """
 import atexit
 import os
@@ -144,11 +145,7 @@ def main():
     sys.path.insert(0, HERE)
     import pngdiff  # noqa: E402
     import file_fixture  # noqa: E402
-    # the file dialog's list is the filesystem (the docstring): render against a fresh fixture directory rebuilt
-    # from the capture's sidecar, not whatever this clone's build/screens/files holds, so the pair is comparable
-    # on any machine (#54)
-    fixture = file_fixture.build_for_render(SCREENS, 'filedlg')
-    atexit.register(shutil.rmtree, fixture, True)
+    fixtures = {}       # per capture: its --file-dir fixture, from its own <name>.files sidecar (#54)
     missing = []
     compared = 0
     for name in args or FLAGS:
@@ -167,7 +164,15 @@ def main():
         cmd = wrapper + [godot, '--path', os.path.join(ROOT, 'remake', 'game'), '--',
                          '--state=' + state.replace('\\', '/')]
         flags = FLAGS.get(name, [])
-        flags = [f.replace('$', fixture) for f in flags]          # the file dialog's fixture directory (#54)
+        if any('--file-dir=' in f for f in flags):
+            # the file dialog's list is the filesystem (the docstring): render against a fresh fixture directory
+            # rebuilt from this capture's own sidecar, not whatever this clone's build/screens/files holds, so
+            # the pair is comparable on any machine (#54). filedlg's and savedlg's sidecars are separate, and so
+            # are their fixtures
+            if name not in fixtures:
+                fixtures[name] = file_fixture.build_for_render(SCREENS, name)
+                atexit.register(shutil.rmtree, fixtures[name], True)
+            flags = [f.replace('$', fixtures[name]) for f in flags]
         at = os.path.join(SCREENS, name + '.at')
         if os.path.exists(at):                    # a press point saved by screens.py: the flag's '@' and the cursor
             xy = open(at).read().strip()

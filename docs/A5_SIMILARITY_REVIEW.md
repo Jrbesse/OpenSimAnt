@@ -67,7 +67,7 @@ and the original's are EGA — equal colours across the two are coincidences, no
 | `gameover` | 144 | (84,194)..(168,302) | map art left of the box; the box itself identical — recorded in #18's closing comment |
 | `yard` | 9 | (264,195)..(289,200) | **#25**, still open |
 | `yardfront` | 2 | (63,83) and (575,83) | **#29**, still open |
-| `filedlg` | 989 | (170,125)..(266,162) | the dialog lists the real directory — not comparable while the recording and the render see different files → #54 |
+| `filedlg` | 989 | (170,125)..(266,162) | two causes, found in #54/#86: each side listed its own real directory, and the remake's `*.ant` match is case-sensitive (on Linux: no uppercase DOS names, the folder only) — fixed by #86: case-insensitive match, both sides on a fixed fixture, 0 of 307,200 px |
 | `editfront`, `popup` | 32 each | (432,102)..(439,109) | the same 8x8 block in both: 16 px light-grey vs black swapped, a 50 % stipple drawn in the other phase → #55 |
 
 ## Layouts — PASS
