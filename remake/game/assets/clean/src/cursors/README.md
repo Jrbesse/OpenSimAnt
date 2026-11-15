@@ -2,6 +2,9 @@
 
 Made from the spec `docs/clean_pack/cursors.md` only. Regenerate with `python make_cursors.py`
 (`--preview` also writes `preview.png`, the two cursors over lawn green, soil brown, window grey and black).
+The base run needs no third-party package, so plain `python3` is enough; `--preview` imports Pillow only for
+the sheet, so on a box without it run that with the venv interpreter (on the Hermes box:
+`~/work/simant-venv/bin/python make_cursors.py --preview`, the pair from `../requirements.txt`).
 Only palette indices 0 (white), f (black) and `.` (transparent) are used; 1-pixel lines, no anti-aliasing.
 
 - `0.pix` (16 x 16): the pointer. Drawn by hand in the script: an arrow 10 x 15 pixels with its tip at (0, 0),
