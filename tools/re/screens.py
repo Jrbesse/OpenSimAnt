@@ -156,7 +156,7 @@ def main():
     e.mouse_event(1, 600, 470, 0)
     run(e, 150, 300_000_000)
     shot(e, v, os.path.join(out, 'filedlg.png'))
-    file_fixture.write_sidecar(out, 'filedlg', file_fixture.FIXTURE)
+    file_fixture.write_sidecar(out, 'filedlg', file_fixture.served(files))
     # (a click on A: does not give the disk error box here: the emulator's DOS serves every drive, "A:\" selected)
     click(e, 332, 308)                            # CANCEL: back to the game
     e.mouse_event(1, 600, 470, 0)
@@ -287,7 +287,7 @@ def save_captures(e, v, out):
     and 800 more polls; not investigated), which spoils the captures that follow (newselect, exp, expmenu, gameover)."""
     choose(e, 20, FILE_SAVE_AS)
     shot(e, v, os.path.join(out, 'savedlg.png'))
-    file_fixture.write_sidecar(out, 'savedlg', file_fixture.FIXTURE)
+    file_fixture.write_sidecar(out, 'savedlg', file_fixture.served(os.path.join(out, 'files')))
     click(e, 220, 179)
     click(e, 210, 343)
     e.mouse_event(1, 600, 470, 0)

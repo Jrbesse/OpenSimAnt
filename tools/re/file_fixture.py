@@ -9,6 +9,7 @@ for a capture set recorded before the sidecar existed) for the --file-dir render
 comparable on any machine.
 """
 import os
+import shutil
 
 # three empty saved games, a text file the dialog leaves out, a sub-folder
 FIXTURE = ('GAME1.ANT', 'MYCOLONY.ANT', 'README.TXT', 'SAVES/', 'ZEBRA.ANT')
@@ -23,9 +24,17 @@ def make_fixture(path):
     os.makedirs(path, exist_ok=True)
     for n in os.listdir(path):
         p = os.path.join(path, n)
-        (os.rmdir if os.path.isdir(p) else os.remove)(p)
+        (shutil.rmtree if os.path.isdir(p) else os.remove)(p)   # rmtree: a non-empty stray dir must not break the rebuild
     for e in FIXTURE:
         _add(path, e)
+
+
+def served(d):
+    """What a dialog listing folder d sees: the entries as named, directories '/'-suffixed, sorted.
+
+    The sidecar records this, not FIXTURE: the dialog lists the folder it was served, so the sidecar
+    is the observation beside the capture, not a restatement of the fixture's intent."""
+    return [n + ('/' if os.path.isdir(os.path.join(d, n)) else '') for n in sorted(os.listdir(d))]
 
 
 def write_sidecar(out_dir, name, entries):
