@@ -5,6 +5,7 @@
 # release); "Run workflow" by hand only
 # keeps them as workflow artifacts (they need a GitHub login to download). No package has original game data: the
 # game asks the player for their own copy on first run.
+# A tag whose tree holds no dev log post naming it fails the run before anything is built (the dev log guard).
 name: Release
 
 on:
@@ -31,6 +32,36 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+
+      # The release notes say the technical write-up for this release is in the dev log (docs/_posts, newest
+      # first). Enforce it before anything is built or published. The checkout above is the tagged commit itself
+      # ($GITHUB_SHA -- not master, so a post merged after the tag cannot paper over it), and some post in it
+      # must name the tag. Hard gate, tag path only, no override: the entry merges before the tag is cut
+      # ("publish the entry first, then add the link"); a tag cut before its entry merges fails here and a
+      # re-run cannot pass, because the tagged tree is immutable -- the recovery is a new tag on a commit that
+      # carries the entry. This check proves the post is in the repo at the tag; it does not prove the devlog
+      # permalink answers 200, which depends on the Pages deploy and would flake a curl here.
+      - name: Require a dev log entry for the tag
+        if: github.ref_type == 'tag'
+        run: |
+          set -eu
+          head=$(git rev-parse HEAD)
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "::error::the dev log guard must run on the tagged tree; checkout is at $head, not $GITHUB_SHA"
+            exit 1
+          fi
+          tag=$GITHUB_REF_NAME
+          newest=$(ls docs/_posts/*.md 2>/dev/null | sed 's|.*/||' | sort | tail -n 1)
+          if grep -qF "$tag" docs/_posts/*.md 2>/dev/null; then
+            echo "dev log entry for $tag is in the tagged tree"
+          else
+            if [ -n "$newest" ]; then
+              echo "::error::no dev log entry for tag $tag: no post in docs/_posts/ at the tagged commit names '$tag' (newest post $newest)"
+            else
+              echo "::error::no dev log entry for tag $tag: docs/_posts/ holds no posts at the tagged commit"
+            fi
+            exit 1
+          fi
 
       - uses: actions/setup-dotnet@v6
         with:
