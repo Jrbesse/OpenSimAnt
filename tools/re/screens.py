@@ -17,6 +17,7 @@ sys.path.insert(0, HERE)
 
 from emu import SimEmu  # noqa: E402
 from vga import VGA  # noqa: E402
+import file_fixture  # noqa: E402
 
 
 SIM = 0x3e1d
@@ -143,12 +144,11 @@ def main():
     click(e, 320, 240)
     e.mouse_event(1, 600, 470, 0)
     run(e, 100)
-    # the file dialog lists a served folder as C:\ (emu.find_dir): three empty saved games, a text file the dialog
-    # leaves out, a sub-folder (the remake gets the same folder with --file-dir)
+    # the file dialog lists a served folder as C:\ (emu.find_dir): the fixed fixture file_fixture.py owns
+    # (three empty saved games, a text file the dialog leaves out, a sub-folder). The remake gets the same
+    # folder with --file-dir; the names the capture listed are recorded beside it (#54)
     files = os.path.join(out, 'files')
-    os.makedirs(os.path.join(files, 'SAVES'), exist_ok=True)
-    for n in ('MYCOLONY.ANT', 'ZEBRA.ANT', 'GAME1.ANT', 'README.TXT'):
-        open(os.path.join(files, n), 'wb').close()
+    file_fixture.make_fixture(files)
     e.find_dir = files
     choose(e, 20, FILE_LOAD)                      # File > Load (asks to save the running game first?)
     shot(e, v, os.path.join(out, 'load.png'))
@@ -156,6 +156,7 @@ def main():
     e.mouse_event(1, 600, 470, 0)
     run(e, 150, 300_000_000)
     shot(e, v, os.path.join(out, 'filedlg.png'))
+    file_fixture.write_sidecar(out, 'filedlg', file_fixture.FIXTURE)
     # (a click on A: does not give the disk error box here: the emulator's DOS serves every drive, "A:\" selected)
     click(e, 332, 308)                            # CANCEL: back to the game
     e.mouse_event(1, 600, 470, 0)
@@ -286,6 +287,7 @@ def save_captures(e, v, out):
     and 800 more polls; not investigated), which spoils the captures that follow (newselect, exp, expmenu, gameover)."""
     choose(e, 20, FILE_SAVE_AS)
     shot(e, v, os.path.join(out, 'savedlg.png'))
+    file_fixture.write_sidecar(out, 'savedlg', file_fixture.FIXTURE)
     click(e, 220, 179)
     click(e, 210, 343)
     e.mouse_event(1, 600, 470, 0)

@@ -42,8 +42,12 @@ captures are redundant, and are kept only as a re-statement of how each window w
 The one modal `--state=` cannot restore is the file dialog (22): its list is the filesystem (the folders, then
 `*.ant`), and neither the directory nor the selection is in the original's memory. `--load-dialog --file-dir=…`
 is the capture-time workaround and stays in FLAGS below; a bare `--state=` render of `filedlg.state` leaves the
-dialog out and says so on stderr (that is 63902 px, not a render bug).
+dialog out and says so on stderr (that is 63902 px, not a render bug). The `…` is not this machine's directory:
+the render gets a fresh fixture directory (file_fixture.py) rebuilt from the capture's <name>.files sidecar —
+the names screens.py recorded when it recorded the capture — or from the fixture's canonical names for a
+capture set recorded before the sidecar existed, so the pair is comparable on any machine (#54).
 """
+import atexit
 import os
 import shutil
 import subprocess
@@ -78,10 +82,10 @@ FLAGS = {
     'about': ['--history', '--panels', '--antipedia', '--map-front', '--about=0,0'],
     'load': ['--history', '--panels', '--antipedia', '--map-front', '--save-prompt=4'],
     'filedlg': ['--history', '--panels', '--antipedia', '--map-front', '--load-dialog',
-                '--file-dir=' + os.path.join(SCREENS, 'files').replace('\\', '/')],
+                '--file-dir=$'],
     'cancel': ['--history', '--panels', '--antipedia', '--map-front'],
     'savedlg': ['--history', '--panels', '--antipedia', '--map-front', '--save-dialog=',
-                '--file-dir=' + os.path.join(SCREENS, 'files').replace('\\', '/')],
+                '--file-dir=$'],
     'overwrite': ['--history', '--panels', '--antipedia', '--map-front', '--alert'],
     'saved': ['--history', '--panels', '--antipedia', '--map-front', '--saved'],
     'savecancel': ['--history', '--panels', '--antipedia', '--map-front'],
@@ -139,6 +143,12 @@ def main():
     wrapper = display_wrapper()
     sys.path.insert(0, HERE)
     import pngdiff  # noqa: E402
+    import file_fixture  # noqa: E402
+    # the file dialog's list is the filesystem (the docstring): render against a fresh fixture directory rebuilt
+    # from the capture's sidecar, not whatever this clone's build/screens/files holds, so the pair is comparable
+    # on any machine (#54)
+    fixture = file_fixture.build_for_render(SCREENS, 'filedlg')
+    atexit.register(shutil.rmtree, fixture, True)
     missing = []
     compared = 0
     for name in args or FLAGS:
@@ -157,6 +167,7 @@ def main():
         cmd = wrapper + [godot, '--path', os.path.join(ROOT, 'remake', 'game'), '--',
                          '--state=' + state.replace('\\', '/')]
         flags = FLAGS.get(name, [])
+        flags = [f.replace('$', fixture) for f in flags]          # the file dialog's fixture directory (#54)
         at = os.path.join(SCREENS, name + '.at')
         if os.path.exists(at):                    # a press point saved by screens.py: the flag's '@' and the cursor
             xy = open(at).read().strip()

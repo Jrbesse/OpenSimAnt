@@ -2759,11 +2759,16 @@ public partial class Main : Node2D
                 if ((new System.IO.DirectoryInfo(d).Attributes & System.IO.FileAttributes.Hidden) != 0) continue;
                 rows.Add(("\x01" + n + ">", "<" + n + ">", System.IO.Path.GetFileName(d), true));
             }
-            foreach (var f in System.IO.Directory.GetFiles(dir, "*.ant"))
-            {
-                var n = System.IO.Path.GetFileName(f).ToUpperInvariant();
-                rows.Add((n.PadRight(12), n.PadRight(12), System.IO.Path.GetFileName(f), false));
-            }
+            // The original's DOS find is case-insensitive, but .NET's "*.ant" pattern is case-sensitive on
+            // Linux: on a case-sensitive filesystem it matches no uppercase DOS names, and the dialog lists
+            // the folder and no files (989 px against the reference on the Hermes box, #54). Filter the
+            // entries ourselves.
+            foreach (var f in System.IO.Directory.GetFiles(dir))
+                if (f.EndsWith(".ant", StringComparison.OrdinalIgnoreCase))
+                {
+                    var n = System.IO.Path.GetFileName(f).ToUpperInvariant();
+                    rows.Add((n.PadRight(12), n.PadRight(12), System.IO.Path.GetFileName(f), false));
+                }
         }
         catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException) { }
         rows = rows.Take(200).OrderBy(r => r.key.Length > 14 ? r.key[..14] : r.key, StringComparer.Ordinal).ToList();
