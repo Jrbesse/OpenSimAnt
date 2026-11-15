@@ -40,9 +40,11 @@ commit), the files made, and the script that makes them (kept beside them, so ev
 A bitmap whose geometry is fully determined by a stated measurement is exempt from the "too close" test
 (ART_PLAN section 2). Each exemption is recorded here per asset, naming the measurement that fixes the
 geometry; the `identical` column is the A5 similarity review's reading
-(`python tools/review/similarity.py bitmaps`, `docs/A5_SIMILARITY_REVIEW.md`). A 1.000 is the expected result
-for this class, not a clean-room breach. The exemption does not cover pictures: a photographic or hand-drawn
-bitmap at 1.000 is still a finding.
+(`python tools/review/similarity.py bitmaps`, `docs/A5_SIMILARITY_REVIEW.md`). Where the measurement fixes
+every pixel the asset reads 1.000 and that is not a clean-room breach; where it leaves a pixel-level choice
+the reading lands below 1.000 (7020, 5002) — what exempts the asset is the fixing measurement, not the
+number. This table is therefore "measurement-fixed assets", not "assets at 1.000". The exemption does not
+cover pictures: a photographic or hand-drawn bitmap at 1.000 is still a finding.
 
 | Asset | Size | Fixing measurement (as the spec states it) | `identical` | Recorded |
 |---|---|---|---|---|

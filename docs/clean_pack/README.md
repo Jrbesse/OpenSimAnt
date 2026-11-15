@@ -24,7 +24,8 @@ The game's art, fonts, text, sound effects and music, made new so the game runs 
    reports, per bitmap, the share of pixels identical on palette index (`drawn` and silhouette IoU as well),
    and the A5 review (`docs/A5_SIMILARITY_REVIEW.md`) records the figures a pass produced. A reading near 1.000
    on a *picture* is a finding to remade. The one class exempt from the test — assets whose geometry a stated
-   measurement fully fixes (ART_PLAN section 2, "Exception") — is *expected* to read 1.000 and is kept, with the
+   measurement fully fixes (ART_PLAN section 2, "Exception") — is *expected* to read 1.000 where the
+   measurement fixes every pixel, and just below it otherwise, and is kept either way, with the
    exemption recorded per asset in `PROVENANCE.md`; in the first pass that is the yard's `7021`, `7022`,
    `8905`, `7005`, `7006`, `7007` (all 1.000), `7020` (0.975) and `5002` (0.914).
 
