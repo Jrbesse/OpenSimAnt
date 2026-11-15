@@ -27,7 +27,7 @@ MENUS = {
 
 def menu(ident):
     (w, h), desc, items = MENUS[ident]
-    cv = Cv(w, h, 'SHARED_%d' % ident)
+    cv = Cv(w, h, '%d' % ident)
     for i, (r, word) in enumerate(items):
         cv.box('m%d' % i, r, word)
     return cv, 'menu of boxed labels: ' + desc
@@ -37,7 +37,7 @@ def button(ident):
     """170: 39 x 15, box (1,1)-(38,14); 160: 37 x 15, box (1,1)-(36,14).  Solid black, the word knocked out in white."""
     w = 39 if ident == 170 else 37
     word = 'Next' if ident == 170 else 'Back'
-    cv = Cv(w, 15, 'SHARED_%d' % ident)
+    cv = Cv(w, 15, '%d' % ident)
     x1 = w - 1
     cv.rect(1, 1, x1, 14, 1, 1)
     # round the four corners a little (the box edges stay black along > 95 % of their length)
@@ -52,7 +52,7 @@ def button(ident):
 
 
 def strip129():
-    cv = Cv(73, 8, 'SHARED_129')
+    cv = Cv(73, 8, '129')
     return cv, 'spare one-line text strip, entirely white'
 
 
@@ -66,7 +66,7 @@ ICONS = {
 
 def icon(ident):
     desc, rows = ICONS[ident]
-    cv = Cv(7, 7, 'SHARED_%d' % ident)
+    cv = Cv(7, 7, '%d' % ident)
     for y, r in enumerate(rows):
         for x, c in enumerate(r):
             if c == '#':

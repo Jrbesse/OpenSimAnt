@@ -1,4 +1,4 @@
-"""ency_lib.py - drawing tools for the encyclopedia's pictures (SHARED_<id>.pix, 1 plane, 0 = paper, f = ink).
+"""ency_lib.py - drawing tools for the encyclopedia's pictures (<id>.pix, 1 plane, 0 = paper, f = ink).
 
 A Cv is a 1-bit canvas.  Every shape goes through an optional transform (cv.at(...)) so one drawing function can be used
 at any scale, rotation or mirrored.  Tones are ordered-dither patterns registered to the PICTURE (not to the subject).

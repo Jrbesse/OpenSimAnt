@@ -10,7 +10,7 @@ WORKER = dict(leg=0.85, ant=0.85)
 
 # ------------------------------------------------------------------------------------------------------ 300
 def social300():
-    cv = Cv(137, 165, 'SHARED_300')
+    cv = Cv(137, 165, '300')
     A.place(cv, WORKER, 55, 2, 135, 44)
     I.place_fn(cv, I.draw_termite, 1, 48, 75, 88)
     I.place_fn(cv, I.draw_bee, 52, 86, 135, 134)
@@ -23,19 +23,19 @@ def social300():
 
 
 def termite320():
-    cv = Cv(69, 22, 'SHARED_320')
+    cv = Cv(69, 22, '320')
     I.place_fn(cv, I.draw_termite, 0, 0, 69, 22)
     return cv, 'a termite worker, side view facing left: pale, no waist, straight beaded antennae'
 
 
 def bee330():
-    cv = Cv(108, 70, 'SHARED_330')
+    cv = Cv(108, 70, '330')
     I.place_fn(cv, I.draw_bee, 0, 0, 108, 70)
     return cv, 'a honeybee in flight, side view facing left, with the pollen basket on the hind leg'
 
 
 def wasp340():
-    cv = Cv(94, 66, 'SHARED_340')
+    cv = Cv(94, 66, '340')
     # a few cells of paper comb in the lower left corner
     for (cx, cy) in ((7, 60), (19, 60), (31, 60), (13, 50), (25, 50)):
         I.hexcell(cv, cx, cy, 7, W_)
@@ -45,7 +45,7 @@ def wasp340():
 
 # ------------------------------------------------------------------------------------------------------ 610
 def weaver610():
-    cv = Cv(141, 117, 'SHARED_610')
+    cv = Cv(141, 117, '610')
     cv.cut_cols = list(range(7))
     T = [(12, 22), (30, 10), (70, 7), (110, 9), (136, 18), (137, 28), (130, 33), (100, 42), (70, 48), (40, 50), (24, 55), (14, 53)]
     B = [(12, 84), (40, 80), (70, 82), (100, 88), (130, 93), (137, 100), (132, 110), (100, 115), (60, 116), (24, 114), (13, 108), (12, 96)]
@@ -78,7 +78,7 @@ def weaver610():
 
 # ------------------------------------------------------------------------------------------------------ 620
 def harvest620():
-    cv = Cv(139, 64, 'SHARED_620')
+    cv = Cv(139, 64, '620')
     g = 52
     # grass stems with seed heads at the back
     for (x, top) in ((9, 8), (47, 14), (100, 10), (131, 16)):
@@ -164,7 +164,7 @@ def _army_ant(cv, ox, oy, s, pose, load):
 def army630():
     """a double file of five army ants marching left: a back rank of two smaller ants above a dotted ground line, a front rank of
     three on a solid 2 px ground line; every ant is a separate silhouette (3 px gaps); one ant carries prey, two carry a larva"""
-    cv = Cv(112, 65, 'SHARED_630')
+    cv = Cv(112, 65, '630')
     gb, gf = 33, 60
     for x in range(1, 112, 4):
         cv.put(x, gb + 1, 1)
@@ -180,7 +180,7 @@ def army630():
 
 # ------------------------------------------------------------------------------------------------------ 640
 def leafcutter640():
-    cv = Cv(122, 110, 'SHARED_640')
+    cv = Cv(122, 110, '640')
     g = 61
     # the plant's leaf at the left, its right edge scalloped where it is being cut
     leaf = [(3, 6), (22, 2), (36, 12), (31, 20), (37, 28), (31, 36), (36, 44), (30, 52), (20, 60), (8, 56), (3, 40)]
