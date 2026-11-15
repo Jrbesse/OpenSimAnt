@@ -67,7 +67,10 @@ Any one of these re-opens the relevant decision, and the owner re-makes it — a
 - The repository was renamed `SimAnt-Evolved` → `OpenSimAnt` on 2026-11-15, before anything goes public;
   GitHub redirects the old URL, and the pipeline (registry, release script, state, clones) points at the
   new slug.
-- The dev log's home on `jbesse.me` is decided separately (the domain is shared with the owner's blog);
-  when it lands, the new address goes here and the ROADMAP row is reticked.
+- The dev log lives at **`jbesse.me/OpenSimAnt/`** (2026-11-15): the domain routes by repo name, the same
+  way `jbesse.me/Formica/` and `jbesse.me/Project829/` work, and the site's `baseurl` follows the renamed
+  repo. The old `/SimAnt-Evolved/` URLs die with the rename; the blog site (`jrbesse.github.io`) carries a
+  meta-refresh page for every old address, and the v1.0.0/v1.0.1 release bodies were re-pointed to the new
+  URLs the same day.
 - The flip itself is the owner's action. Nothing in this repository publishes on a push: releases cut on
   a schedule from tags, and the repo being public only changes who can see what already exists.
