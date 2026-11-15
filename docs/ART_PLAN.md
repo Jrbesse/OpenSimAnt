@@ -43,6 +43,21 @@ the same keys at the same sizes.
   independent creation if ever questioned.
 - **Review for similarity** before shipping. Where something comes out too close (a distinctive drawing,
   logo or melody), redesign it.
+- **Exception — assets whose form the measurement fixes.** A bitmap is exempt from that test only where its
+  geometry is fully determined by a number the spec writes down: a lattice's line spacing, a solid
+  single-colour fill, one opaque pixel, an exact one-pixel-per-row profile (a 1-px raindrop line's 4 px of
+  slope over 35 rows). Such an asset is *expected* to match the original pixel for pixel — remaking it would
+  break the fidelity the measurement exists to guarantee — so a 1.000 reading on it is correct, not a
+  clean-room breach. The class is narrow and mechanical: the exemption is recorded per asset in
+  `remake/game/assets/clean/PROVENANCE.md`, naming the measurement that fixes the geometry (the line spacing,
+  the colour-15 fill, the per-row slope), so "a measurement fixes it" cannot be claimed for an asset whose note
+  names no measurement. It says nothing about pictures: a photographic or hand-drawn bitmap at 1.000 is still
+  a finding, tested in full. The class is checked by `python tools/review/similarity.py bitmaps` (the A5
+  similarity review's tool; `docs/A5_SIMILARITY_REVIEW.md` records the first pass): an exempt asset reads 1.000
+  on the `identical` column. The first such assets are the yard's `7021`, `7022` (512x55 lattice strips),
+  `8905` (a solid colour-15 rectangle), `7006`, `7007` (one opaque pixel each) and `7005` (the 1-px raindrop
+  line) — all 1.000 — with `7020` (the same lattice, one line placed differently) at 0.975 and `5002` (a
+  two-colour separator bar) at 0.914.
 - **Things to replace rather than imitate:**
   - logos and trademarks: "SimAnt", "Maxis", the title art, the "© 1991 MAXIS" credits;
   - all text: the SimAntipedia, help screens, speech-balloon lines, tutorial strings, menus and
