@@ -371,8 +371,11 @@ Player (yellow ant) interactions are routed to `st.player` hooks; `surface.NoPla
 project's CLAUDE.md). Everything is under `remake/`; read `remake/README.md` first (layout, controls,
 screenshot flags).
 - `remake/src/OpenSimAnt.Sim`: **the whole of `simant_ref` is ported to C#** and checked against the Python
-  reference: every recorded call of every reference test (26 trace files, ~236,000 calls, 67,200 SimStep
-  ticks; the tutorial added 2026-10-18 night) replays byte for byte (`dotnet test remake/tests/OpenSimAnt.Sim.Tests`). Marked DIVERGENCEs (grep
+  reference: every recorded call of every reference test (26 trace files, 229,778 calls, 74,500 SimStep
+  ticks, counted 2026-11-15: `ls remake/build/traces/*.trace | wc -l` for the files, the replay's per-file
+  rows summed for the calls, and `grep -ao 'sim.sim_step' remake/build/traces/*.trace | wc -l` for the
+  ticks; the tutorial's file joined 2026-10-18 night) replays byte for byte
+  (`dotnet test remake/tests/OpenSimAnt.Sim.Tests`). Marked DIVERGENCEs (grep
   them): an unset local in the original, and UI randomness (spider fangs, raindrops) on its own generator.
 - `remake/src/OpenSimAnt.Data`: archives + LZSS, the starting State from SIMANT.EXE plus the start-up values
   the sim reads, map art and renderer, the spider, STR# strings (Mac Roman), sound effects, the bitmap
