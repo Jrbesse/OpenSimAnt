@@ -31,8 +31,8 @@ ship). The two licences do not overlap; see [Licence](#licence) below.
 - The simulation is completely ported and verified: every tick of the game (both colonies, nests, the
   yellow ant, the spider, ant lions, weather, the yard and the house, new games, saved games, cheats, map
   tools, menu commands) matches the original byte for byte in the tests.
-- The C# port matches the Python reference on every recorded call (about 236,000), and long scripted games
-  (200,000 ticks) stay identical to the original.
+- The C# port matches the Python reference on every recorded call (229,778 across
+  26 trace files), and long scripted games (200,000 ticks) stay identical to the original.
 - The Godot remake is complete with the player's own files: every window, menu, panel, the yard, the
   SimAntipedia, the tutorial, sound and music, compared screen by screen with the original.
 - **The clean-room asset pack is complete** (810 assets: art, layouts, fonts, text, sound effects and
