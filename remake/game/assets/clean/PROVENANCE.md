@@ -34,3 +34,23 @@ commit), the files made, and the script that makes them (kept beside them, so ev
 | 2026-11-01 | agent (isolated, spec only; Sonnet) | docs/clean_pack/fonts.md (font 3) and the spec side's review note (cramped, plain symbols) | src/fonts/font3.pix redrawn by hand (ASCII 33..126, a 1-pixel gap, open counters, & % ~ { } @ # $ drawn), preview.png, font3_sample_4x.png, README.md; fonts 0, 1, 2, 4, 5 and all .json byte-identical | src/fonts/make_fonts.py (HAND3) |
 | 2026-11-13 | agent (isolated, spec only) | docs/clean_pack/screens_bitmaps.md as revised in the commit adding this row (the wordmark: plain flat text, one solid colour, no outline / shade / highlight / shadow — the #36 mitigation) | src/bitmaps/screens_wordmark.py (the nine 10-row glyph cells verbatim from the spec, render_mask, plain_wordmark; self-test asserts per-glyph equality with the spec), src/bitmaps/2000.pix, src/bitmaps/2001.pix (the title name re-lettered flat), src/bitmaps/wordmark_mask.png, src/bitmaps/title_wordmark_preview.png, README.md (screens section) | src/bitmaps/screens_wordmark.py, make_screens_bitmaps.py |
 | 2026-11-15 | agent (isolated, spec only) | clean-room spec font3-redraw-52-full.md (issue #52: the nineteen font-3 replacement cells, printed pixel by pixel; supersedes the 2026-11-01 hand-drawing of those codes) | src/fonts/font3_redraw.py (the 19 cells verbatim from the spec; self-test re-parses each block), src/fonts/font3_redraw_preview.png, src/fonts/font3.pix (the 19 glyphs re-drawn), src/fonts/font3_sample_4x.png (re-drawn from the current cells), src/fonts/preview.png, src/fonts/README.md (font 3 re-drawing note) | src/fonts/make_fonts.py (HAND3 <- FONT3_REDRAW; sample4x) |
+
+## Measurement-fixed exemptions (ART_PLAN §2, "Exception")
+
+A bitmap whose geometry is fully determined by a stated measurement is exempt from the "too close" test
+(ART_PLAN section 2). Each exemption is recorded here per asset, naming the measurement that fixes the
+geometry; the `identical` column is the A5 similarity review's reading
+(`python tools/review/similarity.py bitmaps`, `docs/A5_SIMILARITY_REVIEW.md`). A 1.000 is the expected result
+for this class, not a clean-room breach. The exemption does not cover pictures: a photographic or hand-drawn
+bitmap at 1.000 is still a finding.
+
+| Asset | Size | Fixing measurement (as the spec states it) | `identical` | Recorded |
+|---|---|---|---|---|
+| 7021 | 512x55 | the colony-views' grid lattice: horizontal lines at `y = 65 + 10r`, slanted lines on `x + y = 232 + 28k` (yard_bitmaps.md, "The patch grid") | 1.000 | 2026-11-15 (#53) |
+| 7022 | 512x55 | the same lattice, bottom third | 1.000 | 2026-11-15 (#53) |
+| 8905 | 19x35 | a solid single-colour fill: every pixel colour 15 (yard_bitmaps.md, group B) | 1.000 | 2026-11-15 (#53) |
+| 7006 | 8x1 | one opaque pixel, at column 1, colour 15 (yard_bitmaps.md, group C) | 1.000 | 2026-11-15 (#53) |
+| 7007 | 8x1 | one opaque pixel, at column 1, colour 3 (yard_bitmaps.md, group C) | 1.000 | 2026-11-15 (#53) |
+| 7005 | 7x37 | an exact one-pixel-per-row profile: a 1-px slanted line, one opaque pixel in each of rows 1..35, colour 7, 4 px of slope (column 5 at row 1 to column 1 at row 35) (yard_bitmaps.md, group C) | 1.000 | 2026-11-15 (#53) |
+| 7020 | 513x51 | the same grid lattice as 7021 / 7022, top third (one line placed differently, hence 0.975) (yard_bitmaps.md, "The grid strips") | 0.975 | 2026-11-15 (#53) |
+| 5002 | 49x29 | a two-colour two-row option bar: 14-px rows with a 1-px divider, black 15 lettering on light grey 12, the window's extra right / bottom pixel flat light grey (ui_bitmaps.md, group B1) | 0.914 | 2026-11-15 (#53) |
