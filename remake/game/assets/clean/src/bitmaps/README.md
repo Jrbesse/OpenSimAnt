@@ -4,10 +4,13 @@ Made from `docs/clean_pack/ui_bitmaps.md` (groups A to L: all 74 pictures; passe
 bitmap, `HCEGANT_<id>.pix`, written by `make_ui_bitmaps.py`:
 
 ```
-python make_ui_bitmaps.py      # writes the .pix files, runs every check as an assertion, writes preview.png
+~/work/simant-venv/bin/python make_ui_bitmaps.py   # writes the .pix files, runs every check as an assertion, writes preview.png
 ```
 
-Needs Python 3 with numpy (always) and Pillow (preview only).
+Needs Python 3 with numpy (always) and Pillow (preview only) — install the pair from `../requirements.txt`. The
+system `python3` on the Hermes box has neither, so every command in this README runs with the venv interpreter
+`~/work/simant-venv/bin/python` (from this directory); on a fresh checkout, create a venv from that file and use
+its interpreter instead.
 
 ## Files
 
@@ -132,9 +135,9 @@ Made from `docs/clean_pack/yard_bitmaps.md` (114 pictures in 5 passes; this is *
 **pass 2: the toolbar, group D**). One file per bitmap, `HCEGANT_<id>.pix`, written by `make_yard_bitmaps.py`:
 
 ```
-python make_yard_bitmaps.py            # writes the .pix files, runs every check as an assertion, writes preview_yard.png
-python make_yard_bitmaps.py --crops    # only: replace HCEGANT_17006 / 17007 (if they exist) by crops of 7010
-python make_yard_bitmaps.py --no-preview
+~/work/simant-venv/bin/python make_yard_bitmaps.py            # writes the .pix files, runs every check as an assertion, writes preview_yard.png
+~/work/simant-venv/bin/python make_yard_bitmaps.py --crops    # only: replace HCEGANT_17006 / 17007 (if they exist) by crops of 7010
+~/work/simant-venv/bin/python make_yard_bitmaps.py --no-preview
 ```
 
 Needs Python 3 with numpy (always) and Pillow (preview only). The yard modules import `uilib.py` of the interface batch
@@ -143,7 +146,7 @@ Needs Python 3 with numpy (always) and Pillow (preview only). The yard modules i
 **Made so far:** 7000, 7001, 7003 (the yard window's pictures), 7020, 7021, 7022 (the colony views' grid strips), 7005 (raindrop),
 7006, 7007 (the queens' dots), 1260 (the for-sale sign), 7010 (the toolbar), 7011 (its help overlay). **Crops:** 17006 and 17007 are crops of
 7010 (the House button's box and the Patch button's box); the script writes them **only if they already exist** (it said so
-when it ran); if the interface batch is run later, run `python make_yard_bitmaps.py --crops` afterwards.
+when it ran); if the interface batch is run later, run `~/work/simant-venv/bin/python make_yard_bitmaps.py --crops` afterwards.
 **Not made yet:** passes 3 (the people E, the door / room patches B), 4 (the dog, cat, bird F, G), 5 (the spider H, the
 map-window actors I): add a module `yard_pass3.py` ... with a `build(reg)` function and list it in `PASSES` of `make_yard_bitmaps.py`.
 
@@ -228,7 +231,7 @@ middle 60 % of their buttons, no gaps in the left group, the text fits) and tabs
 Made from `docs/clean_pack/screens_bitmaps.md` (all three passes). One file per bitmap, `HCEGANT_<id>.pix`, written by `make_screens_bitmaps.py`:
 
 ```
-python make_screens_bitmaps.py   # writes the 24 .pix files, runs the spec's checks as assertions, writes preview_screens.png
+~/work/simant-venv/bin/python make_screens_bitmaps.py   # writes the 24 .pix files, runs the spec's checks as assertions, writes preview_screens.png
 ```
 
 Needs Python 3 with numpy and Pillow. Pillow's `ImageDraw` is used only on 8-bit index canvases (`Cv` in `screens_lib.py`): no anti-aliasing, the pixel values are palette indices.
@@ -263,7 +266,7 @@ The nine groups of "The script's checks": sizes, characters, no `.`; the identit
 
 64 files: the dog 8500..8511, 8600..8603; the cat 1300..1305, 1310..1312, 1320..1329; the bird 1250, 1251; the spider's bodies
 1000..1007 and beaten frames 1050..1053; the small spiders 1100..1107; the sneaker 1200..1203; the Map window's mower 1210, 1211; the
-marker 1400. Written by `make_yard_bitmaps.py` (passes 4 and 5 are listed in its `PASSES`); `python preview_yard_actors.py` writes
+marker 1400. Written by `make_yard_bitmaps.py` (passes 4 and 5 are listed in its `PASSES`); `~/work/simant-venv/bin/python preview_yard_actors.py` writes
 `preview_yard_actors.png` (the animation strips at their offsets, the spider composite with the game's legs and fangs, the beaten frames,
 the Map-window actors on 4-px cells).
 
@@ -303,12 +306,12 @@ rotation; the marker.
 
 # The encyclopedia's pictures (`SHARED_<id>.pix`, 40 one-bit bitmaps; spec `docs/clean_pack/encyclopedia_bitmaps.md`)
 
-Made 2026-11-01 by an isolated agent from the spec only. Rebuild everything with `python make_ency_bitmaps.py` (from any folder, no
+Made 2026-11-01 by an isolated agent from the spec only. Rebuild everything with `~/work/simant-venv/bin/python make_ency_bitmaps.py` (from any folder, no
 arguments): it draws the 40 pictures, runs every assertion of the spec's "The script's checks" (sizes, only `0` / `f`, boxed labels on
 their rectangles with the lettering centred and 2 px clear of the outline, no overlapping or unlisted outlined rectangle, leader tips
 inside the named part and no leader through a box, the cut rows / columns white, 540's left 16 columns empty above the ground row,
 880's arrows on their boxes and never through another box, 170 / 160's white border and word, the forbidden-word list) and writes the files.
-`python ency_preview.py all` writes `preview_ency.png` (the contact sheet at 2x, then every card of the placement table at 2x with the
+`~/work/simant-venv/bin/python ency_preview.py all` writes `preview_ency.png` (the contact sheet at 2x, then every card of the placement table at 2x with the
 text rectangles hatched grey, the navigation strip darker, the link rectangles red).
 
 | File | What it is |
