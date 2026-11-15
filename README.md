@@ -1,6 +1,6 @@
 # OpenSimAnt: an ant-colony simulator, reverse engineered and remade
 
-[![Build](https://github.com/Jrbesse/SimAnt-Evolved/actions/workflows/build.yml/badge.svg)](https://github.com/Jrbesse/SimAnt-Evolved/actions/workflows/build.yml)
+[![Build](https://github.com/Jrbesse/OpenSimAnt/actions/workflows/build.yml/badge.svg)](https://github.com/Jrbesse/OpenSimAnt/actions/workflows/build.yml)
 
 A fan project around a 1991 DOS ant-colony simulation game: its rules are reverse engineered from the
 original executable, ported to a readable reference implementation, verified byte for byte against the
@@ -89,8 +89,8 @@ are listed here rather than left silent: each is recorded, not scheduled for a f
   draws a brown sprite pixel `(85,44,4)`. The object is therefore one pixel narrower on its left
   edge and one pixel longer on its right. Neither image has a transparent pixel anywhere (0 of
   307200 in each), so this is an outline difference, not a fill. Which sprite the cell holds is not
-  established ([#25](https://github.com/Jrbesse/SimAnt-Evolved/issues/25)).
+  established ([#25](https://github.com/Jrbesse/OpenSimAnt/issues/25)).
 - `yardfront`: **2 px** at y=83, at x=63 and x=576 — the two ends of the top border, yellow
   `(255,242,4)` in the original and black in the remake.
-  [#29](https://github.com/Jrbesse/SimAnt-Evolved/issues/29) reads that shape as the border's end caps,
+  [#29](https://github.com/Jrbesse/OpenSimAnt/issues/29) reads that shape as the border's end caps,
   which is a hypothesis rather than a measurement.

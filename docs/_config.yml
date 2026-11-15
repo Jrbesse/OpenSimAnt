@@ -37,6 +37,7 @@ exclude:
   - HANDOFF.md
   - NIGHTLY.md
   - PLAYTEST.md
+  - PUBLICATION.md          # the owner's decision record, off the public site
   - RECREATION_PLAN.md
   - RELEASE_NOTES_TEMPLATE.md
   - ROADMAP.md

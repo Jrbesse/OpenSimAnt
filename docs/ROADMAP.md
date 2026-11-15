@@ -407,13 +407,15 @@ the original files make the clean assets from those specs.
 
 ## Track C: release
 
-- [ ] The repository made public (the GitHub repository is still named SimAnt-Evolved: rename it to match, if
-      wanted).
+- [x] The repository made public: **renamed to `OpenSimAnt` 2026-11-15** (GitHub redirects the old URL; the
+      pipeline points at the new slug). The flip itself is the owner's action; the dev log's home on
+      `jbesse.me` is settled in the same pass. The decision record is `docs/PUBLICATION.md`.
 - [x] A licence for the code (`LICENSE`, MIT) and the clean pack's licence and credits (`LICENSE-ASSETS`, CC BY 4.0), both
       shipped inside every release package (#34).
-- [ ] A review of the name ("OpenSimAnt" contains the trademark "SimAnt", ART_PLAN section 2; projects like
-      OpenRCT2 / OpenTTD are the precedent), the clean pack, the game tables in source (A2) and the docs by someone qualified
-      (`ART_PLAN.md` note).
+- [x] The review of the name, the clean pack, the game tables in source (A2) and the docs: the owner's
+      decision 2026-11-15 — no external opinion; the precedent posture is accepted and recorded in
+      `docs/PUBLICATION.md` with the conditions that keep it bounded and the triggers that reopen it.
+      Any EA / Maxis intervention is the owner's direct call at that time.
 - [x] README and `remake/dist/HOW_TO_PLAY.txt` rewritten for players: no original files needed; how to use your
       own copy for the original look. **Done 2026-11-04.** Both said the original game was required and that the
       open-assets button was still grey; `HOW_TO_PLAY.txt` also listed controls the shell does not have (`+` / `-`
@@ -421,7 +423,8 @@ the original files make the clean assets from those specs.
       for scrolling and Home to follow — `Main.cs` `_UnhandledInput`, and the owner's no-extra-controls rule). The
       release notes' first-run paragraph was stale the same way. Checked against `Main.cs` (the launcher's
       `packOk` gate at `_Ready`, `ShowLauncher`) and the replay of the clean pack in CI (run 41920221727).
-- [ ] A tagged release (`v1.0.0`) with the three builds.
+- [x] A tagged release: **v1.0.0** 2026-11-11 with the three builds, **v1.0.1** 2026-11-14 (the plain
+      wordmark).
 
 ## After version 1
 
