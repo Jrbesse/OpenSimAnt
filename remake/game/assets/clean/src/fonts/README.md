@@ -3,7 +3,11 @@
 Six original fonts (`font0` .. `font5`, each a `.pix` glyph grid and a `.json` of advances), made from the written
 spec `docs/clean_pack/fonts.md`. **No open-licensed or other existing font was used as a base**: every glyph is drawn
 by `make_fonts.py` from scratch. Run `python make_fonts.py` to rewrite all twelve files, run the self-check and redraw
-`preview.png` (`python make_fonts.py --dump N [first last]` prints the glyphs of font N as text).
+`preview.png` (`python make_fonts.py --dump N [first last]` prints the glyphs of font N as text). The twelve fonts
+need no third-party package — on a box without Pillow the script catches the ImportError and still writes them
+(saying so), so plain `python3 make_fonts.py` runs on the Hermes box; only the `preview.png` and
+`font3_sample_4x.png` redraws need Pillow, so for those run it with the venv interpreter there
+(`~/work/simant-venv/bin/python make_fonts.py`, the pair from `../requirements.txt`).
 
 ## How the glyphs are made
 
