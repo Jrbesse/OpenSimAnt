@@ -76,7 +76,9 @@ def decode_any(path):
 
 def find_pix(archive, rid):
     base = os.path.join(SRC, 'bitmaps')
-    for name in (f'{archive}_{rid}.pix', f'{archive.lower()}_{rid}.pix'):
+    # the sources are named by id alone (commit 2ba8347); the archive-prefixed form is the older
+    # naming, kept as a fallback so a mixed tree still resolves
+    for name in (f'{rid}.pix', f'{archive}_{rid}.pix', f'{archive.lower()}_{rid}.pix'):
         p = os.path.join(base, name)
         if os.path.exists(p):
             return p
