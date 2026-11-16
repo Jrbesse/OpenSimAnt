@@ -72,5 +72,7 @@ Any one of these re-opens the relevant decision, and the owner re-makes it — a
   repo. The old `/SimAnt-Evolved/` URLs die with the rename; the blog site (`jrbesse.github.io`) carries a
   meta-refresh page for every old address, and the v1.0.0/v1.0.1 release bodies were re-pointed to the new
   URLs the same day.
-- The flip itself is the owner's action. Nothing in this repository publishes on a push: releases cut on
+- The flip itself is the owner's action. **Done 2026-11-15 (the owner's evening):** visibility flipped and
+  verified anonymously — the repo page, the v1.0.1 release and its assets, and `jbesse.me/OpenSimAnt/` all
+  answer without authentication. Nothing in this repository publishes on a push: releases cut on
   a schedule from tags, and the repo being public only changes who can see what already exists.

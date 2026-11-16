@@ -407,9 +407,9 @@ the original files make the clean assets from those specs.
 
 ## Track C: release
 
-- [x] The repository made public: **renamed to `OpenSimAnt` 2026-11-15** (GitHub redirects the old URL; the
-      pipeline points at the new slug). The flip itself is the owner's action; the dev log's home on
-      `jbesse.me` is settled in the same pass. The decision record is `docs/PUBLICATION.md`.
+- [x] The repository made public: **renamed to `OpenSimAnt` and flipped public 2026-11-15** (GitHub redirects
+      the old URL; the pipeline points at the new slug; the dev log lives at `jbesse.me/OpenSimAnt/`). The
+      decision record is `docs/PUBLICATION.md`; the entry is Dev Log #3.
 - [x] A licence for the code (`LICENSE`, MIT) and the clean pack's licence and credits (`LICENSE-ASSETS`, CC BY 4.0), both
       shipped inside every release package (#34).
 - [x] The review of the name, the clean pack, the game tables in source (A2) and the docs: the owner's
