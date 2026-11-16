@@ -38,6 +38,17 @@ capture's actor list and no archive bitmap. Check the State before calling such 
 OCC grid and the ant arrays (SX / SY / STYPE) agree at the capture instant, so the render is drawing what memory
 holds.
 
+`yardfront` carries a third member of the same class: B19's 2 px, (63, 83) and (576, 83) — yellow (255,242,4) in
+the capture, black in the remake. The original's frame-edge routine (flat 0x32d27) draws the window's inner frame
+columns x=63 / x=576 yellow at row y=83 only (the end-cap row, the title bar's bottom edge) and black below, and
+repaints it every animation tick. A full picture draw (first open, view change) lays the picture bitmaps' own
+black edge columns over x=63 / x=576 — including row 83 — so the end caps are black (`yard`, `house`, `strat`,
+`graphic`, `card`: 0 px); a RAISE (a view-button click while the window is behind) repaints the frame and the
+content (x=64..575) but not the edge columns, so the yellow end-cap row shows — that is the 2 px. The raise
+history is not in memory (yard.state and yardfront.state share the view mode G:035C and differ only in
+sim-progression counters), so the remake's full-picture draw is the correct state-based render and matches the
+other five captures of the family.
+
 Which window the capture held is the original's own z-order (DS:5702), and `--state=` puts it back by itself:
 the stack windows (Edit, Map, History, yard, SimAntipedia, Behavior, Caste) and the front modal. The front modal
 is restored from the State alone for the title (3), Select a Game (2), the Efficiency Score (24), game over (4),

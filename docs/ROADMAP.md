@@ -361,16 +361,22 @@ the original files make the clean assets from those specs.
       the reference capture set (`python tools/extract.py && python tools/re/screens.py`, ~5 min) and re-baseline every
       pixel number in this file that cites the 1158-px menu band: B11's 1629, B13's 1952 / 935 and the "pre-existing
       menu-bar band" caveats are stale, and `docs/screens/*.png` were rendered with the same missing glyphs.
-- [ ] **B16. The `surface` capture differs from the remake by 256 px.** `--state=surface.state` (original files,
+- [x] **B16. The `surface` capture differs from the remake by 256 px.** `--state=surface.state` (original files,
       `--cursor=600,470`) against the new `tools/re/build/screens2/surface.png`: 256 of 307200 px, bounding box
       (476, 94) .. (567, 237), the pairs a red / brown swap (222,8,4 vs 145,113,56) on 112 px each way plus 16 px of
       (85,44,4). A strip at the Map window's right-hand edge, so probably one cell column of the surface map drawn
       from the wrong table — untraced. Found 2026-11-06 while verifying B12; not fixed in this session's window.
-- [ ] **B17. `yardfront` differs from the remake by 3424 px.** Same comparison: 3424 of 307200 px, bounding box
+      **Resolved 2026-11-16 (nightly session, with B18): the same one-step paint lag — a capture artefact, not a
+      remake bug; the outcome is this note, not a code change.** Documented in `compare_screens.py`'s docstring
+      (PR #104); `surface` still measures 256 px against the font-present set (bounding box (476, 94) ..
+      (568, 238)), the accepted difference.
+- [x] **B17. `yardfront` differs from the remake by 3424 px.** Same comparison: 3424 of 307200 px, bounding box
       (19, 41) .. (576, 128) — the Yard window's upper half, mostly (145,113,56) / (0,101,16) / (85,44,4) swaps with
       592 px of (242,8,133) on the remake's side. `yard` is already known not to be a stable pixel oracle (the dog
       sprite: 217 px between runs), so the first step is a second render to separate a genuine difference from the
-      same instability. Found 2026-11-06 while verifying B12.
+      same instability. Found 2026-11-06 while verifying B12. **Closed 2026-11-07 (PR #26, the `--state` fix for
+      #15):** `--state=yardfront.state` now draws the yard window — yardfront 3424 → 0 px against the 2026-11-07
+      capture set. Against the font-present set re-recorded 2026-11-08 (#18), the remaining 2 px are **B19** (#29).
 - [x] **B18. The `yard` capture differs from the remake by 9 px** — the remainder of `yard`'s 2940 px after B17's
       `--state` fix (#15). `--state=yard.state` against `tools/re/build/screens/yard.png`: 9 of 307200 px, bounding
       box (264, 195) .. (289, 200), object-shaped pairs, not a palette / offset shift. **Resolved 2026-11-16 (nightly
@@ -390,6 +396,25 @@ the original files make the clean assets from those specs.
       guidance and B16, the outcome is this note, not a code change. Left, only for a 100%-certain call: trace
       `f_6feb3`'s clip / sprite-layer logic (Ghidra) to confirm whether a from-`yard.state` render clips the tail —
       filed as B20 (#103).
+- [x] **B19. `yardfront` still differs by 2 px at y=83 (the top border's end caps).** Against the font-present set
+      (re-recorded 2026-11-08, #18), `--state=yardfront.state` differs from the capture in 2 px: (63, 83) and
+      (576, 83), yellow (255,242,4) in the capture, black in the remake. **Resolved 2026-11-16 (nightly session):
+      a redraw-order capture artefact — the B16 / B18 class — not a remake bug; the outcome is this note, not a
+      code change (before/after: 2 px → 2 px).** The two pixels are the window frame's end caps: the original's
+      frame-edge routine (flat `0x32d27`) draws the inner frame columns x=63 / x=576 with row y=83 = yellow (the
+      end-cap row, the title bar's bottom edge) and rows y=84+ = black, and repaints it every animation tick.
+      Whether the end caps show yellow depends on the last draw of the window's picture: a full picture draw
+      (first open, view change) lays the picture bitmaps' own black edge columns (bitmaps 88 / 90) over x=63 /
+      x=576 — including row 83 — so the end caps are black (`yard`, `house`, `strat`, `graphic`, `card`: 0 px); a
+      RAISE (a view-button click while the window is behind) repaints the frame and the content (x=64..575) but
+      not the edge columns, so the yellow end-cap row shows (`yardfront`: this 2 px). An emulator write trace of
+      the yardfront sequence confirms it: during the RAISE only `0x32d27` writes (63,83) / (576,83) (yellow, once
+      per pixel); the picture routines (`0x32967` / `0x328e7`) write those pixels black on first open (8 writes)
+      and on view change (4 writes) and write nothing on the RAISE. The yellow end caps are deterministic in the
+      input sequence (reproduced on a fresh emulator run, a second independent colony — the issue's "render
+      twice" check) but not a property of the state: `yard.state` and `yardfront.state` share the view mode
+      (`G:035C` = 0x101) and differ only in sim-progression counters, and the remake renders both with the full
+      picture — the correct state-based draw, matching the other five captures of the family (0 px).
 - [x] **B13. `--state=` does not draw a capture whose front window is a modal.** `StackWindow` admits only the windows
       the shell draws from `zOrder` (Edit, Map, History, Yard, SimAntipedia, Behavior, Caste); the original's modals
       are handled by the shell as `modal` (24 the Status window, 29 Ant Info, ...), so `status.state` — whose
