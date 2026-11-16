@@ -371,6 +371,25 @@ the original files make the clean assets from those specs.
       592 px of (242,8,133) on the remake's side. `yard` is already known not to be a stable pixel oracle (the dog
       sprite: 217 px between runs), so the first step is a second render to separate a genuine difference from the
       same instability. Found 2026-11-06 while verifying B12.
+- [x] **B18. The `yard` capture differs from the remake by 9 px** — the remainder of `yard`'s 2940 px after B17's
+      `--state` fix (#15). `--state=yard.state` against `tools/re/build/screens/yard.png`: 9 of 307200 px, bounding
+      box (264, 195) .. (289, 200), object-shaped pairs, not a palette / offset shift. **Resolved 2026-11-16 (nightly
+      session): a capture artefact — the original's one-step paint lag (the B16 kind), not a remake bug.** Two objects:
+      (a) the **dog's tail**, x=288 rows 195..198 — the capture shows grass (28,182,20) / (0,101,16) where the remake
+      shows the brown (85,44,4) right-hand column of dog frame 8510; (b) a **porch flower**, x=264 rows 195..199 — the
+      capture shows a 1-px pink (242,8,133) / purple (68,0,165) / black stem in the grey (64,64,64) porch where the
+      remake shows the porch. It is deterministic (re-rendered, stable), and the capture's dog is frame **8510**
+      (template match 149/153; the 4 misses are exactly the tail) and its human **8001** (219/219) — the same body
+      frames as `yard.state` (`G:04E4` = 10) — so this is not a body-frame drift. The original draws the dog through a
+      clip / sprite-layer path (`f_6feb3` branches on `DS:2A30`, passing `G:10DA` / `G:10DC` to the composite) that
+      `YardRenderer` / the reference do not model, and `DS:2A30` / `G:10DA` are animation-dependent (`yard.state`
+      0x0407 / 0x0076, `house.state` 0x052d / 0x0054, most other captures 0x052d-or-0xffff / 0x0000); the flower is in
+      no capture's actor list and in no archive bitmap (no pink-over-purple motif in any type-2 record), consistent
+      with an animation element present at the capture instant and absent from `yard.state`. The remake renders
+      `yard.state` correctly (the full 8510, no flower); the capture lags `yard.state` by a step. Per the issue's own
+      guidance and B16, the outcome is this note, not a code change. Left, only for a 100%-certain call: trace
+      `f_6feb3`'s clip / sprite-layer logic (Ghidra) to confirm whether a from-`yard.state` render clips the tail —
+      filed as B20 (#103).
 - [x] **B13. `--state=` does not draw a capture whose front window is a modal.** `StackWindow` admits only the windows
       the shell draws from `zOrder` (Edit, Map, History, Yard, SimAntipedia, Behavior, Caste); the original's modals
       are handled by the shell as `modal` (24 the Status window, 29 Ant Info, ...), so `status.state` — whose
