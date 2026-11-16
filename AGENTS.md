@@ -43,7 +43,7 @@ Where it stands: the simulation is byte-identical with the original in the emula
 | `remake/game/` | The Godot 4.6 C# project: `Main.tscn`, `Main.cs` (the shell, one large file), `OpenSimAnt.csproj`. |
 | `remake/tests/OpenSimAnt.Replay/` | Replays traces on the C# port, compares memory byte for byte; `--smoke`, `--songs`, `--longrun`, `--export-pack`. |
 | `remake/tests/OpenSimAnt.Sim.Tests/` | xUnit, one test per trace file. |
-| `.github/workflows/` | `build.yml` (restore, Release build, tests, Python compile) and `release.yml` (three platforms + clean pack). |
+| `.github/workflows/` | `build.yml` (restore, Release build, tests, Python compile, regenerate the ant sheets from `make_sprites.py` and fail on any diff of the committed `.pix` files) and `release.yml` (three platforms + clean pack). |
 
 ---
 
