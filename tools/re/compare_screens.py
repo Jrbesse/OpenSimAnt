@@ -29,8 +29,14 @@ exits 1 whatever the names.
 
 A capture can be one simulation step behind its own `.state`: the original repaints the Map window after the
 step (f_6efd6), so its ants can still be at the cells they had before that step's moves — that is the whole
-256-px `surface` diff of B16. Check the State before calling such a difference a render bug: the OCC grid and
-the ant arrays (SX / SY / STYPE) agree at the capture instant, so the render is drawing what memory holds.
+256-px `surface` diff of B16. The yard shows the same lag: B18's 9 px are the dog's tail (x=288, the brown
+right-hand column of frame 8510) and a porch flower (x=264, a 1-px pink/purple stem) — animation elements at the
+capture instant's phase, one step before `yard.state`'s (G:04E4=10); the capture's dog body is still 8510 and its
+human 8001, so it is not a body-frame drift. The dog is drawn through a clip / sprite-layer path (f_6feb3,
+DS:2A30 / G:10DA) the remake does not model, and those values are animation-dependent; the flower is in no
+capture's actor list and no archive bitmap. Check the State before calling such a difference a render bug: the
+OCC grid and the ant arrays (SX / SY / STYPE) agree at the capture instant, so the render is drawing what memory
+holds.
 
 Which window the capture held is the original's own z-order (DS:5702), and `--state=` puts it back by itself:
 the stack windows (Edit, Map, History, yard, SimAntipedia, Behavior, Caste) and the front modal. The front modal
