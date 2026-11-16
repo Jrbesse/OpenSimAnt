@@ -299,7 +299,7 @@ Constraints:
 | `tools/ref/test_*.py`, `verify.py`, `linecov.py` | Differential tests against the emulator, and a line-coverage helper. |
 | `tools/ref/record_traces.py`, `record_all.sh` | Record the reference's calls during its tests as traces for the C# port. |
 | `docs/PLAYTEST.md` | The play-test checklist for the owner (sections, known gaps, how to report). |
-| `.github/workflows/build.yml` | CI on pushes / PRs to main or master: restore, build (Release), test the remake solution, compile the Python tools. No original files on CI, so the trace tests pass vacuously (one "(no traces)" row). |
+| `.github/workflows/build.yml` | CI on pushes / PRs to main or master: restore, build (Release), test the remake solution, compile the Python tools, regenerate the ant sheets from `make_sprites.py` and fail on any diff of the committed `.pix` files (a stale feeler pixel rode 16 worker ids that way, #19). No original files on CI, so the trace tests pass vacuously (one "(no traces)" row). |
 | `remake/` | **The Godot remake (C#)**: `src/OpenSimAnt.Sim` (the sim), `src/OpenSimAnt.Data` (files, art, session), `game/` (Godot project), `tests/` (trace replay, xUnit). See `remake/README.md`. |
 
 ## How verification works
