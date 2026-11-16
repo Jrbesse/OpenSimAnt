@@ -388,7 +388,8 @@ the original files make the clean assets from those specs.
       with an animation element present at the capture instant and absent from `yard.state`. The remake renders
       `yard.state` correctly (the full 8510, no flower); the capture lags `yard.state` by a step. Per the issue's own
       guidance and B16, the outcome is this note, not a code change. Left, only for a 100%-certain call: trace
-      `f_6feb3`'s clip / sprite-layer logic (Ghidra) to confirm whether a from-`yard.state` render clips the tail.
+      `f_6feb3`'s clip / sprite-layer logic (Ghidra) to confirm whether a from-`yard.state` render clips the tail —
+      filed as B20 (#103).
 - [x] **B13. `--state=` does not draw a capture whose front window is a modal.** `StackWindow` admits only the windows
       the shell draws from `zOrder` (Edit, Map, History, Yard, SimAntipedia, Behavior, Caste); the original's modals
       are handled by the shell as `modal` (24 the Status window, 29 Ant Info, ...), so `status.state` — whose
