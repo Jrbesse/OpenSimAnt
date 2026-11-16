@@ -17,7 +17,7 @@ session-by-session detail; this file is the dated snapshot.
 Open work lives in **GitHub issues** on this repo, not in this file:
 
 ```
-gh issue list -R Jrbesse/SimAnt-Evolved --state open --label "priority: P1"
+gh issue list -R Jrbesse/OpenSimAnt --state open --label "priority: P1"
 ```
 
 Every issue carries a `priority: P0..P3` label (set by the reviewer, updated whenever the picture changes) and the
