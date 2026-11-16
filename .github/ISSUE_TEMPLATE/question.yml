@@ -1,0 +1,13 @@
+name: Question
+description: A question about the project, the code, or how to contribute
+labels: [question]
+title: ""
+body:
+  - type: textarea
+    id: question
+    labels: ["Question"]
+    description: The question, with the file, screen or doc you are looking at.
+  - type: textarea
+    id: context
+    labels: ["Context"]
+    description: What you have already read or tried. Optional.
