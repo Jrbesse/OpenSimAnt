@@ -1,0 +1,29 @@
+name: "Bug"
+description: "A defect in the remake, the tools, or a difference from the original"
+labels: [bug]
+title: ""
+body:
+  - type: textarea
+    id: what
+    labels: ["What happened"]
+    description: "One or two sentences: what is wrong, and in which part (remake screen, sim, tool, data)."
+  - type: textarea
+    id: expected
+    labels: ["Expected"]
+    description: "What should happen instead. For fidelity differences: what the original does (screen, pixel positions, values)."
+  - type: textarea
+    id: repro
+    labels: ["How to reproduce"]
+    description: "Steps from a clean start. Name the screen, mode, input and, if you can, the tick. If it only happens with the original files, say which."
+  - type: input
+    id: build
+    labels: ["Build"]
+    description: "Release tag (e.g. v1.0.1) or commit SHA."
+  - type: textarea
+    id: evidence
+    labels: ["Evidence"]
+    description: "Screenshots (side by side with the original for pixel differences), traces, or the exact diff. Attach files directly."
+  - type: textarea
+    id: notes
+    labels: ["Notes"]
+    description: "What you have already tried or ruled out. Optional."

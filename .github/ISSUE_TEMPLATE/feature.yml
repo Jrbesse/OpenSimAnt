@@ -1,0 +1,21 @@
+name: "Feature / enhancement"
+description: "A change that goes beyond restoring the original's behaviour"
+labels: [enhancement]
+title: ""
+body:
+  - type: textarea
+    id: what
+    labels: ["What"]
+    description: "One or two sentences: the change, and the surface it touches (screen, sim, tool, docs)."
+  - type: textarea
+    id: why
+    labels: ["Why"]
+    description: "The problem it solves or the value it adds."
+  - type: textarea
+    id: start
+    labels: ["Where to start"]
+    description: "Files, tools, or the doc that already describes the shape of it. Optional."
+  - type: textarea
+    id: accept
+    labels: ["Acceptance criteria"]
+    description: "What would make this done — something a reviewer can check. Note explicitly if it must stay byte-identical with the original or is a deliberate departure."
