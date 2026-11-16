@@ -94,3 +94,26 @@ are listed here rather than left silent: each is recorded, not scheduled for a f
   `(255,242,4)` in the original and black in the remake.
   [#29](https://github.com/Jrbesse/OpenSimAnt/issues/29) reads that shape as the border's end caps,
   which is a hypothesis rather than a measurement.
+
+## Contributing
+
+Contributions are welcome. The issue queue is the backlog (label rules in
+`docs/ROADMAP.md`), and work lands through pull requests against `master` that
+pass the build check.
+
+- **File an issue before a big change.** Open work is tracked in issues, and
+  the automated nightly sessions work them in priority order
+  (`docs/NIGHTLY.md`).
+- **Build and test locally.** CI compiles the remake and checks the generated
+  art on every push and pull request; it does not run the game. The full
+  checks (trace replay against the original in an emulator, smoke, longrun)
+  need your own copy of the original — the commands are in
+  `remake/README.md`.
+- **Never commit original files.** `extracted/`, the traces in `remake/build/`
+  and the game's `.DAT`/`.NDX`/`.EXE` are git-ignored and hold game memory;
+  if a command produces them, they stay local.
+- **The simulation must stay byte-identical with the original.** A change to
+  the reference (`tools/ref/`) needs its matching recorded traces; the rules
+  and formats are decoded in `docs/SIM_NOTES.md` and `docs/FILE_FORMATS.md`.
+- The technical write-up of the work lives in the
+  [dev log](https://jbesse.me/SimAnt-Evolved/devlog/).
