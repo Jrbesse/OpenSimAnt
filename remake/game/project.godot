@@ -13,7 +13,7 @@ config_version=5
 config/name="OpenSimAnt"
 config/description="OpenSimAnt: a fan remake of a classic 1991 ant-colony simulation game, built on a port of its simulation. Plays with its own open assets or with your own copy of the original game files."
 run/main_scene="res://Main.tscn"
-config/features=PackedStringArray("4.6", "C#")
+config/features=PackedStringArray("4.7", "C#")
 
 [display]
 
