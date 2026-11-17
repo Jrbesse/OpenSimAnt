@@ -38,6 +38,16 @@ capture's actor list and no archive bitmap. Check the State before calling such 
 OCC grid and the ant arrays (SX / SY / STYPE) agree at the capture instant, so the render is drawing what memory
 holds.
 
+`editfront` and `popup` carry the same one-step lag (#55): each differs from its `--state` render by the same
+32 pixels, bounding box (432, 102) .. (440, 110) — a single black nest ant, cell (60, 5) of the black-nest map
+(screen x 432..435, y 102..105), at (61, 6) in the capture and (60, 5) in `editfront.state` / `popup.state`.
+The State's ant array holds it (index 90, type 0x17) and the nest-cells grid 0x8180 agrees (0x17 at (60, 5),
+0 at (61, 6)); the light grey (194, 194, 194) the capture shows where the ant now is, and the black it shows
+where the grey now is, are the ant's two cells, the dirt under both being T:04A6[dirt>>2] = 12. The ant moved
+one cell diagonally between the capture and the State; the remake renders the State, so these 32 px are the B16
+one-step paint lag, not the '50 % stipple out of phase' the A5 review first read (a 2x2 swap of the ant's two
+cells). Accepted difference, like `surface`'s 256.
+
 `yardfront` carries a third member of the same class: B19's 2 px, (63, 83) and (576, 83) — yellow (255,242,4) in
 the capture, black in the remake. The original's frame-edge routine (flat 0x32d27) draws the window's inner frame
 columns x=63 / x=576 yellow at row y=83 only (the end-cap row, the title bar's bottom edge) and black below, and
