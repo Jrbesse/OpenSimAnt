@@ -1456,6 +1456,23 @@ win screen (`f_72750`).
 - **Sprites.** The actors live on a sprite layer (G:10DA): `f_26968` creates a sprite, `f_26f2d` moves
   it, `f_26bbc` removes it, `f_272c2` composites. The handles are DS:2A2A.. per actor, and G:38CA.. /
   G:38E8.. / G:390A.. for the raindrops and the swarms.
+  - **The dog's clip / sprite-layer path draws the full sprite — no tail clip** (B20, #103; traced
+    2026-11-18 in the emulator: `f_6feb3` → `f_26968` / `f_26f2d` → `f_272c2` → the type-3 picture draw).
+    The dog-draw `f_6feb3` computes the position, then branches on `DS:2A30`: `-1` → `f_26968` creates a
+    sprite-layer record (the returned handle is stored into `DS:2A30`); `≠ -1` → `f_26f2d` updates the
+    existing record. So `DS:2A30` is the dog's per-actor record handle — a create-vs-update selector, not a
+    clip parameter. `G:10DA` / `G:10DC` name the shared sprite layer: the composite `f_272c2` (from
+    `f_702f7` via `f_6fa6c`) resolves it with `f_18d44(G:10DA, G:10DC)` (the `G:10DC == 0xF0F` handle-table
+    path in `f_19182`) and draws every record in it. Each record's bitmap (`[rec+0x28]`) is resolved to a
+    picture object and blitted at the record's `([rec+0x16], [rec+0x18])` through the picture's own draw;
+    the dog's frame 8510 is a type-3 picture (live at flat `0x36a67`), 20 px wide. That draw is a 4-plane
+    blit of the **full picture width** — for 8510 it writes 3 byte-columns, the last masked to the picture's
+    own 4 trailing bits. The word passed as the "clip" (`[rec+0x16] & 7` = `x & 7`) is only a **sub-byte bit
+    offset**, a rotation applied to both the source bytes and the last-byte mask to land the sprite on the
+    pixel grid; it removes no column. **Consequence:** a from-`yard.state` render draws the full 20 px,
+    including the right-hand column — bitmap 8510 has palette 10 (brown) in column 19, rows 2..5, the 4 px at
+    screen (288, 195..198) that B18 found missing in the capture. B18's missing tail is the one-step paint
+    lag, confirmed: the path is a no-op for the tail, and the clip always covers the full sprite.
 - **Actors, mode <= 1**, each at its position + per-frame offsets from signed-byte tables in DS:
 
 | Actor | Routine | Shown while | Bitmap | Position |
