@@ -6,10 +6,10 @@
 # reaches the frame, so this is the right place to check Track A's clean-pack screens. (The
 # original look is the same command without --clean, below; the original files are on this box.)
 #
-#   GODOT=~/godot/Godot_v4.6.2-stable_mono_linux.x86_64 sh tools/shots.sh            # all
+#   GODOT=~/work/godot-bin/Godot_v4.7.2-stable_mono_linux_x86_64/Godot_v4.7.2-stable_mono_linux.x86_64 sh tools/shots.sh   # all
 #   GODOT=... sh tools/shots.sh game yard                                            # some
 #
-# Needs: that Godot mono build, the .NET 8 SDK, xvfb, and mesa's software GL (libgl1-mesa-dri).
+# Needs: that Godot mono build, the .NET 10 SDK (net10.0 since #112), xvfb, and mesa's software GL (libgl1-mesa-dri).
 # Output: remake/build/shots/<name>.png + .log. Exits non-zero on a missing PNG or a crash.
 
 set -eu
