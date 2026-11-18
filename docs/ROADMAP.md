@@ -261,8 +261,11 @@ the original files make the clean assets from those specs.
 - [x] **B6. Screen details:** the hourglass cursor (never shown by the original: its one cursor load asks for id 4,
       which does not exist); the two undecoded bytes of each colour scheme (never read). Done 2026-11-01 evening by
       code reading. Not checkable here: the colours of message boxes and scenes (window 26) on a real screen.
-- [ ] **B7. Audio fidelity (owner):** compare `OpenSimAnt.Replay --songs` with DOSBox; the sample / FM balance
+- [x] **B7. Audio fidelity (owner):** compare `OpenSimAnt.Replay --songs` with DOSBox; the sample / FM balance
       (`SoundMixer.SampleGain`). Not modelled: AdLib mode.
+      **Closed 2026-11-15 (owner):** listening pass over the Nov 12 render (`remake/build/listening`): the 30 songs and
+      35 effects accepted as-is, no balance or similarity fixes requested. Accepted differences stand: AdLib mode not
+      modelled; loudness balanced by rendering. See #21.
 - [x] **B8. A vacuous green test.** `OpenSimAnt.Replay` printed `test_terrain.trace: 0/0 OK` -- the file records no
       calls, so the row proved nothing while looking exactly like a pass. **Closed 2026-11-05 (nightly session 2):**
       a trace that records no calls (and no `--func` filter) now prints
