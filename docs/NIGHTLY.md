@@ -220,8 +220,12 @@ A screen can be judged inside the session -- no owner, no pushed branch. Two ste
    map art?", never "does this look right". Put the question *and* the answer in the PR body; that is the
    evidence.
 
-The Hermes box has what this needs: `/opt/godot` (4.6.2 mono), `/opt/dotnet` (SDK 8.0.427) and xvfb, with
-`$GODOT` and the `dotnet` path set by `/etc/profile.d/dotnet.sh`. These are the clean pack's screens, the
+The Hermes box has what this needs: the 4.7.2 mono binary in `~/work/godot-bin/`, the .NET 10 SDK and
+runtime in `~/.dotnet` (10.0.404 / 10.0.15), and xvfb. The game has been net10.0 since #112, so every
+build / test / replay / render command needs `export PATH=$HOME/.dotnet:$PATH DOTNET_ROOT=$HOME/.dotnet`
+first; the box default `/opt/dotnet` (SDK 8.0.427, still what `/etc/profile.d/dotnet.sh` and
+`godot-editor.service` point at) cannot target net10.0 until the owner's service cutover lands (the
+owner issue filed from #112). These are the clean pack's screens, the
 same six and the same seeds `release.yml` renders, so a local frame and a `clean-screens` frame are the
 same frame. **The original files are on the Hermes box too** -- read-only links in the sessions', reviewer's and
 fixer's clones -- so a comparison that needs them runs here and its numbers go in the PR: the original look (run the
