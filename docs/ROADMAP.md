@@ -395,10 +395,11 @@ the original files make the clean assets from those specs.
       0x0407 / 0x0076, `house.state` 0x052d / 0x0054, most other captures 0x052d-or-0xffff / 0x0000); the flower is in
       no capture's actor list and in no archive bitmap (no pink-over-purple motif in any type-2 record), consistent
       with an animation element present at the capture instant and absent from `yard.state`. The remake renders
-      `yard.state` correctly (the full 8510, no flower); the capture lags `yard.state` by a step. Per the issue's own
-      guidance and B16, the outcome is this note, not a code change. Left, only for a 100%-certain call: trace
-      `f_6feb3`'s clip / sprite-layer logic (Ghidra) to confirm whether a from-`yard.state` render clips the tail —
-      filed as B20 (#103).
+      `yard.state` correctly (the full 8510, no flower); the capture lags `yard.state` by a step. Per the issue's
+      own guidance and B16, the outcome is this note, not a code change. **100%-certain call made 2026-11-18
+      (B20, #103):** the clip / sprite-layer path was traced in the emulator and does **not** clip the tail — it
+      draws the full 20-px sprite (the "clip" word is a sub-byte bit offset, not a column clip); see B20 and
+      SIM_NOTES (the yard window's Sprites).
 - [x] **B19. `yardfront` still differs by 2 px at y=83 (the top border's end caps).** Against the font-present set
       (re-recorded 2026-11-08, #18), `--state=yardfront.state` differs from the capture in 2 px: (63, 83) and
       (576, 83), yellow (255,242,4) in the capture, black in the remake. **Resolved 2026-11-16 (nightly session):
@@ -418,6 +419,20 @@ the original files make the clean assets from those specs.
       twice" check) but not a property of the state: `yard.state` and `yardfront.state` share the view mode
       (`G:035C` = 0x101) and differ only in sim-progression counters, and the remake renders both with the full
       picture — the correct state-based draw, matching the other five captures of the family (0 px).
+- [x] **B20. The dog's clip / sprite-layer path (`f_6feb3`, `DS:2A30` / `G:10DA` / `G:10DC`) — does a
+  from-`yard.state` render clip the tail?** The 100%-certain follow-up B18 left: trace the clip / sprite-layer
+  logic and confirm whether the original clips the dog's right-hand column (the 4 tail px at (288, 195..198)).
+  **Resolved 2026-11-18 (nightly session): no clip — the path is a no-op for the tail.** Traced in the emulator
+  (`f_6feb3` → `f_26968` / `f_26f2d` → `f_272c2` → the type-3 picture draw at flat `0x36a67`): `DS:2A30` is the
+  dog's per-actor sprite-layer record handle (a create-vs-update selector), `G:10DA` / `G:10DC` name the shared
+  sprite layer (resolved by `f_18d44(G:10DA, G:10DC)`, the `G:10DC == 0xF0F` handle-table path in `f_19182`), and
+  the composite draws each record at its **full picture width** — the dog's frame 8510 is a type-3 picture 20 px
+  wide, blitted as 3 byte-columns with the last masked to the picture's own 4 trailing bits. The word passed as
+  the "clip" (`[rec+0x16] & 7` = `x & 7`) is a sub-byte bit offset (a source / mask rotation to land the sprite on
+  the pixel grid), not a column clip. Bitmap 8510 has the tail inked (palette 10, column 19, rows 2..5 = screen
+  (288, 195..198)), so a from-`yard.state` render draws the full 20 px including the tail. B18's missing tail is
+  the one-step paint lag, confirmed — the outcome is a note (SIM_NOTES, the yard window's Sprites), not a code
+  change.
 - [x] **B13. `--state=` does not draw a capture whose front window is a modal.** `StackWindow` admits only the windows
       the shell draws from `zOrder` (Edit, Map, History, Yard, SimAntipedia, Behavior, Caste); the original's modals
       are handled by the shell as `modal` (24 the Status window, 29 Ant Info, ...), so `status.state` — whose
