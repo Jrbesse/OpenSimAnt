@@ -91,7 +91,7 @@ shot --project remake/game --self-flag '--screenshot={out} --frames=240 --clean'
 
 ## 5. The Godot editor bridge
 
-Since 2026-11-05 the editor runs **on the Hermes box** (the agent's Linux container), not on the owner's Windows box (`eagle1`). It is a systemd service (`godot-editor.service`) on the sessions' clone `~/work/SimAnt-Evolved`, drawing on a virtual display (`:99`, 1280x1024, software GL). It runs the Godot-MCP addon (0.35.0 / server 9.4.0, the linux-x64 build) and exposes 14 tools. **0.35.0 was promoted to the permanent pin on 2026-11-06** after a night of use (`com.IvanMurzak.McpPlugin` 8.19.0 in `remake/game/OpenSimAnt.csproj`) and it is now the known-good fallback copy; a newer release is tried as an experiment — see §10. The editor **is** the server: if it stops, systemd restarts it within seconds, a watchdog restarts it after ~15 minutes without an answer, and it is restarted fresh at 00:45 Central before the nightly sessions.
+Since 2026-11-05 the editor runs **on the Hermes box** (the agent's Linux container), not on the owner's Windows box (`eagle1`). It is a systemd service (`godot-editor.service`) on the sessions' clone `~/work/SimAnt-Evolved`, drawing on a virtual display (`:99`, 1280x1024, software GL). It runs the Godot-MCP addon (version per `simant_mcp_envelope.py status --line`, the linux-x64 server build) and exposes 14 tools. **0.35.0 was promoted to the permanent pin on 2026-11-06** after a night of use (`com.IvanMurzak.McpPlugin` 8.19.0 in `remake/game/OpenSimAnt.csproj`); newer releases are tried as experiments and the known-good fallback copy rolls forward on every verified upgrade — see §10. The editor **is** the server: if it stops, systemd restarts it within seconds, a watchdog restarts it after ~15 minutes without an answer, and it is restarted fresh at 00:45 Central before the nightly sessions.
 
 - **Endpoint:** `http://127.0.0.1:25901/mcp`, loopback only. The port is derived from the project's absolute path, so it changes if the clone moves; `godot-cli status <project>` prints the truth. (The `/p/<pin>` route is only needed when one server hosts several projects.)
 - **Tools:** `script-create`, `script-update`, `script-read`, `script-delete`, `script-attach-to-node`, `script-build`, `script-validate`, `script-execute`, `rql-query`, `rql-mutate`, `rql-schema`, `screenshot-viewport`, `screenshot-camera`, `screenshot-isolated`. There is no `play_scene`, no `reflection-method-*`, no `console-get-logs`.
@@ -168,7 +168,10 @@ after it has earned it. Nobody installs an addon by hand; `simant_mcp_envelope.p
   newer than the known-good copy it runs `upgrade <tag>` and says so in the digest. `upgrade` downloads
   `godot-mcp-addon-<v>.zip`, takes the McpPlugin version the addon itself requires from its `nuget-deps.json`,
   installs the addon, writes a temporary `remake/game/Directory.Build.targets` pin override (never in git),
-  builds, restarts the editor and probes. It is one command by hand too: `python3
+  builds, restarts the editor and probes. A verified upgrade (build + restart + probe healthy) also **rolls the
+  known-good copy** to the new version (`LAST_KNOWN_GOOD` repointed to a fresh backup), so the next failed
+  experiment falls back to the last verified release, not the last promotion. It is one command by hand too:
+  `python3
   ~/.hermes/profiles/dev/scripts/simant_mcp_envelope.py upgrade v0.36.0`.
 - **The night tests it.** The 00:45 preflight (`7b9ee2a44166`) waits up to 4 minutes for the staged addon; if it
   does not come up it restores the known-good copy, restarts the editor, re-probes, and posts one line to
@@ -178,10 +181,11 @@ after it has earned it. Nobody installs an addon by hand; `simant_mcp_envelope.p
   facts: the reviewer's verdict is MERGE, no `fallback` event fired that night, and the bridge is on the
   experiment. The morning report states it; it never promotes.
 - **Promotion is a person's call**, and it is two steps: `promote --yes` (writes the pin into
-  `OpenSimAnt.csproj`, builds Release, retires the override, and leaves the change **uncommitted**), then snapshot
-  the new known-good (`cp -a` the addon into `~/work/mcp-addon-backups/<v>-<stamp>` and point
-  `LAST_KNOWN_GOOD` at it, or the next experiment would fall back to the old version), then land the csproj
-  change through a branch and a PR — never on master from the script.
+  `OpenSimAnt.csproj`, builds Release, retires the override, and leaves the change **uncommitted**), then land
+  the csproj change through a branch and a PR — never on master from the script. Since 2026-11-19 the
+  known-good snapshot is automatic (every verified `upgrade` copies the addon to
+  `~/work/mcp-addon-backups/<v>-<stamp>` and repoints `LAST_KNOWN_GOOD`), so promotion no longer carries a
+  snapshot step; a manual `cp -a` + repoint still works as an emergency procedure.
 - **A failed experiment never gets left installed.** `upgrade` restores the known-good addon if the build
   against the new pin breaks, and the preflight covers the case where it builds but does not serve.
 - Verified 2026-11-06: 0.35.0 promoted (pin 8.19.0, server 9.4.0, bridge healthy, `upgrade v0.35.0` re-stage
