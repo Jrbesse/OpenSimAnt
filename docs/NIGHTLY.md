@@ -39,6 +39,12 @@ issue in them, and ranks:
 - issues labelled `owner` (the owner's judgement), `blocked` (waiting on something else), `in-progress`
   (a session already has a branch open), `question`, `wontfix` or `duplicate` are never picked.
 
+Where the `owner` label comes from matters for one case: an issue whose fix writes to a protected instruction
+file (`AGENTS.md` / `CLAUDE.md` / `SOUL.md` / `.cursorrules`) is filed `owner` **at filing**, not left to
+triage -- a write to one always needs a human and fails closed in a cron session. Filing it `owner` routes the
+change straight to the owner instead of stalling this repo's queue for a session cycle (the filing rule lives in
+"Choosing work"; added 2026-11-23, #105).
+
 **One in-flight item per repo.** A repo that has an `in-progress` issue or an open `nightly/*` PR
 contributes nothing until that work merges: two sessions in one repo share a working tree, and the second
 would build on an unmerged foundation. The wake gate claims the pick before the session wakes -- an
@@ -177,6 +183,12 @@ So there is no grace period between approval and merge: once CI is green and the
 - **Every finding gets a GitHub issue before the session ends**, with the evidence that found it. This includes
   vacuous tests, stale docs, and anything the session chose not to fix. An out-of-scope finding is filed on the
   same repo, with its own acceptance criteria.
+- **Protected instruction files are `owner`-labelled at filing.** `AGENTS.md`, `CLAUDE.md`, `SOUL.md` and
+  `.cursorrules` (basenames, in any directory) are guarded: a write to one always requires human approval and
+  fails closed in a cron session, where there is no human. So an issue whose fix edits one of them is filed with
+  the `owner` label up front -- the picker skips `owner`, and the change lands through the owner rather than
+  stalling the repo's queue for a session cycle. If a pick you already hold turns out to touch one, label it
+  `owner`, post the ready-to-paste block on the issue, and stop. (Rule added 2026-11-23, #105.)
 
 ## The verification gate (on the Hermes box, in `remake/`)
 
